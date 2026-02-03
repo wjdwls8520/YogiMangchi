@@ -1,0 +1,128 @@
+/* Header.css */
+.header {
+    height: var(--header-height);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-lg);
+    /* Fallback and Base */
+    background-color: rgba(255, 255, 255, 1);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Manual Dark Mode Support */
+.dark .header {
+    background-color: rgba(26, 27, 30, 1);
+}
+
+.headerLogo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--foreground);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.headerLogoIcon {
+    width: 24px;
+    height: 24px;
+    fill: var(--primary);
+}
+
+.headerNav {
+    display: flex;
+    gap: var(--spacing-lg);
+}
+
+.headerLink {
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 500;
+    transition: all 0.2s;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.headerLink:hover,
+.headerLinkActive {
+    color: var(--foreground);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .headerLink:hover,
+.dark .headerLinkActive {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.headerActions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 8px var(--spacing-sm);
+        /* Reduced padding */
+        height: auto;
+        flex-wrap: wrap;
+        gap: 8px;
+        /* Reduced gap */
+        align-content: center;
+    }
+
+    .headerLogo {
+        order: 1;
+        font-size: 16px;
+        /* Smaller Logo */
+        margin-right: auto;
+        /* Push actions to right if space permits */
+    }
+
+    .headerLogoIcon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .headerActions {
+        order: 2;
+        gap: 4px;
+        /* Tight gap */
+    }
+
+    /* Target buttons inside headerActions for mobile compression */
+    .headerActions button {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        height: 32px !important;
+    }
+
+    .headerNav {
+        display: flex;
+        order: 3;
+        width: 100%;
+        gap: 12px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        padding-top: 8px;
+        margin-top: 4px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .headerNav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .headerLink {
+        font-size: 13px;
+        padding: 6px 10px;
+        background-color: var(--color-surface-elevated);
+        border-radius: 16px;
+    }
+}

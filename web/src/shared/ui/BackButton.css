@@ -1,0 +1,29 @@
+/* BackButton.css - 공통 뒤로가기 버튼 스타일 */
+
+.backButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    margin-bottom: 24px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+    align-self: flex-start;
+}
+
+.backButton:hover {
+    color: var(--foreground);
+}
+
+.backButton svg {
+    flex-shrink: 0;
+}
+
+.backButton span {
+    line-height: 1;
+}

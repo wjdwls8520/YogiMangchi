@@ -1,0 +1,78 @@
+.ipoListGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-lg);
+}
+
+.ipoItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: calc(50% - (var(--spacing-lg) / 2));
+    padding: var(--spacing-lg);
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.ipoItem:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.ipoInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ipoName {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin-bottom: 4px;
+}
+
+.ipoSector {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: 600;
+    background-color: var(--primary-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    align-self: flex-start;
+}
+
+.ipoDates {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+}
+
+.ipoDateRow {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.ipoDateLabel {
+    color: var(--muted);
+}
+
+.ipoDateValue {
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .ipoItem {
+        width: 100%;
+    }
+}

@@ -1,0 +1,67 @@
+/* Button.css */
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--spacing-md);
+    height: 48px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Variants */
+.buttonPrimary {
+    background-color: var(--primary);
+    color: #fff;
+}
+
+.buttonPrimary:not(:disabled):hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.buttonSecondary {
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+.buttonSecondary:not(:disabled):hover {
+    background-color: rgba(0, 100, 255, 0.15);
+    /* Slightly darker light blue */
+}
+
+.buttonGhost {
+    background-color: transparent;
+    color: var(--foreground);
+}
+
+.buttonGhost:not(:disabled):hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Sizes */
+.buttonSm {
+    height: 36px;
+    font-size: 14px;
+    padding: 0 var(--spacing-sm);
+}
+
+.buttonLg {
+    height: 56px;
+    font-size: 18px;
+    padding: 0 var(--spacing-lg);
+}
+
+.buttonFull {
+    width: 100%;
+}

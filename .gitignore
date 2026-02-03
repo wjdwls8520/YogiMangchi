@@ -1,0 +1,22 @@
+# === env / secret ===
+.env
+.env.*
+*.env
+
+# === docker volume data ===
+data/
+
+# === OS ===
+.DS_Store
+
+# === logs ===
+*.log
+logs/
+
+# === Node.js (Web 폴더용 필수 추가) ===
+node_modules/
+dist/
+
+# === Ignored Folders ===
+.agent/
+

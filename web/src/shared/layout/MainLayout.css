@@ -1,0 +1,52 @@
+/* MainLayout.css */
+.mainLayout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background);
+}
+
+/* 
+ * .mainContent acts as the Flex Container.
+ * NOW FULL WIDTH to let sidebar stick to the very right edge.
+ */
+.mainContent {
+    flex: 1;
+    display: flex;
+    /* FLEX ONLY */
+    width: 100%;
+    /* max-width removed to allow full screen width */
+    margin: 0;
+    padding-bottom: 120px;
+    position: relative;
+    align-items: flex-start;
+}
+
+/* 
+ * The wrapper for the actual page content.
+ * We constrain the width HERE instead.
+ */
+.pageBody {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: 1200px;
+    /* Inner content width */
+    margin: 0 auto;
+    /* Center content in the available space */
+    padding: 0 var(--spacing-md);
+    transition: width 0.3s ease;
+}
+
+/* Response */
+@media (max-width: 768px) {
+    .mainContent {
+        flex-direction: column;
+    }
+
+    .pageBody {
+        padding: var(--spacing-sm);
+        margin: 0;
+        max-width: 100%;
+    }
+}

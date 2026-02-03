@@ -1,0 +1,86 @@
+/* MarketIndexCard.css */
+.marketIndexCard {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 240px;
+    height: 120px;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: var(--background);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    /* Don't shrink in scroll view */
+}
+
+.marketIndexCard:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.marketIndexCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 2;
+}
+
+.marketIndexCardName {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.marketIndexCardValue {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin-top: 4px;
+}
+
+.marketIndexCardChange {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.marketIndexCardChange.up {
+    color: var(--error);
+}
+
+.marketIndexCardChange.down {
+    color: var(--primary);
+}
+
+/* SVG Chart area */
+.marketIndexCardChart {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    opacity: 0.2;
+    /* Subtle background chart */
+    z-index: 1;
+    pointer-events: none;
+}
+
+.marketIndexCardChart path {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.marketIndexCardChart.up path {
+    stroke: var(--error);
+    fill: url(#gradient-up);
+    /* Optional gradient fill */
+}
+
+.marketIndexCardChart.down path {
+    stroke: var(--primary);
+}

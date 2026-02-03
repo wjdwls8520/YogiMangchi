@@ -1,0 +1,304 @@
+/* Trading.css - Upbit Style Refined */
+
+/* ===== Layout Variables ===== */
+:root {
+    --trading-bg: #fff;
+    --trading-panel-bg: #fff;
+    --trading-border: #e4e5e8;
+    --trading-up-color: #c84a31;
+    --trading-down-color: #1261c4;
+    --trading-text-primary: #333;
+    --trading-text-secondary: #666;
+    --trading-header-height: 60px;
+}
+
+[data-theme='dark'] {
+    --trading-bg: #090a0e;
+    --trading-panel-bg: #131722;
+    --trading-border: #2a2e39;
+    --trading-text-primary: #ddd;
+    --trading-text-secondary: #999;
+}
+
+/* ===== Main Container ===== */
+.tradingPageWrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--trading-bg);
+}
+
+.tradingPage {
+    /* Center Layout: 1200px */
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    border: 1px solid var(--trading-border);
+    border-top: none;
+    border-bottom: none;
+    box-sizing: border-box;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    color: var(--trading-text-primary);
+    position: relative;
+}
+
+/* ===== Header (Stock Info) ===== */
+.tradingHeader {
+    height: var(--trading-header-height);
+    border-bottom: 1px solid var(--trading-border);
+    background-color: var(--trading-panel-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    width: 100%;
+}
+
+.stockInfo {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stockName {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.stockCode {
+    font-size: 14px;
+    color: var(--trading-text-secondary);
+}
+
+.priceInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 16px;
+}
+
+.currentPrice {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.priceChange {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.up {
+    color: var(--trading-up-color);
+}
+
+.down {
+    color: var(--trading-down-color);
+}
+
+/* ===== Content Grid ===== */
+.tradingContent {
+    flex: 1;
+    display: flex;
+    position: relative;
+    width: 100%;
+}
+
+/* Left Main Section (Chart + OrderBook) */
+/* Follows Page Scroll */
+.tradingMain {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--trading-border);
+    min-width: 0;
+}
+
+/* Chart Canvas Area */
+.chartSection {
+    margin: 30px 0;
+    height: auto;
+    border-bottom: 1px solid var(--trading-border);
+    position: relative;
+    background: var(--trading-panel-bg);
+    overflow: hidden;
+}
+
+/* Bottom Section (OrderBook) */
+.bottomSection {
+    display: flex;
+    background: var(--trading-panel-bg);
+    border-top: 1px solid var(--trading-border);
+}
+
+.orderBookArea {
+    flex: 1;
+    border-right: 1px solid var(--trading-border);
+}
+
+.tradeHistoryArea {
+    flex: 1;
+}
+
+/* Right Sidebar (OrderForm + List) */
+/* Fixed/Sticky Sidebar */
+.tradingSidebar {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    right: 0;
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--trading-panel-bg);
+    /* Global Header(60) + Trading Header(60) */
+    height: calc(100vh - 120px);
+}
+
+.orderFormArea {
+    padding: 16px;
+    border-bottom: 1px solid var(--trading-border);
+    flex-shrink: 0;
+}
+
+.stockListArea {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ===== Components ===== */
+/* Order Form */
+.orderTabs {
+    display: flex;
+    margin-bottom: 16px;
+    background: #f1f1f4;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.orderTab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #666;
+}
+
+.orderTab.active {
+    background: #fff;
+    color: #333;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.orderTab.buy.active {
+    color: var(--trading-up-color);
+}
+
+.orderTab.sell.active {
+    color: var(--trading-down-color);
+}
+
+.orderInputRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.inputLabel {
+    font-size: 13px;
+    color: var(--trading-text-secondary);
+}
+
+.orderInputGroup {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--trading-border);
+    border-radius: 4px;
+    overflow: hidden;
+    width: 200px;
+}
+
+.orderInput {
+    flex: 1;
+    border: none;
+    padding: 8px;
+    text-align: right;
+    font-size: 14px;
+    outline: none;
+}
+
+.unit {
+    padding-right: 8px;
+    font-size: 12px;
+    color: var(--trading-text-secondary);
+}
+
+.percentBtns {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+}
+
+.percentBtn {
+    flex: 1;
+    padding: 6px;
+    font-size: 12px;
+    border: 1px solid var(--trading-border);
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.orderSubmitBtn {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.orderSubmitBtn.buy {
+    background-color: var(--trading-up-color);
+}
+
+.orderSubmitBtn.sell {
+    background-color: var(--trading-down-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1220px) {
+    .tradingPage {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 1024px) {
+    .tradingContent {
+        flex-direction: column;
+    }
+
+    .tradingSidebar {
+        width: 100%;
+        position: static;
+        height: auto;
+        overflow-y: visible;
+    }
+
+    .chartSection {
+        flex: none;
+    }
+
+    .tradingMain {
+        border-right: none;
+    }
+}

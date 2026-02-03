@@ -1,0 +1,91 @@
+.stockCard {
+    /* Responsive Width Logic */
+    /* Base width 260px, allow growing and shrinking */
+    flex: 1 1 260px;
+    min-width: 240px;
+    /* Don't get too small */
+    max-width: 100%;
+    /* For mobile full width */
+
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--background);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+}
+
+.stockCard:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.cardTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.name {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--foreground);
+}
+
+.dotOnline {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.dotOffline {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.cardMid {
+    min-height: 60px;
+    /* Prevent layout shift */
+}
+
+.price {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: var(--spacing-xs);
+    color: var(--foreground);
+    letter-spacing: -0.5px;
+}
+
+.change {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.change.up {
+    color: var(--error);
+    /* Up is Red in KR Stock Market */
+}
+
+.change.down {
+    color: var(--primary);
+    /* Down is Blue in KR Stock Market */
+}
+
+.wait {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.time {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: var(--spacing-md);
+}

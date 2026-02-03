@@ -1,0 +1,26 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.2.1",
+    "axios": "^1.13.2",
+    "lightweight-charts": "^5.1.0",
+    "next": "16.1.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "recharts": "^3.7.0",
+    "sockjs-client": "^1.6.1",
+    "swiper": "^12.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "16.1.4"
+  }
+}

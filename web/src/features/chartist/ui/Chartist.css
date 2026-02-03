@@ -1,0 +1,627 @@
+/* Chartist.css - Toss/Brunch Style */
+
+/* ===== 공통 변수 ===== */
+:root {
+    --chartist-primary: #3182f6;
+    --chartist-bg: #f2f4f6;
+}
+
+/* ===== 컨테이너 ===== */
+.chartistContainer {
+    display: flex;
+    flex-direction: column;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    min-height: 100vh;
+}
+
+/* ===== 헤더 ===== */
+.chartistHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+}
+
+.chartistPageTitle {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0;
+}
+
+.chartistPageSubtitle {
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0;
+}
+
+/* ===== 필터 탭 ===== */
+.chartistTabs {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+
+.chartistTab {
+    padding: 12px 0;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 16px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: none;
+    border: none;
+}
+
+.chartistTab:hover {
+    color: var(--foreground);
+}
+
+.chartistTab.active {
+    color: var(--foreground);
+    font-weight: 700;
+}
+
+.chartistTab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--foreground);
+    border-radius: 2px;
+}
+
+/* ===== 카드 그리드 ===== */
+.chartistGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+/* ===== 차티스트 카드 ===== */
+.chartistCard {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: calc((100% - 48px) / 3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+.chartistCard:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: var(--chartist-primary);
+}
+
+/* 순위 배지 */
+.chartistRank {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--border);
+    color: var(--foreground);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.chartistRank.rank-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.chartistRank.rank-silver {
+    background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(192, 192, 192, 0.3);
+}
+
+.chartistRank.rank-bronze {
+    background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(205, 127, 50, 0.3);
+}
+
+/* 아바타 */
+.chartistAvatarWrapper {
+    margin-bottom: 16px;
+}
+
+/* 유저 정보 */
+.chartistName {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--foreground);
+}
+
+.chartistTitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 16px 0;
+}
+
+/* 통계 */
+.chartistStats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    width: 100%;
+    justify-content: center;
+    background-color: rgba(49, 130, 246, 0.05);
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.chartistStat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chartistStatLabel {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.chartistStatValue {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.chartistStatValue.positive {
+    color: #ef4444;
+}
+
+/* 팔로우 버튼 */
+.chartistFollowBtn {
+    width: 100%;
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--foreground);
+    background-color: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.chartistFollowBtn:hover {
+    background-color: var(--foreground);
+    color: var(--background);
+    border-color: var(--foreground);
+}
+
+/* ===== 프로필 페이지 ===== */
+
+/* 뒤로가기 버튼 */
+.profileBackButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    margin-bottom: 24px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+    align-self: flex-start;
+}
+
+.profileBackButton:hover {
+    color: var(--foreground);
+}
+
+/* 프로필 헤더 */
+.profileHeader {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 40px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    margin-bottom: 16px;
+}
+
+.profileAvatarSection {
+    flex-shrink: 0;
+}
+
+.profileInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profileName {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0;
+}
+
+.profileTitle {
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0;
+}
+
+.profileBio {
+    font-size: 15px;
+    color: var(--foreground);
+    line-height: 1.6;
+    margin: 8px 0 16px 0;
+}
+
+.profileFollowBtn {
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--background);
+    background-color: var(--foreground);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: flex-start;
+}
+
+.profileFollowBtn:hover {
+    opacity: 0.8;
+}
+
+.profileFollowBtn.following {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--foreground);
+}
+
+/* 통계 그리드 */
+.statsGrid {
+    display: flex;
+    gap: 16px;
+}
+
+.statCard {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 24px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    text-align: center;
+}
+
+.statLabel {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.statValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.statValue.profit {
+    color: #ef4444;
+}
+
+/* ===== 방명록 섹션 ===== */
+.guestBookSection {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.guestBookTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0;
+}
+
+/* ===== 방명록 섹션 ===== */
+.guestBookSection {
+    margin-top: 40px;
+    padding: 32px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.guestBookTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0 0 24px 0;
+}
+
+.guestBookInput {
+    margin-bottom: 24px;
+}
+
+/* 차트 포커스 아웃라인 제거 */
+.recharts-wrapper *:focus {
+    outline: none !important;
+}
+
+.guestBookList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.emptyGuestBook {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--muted);
+    background: var(--background);
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+}
+
+.emptyGuestBook p {
+    margin: 0;
+    font-size: 15px;
+}
+
+/* ===== 포트폴리오 섹션 ===== */
+.portfolioSection {
+    margin-top: 40px;
+    padding: 32px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.portfolioHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.portfolioTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0;
+}
+
+.portfolioToggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toggleLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.toggleSwitch {
+    position: relative;
+    width: 48px;
+    height: 24px;
+    background: var(--border);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.toggleSwitch.active {
+    background: var(--primary);
+}
+
+.toggleSlider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.toggleSwitch.active .toggleSlider {
+    transform: translateX(24px);
+}
+
+/* 비공개 상태 */
+.portfolioPrivate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--muted);
+}
+
+.portfolioPrivate svg {
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.privateMessage {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* 차트 컨테이너 */
+.chartContainer {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.chartBox {
+    flex: 1;
+    min-width: 300px;
+}
+
+.chartTitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0 0 20px 0;
+    text-align: center;
+}
+
+/* 커스텀 툴팁 */
+.chartTooltip {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.tooltipLabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0 0 4px 0;
+}
+
+.tooltipValue {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+}
+
+/* ===== 에러 상태 ===== */
+.errorState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 80px 20px;
+    text-align: center;
+}
+
+.errorState p {
+    font-size: 16px;
+    color: var(--muted);
+    margin: 0;
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 1024px) {
+    .chartistGrid {
+        gap: 20px;
+    }
+
+    .chartistCard {
+        width: calc((100% - 20px) / 2);
+    }
+
+    .statsGrid {
+        flex-wrap: wrap;
+    }
+
+    .statCard {
+        width: calc((100% - 16px) / 2);
+    }
+}
+
+@media (max-width: 768px) {
+    .chartistContainer {
+        padding: 24px 16px;
+    }
+
+    .guestbookItem {
+        padding: 16px;
+    }
+
+    /* 포트폴리오 반응형 */
+    .portfolioSection {
+        padding: 20px;
+        margin-top: 32px;
+    }
+
+    .portfolioHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .chartContainer {
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .chartBox {
+        min-width: 100%;
+    }
+
+    .chartistPageTitle {
+        font-size: 24px;
+    }
+
+    .chartistGrid {
+        gap: 16px;
+    }
+
+    .chartistCard {
+        width: 100%;
+    }
+
+    .profileHeader {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 32px 24px;
+    }
+
+    .profileInfo {
+        align-items: center;
+    }
+
+    .profileFollowBtn {
+        width: 100%;
+    }
+
+    .statsGrid {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .statCard {
+        width: 100%;
+    }
+}
