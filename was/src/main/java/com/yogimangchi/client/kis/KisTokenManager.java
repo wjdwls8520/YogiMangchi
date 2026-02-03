@@ -2,10 +2,8 @@ package com.yogimangchi.client.kis;
 
 import com.yogimangchi.client.kis.dto.KisTokenRequest;
 import com.yogimangchi.client.kis.dto.KisTokenResponse;
-import lombok.RequiredArgsConstructor; // 이거 쓰면 생성자 코드 줄일 수 있음
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -14,65 +12,65 @@ import java.time.Duration;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor // 생성자 자동 생성 (Lombok)
-public class KisTokenManager implements ApplicationRunner {
+@RequiredArgsConstructor
+public class KisTokenManager {
 
-    // WebClient는 여기서 미리 선언하지 않음 (제거)
-    private final KisProperties kisProperties;
     private final StringRedisTemplate redisTemplate;
+    private final KisProperties kisProperties;
+    private final WebClient kisWebClient;
 
-    private String accessToken;
-    private static final String REDIS_KEY = "kis:token";
+    private static final String REDIS_KEY = "kis:access_token";
 
-    @Override
-    public void run(ApplicationArguments args) {
-        log.info("🚀 [KIS] 토큰 관리자 시작");
-
-        // 1. 설정값 제대로 들어왔는지 로그로 확인 (디버깅용)
-        log.info("설정된 BaseURL: {}", kisProperties.baseUrl());
-
-        String savedToken = redisTemplate.opsForValue().get(REDIS_KEY);
-
-        if (savedToken != null) {
-            log.info("[Redis] 기존 토큰 사용: {}", savedToken.substring(0, 10) + "...");
-            this.accessToken = savedToken;
-        } else {
-            issueNewToken();
-        }
-    }
-
-    private void issueNewToken() {
-        try {
-            // 사용할 때 WebClient 생성 (Lazy Initialization)
-            // 이때는 이미 모든 설정이 로딩된 후라서 훨씬 안전함
-            WebClient webClient = WebClient.create(kisProperties.baseUrl());
-
-            KisTokenResponse response = webClient.post()
-                    .uri("/oauth2/tokenP")
-                    .bodyValue(new KisTokenRequest(
-                            "client_credentials",
-                            kisProperties.appKey(),
-                            kisProperties.appSecret()
-                    ))
-                    .retrieve()
-                    .bodyToMono(KisTokenResponse.class)
-                    .block();
-
-            if (response != null) {
-                this.accessToken = response.access_token();
-                redisTemplate.opsForValue().set(REDIS_KEY, this.accessToken, Duration.ofHours(23));
-                log.info("토큰 발급 성공 및 Redis 저장 완료");
-            }
-        } catch (Exception e) {
-            log.error("토큰 발급 실패! 설정을 확인해주세요.", e);
-            // 여기서 null이면 로그에 정확히 찍힘
-        }
-    }
+    private String localAccessToken;
 
     public String getAccessToken() {
-        if (this.accessToken == null) {
-            this.accessToken = redisTemplate.opsForValue().get(REDIS_KEY);
+        if (this.localAccessToken != null) {
+            log.info("변수에 토큰 확인 그대로 사용");
+            return this.localAccessToken;
         }
-        return this.accessToken;
+
+        // localAccessToken에 토큰이 없다면 레디스 확인
+        String redisToken = redisTemplate.opsForValue().get(REDIS_KEY);
+        if (redisToken != null) {
+            log.info("서버 재시작됨: Redis에서 토큰 복구 완료");
+            this.localAccessToken = redisToken; // 다시 변수에 채워넣기
+            return redisToken;
+        }
+
+        // 3. 둘 다 없으면 새로 발급
+        log.info("Access Token 없음. 한투 API로 새로 발급 진행...");
+        return issueAccessToken();
+    }
+
+    private String issueAccessToken() {
+        KisTokenRequest request = new KisTokenRequest(
+                "client_credentials",
+                kisProperties.appKey(),
+                kisProperties.appSecret()
+        );
+
+        KisTokenResponse response = kisWebClient.post()
+                .uri("/oauth2/tokenP")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(KisTokenResponse.class)
+                .block();
+
+        if (response == null || response.getAccessToken() == null) {
+            throw new RuntimeException("한투 토큰 발급 실패!");
+        }
+
+        String newToken = response.getAccessToken();
+        log.info("새로운 Access Token 발급 완료: {}", newToken);
+
+        // [저장] Redis에도 넣고(백업용), 내 변수에도 넣는다(실사용)
+        redisTemplate.opsForValue().set(
+                REDIS_KEY,
+                newToken,
+                Duration.ofSeconds(response.getExpiresIn() - 60)
+        );
+        this.localAccessToken = newToken; // 변수에 저장!
+
+        return newToken;
     }
 }
