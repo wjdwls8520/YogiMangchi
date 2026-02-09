@@ -6,6 +6,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j // (1) 로그 남기기
 @Configuration // (2) 설정 파일 지정
 @RequiredArgsConstructor // (3) 생성자 자동 생성
+@EnableConfigurationProperties(KisProperties.class)
 public class WebClientConfig {
 
     private final KisProperties kisProperties; // (4) 우리가 만든 설정값 가져오기

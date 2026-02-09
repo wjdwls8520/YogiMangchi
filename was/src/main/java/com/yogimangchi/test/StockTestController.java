@@ -19,7 +19,7 @@ public class StockTestController {
         // 삼성전자 코드: 005930
         KisStockPriceResponseDto response = kisClient.getStockPrice("005930");
 
-        // 전체 봉투에서 알맹이(Output)만 꺼내서 보여주기
+        // dto 객체 반환
         return response.getOutput();
     }
 }

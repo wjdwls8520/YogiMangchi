@@ -25,7 +25,7 @@ public class KisTokenManager {
 
     public String getAccessToken() {
         if (this.localAccessToken != null) {
-            log.info("변수에 토큰 확인 그대로 사용");
+            // log.info("변수에 토큰 확인 그대로 사용");
             return this.localAccessToken;
         }
 
