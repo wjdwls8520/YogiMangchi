@@ -7,3 +7,4 @@ spring:
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE}  # 기본은 local
+
