@@ -2,35 +2,30 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FlameIcon, WaveIcon, TurtleIcon } from "@/components/icons";
 
 // 투자 성향 및 초기 투자금 옵션 데이터
 const INVESTMENT_STYLES = [
-  { id: "danta", icon: "🔥", title: "야수의 심장", desc: "단타 / 스캘핑" },
-  { id: "swing", icon: "🌊", title: "파도타기", desc: "스윙 트레이딩" },
-  { id: "value", icon: "🐢", title: "장기투자", desc: "가치 / 배당 투자" },
+  { id: "danta", icon: <FlameIcon className="w-10 h-10 text-red-500" />, title: "야수의 심장", desc: "단타 / 스캘핑" },
+  { id: "swing", icon: <WaveIcon className="w-10 h-10 text-blue-500" />, title: "파도타기", desc: "스윙 트레이딩" },
+  { id: "value", icon: <TurtleIcon className="w-10 h-10 text-green-500" />, title: "장기투자", desc: "가치 / 배당 투자" },
 ];
 
-const SEED_MONEY_OPTIONS = [
-  { id: "10m", amount: "1,000만 원", desc: "소소한 시작" },
-  { id: "100m", amount: "1억 원", desc: "든든한 시드" },
-  { id: "1b", amount: "10억 원", desc: "슈퍼개미" },
-];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [nickname, setNickname] = useState("");
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
-  const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
 
-  const isFormValid = nickname.trim().length > 0 && selectedStyle && selectedSeed && agreed;
+  const isFormValid = nickname.trim().length > 0 && selectedStyle && agreed;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
     // TODO: 백엔드 API로 온보딩 정보 전송 및 메인 페이지(/)로 이동
-    console.log("온보딩 완료 데이터:", { nickname, selectedStyle, selectedSeed });
+    console.log("온보딩 완료 데이터:", { nickname, selectedStyle });
     //alert(`${nickname}님, 환영합니다! 모의투자를 시작합니다.`);
     router.push("/onboarding/benefits");
   };
@@ -92,7 +87,9 @@ export default function OnboardingPage() {
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  <span className="mb-2 text-2xl">{style.icon}</span>
+                  <div className="mb-3 flex items-center justify-center shrink-0">
+                    {style.icon}
+                  </div>
                   <span className={`text-sm font-bold ${selectedStyle === style.id ? "text-[#0058FF]" : "text-gray-900"}`}>
                     {style.title}
                   </span>
@@ -102,34 +99,6 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-
-          {/* 3. 초기 시드머니 선택 */}
-          <div>
-            <label className="mb-3 block text-sm font-semibold text-gray-900">
-              초기 모의 투자금 선택
-            </label>
-            <div className="space-y-2">
-              {SEED_MONEY_OPTIONS.map((seed) => (
-                <button
-                  key={seed.id}
-                  type="button"
-                  onClick={() => setSelectedSeed(seed.id)}
-                  className={`flex w-full items-center justify-between rounded-xl border px-5 py-4 transition-all focus:outline-none ${
-                    selectedSeed === seed.id
-                      ? "border-[#0058FF] bg-blue-50 ring-1 ring-[#0058FF]"
-                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className={`font-bold ${selectedSeed === seed.id ? "text-[#0058FF]" : "text-gray-900"}`}>
-                    {seed.amount}
-                  </span>
-                  <span className={`text-sm ${selectedSeed === seed.id ? "text-blue-600" : "text-gray-500"}`}>
-                    {seed.desc}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* 4. 약관 동의 및 제출 버튼 영역 */}
           <div className="pt-4">
