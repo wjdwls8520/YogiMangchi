@@ -22,11 +22,14 @@ public class ChartApiController {
 
     @GetMapping("/prices")
     public List<ChartPriceDto> getTrackedPrices() {
+        // application.yml에 적어둔 trackedSymbols 목록의 최신 가격을 모두 반환합니다.
         return chartPriceRepository.findAllBySymbols(binanceChartProperties.getTrackedSymbols());
     }
 
     @GetMapping("/prices/{symbol}")
     public ResponseEntity<ChartPriceDto> getPrice(@PathVariable String symbol) {
+        // 특정 종목 1개의 최신 가격을 반환합니다.
+        // 예: /api/chartapi/prices/BTCUSDT
         return chartPriceRepository.findBySymbol(symbol)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());

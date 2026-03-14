@@ -29,8 +29,11 @@ spring:
         auto: false
 
 binance:
+  # 바이낸스 공개 웹소켓 주소
+  # 지금은 로그인이나 API Key 없이 "공개 시세"만 받아옵니다.
   websocket-url: wss://stream.binance.com:9443
   tracked-symbols:
+    # symbol(심볼) = 거래 종목 이름
     - BTCUSDT
     - ETHUSDT
     - XRPUSDT

@@ -11,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Repository
 public class ChartPriceRepository {
 
+    // 서버 메모리에 최신 가격만 들고 있는 간단한 저장소입니다.
+    // key   : symbol
+    // value : 그 종목의 최신 가격
     private final Map<String, ChartPriceDto> latestPrices = new ConcurrentHashMap<>();
 
     public void save(ChartPriceDto price) {
