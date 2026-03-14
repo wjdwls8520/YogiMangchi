@@ -33,6 +33,20 @@ export default function Rank() {
             rate: 128,
             follower: 389,
         },
+        {
+            profile: '',
+            nickName: '돈많은백수2',
+            title: '배당주 마스터',
+            rate: 121,
+            follower: 380,
+        },     
+        {
+            profile: '',
+            nickName: '돈많은백수3',
+            title: '배당주 마스터',
+            rate: 108,
+            follower: 324,
+        },               
     ];
     return (
         <>

@@ -17,7 +17,7 @@ export default function SubMenu() {
     const [active, setActive] = useState(menus[0].id);
 
     return (
-        <ul className="flex gap-7 text-lg pt-[45px] border-b-1 border-gray-300 mb-[40px]">
+        <ul className="flex gap-7 text-lg pt-11.25 border-b border-gray-300 mb-10">
             {menus.map((menu) => <li 
                                     key={menu.id} 
                                     className={cn("cursor-pointer leading-12", 
