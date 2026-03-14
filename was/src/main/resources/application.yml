@@ -23,3 +23,9 @@ cloud:
       access-key: ${R2_ACCESS_KEY}
       secret-key: ${R2_SECRET_KEY}
 
+binance:
+  websocket-url: wss://stream.binance.com:9443
+  tracked-symbols:
+    - BTCUSDT
+    - ETHUSDT
+    - XRPUSDT
