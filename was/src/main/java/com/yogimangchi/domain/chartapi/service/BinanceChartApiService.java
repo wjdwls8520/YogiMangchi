@@ -38,6 +38,7 @@ public class BinanceChartApiService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
+        // 서버가 완전히 뜬 뒤, 바이낸스 공개 웹소켓 연결을 시작합니다.
         if (!started.compareAndSet(false, true)) {
             return;
         }
@@ -57,6 +58,7 @@ public class BinanceChartApiService {
     }
 
     private Mono<Void> connectOnce() {
+        // 여러 종목을 한 번에 받기 위해 combined stream 주소를 만듭니다.
         URI uri = URI.create(buildCombinedStreamUrl());
 
         return webSocketClient.execute(uri, session ->
@@ -70,6 +72,10 @@ public class BinanceChartApiService {
     }
 
     private String buildCombinedStreamUrl() {
+        // 예:
+        // btcusdt@ticker/ethusdt@ticker/xrpusdt@ticker
+        //
+        // ticker 채널은 "현재 최신 가격 정보"를 받는 용도입니다.
         String streams = binanceChartProperties.getTrackedSymbols().stream()
                 .map(String::toLowerCase)
                 .map(symbol -> symbol + "@ticker")
@@ -86,6 +92,7 @@ public class BinanceChartApiService {
                 return;
             }
 
+            // 바이낸스 원본 응답을, 우리 서버에서 쓰기 쉬운 가격 DTO로 바꿉니다.
             ChartPriceDto price = new ChartPriceDto(
                     message.getData().getSymbol().toUpperCase(),
                     message.getData().getLastPrice(),
@@ -93,6 +100,7 @@ public class BinanceChartApiService {
                     Instant.now()
             );
 
+            // 같은 symbol이면 이전 값을 덮어써서 "최신 가격 1개"만 유지합니다.
             chartPriceRepository.save(price);
         } catch (Exception e) {
             log.warn("Binance 시세 메시지 파싱 실패: {}", e.getMessage());

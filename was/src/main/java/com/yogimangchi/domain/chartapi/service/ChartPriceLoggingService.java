@@ -19,6 +19,9 @@ public class ChartPriceLoggingService {
 
     @Scheduled(fixedRate = 1000)
     public void logTrackedPrices() {
+        // 1초마다 메모리에 저장된 최신 가격을 읽어서 로그로 출력합니다.
+        // 주의: 바이낸스에 1초마다 REST 요청하는 것이 아니라,
+        // 이미 웹소켓으로 받은 최신값을 읽는 것입니다.
         List<ChartPriceDto> prices = chartPriceRepository.findAllBySymbols(binanceChartProperties.getTrackedSymbols());
 
         if (prices.isEmpty()) {
