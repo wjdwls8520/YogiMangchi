@@ -18,10 +18,15 @@ spring:
 cloud:
   aws:
     s3:
-      endpoint: ${R2_ENDPOINT}
+      bucket: ${S3_BUCKET}
     credentials:
-      access-key: ${R2_ACCESS_KEY}
-      secret-key: ${R2_SECRET_KEY}
+      access-key: ${S3_ACCESS}
+      secret-key: ${S3_SECRET}
+    region:
+      static: ${S3_REGION}
+      auto: false
+    stack:
+      auto: false
 
 binance:
   websocket-url: wss://stream.binance.com:9443
