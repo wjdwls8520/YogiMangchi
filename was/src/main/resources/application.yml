@@ -23,8 +23,9 @@ cloud:
       access-key: ${R2_ACCESS_KEY}
       secret-key: ${R2_SECRET_KEY}
 
-kis:
-  base-url: ${KIS_BASE_URL}
-  app-key: ${KIS_APP_KEY}
-  app-secret: ${KIS_APP_SECRET}
-  websocket-url: ${KIS_WS_URL:ws://ops.koreainvestment.com:31000}
+binance:
+  websocket-url: wss://stream.binance.com:9443
+  tracked-symbols:
+    - BTCUSDT
+    - ETHUSDT
+    - XRPUSDT
