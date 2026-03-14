@@ -16,9 +16,11 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [nickname, setNickname] = useState("");
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
-  const [agreed, setAgreed] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
-  const isFormValid = nickname.trim().length > 0 && selectedStyle && agreed;
+  const [activeModal, setActiveModal] = useState<"terms" | "privacy" | null>(null);
+  const isFormValid = nickname.trim().length > 0 && selectedStyle && termsAgreed && privacyAgreed;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ export default function OnboardingPage() {
             투자자 프로필 설정
           </h1>
           <p className="mt-3 text-sm text-gray-500">
-            여기망치에서 사용할 멋진 프로필을 완성해 주세요.
+            요기망치에서 사용할 멋진 프로필을 완성해 주세요.
           </p>
         </div>
 
@@ -101,18 +103,54 @@ export default function OnboardingPage() {
 
 
           {/* 4. 약관 동의 및 제출 버튼 영역 */}
-          <div className="pt-4">
-            <label className="mb-6 flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="h-5 w-5 rounded border-gray-300 text-[#0058FF] focus:ring-[#0058FF]"
-              />
-              <span className="text-sm text-gray-600">
-                [필수] 여기망치 서비스 이용약관 및 개인정보 처리방침에 동의합니다.
-              </span>
-            </label>
+          <div className="pt-4 border-t border-gray-100">
+            <div className="mb-8 flex flex-col gap-3">
+              
+              {/* (1) 이용약관 동의 */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={termsAgreed}
+                    onChange={(e) => setTermsAgreed(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300 text-[#0058FF] focus:ring-[#0058FF] transition-all"
+                  />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    [필수] 요기망치 서비스 이용약관 동의
+                  </span>
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => setActiveModal("terms")} // 👈 이용약관 모달 열기
+                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+                >
+                  보기
+                </button>
+              </div>
+
+              {/* (2) 개인정보 처리방침 동의 */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={privacyAgreed}
+                    onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                    className="h-5 w-5 rounded border-gray-300 text-[#0058FF] focus:ring-[#0058FF] transition-all"
+                  />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    [필수] 개인정보 수집 및 이용 동의
+                  </span>
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => setActiveModal("privacy")} // 👈 개인정보 모달 열기
+                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+                >
+                  보기
+                </button>
+              </div>
+
+            </div>
 
             <button
               type="submit"
