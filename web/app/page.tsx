@@ -8,7 +8,7 @@ export default function Main() {
           환영합니다!
         </h1>
         <p className="mb-10 text-lg text-gray-600">
-          여기망치 메인 페이지입니다.
+          요기망치 메인 페이지입니다.
         </p>
 
         {/* 로그인 페이지로 이동하는 링크 버튼 */}
