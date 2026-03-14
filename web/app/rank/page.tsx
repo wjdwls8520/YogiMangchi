@@ -1,0 +1,47 @@
+import RankItem from "./component/RankItem"
+import SubMenu from "@/components/SubMenu"
+import { Info } from "./types/user"; 
+
+export default function Rank() {
+
+    const users :Info[] = [
+        {
+            profile: '',
+            nickName: '주식고수',
+            title: '단타왕',
+            rate: 170,
+            follower: 536,
+        },
+        {
+            profile: '',
+            nickName: '병아리',
+            title: '기술적 분석가',
+            rate: 166,
+            follower: 411,
+        },
+        {
+            profile: '',
+            nickName: 'ABDD11',
+            title: '코인 전문가',
+            rate: 161,
+            follower: 511,
+        },
+        {
+            profile: '',
+            nickName: '돈많은백수',
+            title: '배당주 마스터',
+            rate: 128,
+            follower: 389,
+        },
+    ];
+    return (
+        <>
+            <h2 className="text-4xl font-bold">차티스트</h2>
+            <p className="text-lg text-gray-400 pt-[15px]">모의 투자 수익률 상위 투자자들을 만나보세요</p>
+            <SubMenu />
+            <ul className="grid grid-cols-3 gap-7">
+                {users.map((user, index) => <RankItem key={user.nickName} rank={index + 1} {...user}/>)}
+            </ul>
+        </>
+    )
+}
