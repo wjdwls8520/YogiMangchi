@@ -4,20 +4,22 @@ interface IconProps {
 
 export default function UserIcon({ className = "w-6 h-6" }: IconProps) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      // 전달받은 className이 있으면 적용하고, 없으면 기본값(w-6 h-6) 적용
-      className={className} 
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-      />
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}>
+  <defs>
+
+    <clipPath id="avatar-clip">
+      <circle cx="12" cy="12" r="11" />
+    </clipPath>
+  </defs>
+
+  <circle cx="12" cy="12" r="11" fill="#B3B8C2" stroke="#8E95A3" stroke-width="1.5" />
+
+  <g clip-path="url(#avatar-clip)">
+
+    <circle cx="12" cy="8.5" r="3.5" fill="#FFFFFF" />
+
+    <path d="M 12 13.5 C 6.5 13.5 3 17 3 22.5 L 3 24 L 21 24 L 21 22.5 C 21 17 17.5 13.5 12 13.5 Z" fill="#FFFFFF" />
+  </g>
+</svg>
   );
 }
