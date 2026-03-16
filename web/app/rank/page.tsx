@@ -2,7 +2,7 @@ import RankItem from "./component/RankItem"
 import SubMenu from "@/components/SubMenu"
 import { Info } from "./types/user"; 
 
-export default function Rank() {
+export default function RankPage() {
 
     const users :Info[] = [
         {
