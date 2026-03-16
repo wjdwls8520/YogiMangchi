@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { cn } from "@/utils/cs";
+import { useEffect } from "react";
 
 type menuType = {
     href: string;
@@ -42,7 +43,15 @@ const menuList: menuType[] = [
 export default function Header() {
 
     const { isLogin, login, logout } = useAuthStore();
-    const { isMenuOpen, toggleMenu, isDarkMode, toggleDarkMode, currentMenu, setCurrentMenu } = useUIStore();
+    const { isDarkMode, toggleDarkMode, currentMenu, setCurrentMenu } = useUIStore();
+
+    useEffect(() => {
+        if (isDarkMode) {
+        document.documentElement.classList.add("dark");
+        } else {
+        document.documentElement.classList.remove("dark");
+        }        
+    }, [isDarkMode])
 
     return <header className="w-full">
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Header from "@/components/Header";
 import "./globals.css";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "요기망치",
@@ -14,11 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased dark:bg-indigo-950 dark:text-white">
+      <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
         <Header />
         <main className="pt-16 pb-40 max-w-7xl m-auto">
           {children}
         </main>
+        <Footer />
       </body>
     </html>
   );
