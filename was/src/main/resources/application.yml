@@ -65,6 +65,39 @@ binance:
   websocket-url: wss://stream.binance.com:9443
   tracked-symbols:
     # symbol(심볼) = 거래 종목 이름
-    - BTCUSDT
-    - ETHUSDT
-    - XRPUSDT
+    # --- [대장주 & 메이저 1티어] ---
+    - BTCUSDT   # 비트코인
+    - ETHUSDT   # 이더리움
+    - BNBUSDT   # 바이낸스 코인
+    - SOLUSDT   # 솔라나
+    - XRPUSDT   # 리플
+    # --- [메이저 알트코인] ---
+    - ADAUSDT   # 에이다 (카르다노)
+    - AVAXUSDT  # 아발란체
+    - DOTUSDT   # 폴카닷
+    - LINKUSDT  # 체인링크
+    - POLUSDT # 폴리곤
+    - TRXUSDT   # 트론
+    - LTCUSDT   # 라이트코인
+    - BCHUSDT   # 비트코인 캐시
+    - ETCUSDT   # 이더리움 클래식
+    - ATOMUSDT  # 코스모스
+    # --- [밈(Meme) 코인] ---
+    - DOGEUSDT  # 도지코인
+    - SHIBUSDT  # 시바이누
+    - PEPEUSDT  # 페페코인
+    # --- [디파이(DeFi) & 웹3 & 저장소] ---
+    - UNIUSDT   # 유니스왑
+    - FILUSDT   # 파일코인
+    - NEARUSDT  # 니어 프로토콜
+    # --- [신흥 강자 & 레이어 2 (최근 트렌드)] ---
+    - APTUSDT   # 앱토스
+    - SUIUSDT   # 수이
+    - SEIUSDT   # 세이
+    - OPUSDT    # 옵티미즘
+    - ARBUSDT   # 아비트럼
+    - STXUSDT   # 스택스 (비트코인 레이어2)
+    # --- [AI & 기타 트렌드] ---
+    - WLDUSDT   # 월드코인
+    - INJUSDT   # 인젝티브
+    - FETUSDT   # 페치 (AI)
