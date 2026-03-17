@@ -22,7 +22,7 @@ export default function TurtleIcon({ className = "w-6 h-6" }: IconProps) {
     {/* <!-- 발그레한 볼 --> */}
     <circle cx="89" cy="65.5" r="2" fill="#FF8A80" opacity="0.7" />
     {/* <!-- 옅은 미소 (입) --> */}
-    <path d="M 93 68 Q 95 68 96 66" fill="none" stroke="#1B5E20" stroke-width="1.5" stroke-linecap="round" />
+    <path d="M 93 68 Q 95 68 96 66" fill="none" stroke="#1B5E20" strokeWidth="1.5" strokeLinecap="round" />
   </g>
 
   {/* <!-- 가까이 있는 앞다리 --> */}
@@ -33,10 +33,10 @@ export default function TurtleIcon({ className = "w-6 h-6" }: IconProps) {
   <path d="M 20 62 C 20 20, 80 20, 80 62 Z" fill="#81C784" />
   
   {/* <!-- 등딱지 무늬 (측면 곡선 패턴) --> */}
-  <path d="M 35 62 C 35 38, 65 38, 65 62" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" />
-  <path d="M 50 49 L 50 62" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" />
-  <path d="M 22 56 Q 35 52 35 62" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" />
-  <path d="M 78 56 Q 65 52 65 62" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" />
+  <path d="M 35 62 C 35 38, 65 38, 65 62" fill="none" stroke="#2E7D32" strokeWidth="3" strokeLinecap="round" />
+  <path d="M 50 49 L 50 62" fill="none" stroke="#2E7D32" strokeWidth="3" strokeLinecap="round" />
+  <path d="M 22 56 Q 35 52 35 62" fill="none" stroke="#2E7D32" strokeWidth="3" strokeLinecap="round" />
+  <path d="M 78 56 Q 65 52 65 62" fill="none" stroke="#2E7D32" strokeWidth="3" strokeLinecap="round" />
   
   {/* <!-- 등딱지 하단 두꺼운 테두리 --> */}
   <rect x="15" y="60" width="70" height="9" rx="4.5" fill="#2E7D32" />
