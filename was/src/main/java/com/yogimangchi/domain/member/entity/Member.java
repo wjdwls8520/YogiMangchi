@@ -19,20 +19,20 @@ public class Member {
     private String nickname;
 
     @Column(name = "profile_img")
-    private Integer profileImg; // file_idx 참조
+    private Integer profileImg;
 
     @Column(name = "profile_msg", length = 255)
     private String profileMsg;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private MemberRole role; // 1=회원, 2=인증회원, 3=어드민
+    private MemberRole role;
 
     @Column(name = "term_agree", nullable = false)
-    private boolean termAgree; // true false
+    private boolean termAgree;
 
     @Column(name = "private_agree", nullable = false)
-    private boolean privateAgree; // true false
+    private boolean privateAgree;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -42,8 +42,6 @@ public class Member {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-
-    // 본인인증 회원
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
@@ -55,4 +53,24 @@ public class Member {
 
     @Column(length = 100)
     private String address2;
+
+    protected Member() {
+    }
+
+    public static Member createSocialMember(
+            String nickname,
+            Integer profileImg,
+            boolean termAgree,
+            boolean privateAgree,
+            String profileMsg
+    ) {
+        Member member = new Member();
+        member.nickname = nickname;
+        member.profileImg = profileImg;
+        member.role = MemberRole.USER;
+        member.termAgree = termAgree;
+        member.privateAgree = privateAgree;
+        member.profileMsg = profileMsg;
+        return member;
+    }
 }
