@@ -1,10 +1,10 @@
 package com.yogimangchi.entity;
 
+import com.yogimangchi.eunm.MemberRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -24,14 +24,6 @@ public class Member {
     @Column(nullable = false, length = 20)
     private String provider;
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Column(name = "provider_user_id", nullable = false, length = 100)
     private String providerUserId;
 
@@ -41,6 +33,29 @@ public class Member {
     @Column(name = "profile_msg", length = 255)
     private String profileMsg;
 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MemberRole role; // 1=회원, 2=인증회원, 3=어드민
+
+    @Column(name = "term_agree", nullable = false)
+    private boolean termAgree; // true false
+
+    @Column(name = "private_agree", nullable = false)
+    private boolean privateAgree; // true false
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+
+    // 본인인증 회원
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
     @Column(name = "address_code", length = 5)
     private String addressCode;
 
@@ -49,16 +64,4 @@ public class Member {
 
     @Column(length = 100)
     private String address2;
-
-    @Column(name = "term_agree", columnDefinition = "TINYINT(1)", nullable = false)
-    private boolean termAgree; // 0=false, 1=true
-
-    @Column(name = "private_agree", columnDefinition = "TINYINT(1)", nullable = false)
-    private boolean privateAgree;
-
-    @Column(nullable = false)
-    private Integer role; // 1=회원, 2=인증회원, 3=어드민
-
-    @Column(name = "phone_number", length = 20)
-    private String phoneNumber;
 }
