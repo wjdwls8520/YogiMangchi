@@ -1,6 +1,6 @@
-package com.yogimangchi.entity;
+package com.yogimangchi.domain.member.entity;
 
-import com.yogimangchi.eunm.MemberRole;
+import com.yogimangchi.domain.member.enums.MemberRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -13,19 +13,10 @@ import java.time.LocalDateTime;
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idx;
-
-    @Column(nullable = false, unique = true, length = 255)
-    private String email;
+    private Long id;
 
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
-
-    @Column(nullable = false, length = 20)
-    private String provider;
-
-    @Column(name = "provider_user_id", nullable = false, length = 100)
-    private String providerUserId;
 
     @Column(name = "profile_img")
     private Integer profileImg; // file_idx 참조
