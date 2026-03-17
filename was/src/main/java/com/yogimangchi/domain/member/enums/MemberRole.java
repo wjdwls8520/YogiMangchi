@@ -1,4 +1,4 @@
-package com.yogimangchi.eunm;
+package com.yogimangchi.domain.member.enums;
 
 public enum MemberRole {
     USER,
