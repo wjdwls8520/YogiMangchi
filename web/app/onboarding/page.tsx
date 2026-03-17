@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlameIcon, WaveIcon, TurtleIcon } from "@/components/icons";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import PolicyModal from "@/components/PolicyModal";
 
 // 투자 성향 및 초기 투자금 옵션 데이터
@@ -55,21 +57,15 @@ export default function OnboardingPage() {
               투자자 닉네임
             </label>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 id="nickname"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={10}
-                className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm"
                 placeholder="예: 워렌버핏, 단타왕 (최대 10자)"
               />
-              <button
-                type="button"
-                className="shrink-0 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none"
-              >
-                중복확인
-              </button>
+              <Button type="button" variant="gray">중복확인</Button>
             </div>
           </div>
 

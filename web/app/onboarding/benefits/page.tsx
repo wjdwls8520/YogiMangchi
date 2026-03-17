@@ -1,21 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/Button";
 import { HiGift, HiMiniSparkles } from "react-icons/hi2";
-import { HiOutlineCheck, HiStar } from "react-icons/hi";
+import { HiOutlineCheck } from "react-icons/hi";
 
 export default function VerifyPage() {
   const router = useRouter();
 
   const handleVerify = () => {
-    // TODO: 휴대폰 본인인증 로직 (또는 인증 정보 입력 폼)으로 이동
-    console.log("휴대폰 본인인증 시작");
     router.push("/verify");
   };
 
   const handleSkip = () => {
     // TODO: 일반 회원 상태로 온보딩 완료 처리 후 메인 페이지로 이동
-    console.log("다음에 하기: 일반 회원으로 시작");
     router.push("/");
   };
 
@@ -59,23 +57,9 @@ export default function VerifyPage() {
           </ul>
         </div>
 
-        {/* 액션 버튼 영역 */}
         <div className="flex flex-col gap-3">
-          {/* Primary Button: 눈에 가장 띄는 인증 버튼 */}
-          <button
-            onClick={handleVerify}
-            className="flex w-full justify-center rounded-xl bg-[#0058FF] px-5 py-4 text-base font-bold text-white shadow-md transition-all hover:bg-blue-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#0058FF] focus:ring-offset-2"
-          >
-            지금 30초 만에 인증하기
-          </button>
-          
-          {/* Secondary Button: 건너뛰기 버튼 (시각적으로 덜 띄게) */}
-          <button
-            onClick={handleSkip}
-            className="flex w-full justify-center rounded-xl px-5 py-4 text-sm font-medium text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-700 focus:outline-none"
-          >
-            다음에 하기 (일반 회원으로 시작)
-          </button>
+          <Button onClick={handleVerify} size="lg">지금 30초 만에 인증하기</Button>
+          <Button onClick={handleSkip} variant="ghost" size="lg">다음에 하기 (일반 회원으로 시작)</Button>
         </div>
 
       </div>

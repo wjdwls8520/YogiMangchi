@@ -1,5 +1,6 @@
 import TermsContent from "./policy/TermsContent";
 import PrivacyContent from "./policy/PrivacyContent"
+import Button from "./ui/Button";
 
 interface PolicyModalProps {
   // terms면 이용약관, privacy면 개인정보, null이면 닫힘 상태
@@ -31,11 +32,10 @@ export default function PolicyModal({ type, onClose }: PolicyModalProps) {
           {type === "privacy" && <PrivacyContent />}
         </div>
 
-        {/* 푸터 */}
         <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-6 py-4">
-          <button onClick={onClose} className="w-full rounded-xl bg-[#0058FF] py-3.5 font-bold text-white">
+          <Button onClick={onClose} fullWidth size="lg">
             확인했습니다
-          </button>
+          </Button>
         </div>
         
       </div>
