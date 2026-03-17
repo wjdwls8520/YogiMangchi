@@ -10,10 +10,18 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Table(
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_oauth_provider_user",
+                        columnNames = {"provider", "provider_user_id"}
+                )
+        }
+)
 public class OAuthAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idx;
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name = "member_id")
@@ -36,4 +44,20 @@ public class OAuthAccount {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    protected OAuthAccount() {
+    }
+
+    // 소셜 로그인 계정을 우리 Member 와 연결하는 생성 메서드입니다.
+    public static OAuthAccount create(Member member,
+                                      String email,
+                                      String provider,
+                                      String providerUserId) {
+        OAuthAccount oauthAccount = new OAuthAccount();
+        oauthAccount.member = member;
+        oauthAccount.email = email;
+        oauthAccount.provider = provider;
+        oauthAccount.providerUserId = providerUserId;
+        return oauthAccount;
+    }
 }

@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.asset.entity;
 
 import com.yogimangchi.domain.asset.enums.AssetType;
-import com.yogimangchi.entity.Member;
+import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
