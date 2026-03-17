@@ -12,9 +12,9 @@ export default function UserIcon({ className = "w-6 h-6" }: IconProps) {
     </clipPath>
   </defs>
 
-  <circle cx="12" cy="12" r="11" fill="#B3B8C2" stroke="#8E95A3" stroke-width="1.5" />
+  <circle cx="12" cy="12" r="11" fill="#B3B8C2" stroke="#8E95A3" strokeWidth="1.5" />
 
-  <g clip-path="url(#avatar-clip)">
+  <g clipPath="url(#avatar-clip)">
 
     <circle cx="12" cy="8.5" r="3.5" fill="#FFFFFF" />
 
