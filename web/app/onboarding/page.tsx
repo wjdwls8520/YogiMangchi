@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlameIcon, WaveIcon, TurtleIcon } from "@/components/icons";
+import PolicyModal from "@/components/PolicyModal";
 
 // 투자 성향 및 초기 투자금 옵션 데이터
 const INVESTMENT_STYLES = [
@@ -101,7 +102,6 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-
           {/* 4. 약관 동의 및 제출 버튼 영역 */}
           <div className="pt-4 border-t border-gray-100">
             <div className="mb-8 flex flex-col gap-3">
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
                 </label>
                 <button 
                   type="button" 
-                  onClick={() => setActiveModal("terms")} // 👈 이용약관 모달 열기
+                  onClick={() => setActiveModal("terms")} // 이용약관 모달 열기
                   className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
                 >
                   보기
@@ -143,7 +143,7 @@ export default function OnboardingPage() {
                 </label>
                 <button 
                   type="button" 
-                  onClick={() => setActiveModal("privacy")} // 👈 개인정보 모달 열기
+                  onClick={() => setActiveModal("privacy")} // 개인정보 모달 열기
                   className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
                 >
                   보기
@@ -167,6 +167,12 @@ export default function OnboardingPage() {
 
         </form>
       </div>
+
+      <PolicyModal 
+        type={activeModal} 
+        onClose={() => setActiveModal(null)} // 닫기 버튼 누르면 null로 바꿔서 모달을 끕니다.
+      />
+
     </div>
   );
 }
