@@ -45,9 +45,12 @@ public class SecurityConfig {
                                 "/swagger-ui.html",        // 스웨거 UI 접속 경로
                                 "/oauth2/**",
                                 "/login/**",
-                                "/api/auth/**",
                                 "/prices",
-                                "/api/chartapi/**"
+
+                                "/api/auth/**",
+                                "/api/v1/auth/**",
+                                "/api/v1/chartapi/**",
+                                "/api/v1/member/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

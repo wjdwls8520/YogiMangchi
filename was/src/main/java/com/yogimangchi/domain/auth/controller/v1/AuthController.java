@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.auth.controller;
+package com.yogimangchi.domain.auth.controller.v1;
 
 import com.yogimangchi.domain.auth.dto.SignupInfoResponse;
 import com.yogimangchi.domain.auth.dto.SignupRequest;
@@ -20,7 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 @Tag(name = "Auth", description = "인증 및 회원가입 관련 API") // 도메인 구분
 public class AuthController {
@@ -29,7 +29,7 @@ public class AuthController {
     private final AuthService authService;
     private final AuthCookieService authCookieService;
 
-    @Operation(summary = "소셜 유저 정보 조회", description = "신규 회원이 추가 정보 입력 폼에 진입했을 때, 소셜에서 받아온 기본 프로필을 띄워줄 목적으로 호출합니다.")
+    @Operation(summary = "소셜 유저 정보 조회", description = "(프로필 정보 보기에선 member api를 사용해야함) 신규 회원이 추가 정보 입력 폼에 진입했을 때, 소셜에서 받아온 기본 프로필을 띄워줄 목적으로 호출합니다.")
     @GetMapping("/signup-info")
     public ResponseEntity<SignupInfoResponse> getSignupInfo(@RequestParam("token") String token) {
         return ResponseEntity.ok(signupService.getSignupInfo(token));
