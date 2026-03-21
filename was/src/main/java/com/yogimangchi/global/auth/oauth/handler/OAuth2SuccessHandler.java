@@ -44,6 +44,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             return;
         }
 
-        response.sendRedirect(FRONTEND_URL + "/onboarding?token=" + result.signupToken());
+        response.sendRedirect(FRONTEND_URL + "/signup?token=" + result.signupToken());
     }
 }
