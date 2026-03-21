@@ -6,6 +6,6 @@ public record SocialUserInfo(
         String providerUserId,
         String email,
         String nickname,
-        String profileImageUrl
+        String profileImgUrl
 ) {
 }

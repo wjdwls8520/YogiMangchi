@@ -33,7 +33,7 @@ public class SignupTokenService {
                 socialUserInfo.provider(),
                 socialUserInfo.providerUserId(),
                 socialUserInfo.nickname(),
-                socialUserInfo.profileImageUrl(),
+                socialUserInfo.profileImgUrl(),
                 LocalDateTime.now()
         );
 

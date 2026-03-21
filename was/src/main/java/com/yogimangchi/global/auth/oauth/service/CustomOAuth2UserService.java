@@ -57,14 +57,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerUserId = String.valueOf(attributes.get("id"));
         String email = kakaoAccount != null ? (String) kakaoAccount.get("email") : null;
         String nickname = properties != null ? (String) properties.get("nickname") : null;
-        String profileImageUrl = properties != null ? (String) properties.get("profile_image") : null;
+        String profileImgUrl = properties != null ? (String) properties.get("profile_image") : null;
 
         return new SocialUserInfo(
                 "kakao",
                 providerUserId,
                 email,
                 nickname,
-                profileImageUrl
+                profileImgUrl
         );
     }
 }

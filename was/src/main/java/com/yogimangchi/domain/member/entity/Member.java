@@ -18,8 +18,8 @@ public class Member {
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
-    @Column(name = "profile_img")
-    private Integer profileImg;
+    @Column(name = "profile_img_url", length = 500)
+    private String profileImgUrl;
 
     @Column(name = "profile_msg", length = 255)
     private String profileMsg;
@@ -59,14 +59,14 @@ public class Member {
 
     public static Member createSocialMember(
             String nickname,
-            Integer profileImg,
+            String profileImgUrl,
             boolean termAgree,
             boolean privateAgree,
             String profileMsg
     ) {
         Member member = new Member();
         member.nickname = nickname;
-        member.profileImg = profileImg;
+        member.profileImgUrl = profileImgUrl;
         member.role = MemberRole.USER;
         member.termAgree = termAgree;
         member.privateAgree = privateAgree;

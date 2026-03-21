@@ -79,7 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void setAuthentication(Long memberId, HttpServletRequest request) {
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        String.valueOf(memberId),
+                        memberId,  // ✨ String 변환 없이 깔끔하게 진짜 Long 객체를 통째로 넘김!
                         null,
                         Collections.emptyList()
                 );

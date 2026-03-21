@@ -8,7 +8,7 @@ public record SignupTokenPayload(
         String provider,
         String providerUserId,
         String nickname,
-        String profileImageUrl,
+        String profileImgUrl,
         LocalDateTime createdAt
 ) {
 }
