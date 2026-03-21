@@ -40,8 +40,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/error",
-                                "/swagger-ui/**",
                                 "/v3/api-docs/**",
+                                "/swagger-ui/**",          // 스웨거 UI HTML 페이지
+                                "/swagger-ui.html",        // 스웨거 UI 접속 경로
                                 "/oauth2/**",
                                 "/login/**",
                                 "/api/auth/**",

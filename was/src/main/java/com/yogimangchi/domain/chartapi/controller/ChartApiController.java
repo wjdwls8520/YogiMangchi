@@ -6,6 +6,7 @@ import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.chartapi.service.BinanceChartApiService;
 import com.yogimangchi.domain.chartapi.service.BinanceChartProperties;
 import com.yogimangchi.domain.chartapi.service.ChartApiService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequestMapping("/api/chartapi")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000")
+@Tag(name = "chart-api", description = "바이낸스 차트 api") // 도메인 구분
 public class ChartApiController {
 
     private final BinanceChartProperties binanceChartProperties;
