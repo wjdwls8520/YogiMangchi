@@ -10,14 +10,14 @@ export default function LoginPage() {
     // TODO: NextAuth 카카오 로그인 연동 로직
     console.log("카카오 로그인 클릭");
     window.location.href = "http://localhost:8080/oauth2/authorization/kakao";
-    // router.push("/onboarding");
+
   };
 
   const handleGoogleLogin = () => {
     // TODO: NextAuth 구글 로그인 연동 로직
     console.log("구글 로그인 클릭");
     window.location.href = "http://localhost:8080/oauth2/authorization/google";
-    // router.push("/onboarding");
+
   };
 
   return (
