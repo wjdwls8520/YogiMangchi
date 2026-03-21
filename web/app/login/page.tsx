@@ -21,8 +21,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] dark:bg-gray-900 x-4 sm:px-6 lg:px-8 ">
-      <div className="w-full max-w-[420px] rounded-2xl bg-white dark:bg-gray-800 p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-12">
+    <div className="flex min-h-screen items-center justify-center x-4 sm:px-6 lg:px-8 ">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white dark:bg-gray-800 p-10 shadow-[0_8px_30px_rgb(0,0,0,0.1)] sm:p-12">
 
         <div className="mb-12 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-gray-300 sm:text-3xl">

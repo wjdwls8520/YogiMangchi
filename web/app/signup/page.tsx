@@ -26,7 +26,7 @@ export default function SignupPage() {
 
     try {
       // 변경된 기획에 맞춘 간결한 데이터 전송
-      const response = await fetch("http://localhost:8080/api/auth/signup", {
+      const response = await fetch("http://localhost:8080/api/v1/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
