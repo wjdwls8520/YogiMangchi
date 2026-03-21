@@ -12,8 +12,8 @@ public record SignupRequest(
         @Schema(description = "사용자 닉네임", example = "정진")
         String nickname,
 
-        @Schema(description = "프로필 이미지 file_id", example = "1")
-        Integer profileImg,
+        @Schema(description = "프로필 이미지 file_id", example = "asdasdas.png")
+        String profileImgUrl,
 
         @Schema(description = "서비스 이용약관 동의 여부", example = "true")
         boolean termAgree,

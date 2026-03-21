@@ -10,7 +10,7 @@ public record SignupInfoResponse(
         String provider,
         String email,
         String nickname,
-        String profileImageUrl,
+        String profileImgUrl,
         String role,
         LocalDateTime createdAt
 ) {

@@ -29,7 +29,7 @@ public class SignupService {
                 signupTokenPayload.provider(),
                 signupTokenPayload.email(),
                 signupTokenPayload.nickname(),
-                signupTokenPayload.profileImageUrl(),
+                signupTokenPayload.profileImgUrl(),
                 signupTokenPayload.role(),
                 signupTokenPayload.createdAt()
         );
@@ -58,7 +58,7 @@ public class SignupService {
 
         Member member = Member.createSocialMember(
                 signupRequest.nickname(),
-                signupRequest.profileImg(),
+                signupTokenPayload.profileImgUrl(), // Redis 토큰 안에 이미 있는 원본 값을 즉각 사용!
                 signupRequest.termAgree(),
                 signupRequest.privateAgree(),
                 signupRequest.profileMsg()
