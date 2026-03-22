@@ -24,7 +24,6 @@ public class memberController {
     public ResponseEntity<MemberResponseDto.myProfileInfo> getMemberInfoMe(
             @AuthenticationPrincipal Long memberId
     ) {
-
         MemberResponseDto.myProfileInfo myData =  memberService.getMyProfile(memberId);
 
         return ResponseEntity.ok(myData);

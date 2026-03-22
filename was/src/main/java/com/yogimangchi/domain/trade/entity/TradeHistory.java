@@ -28,13 +28,13 @@ public class TradeHistory {
     @Comment("거래가 발생한 지갑 ID")
     private Assets assets;
 
-    @Column(name = "order_type", nullable = false, length = 10)
-    @Comment("주문 타입 (MARKET: 시장가, LIMIT: 지정가)")
-    private String orderType;
-
     @Column(nullable = false, length = 20)
     @Comment("거래한 코인 심볼")
     private String symbol;
+
+    @Column(name = "order_type", nullable = false, length = 10)
+    @Comment("주문 타입 (MARKET: 시장가, LIMIT: 지정가)")
+    private String orderType;
 
     @Column(nullable = false, length = 10)
     @Comment("거래 방향 (BUY: 매수, SELL: 매도)")
@@ -96,6 +96,21 @@ public class TradeHistory {
                 .totalAmount(totalAmount)
                 .fee(fee)
                 .realizedProfit(BigDecimal.ZERO) // 매수는 실현 수익 없음
+                .executedAt(LocalDateTime.now())
+                .build();
+    }
+
+    public static TradeHistory createMarketSellHistory(Assets assets, String symbol, BigDecimal price, BigDecimal quantity, BigDecimal totalAmount, BigDecimal fee, BigDecimal realizedProfit) {
+        return TradeHistory.builder()
+                .assets(assets)
+                .orderType("MARKET")  // 시장가 고정
+                .symbol(symbol)
+                .side("SELL")         // 매도 고정
+                .price(price)
+                .quantity(quantity)
+                .totalAmount(totalAmount)
+                .fee(fee)
+                .realizedProfit(realizedProfit) // 매도시 실현 수익 로직
                 .executedAt(LocalDateTime.now())
                 .build();
     }
