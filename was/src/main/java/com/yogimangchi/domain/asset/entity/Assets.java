@@ -70,4 +70,22 @@ public class Assets {
                 .status("INACTIVE")
                 .build();
     }
+
+    public void addMoney(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("더할 금액은 0보다 커야 합니다.");
+        }
+        // 현재 잔액 + 들어온 금액
+        this.currentMoney = this.currentMoney.add(amount);
+    }
+
+    // 코인 매수 시: 내 지갑에서 현금을 차감하는 기능
+    public void subtractMoney(BigDecimal amount) {
+        // 잔액 검사
+        if (this.currentMoney.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("잔고가 부족합니다.");
+        }
+        // 현재 잔액 - 나가는 금액
+        this.currentMoney = this.currentMoney.subtract(amount);
+    }
 }

@@ -1,7 +1,15 @@
 package com.yogimangchi.domain.trade.dto;
 
-import lombok.Getter;
+import java.math.BigDecimal;
 
-@Getter
 public class TradeRequestDto {
+
+    public record OrderRequest(
+        String symbol,
+        String orderType,
+        String side,
+        BigDecimal price,
+        BigDecimal quantity,
+        BigDecimal totalAmount
+    ){}
 }
