@@ -1,6 +1,6 @@
 import SubMenu from "@/components/SubMenu";
-import CommunityList from "../components/communityList";
-import NewsList from "./components/newsList";
+import CommunityList from "../components/CommunityList";
+import NewsList from "./components/NewsList";
 import { Post } from "../types/post";
 
 const menus  = [

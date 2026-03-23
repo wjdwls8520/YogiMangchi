@@ -38,4 +38,8 @@ body {
   .scrollbar-custom::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  button {
+    cursor: pointer;
+  }
 }

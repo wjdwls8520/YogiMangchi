@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/utils/cs";
 import { RankProps } from "../types/user";
-import { UserIcon } from "@/components/icons";
+import UserAvatar from "@/components/user/UserAvatar";
 
 const medalColor = [
                     "bg-[linear-gradient(139deg,rgba(255,215,0,1)_0%,rgba(255,215,0,1)_60%,rgba(223,117,0,1)_100%)]", 
@@ -21,7 +21,7 @@ export default function RankItem({ rank, profile, nickName, title, rate, followe
             <article>
                 <header>
                     <div className="flex justify-center mb-4">
-                        { profile ?  profile : <UserIcon className="w-[60px] h-[60px]" /> }
+                        <UserAvatar profileImg={profile} classes="w-[60px] h-[60px]" />
                     </div>
                     <h3 className="font-bold text-xl">{nickName}</h3>
                     <p className="text-gray-500 pt-1 text-lg">{title}</p>

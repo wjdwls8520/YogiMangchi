@@ -1,5 +1,5 @@
 import { Post } from "../types/post";
-import CommunityItem from "./communityItem";
+import CommunityItem from "./CommunityItem";
 
 interface Props {
   posts: Post[];

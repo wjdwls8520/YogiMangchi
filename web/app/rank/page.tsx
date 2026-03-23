@@ -60,7 +60,7 @@ export default function RankPage() {
             <h2 className="text-4xl font-bold pt-5">차티스트</h2>
             <p className="text-lg text-gray-400 pt-[15px] pb-11.5">모의 투자 수익률 상위 투자자들을 만나보세요</p>
             <SubMenu menus={menus} />
-            <ul className="grid grid-cols-3 gap-7">
+            <ul className="grid md:grid-cols-3 grid-cols-1 md:gap-7 gap-5">
                 {users.map((user, index) => <RankItem key={user.nickName} rank={index + 1} {...user}/>)}
             </ul>
         </>

@@ -16,12 +16,12 @@ export default function SubMenu({ menus }: SubMenuProps) {
     const [active, setActive] = useState(menus[0].id);
 
     return (
-        <ul className="flex gap-7 text-lg border-b border-gray-300 mb-10">
+        <ul className="flex gap-7 overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-touch touch-pan-y w-full text-lg border-b border-gray-300 mb-10 mt-5">
             {menus.map((menu) => <li 
                                     key={menu.id} 
-                                    className={cn("cursor-pointer leading-12", 
+                                    className={cn("snap-start shrink-0 cursor-pointer leading-12", 
                                                     active === menu.id ? 
-                                                                "text-black font-semibold border-b-2" : 
+                                                                "font-semibold border-b-2" : 
                                                                 "text-gray-400 font-medium")}
                                     onClick={() => setActive(menu.id)}
                                 >

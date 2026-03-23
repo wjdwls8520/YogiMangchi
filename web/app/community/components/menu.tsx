@@ -39,8 +39,8 @@ export default function Menu() {
     const activeId = pathArr[pathArr.length - 1];
     
 
-    return <nav className="pt-6 mt-[-10px] sticky top-0 col-span-3 self-start">
-        <ul className="flex flex-col gap-8">
+    return <nav className="md:pt-6 md:mt-[-10px] sticky top-0 col-span-3 self-start">
+        <ul className="flex md:flex-col gap-8">
             {menuList.map((menu) => <li key={menu.id}>
                     <Link 
                         href={`/community/${menu.id}`} 
