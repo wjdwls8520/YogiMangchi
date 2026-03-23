@@ -1,8 +1,9 @@
 package com.yogimangchi.domain.member.service;
 
-import com.yogimangchi.domain.member.dto.MemberResponseDto;
-import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
+import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,23 +12,22 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MemberService {
 
+    private final OAuthAccountRepository oAuthAccountRepository;
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
-    public MemberResponseDto.myProfileInfo getMyProfile(Long memberId) {
-
-        Member findMember = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        MemberResponseDto.myProfileInfo responseDto = new MemberResponseDto.myProfileInfo(
-                findMember.getId(),
-                "google",
-                findMember.getNickname(),
-                findMember.getProfileImgUrl(),
-                findMember.isTermAgree(),
-                findMember.isPrivateAgree()
-        );
-
-        return responseDto;
+    public NicknameDuplicationDto isAvailableNickname(String nickname) {
+        // 닉네임이 존재하지 않으면 true 존재하면 false를 리턴
+        return new NicknameDuplicationDto(!memberRepository.existsByNickname(nickname));
     }
+
+    @Transactional(readOnly = true)
+    public MyProfileInfoDto getMyProfile(Long memberId) {
+
+        MyProfileInfoDto myProfileInfo = oAuthAccountRepository.findMyProfileInfo(memberId);
+
+        return myProfileInfo;
+    }
+
+
 }
