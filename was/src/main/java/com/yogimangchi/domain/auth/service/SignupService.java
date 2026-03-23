@@ -9,6 +9,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.OAuthAccount;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
+import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,9 +93,7 @@ public class SignupService {
             throw new IllegalArgumentException("signupToken 은 필수입니다.");
         }
 
-        if (signupRequest.nickname() == null || signupRequest.nickname().isBlank()) {
-            throw new IllegalArgumentException("닉네임은 필수입니다.");
-        }
+        NicknameValidator.validate(signupRequest.nickname());
 
         if (signupRequest.termAgree() == false) {
             throw new IllegalArgumentException("서비스 이용약관 동의가 필요합니다.");
