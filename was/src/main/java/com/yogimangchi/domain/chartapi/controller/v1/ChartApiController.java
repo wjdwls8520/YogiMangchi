@@ -1,24 +1,27 @@
-package com.yogimangchi.domain.chartapi.controller;
+package com.yogimangchi.domain.chartapi.controller.v1;
 
+import com.yogimangchi.domain.chartapi.dto.CandleDto;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.chartapi.service.BinanceChartProperties;
+import com.yogimangchi.domain.chartapi.service.ChartApiService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/chartapi")
+@RequestMapping("/api/v1/chartapi")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
+@Tag(name = "chart-api", description = "바이낸스 차트 api (was만 사용)") // 도메인 구분
 public class ChartApiController {
 
     private final BinanceChartProperties binanceChartProperties;
     private final ChartPriceRepository chartPriceRepository;
+    private final ChartApiService ChartApiService;
 
     @GetMapping("/prices")
     public List<ChartPriceDto> getTrackedPrices() {
@@ -34,4 +37,14 @@ public class ChartApiController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @GetMapping("/candles/{symbol}")
+    public ResponseEntity<List<CandleDto>> getCandles(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "15m") String interval,
+            @RequestParam(defaultValue = "100") int limit) {
+        List<CandleDto> candles = ChartApiService.getPastCandles(symbol, interval, limit);
+        return ResponseEntity.ok(candles);
+    }
+
 }

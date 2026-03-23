@@ -67,6 +67,12 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expire-ms: 3600000
+  refresh-token-expire-ms: 1209600000
+
+
 binance:
   # 바이낸스 공개 웹소켓 주소
   # 지금은 로그인이나 API Key 없이 "공개 시세"만 받아옵니다.

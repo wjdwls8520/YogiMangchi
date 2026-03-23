@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import AddressSearchModal from "@/components/AddressSearchModal";
 
 export default function VerifyDetailPage() {
   const router = useRouter();
@@ -18,6 +21,16 @@ export default function VerifyDetailPage() {
   const [address, setAddress] = useState(""); // 기본주소
   const [detailAddress, setDetailAddress] = useState(""); // 상세주소
 
+  // 모달을 열고 닫을 스위치 상태
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+
+  // 모달에서 주소를 선택했을 때 실행될 함수
+  const handleAddressSelect = (selectedZipcode: string, selectedAddress: string) => {
+    setZonecode(selectedZipcode);
+    setAddress(selectedAddress);
+    setDetailAddress(""); // 새 주소를 찾았으니 기존 상세 주소는 초기화
+  };
+
   // 인증번호 발송 로직
   const handleSendCode = () => {
     if (phone.length < 10) return alert("올바른 휴대폰 번호를 입력해주세요.");
@@ -32,15 +45,6 @@ export default function VerifyDetailPage() {
     // TODO: 실제 인증번호 확인 API 연동
     setIsVerified(true);
     alert("인증이 완료되었습니다.");
-  };
-
-  // 카카오 우편번호 API 호출 (임시 가짜 함수)
-  const handleSearchAddress = () => {
-    // TODO: react-daum-postcode 라이브러리 연동
-    console.log("카카오 주소 검색 창 띄우기");
-    // 임시 데이터 세팅
-    setZonecode("12345");
-    setAddress("서울시 강남구 테헤란로 123");
   };
 
   // 폼 제출
@@ -76,12 +80,11 @@ export default function VerifyDetailPage() {
             <label htmlFor="name" className="mb-2 block text-sm font-semibold text-gray-900">
               이름 (실명)
             </label>
-            <input
+            <Input
               type="text"
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm"
               placeholder="예: 홍길동"
             />
           </div>
@@ -92,42 +95,40 @@ export default function VerifyDetailPage() {
               휴대폰 번호
             </label>
             <div className="flex gap-2 mb-2">
-              <input
+              <Input
                 type="tel"
                 id="phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} // 숫자만 입력
                 disabled={isVerified}
-                className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
                 placeholder="숫자만 입력해 주세요"
               />
-              <button
+              <Button
                 type="button"
+                variant="white"
                 onClick={handleSendCode}
                 disabled={isVerified}
-                className="shrink-0 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
               >
                 {isCodeSent ? "재전송" : "인증번호 받기"}
-              </button>
+              </Button>
             </div>
 
             {/* 인증번호 입력 필드 (인증번호 발송 버튼을 누른 후에만 보임) */}
             {isCodeSent && !isVerified && (
               <div className="flex gap-2 mt-2 animate-fade-in">
-                <input
+                <Input
                   type="text"
                   value={verifyCode}
                   onChange={(e) => setVerifyCode(e.target.value)}
-                  className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm"
                   placeholder="인증번호 입력"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="white"
                   onClick={handleVerifyCode}
-                  className="shrink-0 rounded-xl bg-[#0058FF] px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none"
                 >
                   확인
-                </button>
+                </Button>
               </div>
             )}
             {/* 인증 완료 메시지 */}
@@ -143,33 +144,31 @@ export default function VerifyDetailPage() {
             </label>
             <div className="space-y-2">
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={zonecode}
                   readOnly
-                  className="block w-24 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 sm:text-sm"
                   placeholder="우편번호"
                 />
-                <button
+                <Button
                   type="button"
-                  onClick={handleSearchAddress}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+                  variant="gray"
+                  onClick={() => setIsAddressModalOpen(true)}
                 >
                   우편번호 찾기
-                </button>
+                </Button>
               </div>
-              <input
+              <Input
                 type="text"
                 value={address}
                 readOnly
-                className="block w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 sm:text-sm"
                 placeholder="기본 주소"
               />
-              <input
+              <Input
                 type="text"
                 value={detailAddress}
                 onChange={(e) => setDetailAddress(e.target.value)}
-                className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm"
+                disabled={!zonecode} //우편번호없을때 상세주소입력막기
                 placeholder="상세 주소를 입력해 주세요"
               />
             </div>
@@ -177,16 +176,21 @@ export default function VerifyDetailPage() {
 
           {/* 하단 완료 버튼 */}
           <div className="pt-4">
-            <button
-              type="submit"
-              className="flex w-full justify-center rounded-xl bg-[#0058FF] px-5 py-4 text-base font-bold text-white shadow-md transition-all hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-[#0058FF] focus:ring-offset-2"
-            >
+            <Button type="submit" size="lg" fullWidth>
               인증 회원 등록 완료
-            </button>
+            </Button>
           </div>
 
         </form>
       </div>
+
+      {/* 모달 컴포넌트 마운트 */}
+      <AddressSearchModal 
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        onComplete={handleAddressSelect}
+      />
+
     </div>
   );
 }

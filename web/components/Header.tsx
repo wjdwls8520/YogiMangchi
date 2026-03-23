@@ -12,6 +12,8 @@ import { cn } from "@/utils/cs";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
+import { usePathname } from "next/navigation";
+
 type menuType = {
     href: string;
     name: string;
@@ -57,6 +59,13 @@ export default function Header() {
         document.documentElement.classList.remove("dark");
         }        
     }, [isDarkMode])
+
+    const pathname = usePathname(); // 현재 우리가 접속한 URL 주소를 알려주는 훅
+
+    // 현재주소가 signup login...일때 헤더없음
+    if (pathname === "/signup" || pathname === "/login" || pathname === "/verify" || pathname === "/signup/benefits") {
+        return null; 
+    }
 
     return <header className="w-full">
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">

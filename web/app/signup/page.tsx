@@ -1,111 +1,97 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { FlameIcon, WaveIcon, TurtleIcon } from "@/components/icons";
+import { useRouter, useSearchParams } from "next/navigation";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import PolicyModal from "@/components/PolicyModal";
 
-// 투자 성향 및 초기 투자금 옵션 데이터
-const INVESTMENT_STYLES = [
-  { id: "danta", icon: <FlameIcon className="w-10 h-10 text-red-500" />, title: "야수의 심장", desc: "단타 / 스캘핑" },
-  { id: "swing", icon: <WaveIcon className="w-10 h-10 text-blue-500" />, title: "파도타기", desc: "스윙 트레이딩" },
-  { id: "value", icon: <TurtleIcon className="w-10 h-10 text-green-500" />, title: "장기투자", desc: "가치 / 배당 투자" },
-];
-
-
-export default function OnboardingPage() {
+export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? ""; // 백엔드에서 넘겨주는 소셜로그인 토큰
+
   const [nickname, setNickname] = useState("");
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
   const [activeModal, setActiveModal] = useState<"terms" | "privacy" | null>(null);
-  const isFormValid = nickname.trim().length > 0 && selectedStyle && termsAgreed && privacyAgreed;
+  
+  // 필수 항목 3가지가 모두 채워져야 버튼 활성화
+  const isFormValid = nickname.trim().length > 0 && termsAgreed && privacyAgreed;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
-    // TODO: 백엔드 API로 온보딩 정보 전송 및 메인 페이지(/)로 이동
-    console.log("온보딩 완료 데이터:", { nickname, selectedStyle });
-    //alert(`${nickname}님, 환영합니다! 모의투자를 시작합니다.`);
-    router.push("/onboarding/benefits");
+    try {
+      // 변경된 기획에 맞춘 간결한 데이터 전송
+      const response = await fetch("http://localhost:8080/api/v1/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          signup_token: token,
+          nickname: nickname,
+          term_agree: termsAgreed,
+          private_agree: privacyAgreed,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        alert(errorBody?.message ?? "회원가입 실패");
+        return;
+      }
+
+      console.log("온보딩 완료 데이터 전송 성공!");
+      router.push("/"); // 가입 완료 후 메인 페이지로 이동
+    } catch (error) {
+      console.error("API 전송 에러:", error);
+      alert("서버와 통신하는 중 문제가 발생했습니다.");
+    }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-[520px] rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
-        
+
         {/* 헤더 영역 */}
         <div className="mb-10 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-            투자자 프로필 설정
+            환영합니다!
           </h1>
           <p className="mt-3 text-sm text-gray-500">
-            요기망치에서 사용할 멋진 프로필을 완성해 주세요.
+            요기망치에서 사용할 닉네임을 설정해 주세요.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* 1. 닉네임 입력 */}
           <div>
             <label htmlFor="nickname" className="mb-2 block text-sm font-semibold text-gray-900">
               투자자 닉네임
             </label>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 id="nickname"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 maxLength={10}
-                className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#0058FF] focus:outline-none focus:ring-1 focus:ring-[#0058FF] sm:text-sm"
-                placeholder="예: 워렌버핏, 단타왕 (최대 10자)"
+                placeholder="예: 워렌버핏 (최대 10자)"
               />
-              <button
-                type="button"
-                className="shrink-0 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none"
-              >
-                중복확인
-              </button>
+              <Button type="button" variant="gray">중복확인</Button>
             </div>
           </div>
 
-          {/* 2. 투자 성향 선택 */}
-          <div>
-            <label className="mb-3 block text-sm font-semibold text-gray-900">
-              나의 투자 성향은?
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {INVESTMENT_STYLES.map((style) => (
-                <button
-                  key={style.id}
-                  type="button"
-                  onClick={() => setSelectedStyle(style.id)}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-4 transition-all focus:outline-none ${
-                    selectedStyle === style.id
-                      ? "border-[#0058FF] bg-blue-50 text-[#0058FF] ring-1 ring-[#0058FF]"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="mb-3 flex items-center justify-center shrink-0">
-                    {style.icon}
-                  </div>
-                  <span className={`text-sm font-bold ${selectedStyle === style.id ? "text-[#0058FF]" : "text-gray-900"}`}>
-                    {style.title}
-                  </span>
-                  <span className="mt-1 text-[11px] text-gray-500">{style.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. 약관 동의 및 제출 버튼 영역 */}
+          {/* 2. 약관 동의 및 제출 버튼 영역 */}
           <div className="pt-4 border-t border-gray-100">
             <div className="mb-8 flex flex-col gap-3">
-              
+
               {/* (1) 이용약관 동의 */}
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -119,9 +105,9 @@ export default function OnboardingPage() {
                     [필수] 요기망치 서비스 이용약관 동의
                   </span>
                 </label>
-                <button 
-                  type="button" 
-                  onClick={() => setActiveModal("terms")} // 이용약관 모달 열기
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("terms")}
                   className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
                 >
                   보기
@@ -141,9 +127,9 @@ export default function OnboardingPage() {
                     [필수] 개인정보 수집 및 이용 동의
                   </span>
                 </label>
-                <button 
-                  type="button" 
-                  onClick={() => setActiveModal("privacy")} // 개인정보 모달 열기
+                <button
+                  type="button"
+                  onClick={() => setActiveModal("privacy")}
                   className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
                 >
                   보기
@@ -161,16 +147,16 @@ export default function OnboardingPage() {
                   : "cursor-not-allowed bg-gray-300"
               }`}
             >
-              모의투자 시작하기
+              회원가입 완료하기
             </button>
           </div>
 
         </form>
       </div>
 
-      <PolicyModal 
-        type={activeModal} 
-        onClose={() => setActiveModal(null)} // 닫기 버튼 누르면 null로 바꿔서 모달을 끕니다.
+      <PolicyModal
+        type={activeModal}
+        onClose={() => setActiveModal(null)}
       />
 
     </div>
