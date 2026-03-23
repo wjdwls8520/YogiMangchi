@@ -12,8 +12,6 @@ import { cn } from "@/utils/cs";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-import { usePathname } from "next/navigation";
-
 type menuType = {
     href: string;
     name: string;
