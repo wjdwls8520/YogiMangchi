@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.trade.dto;
+package com.yogimangchi.domain.trade.dto.response;
 
 import lombok.Getter;
 
