@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -15,10 +15,55 @@ export default function SignupPage() {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
 
+  //닉네임 중복체크(false 가입 불가)
+  const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [activeModal, setActiveModal] = useState<"terms" | "privacy" | null>(null);
+
+  // 닉네임 입력값이 변하면 다시 중복체크 하도록
+  useEffect(() => {
+    setIsNicknameChecked(false);
+  }, [nickname]);
+
+  // 닉네임 유효성 검사 (백엔드 정규식과 동일)
+  const validateNickname = (name: string) => {
+    const regex = /^[가-힣a-zA-Z0-9]{2,12}$/;
+    return regex.test(name);
+  };
+
+  // 닉네임 중복 확인 함수
+  const handleCheckDuplication = async () => {
+    if (!validateNickname(nickname)) {
+      alert("닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/member/nickname/duplication?nickname=${encodeURIComponent(nickname)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("서버 통신 오류");
+
+      const data = await response.json();
+      
+      // 💡 백엔드 주석: 존재하지 않으면 true(사용가능), 존재하면 false
+      if (data.available === true || data === true) { 
+        alert("사용 가능한 닉네임입니다! 😊");
+        setIsNicknameChecked(true);
+      } else {
+        alert("이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.");
+        setIsNicknameChecked(false);
+      }
+    } catch (error) {
+      console.error("중복체크 에러:", error);
+      alert("중복 확인 중 오류가 발생했습니다.");
+    }
+  };
   
-  // 필수 항목 3가지가 모두 채워져야 버튼 활성화
-  const isFormValid = nickname.trim().length > 0 && termsAgreed && privacyAgreed;
+  // 가입버튼 활성화 조건
+  const isFormValid = nickname.trim().length > 0 && isNicknameChecked && termsAgreed && privacyAgreed;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +92,7 @@ export default function SignupPage() {
       }
 
       console.log("온보딩 완료 데이터 전송 성공!");
-      router.push("/"); // 가입 완료 후 메인 페이지로 이동
+      router.push("/signup/benefits"); // 가입 완료 후 메인 페이지로 이동
     } catch (error) {
       console.error("API 전송 에러:", error);
       alert("서버와 통신하는 중 문제가 발생했습니다.");
@@ -81,11 +126,21 @@ export default function SignupPage() {
                 id="nickname"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                maxLength={10}
-                placeholder="예: 워렌버핏 (최대 10자)"
+                maxLength={11}
+                placeholder="2~12자 (한글,영문,숫자)"
               />
-              <Button type="button" variant="gray">중복확인</Button>
+              <Button 
+                type="button" 
+                variant={isNicknameChecked ? "gray" : "sky"} 
+                className="shrink-0 w-28 rounded-2xl font-bold"
+                onClick={handleCheckDuplication}
+              >
+                {isNicknameChecked ? "확인 완료" : "중복 확인"}
+              </Button>
             </div>
+            {isNicknameChecked && (
+              <p className="mt-2 text-[12px] text-blue-600 font-bold">✓ 사용 가능한 닉네임입니다.</p>
+            )}
           </div>
 
           {/* 2. 약관 동의 및 제출 버튼 영역 */}
@@ -108,7 +163,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setActiveModal("terms")}
-                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
                 >
                   보기
                 </button>
@@ -130,7 +185,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setActiveModal("privacy")}
-                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors"
+                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
                 >
                   보기
                 </button>
@@ -138,17 +193,11 @@ export default function SignupPage() {
 
             </div>
 
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              className={`flex w-full justify-center rounded-xl px-5 py-4 text-base font-bold text-white transition-all ${
-                isFormValid
-                  ? "bg-[#0058FF] shadow-md hover:bg-blue-700 hover:shadow-lg"
-                  : "cursor-not-allowed bg-gray-300"
-              }`}
+            <Button
+              type="submit" fullWidth size="lg" disabled={!isFormValid}
             >
               회원가입 완료하기
-            </button>
+            </Button>
           </div>
 
         </form>
