@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.member.controller.v1;
 
 import com.yogimangchi.domain.member.dto.request.UpdateMyProfileDto;
+import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.service.MemberService;
@@ -10,12 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 
 @RestController
@@ -50,6 +46,16 @@ public class MemberController {
         MyProfileInfoDto myData =  memberService.getMyProfile(memberId);
 
         return ResponseEntity.ok(myData);
+    }
+
+    @Operation(summary = "다른멤버(유저) 프로필 정보", description = "다른멤버의 프로필 정보를 요청합니다.")
+    @GetMapping("/info/{memberId}")
+    public ResponseEntity<MemberProfileInfoDto> getMemberInfo(
+            @PathVariable Long memberId
+    ) {
+        MemberProfileInfoDto memberData = memberService.getMemberProfile(memberId);
+
+        return ResponseEntity.ok(memberData);
     }
 
     @Operation(

@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.member.service;
 
 import com.yogimangchi.domain.member.dto.request.UpdateMyProfileDto;
+import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.entity.Member;
@@ -41,6 +42,22 @@ public class MemberService {
         MyProfileInfoDto myProfileInfo = oAuthAccountRepository.findMyProfileInfo(memberId);
 
         return myProfileInfo;
+    }
+
+    @Transactional(readOnly = true)
+    public MemberProfileInfoDto getMemberProfile(Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        MemberProfileInfoDto memberProfileInfo = new MemberProfileInfoDto(
+                member.getId(),
+                member.getNickname(),
+                member.getProfileImgUrl(),
+                member.getProfileMsg(),
+                member.getBestCount(),
+                member.getFollowerCount(),
+                member.getFollowingCount()
+        );
+
+        return memberProfileInfo;
     }
 
     @Transactional

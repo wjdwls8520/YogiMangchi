@@ -60,9 +60,9 @@ public class SignupService {
         Member member = Member.createSocialMember(
                 signupRequest.nickname(),
                 signupTokenPayload.profileImgUrl(), // Redis 토큰 안에 이미 있는 원본 값을 즉각 사용!
+                signupRequest.profileMsg(),
                 signupRequest.termAgree(),
-                signupRequest.privateAgree(),
-                signupRequest.profileMsg()
+                signupRequest.privateAgree()
         );
 
         Member savedMember = memberRepository.save(member);
