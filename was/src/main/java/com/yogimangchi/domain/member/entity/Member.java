@@ -18,7 +18,7 @@ public class Member {
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
-    @Column(name = "profile_img_url", length = 500)
+    @Column(name = "profile_img_url", length = 1000)
     private String profileImgUrl;
 
     @Column(name = "profile_msg", length = 255)
@@ -72,5 +72,11 @@ public class Member {
         member.privateAgree = privateAgree;
         member.profileMsg = profileMsg;
         return member;
+    }
+
+    public void updateBasicProfile(String nickname, String profileImgUrl, String profileMsg) {
+        this.nickname = nickname;
+        this.profileImgUrl = profileImgUrl;
+        this.profileMsg = profileMsg;
     }
 }
