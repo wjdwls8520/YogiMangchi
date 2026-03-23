@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.trade.controller.v1;
 
-import com.yogimangchi.domain.trade.dto.TradeRequestDto;
+import com.yogimangchi.domain.trade.dto.request.OrderRequestDto;
 import com.yogimangchi.domain.trade.service.TradeHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class TradeController {
     @PostMapping("/order")
     public ResponseEntity<String> createMarketOrder(
             @AuthenticationPrincipal Long memberId,
-            @RequestBody TradeRequestDto.OrderRequest request
+            @RequestBody OrderRequestDto request
     ){
         tradeHistoryService.executeMarketOrder(memberId,request);
 

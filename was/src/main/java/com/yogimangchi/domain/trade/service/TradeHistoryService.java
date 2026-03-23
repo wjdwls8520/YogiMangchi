@@ -7,7 +7,7 @@ import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
-import com.yogimangchi.domain.trade.dto.TradeRequestDto;
+import com.yogimangchi.domain.trade.dto.request.OrderRequestDto;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
 import jakarta.transaction.Transactional;
@@ -29,7 +29,7 @@ public class TradeHistoryService {
     private final TradeHistoryRepository tradeHistoryRepository;
 
     @Transactional
-    public void executeMarketOrder(Long memberId, TradeRequestDto.OrderRequest request) {
+    public void executeMarketOrder(Long memberId, OrderRequestDto request) {
 
         // 1. 현재 바이낸스 실시간 가격 조회
         ChartPriceDto currentPriceDto = chartPriceRepository.findBySymbol(request.symbol())
@@ -51,7 +51,7 @@ public class TradeHistoryService {
     }
 
     // 시장가 매수(BUY) 로직
-    private void processMarketBuy(Assets wallet, TradeRequestDto.OrderRequest request, BigDecimal currentPrice) {
+    private void processMarketBuy(Assets wallet, OrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal orderAmount = request.totalAmount(); // 내가 쓸 현금 (예: 10만 원)
 
         // 1. 수량 계산 = (투자 금액 / 현재가)
@@ -92,7 +92,7 @@ public class TradeHistoryService {
     }
 
     // 시장가 매도(SELL) 로직
-    private void processMarketSell(Assets wallet, TradeRequestDto.OrderRequest request, BigDecimal currentPrice) {
+    private void processMarketSell(Assets wallet, OrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal sellQuantity = request.quantity(); // 팔고자 하는 코인 수량
 
         // 1. 내가 진짜로 그만큼 코인을 가지고 있는지 확인
