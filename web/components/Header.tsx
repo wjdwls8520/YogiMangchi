@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { cn } from "@/utils/cs";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 type menuType = {
     href: string;
@@ -29,7 +30,7 @@ const menuList: menuType[] = [
         id: 'trading'
     },    
     {
-        href: '#',
+        href: '/community/all',
         name: '커뮤니티',
         id: 'community'
     },     
@@ -43,7 +44,11 @@ const menuList: menuType[] = [
 export default function Header() {
 
     const { isLogin, login, logout } = useAuthStore();
-    const { isDarkMode, toggleDarkMode, currentMenu, setCurrentMenu } = useUIStore();
+    const { isDarkMode, toggleDarkMode } = useUIStore();
+
+    const pathArr = usePathname().split('/');
+    const activeId = pathArr[1] || 'Home';
+
 
     useEffect(() => {
         if (isDarkMode) {
@@ -62,8 +67,7 @@ export default function Header() {
                         <Link 
                             key={menu.id} 
                             href={menu.href} 
-                            onClick={() => setCurrentMenu(menu.id)}
-                            className={cn("py-1.5 px-3 rounded-md", currentMenu === menu.id && "bg-gray-100")}
+                            className={cn("py-1.5 px-3 rounded-md", activeId === menu.id && "bg-gray-100")}
                         >
                             {menu.name}
                         </Link>)

@@ -17,7 +17,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
         <Header />
-        <main className="pt-16 pb-40 max-w-7xl m-auto">
+        <main className="pt-8 pb-40 max-w-7xl m-auto">
           {children}
         </main>
         <Footer />

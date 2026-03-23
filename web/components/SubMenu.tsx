@@ -2,22 +2,21 @@
 import { cn } from "@/utils/cs";
 import { useState } from "react";
 
-export default function SubMenu() {
-    type Menu = {
-        id: string;
-        label: string;
-    };
+type Menu = {
+  id: string;
+  label: string;
+};
 
-    const menus :Menu[]  = [
-        { id: "profit", label: "수익금 높은순" },
-        { id: "rate", label: "수익률 높은순" },
-        { id: "followers", label: "팔로워 많은순" },
-    ];
+interface SubMenuProps {
+  menus: Menu[];
+}
+
+export default function SubMenu({ menus }: SubMenuProps) {
 
     const [active, setActive] = useState(menus[0].id);
 
     return (
-        <ul className="flex gap-7 text-lg pt-11.25 border-b border-gray-300 mb-10">
+        <ul className="flex gap-7 text-lg border-b border-gray-300 mb-10">
             {menus.map((menu) => <li 
                                     key={menu.id} 
                                     className={cn("cursor-pointer leading-12", 

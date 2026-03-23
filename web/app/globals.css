@@ -11,3 +11,31 @@ body {
   font-family:
     "Pretendard Variable", Pretendard, ui-sans-serif, system-ui, sans-serif;
 }
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE, Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    height: 6px; /* 가로 스크롤 */
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: #364153; /* thumb 색 */
+    border-radius: 9999px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

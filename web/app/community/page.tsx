@@ -1,4 +1,15 @@
+import SubMenu from "@/components/SubMenu";
 
-export default function communityPage() {
-    
+const menus  = [
+    { id: "best", label: "주간 인기글" },
+    { id: "latest", label: "최신글" },
+];
+
+export default function CommunityPage() {
+
+    return (
+        <>
+            <SubMenu menus={menus} />
+        </>
+    )
 }

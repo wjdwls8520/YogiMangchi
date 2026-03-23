@@ -21,7 +21,7 @@ export default function RankItem({ rank, profile, nickName, title, rate, followe
             <article>
                 <header>
                     <div className="flex justify-center mb-4">
-                        { profile ?  profile : <UserIcon /> }
+                        { profile ?  profile : <UserIcon className="w-[60px] h-[60px]" /> }
                     </div>
                     <h3 className="font-bold text-xl">{nickName}</h3>
                     <p className="text-gray-500 pt-1 text-lg">{title}</p>

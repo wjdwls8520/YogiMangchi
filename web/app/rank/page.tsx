@@ -1,6 +1,13 @@
-import RankItem from "./component/RankItem"
+import RankItem from "./components/RankItem"
 import SubMenu from "@/components/SubMenu"
 import { Info } from "./types/user"; 
+
+
+const menus  = [
+    { id: "profit", label: "수익금 높은순" },
+    { id: "rate", label: "수익률 높은순" },
+    { id: "followers", label: "팔로워 많은순" },
+];
 
 export default function RankPage() {
 
@@ -50,9 +57,9 @@ export default function RankPage() {
     ];
     return (
         <>
-            <h2 className="text-4xl font-bold">차티스트</h2>
-            <p className="text-lg text-gray-400 pt-[15px]">모의 투자 수익률 상위 투자자들을 만나보세요</p>
-            <SubMenu />
+            <h2 className="text-4xl font-bold pt-5">차티스트</h2>
+            <p className="text-lg text-gray-400 pt-[15px] pb-11.5">모의 투자 수익률 상위 투자자들을 만나보세요</p>
+            <SubMenu menus={menus} />
             <ul className="grid grid-cols-3 gap-7">
                 {users.map((user, index) => <RankItem key={user.nickName} rank={index + 1} {...user}/>)}
             </ul>
