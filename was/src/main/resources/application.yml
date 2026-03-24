@@ -78,6 +78,10 @@ jwt:
   access-token-expire-ms: 3600000
   refresh-token-expire-ms: 1209600000
 
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
 
 binance:
   # 바이낸스 공개 웹소켓 주소

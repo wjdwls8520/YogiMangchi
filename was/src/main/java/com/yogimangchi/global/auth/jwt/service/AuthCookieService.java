@@ -16,6 +16,7 @@ public class AuthCookieService {
 
     private static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
     private static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
+    private static final String SESSION_COOKIE_NAME = "JSESSIONID";
     private static final boolean COOKIE_SECURE = false;
 
     private final JwtProperties jwtProperties;
@@ -28,6 +29,10 @@ public class AuthCookieService {
     public void expireAuthCookies(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(ACCESS_TOKEN_COOKIE_NAME).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(REFRESH_TOKEN_COOKIE_NAME).toString());
+    }
+
+    public void expireSessionCookie(HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(SESSION_COOKIE_NAME).toString());
     }
 
     public String getAccessTokenCookieName() {

@@ -51,7 +51,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 // "/api/v1/chartapi/**",
                                 "/api/v1/member/nickname/duplication",
-                                "/api/v1/trade/**"
+                                "/api/v1/trade/**",
+                                "/api/v1/community/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
