@@ -31,15 +31,11 @@ public class TradeHistoryService {
     @Transactional
     public void executeMarketOrder(Long memberId, MarketOrderRequestDto request) {
 
-        // 필수 파라미터 및 0원/음수 검증
-        if (request.side() == null || request.symbol() == null || request.assetType() == null) {
-            throw new IllegalArgumentException("잘못된 주문 요청입니다. (필수값 누락)");
+        if ("BUY".equalsIgnoreCase(request.side()) && request.totalAmount() == null) {
+            throw new IllegalArgumentException("매수 시 투자 금액은 필수입니다.");
         }
-        if ("BUY".equalsIgnoreCase(request.side()) && (request.totalAmount() == null || request.totalAmount().compareTo(BigDecimal.ZERO) <= 0)) {
-            throw new IllegalArgumentException("매수 금액은 0보다 커야 합니다.");
-        }
-        if ("SELL".equalsIgnoreCase(request.side()) && (request.quantity() == null || request.quantity().compareTo(BigDecimal.ZERO) <= 0)) {
-            throw new IllegalArgumentException("매도 수량은 0보다 커야 합니다.");
+        if ("SELL".equalsIgnoreCase(request.side()) && request.quantity() == null) {
+            throw new IllegalArgumentException("매도 시 수량은 필수입니다.");
         }
 
         // 현재 바이낸스 실시간 가격 조회
