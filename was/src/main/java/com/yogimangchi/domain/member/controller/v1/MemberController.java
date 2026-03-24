@@ -18,7 +18,7 @@ import org.springframework.http.MediaType;
 @RestController
 @RequestMapping("/api/v1/member")
 @RequiredArgsConstructor
-@Tag(name = "Member", description = "회원 멤버(유저) 관련 api") // 도메인 구분
+@Tag(name = "02 - Member", description = "회원 멤버(유저) 관련 api") // 도메인 구분
 public class MemberController {
 
     private final MemberService memberService;
