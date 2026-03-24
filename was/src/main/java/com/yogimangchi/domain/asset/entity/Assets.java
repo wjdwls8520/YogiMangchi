@@ -27,7 +27,7 @@ public class Assets {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(nullable = false)
+    @Column(name = "asset_type", nullable = false)
     @Enumerated(EnumType.STRING)
     @Comment("지갑 종류 (SPOT: 현물, FUTURE: 선물, CONTEST: 대회용)")
     private AssetType type;
@@ -94,10 +94,20 @@ public class Assets {
 
     // 코인 매수 시: 내 지갑에서 현금을 차감하는 기능
     public void subtractMoney(BigDecimal amount) {
+
+        // 음수나 0원 차감 시도 차단
+        if (amount == null) {
+            throw new IllegalArgumentException("금액이 없습니다.");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("금액은 0보다 커야 합니다.");
+        }
+
         // 잔액 검사
         if (this.currentMoney.compareTo(amount) < 0) {
             throw new IllegalArgumentException("잔고가 부족합니다.");
         }
+
         // 현재 잔액 - 나가는 금액
         this.currentMoney = this.currentMoney.subtract(amount);
     }

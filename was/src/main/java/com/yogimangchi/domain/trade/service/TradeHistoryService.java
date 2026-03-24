@@ -2,21 +2,21 @@ package com.yogimangchi.domain.trade.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
-import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
-import com.yogimangchi.domain.trade.dto.request.OrderRequestDto;
+import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -29,18 +29,34 @@ public class TradeHistoryService {
     private final TradeHistoryRepository tradeHistoryRepository;
 
     @Transactional
-    public void executeMarketOrder(Long memberId, OrderRequestDto request) {
+    public void executeMarketOrder(Long memberId, MarketOrderRequestDto request) {
 
-        // 1. 현재 바이낸스 실시간 가격 조회
+        // 필수 파라미터 및 0원/음수 검증
+        if (request.side() == null || request.symbol() == null || request.assetType() == null) {
+            throw new IllegalArgumentException("잘못된 주문 요청입니다. (필수값 누락)");
+        }
+        if ("BUY".equalsIgnoreCase(request.side()) && (request.totalAmount() == null || request.totalAmount().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new IllegalArgumentException("매수 금액은 0보다 커야 합니다.");
+        }
+        if ("SELL".equalsIgnoreCase(request.side()) && (request.quantity() == null || request.quantity().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new IllegalArgumentException("매도 수량은 0보다 커야 합니다.");
+        }
+
+        // 현재 바이낸스 실시간 가격 조회
         ChartPriceDto currentPriceDto = chartPriceRepository.findBySymbol(request.symbol())
                 .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."));
         BigDecimal currentPrice = new BigDecimal(currentPriceDto.price());
 
-        // 2. 내 현물(SPOT) 지갑 찾기
-        Assets myWallet = assetRepository.findByMemberIdAndType(memberId, AssetType.SPOT)
-                .orElseThrow(() -> new IllegalArgumentException("현물 지갑을 찾을 수 없습니다."));
+        // 내 지갑 찾기 및 락걸기
+        Assets myWallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, request.assetType(), "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("활성화된 " + request.assetType() + " 지갑을 찾을 수 없습니다."));
 
-        // 3. 매수 / 매도 분기 처리
+        // 지갑의 기간 만료 검증
+        if (LocalDateTime.now().isAfter(myWallet.getExpiredAt())) {
+            throw new IllegalArgumentException("해당 콘텐츠의 진행 기간이 만료되어 더 이상 매매할 수 없습니다. 포기 후 재도전해주세요.");
+        }
+
+        // 매수 / 매도 분기 처리
         if ("BUY".equalsIgnoreCase(request.side())) {
             processMarketBuy(myWallet, request, currentPrice);
         } else if ("SELL".equalsIgnoreCase(request.side())) {
@@ -51,7 +67,7 @@ public class TradeHistoryService {
     }
 
     // 시장가 매수(BUY) 로직
-    private void processMarketBuy(Assets wallet, OrderRequestDto request, BigDecimal currentPrice) {
+    private void processMarketBuy(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal orderAmount = request.totalAmount(); // 내가 쓸 현금 (예: 10만 원)
 
         // 1. 수량 계산 = (투자 금액 / 현재가)
@@ -92,7 +108,7 @@ public class TradeHistoryService {
     }
 
     // 시장가 매도(SELL) 로직
-    private void processMarketSell(Assets wallet, OrderRequestDto request, BigDecimal currentPrice) {
+    private void processMarketSell(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal sellQuantity = request.quantity(); // 팔고자 하는 코인 수량
 
         // 1. 내가 진짜로 그만큼 코인을 가지고 있는지 확인
@@ -106,7 +122,8 @@ public class TradeHistoryService {
         // 2. 총 획득 현금 = (팔 수량 * 현재가) -> 소수점 4자리까지
         BigDecimal totalAmountEarned = sellQuantity.multiply(currentPrice).setScale(4, RoundingMode.HALF_UP);
 
-        // 3. 실현 수익 계산하기 (판 수량 * 내 평단가)
+        // 3. 실현 수익 계산하기
+        // 내가 구매한 원금(판 수량 * 내 평단가)
         BigDecimal originalCost = sellQuantity.multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
 
         // 실현 수익 = (총 획득 현금 - 원금)
