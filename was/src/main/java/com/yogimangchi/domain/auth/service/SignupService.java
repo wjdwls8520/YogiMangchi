@@ -9,6 +9,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.OAuthAccount;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
+import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,9 +60,9 @@ public class SignupService {
         Member member = Member.createSocialMember(
                 signupRequest.nickname(),
                 signupTokenPayload.profileImgUrl(), // Redis 토큰 안에 이미 있는 원본 값을 즉각 사용!
+                signupRequest.profileMsg(),
                 signupRequest.termAgree(),
-                signupRequest.privateAgree(),
-                signupRequest.profileMsg()
+                signupRequest.privateAgree()
         );
 
         Member savedMember = memberRepository.save(member);
@@ -92,9 +93,7 @@ public class SignupService {
             throw new IllegalArgumentException("signupToken 은 필수입니다.");
         }
 
-        if (signupRequest.nickname() == null || signupRequest.nickname().isBlank()) {
-            throw new IllegalArgumentException("닉네임은 필수입니다.");
-        }
+        NicknameValidator.validate(signupRequest.nickname());
 
         if (signupRequest.termAgree() == false) {
             throw new IllegalArgumentException("서비스 이용약관 동의가 필요합니다.");

@@ -1,0 +1,97 @@
+package com.yogimangchi.domain.member.controller.v1;
+
+import com.yogimangchi.domain.member.dto.request.UpdateMyProfileDto;
+import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
+import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
+import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
+import com.yogimangchi.domain.member.service.MemberService;
+import com.yogimangchi.global.validator.NicknameValidator;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+
+@RestController
+@RequestMapping("/api/v1/member")
+@RequiredArgsConstructor
+@Tag(name = "Member", description = "회원 멤버(유저) 관련 api") // 도메인 구분
+public class MemberController {
+
+    private final MemberService memberService;
+
+    @Operation(
+            summary = "닉네임 중복 체크",
+            description = "중복된 닉네임을 체크합니다. \n" +
+                    " 한글영문숫자만 가능하며 최대 2~12자리 까지 가능합니다. 띄어쓰기는 허용되지 않습니다. \n" +
+                    "const resp = await axios.get('/api/v1/member/nickname/duplication?nickname=홍길동');")
+    @GetMapping("/nickname/duplication")
+    public ResponseEntity<NicknameDuplicationDto> isAvailableNickname(
+        @RequestParam String nickname
+    ) {
+        NicknameValidator.validate(nickname);
+
+        // 닉네임이 존재하지 않으면 true 존재하면 false를 리턴
+        NicknameDuplicationDto available = memberService.isAvailableNickname(nickname);
+        return ResponseEntity.ok(available);
+    }
+
+    @Operation(summary = "멤버(유저) 프로필 정보", description = "멤버의 프로필 정보를 요청합니다.")
+    @GetMapping("/info/me")
+    public ResponseEntity<MyProfileInfoDto> getMemberInfoMe(
+            @AuthenticationPrincipal Long memberId
+    ) {
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        MyProfileInfoDto myData =  memberService.getMyProfile(memberId);
+
+        return ResponseEntity.ok(myData);
+    }
+
+    @Operation(summary = "다른멤버(유저) 프로필 정보", description = "다른멤버의 프로필 정보를 요청합니다.")
+    @GetMapping("/info/{memberId}")
+    public ResponseEntity<MemberProfileInfoDto> getMemberInfo(
+            @PathVariable Long memberId
+    ) {
+        MemberProfileInfoDto memberData = memberService.getMemberProfile(memberId);
+
+        return ResponseEntity.ok(memberData);
+    }
+
+    @Operation(
+            summary = "멤버(유저) 프로필 수정",
+            description = "로그인한 멤버의 닉네임, 프로필 이미지 파일, 프로필 메시지를 수정합니다. multipart/form-data 형식으로 요청합니다.\n" +
+                    "\n" +
+                    "Next.js fetch 예시:\n" +
+                    "```javascript\n" +
+                    "const formData = new FormData();\n" +
+                    "formData.append('nickname', '홍길동');\n" +
+                    "formData.append('profileMsg', '안녕하세요!');\n" +
+                    "formData.append('profileImage', file);\n" +
+                    "\n" +
+                    "await fetch('/api/v1/member/info/me', {\n" +
+                    "  method: 'PATCH',\n" +
+                    "  body: formData,\n" +
+                    "  credentials: 'include',\n" +
+                    "});\n" +
+                    "```"
+    )
+    @PatchMapping(value = "/info/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MyProfileInfoDto> updateMemberInfoMe(
+            @AuthenticationPrincipal Long memberId,
+            @ModelAttribute UpdateMyProfileDto request
+    ) {
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        MyProfileInfoDto updatedProfile = memberService.updateMyProfile(memberId, request);
+
+        return ResponseEntity.ok(updatedProfile);
+    }
+}

@@ -1,11 +1,26 @@
-// app/design/page.tsx
+"use client";
+
+import { useState } from "react";
 import * as Icons from "@/components/icons";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 
 export default function DesignSystemPage() {
   // Icons 객체 안에 있는 모든 아이콘들을 배열로 변환합니다.
   const iconList = Object.entries(Icons);
+
+  // 🌟 셀렉트박스 테스트용 상태값
+  const [selectedValue, setSelectedValue] = useState<string | number>("");
+
+  // 🌟 셀렉트박스에 들어갈 옵션 데이터
+  const sampleOptions = [
+    { label: "1분봉 실시간", value: "1m" },
+    { label: "15분봉", value: "15m" },
+    { label: "1시간봉", value: "1h" },
+    { label: "1일봉", value: "1d" },
+  ];
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-10">
@@ -118,8 +133,68 @@ export default function DesignSystemPage() {
               <Button variant="gray" size="lg" className="shrink-0">인증번호 받기</Button>
             </div>
           </div>
+        </div>
+
+        {/* 셀렉트박스 섹션 */}
+        <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100 mt-10">
+          <h2 className="mb-6 text-xl font-bold text-gray-800 border-b pb-4">
+            커스텀 셀렉트박스 (options 배열 방식)
+          </h2>
+          
+          <div className="mb-10 max-w-md">
+            <div className="font-bold text-xl">상태별 (기본 / 에러)</div>
+            <div className="space-y-4 mt-4">
+              <Select 
+                options={sampleOptions} 
+                value={selectedValue} 
+                onChange={setSelectedValue} 
+                placeholder="차트 간격을 선택하세요" 
+              />
+              <Select 
+                options={sampleOptions} 
+                variant="error" 
+                placeholder="에러 상태 (필수 선택)" 
+              />
+            </div>
+          </div>
+
+          <div className="mb-10 max-w-md">
+            <div className="font-bold text-xl">크기별</div>
+            <div className="space-y-4 mt-4">
+              <Select size="sm" options={sampleOptions} placeholder="sm 사이즈 (h-9)" />
+              <Select size="md" options={sampleOptions} placeholder="md 사이즈 (h-11)" />
+              <Select size="lg" options={sampleOptions} placeholder="lg 사이즈 (h-14)" />
+            </div>
+          </div>
+
+          <div className="mb-10 max-w-md">
+            <div className="font-bold text-xl">비활성화 (Disabled)</div>
+            <div className="mt-4">
+              <Select disabled options={sampleOptions} placeholder="비활성화 상태" />
+            </div>
+          </div>
+
+          <div className="mb-10 max-w-3xl">
+            <div className="font-bold text-xl">응용: 인풋, 버튼과 완벽한 일직선 조합!</div>
+            <div className="flex gap-2 mt-4">
+              <div className="w-1/3">
+                <Select 
+                  size="lg" 
+                  options={[
+                    { label: "010", value: "010" },
+                    { label: "011", value: "011" }
+                  ]} 
+                  placeholder="통신사" 
+                />
+              </div>
+              <Input size="lg" placeholder="나머지 번호 입력" className="w-1/2" />
+              <Button variant="blue" size="lg" className="shrink-0">인증요청</Button>
+            </div>
+          </div>
 
         </div>
+
+        {/* //섹션끝// */}
 
       </div>
     </div>

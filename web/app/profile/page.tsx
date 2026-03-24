@@ -1,126 +1,268 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link"; // 페이지 이동을 위해 추가
+import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { UserIcon } from "@/components/icons";
 import Button from "@/components/ui/Button";
-// 사용할 아이콘들 (경로에 맞게 수정)
-import { FlameIcon, UserIcon, GoogleIcon } from "@/components/icons"; 
-import { RiImageEditLine } from "react-icons/ri";
-// ⭐️ 프사 수정 모달 컴포넌트 (아래에서 만들 예정)
-//import ProfileImageModal from "@/components/ProfileImageModal"; 
+import Select from "@/components/ui/Select";
 
+// 🌟 1. API 응답 스펙 정의
+interface MemberProfile {
+  memberId: number;
+  provider: string;
+  nickname: string;
+  profileImgUrl: string | null;
+  term_agree: boolean;
+  private_agree: boolean;
+}
+
+// --- 2. 아직 없는 데이터들 (모킹 유지) ---
+const MOCK_HOLDINGS = Array.from({ length: 30 }, (_, i) => ({
+  id: i + 1,
+  name: `코인_${i + 1}`,
+  code: ["BTC", "ETH", "SOL", "XRP", "ADA"][i % 5],
+  rate: parseFloat((Math.random() * 20 - 10).toFixed(2)),
+  amount: Math.floor(Math.random() * 10000000) + 100000,
+}));
+
+const MOCK_POSTS = [
+  { id: 1, title: "비트코인 지금 들어가는 거 어떻게 생각하시나요?", date: "방금 전", comments: 5, likes: 12 },
+  { id: 2, title: "오늘 수익률 인증합니다! 망치 지수 가즈아!", date: "2시간 전", comments: 3, likes: 8 },
+  { id: 3, title: "도지코인 가망 있나요? 살려주세요...", date: "어제", comments: 15, likes: 2 },
+];
+
+// --- 3. 메인 컴포넌트 ---
 export default function ProfilePage() {
-  // DB에서 불러온 유저 데이터 (가상 세팅)
-  const userData = {
-    email: "user@example.com",
-    nickname: "망치",
-    profile_msg: "정진똥꼬(냄시~)",
-    role: "VERIFIED_USER",
-    follow_count: 120,
-    best_count: 45,
-    // ... 기타 정보들
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [member, setMember] = useState<MemberProfile | null>(null); // 실제 API 데이터 상태
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [activeTab, setActiveTab] = useState<"investment" | "community">("investment");
+  const [sortBy, setSortBy] = useState<string>("yield");
+
+  // 로그아웃 처리 함수
+  const handleLogout = async () => {
+    if (!confirm("정말 로그아웃 하시겠습니까?")) return;
+
+    try {
+      const response = await fetch("http://localhost:8080/api/v1/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        alert("로그아웃 되었습니다.");
+        router.push("/login");
+      } else {
+        alert("로그아웃 처리 중 문제가 발생했습니다.");
+      }
+    } catch (err) {
+      console.error("로그아웃 에러:", err);
+      alert("서버와 통신할 수 없습니다.");
+    }
   };
 
-  // ⭐️ 프사 수정 모달 스위치
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+    const fetchMemberInfo = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/v1/member/info/me", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setMember(data);
+        }
+      } catch (err) {
+        console.error("멤버 정보 로드 실패", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMemberInfo();
+  }, []);
+
+  // 소팅 로직
+  const sortedHoldings = useMemo(() => {
+    return [...MOCK_HOLDINGS].sort((a, b) => {
+      if (sortBy === "yield") return b.rate - a.rate;
+      if (sortBy === "amount") return b.amount - a.amount;
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      return 0;
+    });
+  }, [sortBy]);
+
+  if (!isMounted || isLoading) return <div className="min-h-screen" />;
+  if (!member) return <div className="p-20 text-center text-gray-400">로그인이 필요합니다.</div>;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-2xl space-y-6">
+    <div className="min-h-screen pb-12">
+      <div className="mx-auto max-w-2xl px-4 pt-10">
         
-        {/* 페이지 타이틀 & ⭐️ 회원정보 수정 버튼 */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-              내 프로필
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              나의 활동 정보와 프로필을 관리할 수 있습니다.
-            </p>
-          </div>
-          {/* ⭐️ 회원정보 수정 페이지로 이동하는 버튼 */}
-          <Link href="/profile/edit">
-            <Button variant="white" size="sm" className="flex items-center gap-1.5">
-              회원정보 수정
-            </Button>
-          </Link>
-        </div>
-
-        {/* 1. 상단 상태 요약 카드 (통계 & 프로필 이미지) */}
-        <div className="rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <div className="flex flex-col items-center sm:flex-row sm:items-start sm:gap-6">
-            
-            {/* 프로필 이미지 영역 */}
-            <div className="relative mb-4 shrink-0 sm:mb-0">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 border-4 border-white shadow-md overflow-hidden">
-                {/* TODO: userData.profile_img가 있으면 img 태그 렌더링, 없으면 기본 아이콘 */}
-                <span className="text-3xl text-gray-400"><UserIcon className="w-30"/></span>
-              </div>
-              {/* ⭐️ 카메라 버튼 클릭 시 모달 열기 */}
-              <button 
-                onClick={() => setIsImageModalOpen(true)}
-                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm transition-colors hover:bg-gray-50 text-gray-600 cursor-pointer"
-              >
-                <RiImageEditLine />
-              </button>
+        {/* [상단] 프로필 카드 - 실제 API 데이터 연결 */}
+        <section className="mb-6 rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+          <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 shadow-inner">
+              {/* profileImgUrl이 기본값("assdsss.png")이거나 없으면 UserIcon 노출 */}
+              {member.profileImgUrl && member.profileImgUrl !== "assdsss.png" ? (
+                <img src={member.profileImgUrl} alt="profile" className="h-full w-full object-cover" />
+              ) : (
+                <UserIcon className="h-16 w-16 text-gray-300" />
+              )}
             </div>
-
-            {/* 유저 정보 요약 */}
             <div className="flex-1 text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                <h2 className="text-xl font-bold text-gray-900">{userData.nickname}</h2>
-                {/* 권한 뱃지 (인증회원) */}
-                {userData.role === "VERIFIED_USER" && (
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-[#0058FF]">
-                    인증 회원
-                  </span>
-                )}
+              <div className="mb-2 flex flex-col sm:flex-row sm:items-center gap-2 justify-center sm:justify-start text-gray-900">
+                <h2 className="text-2xl font-black">{member.nickname}</h2>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                  member.provider === 'kakao' ? 'bg-[#FEE500] text-[#3C1E1E]' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {member.provider === 'kakao' ? '카카오 계정연동' : '구글 계정연동'}
+                </span>
               </div>
-              <p className="text-sm text-gray-500 mb-2"><GoogleIcon className="inline-block w-4 mr-1"/>{userData.email}</p>
-              {/* 프로필 메시지 */}
-              <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100 mb-4 inline-block">
-                {userData.profile_msg}
-              </p>
               
-              {/* 통계 지표 (팔로우, 인기도) */}
-              <div className="flex items-center justify-center sm:justify-start gap-6 rounded-xl bg-gray-50 p-4 border border-gray-100">
-                <div className="flex flex-col items-center sm:items-start">
-                  <span className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
-                    <UserIcon className="w-4 h-4" /> 팔로워
-                  </span>
-                  <span className="text-lg font-bold text-gray-900">{userData.follow_count}</span>
+              {/* 한줄소개/망치지수 등은 API에 없으므로 일단 텍스트 유지 */}
+              <p className="mb-4 text-sm text-gray-400 font-medium">한줄소개를 등록해주세요.</p>
+
+              <div className="flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-2">
+                {/* <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">Invest Day</span>
+                  <span className="text-sm font-black text-[#0058FF]">D+1</span>
+                </div> */}
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">Followers</span>
+                  <span className="text-sm font-black text-gray-900"><span>0</span> 명</span>
                 </div>
-                <div className="h-8 w-px bg-gray-200"></div>
-                <div className="flex flex-col items-center sm:items-start">
-                  <span className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
-                    <FlameIcon className="w-4 h-4 text-orange-500" /> 인기도 (망치)
-                  </span>
-                  <span className="text-lg font-bold text-gray-900">{userData.best_count}개</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">Mangchi</span>
+                  <span className="text-sm font-black text-orange-500"><span>0</span> 망치</span>
                 </div>
               </div>
             </div>
+            <Link href="/profile/edit">
+              <Button variant="white" size="sm" className="rounded-xl text-xs h-9 sm:mt-1 border border-gray-100">정보 수정</Button>
+            </Link>
           </div>
+        </section>
+
+        {/* [중단] 탭 스위처 */}
+        <div className="mb-6 flex gap-2 rounded-2xl bg-gray-200/50 p-1.5">
+          <button 
+            onClick={() => setActiveTab("investment")}
+            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'investment' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            나의 투자
+          </button>
+          <button 
+            onClick={() => setActiveTab("community")}
+            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === 'community' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            커뮤니티
+          </button>
         </div>
 
-        {/* 하단 액션 버튼 */}
-        <div className="flex justify-center gap-4 pt-6 border-t border-gray-100">
-          <button type="button" className="text-sm text-gray-400 hover:text-gray-600 underline underline-offset-2">
-            로그아웃
-          </button>
-          <span className="text-gray-300">|</span>
-          <button type="button" className="text-sm text-red-400 hover:text-red-600 underline underline-offset-2">
-            회원 탈퇴
-          </button>
-        </div>
+        {/* [하단] 탭별 컨텐츠 영역 */}
+        <div className="space-y-6">
+          {activeTab === "investment" ? (
+            <>
+              <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+                <h3 className="mb-6 text-lg font-black text-gray-900">투자 성적표</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-2xl bg-[#F8F9FA] p-5">
+                    <p className="mb-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">총 자산 현황</p>
+                    <h4 className="text-xl font-black text-gray-900">0원</h4>
+                  </div>
+                  <div className="rounded-2xl bg-[#F8F9FA] p-5 border border-red-50">
+                    <p className="mb-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">누적 수익률</p>
+                    <div className="flex items-baseline gap-2">
+                      <h4 className="text-xl font-black text-red-500">0%</h4>
+                      <p className="text-[10px] text-red-400 font-bold">▲ 0</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
+              <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-gray-900">보유 종목 <span className="text-[#0058FF]">{MOCK_HOLDINGS.length}</span></h3>
+                  <div className="w-28">
+                    <Select 
+                      size="sm" 
+                      options={[{label:'수익률순', value:'yield'}, {label:'보유량순', value:'amount'}, {label:'이름순', value:'name'}]} 
+                      value={sortBy} 
+                      onChange={(val) => setSortBy(String(val))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3 max-h-[504px] overflow-y-auto pr-2 custom-scrollbar">
+                  {sortedHoldings.map((coin) => (
+                    <div key={coin.id} className="flex items-center justify-between p-4 rounded-2xl border border-gray-50 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">{coin.code}</div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{coin.name}</p>
+                          <p className="text-[10px] text-gray-400 font-bold">{coin.amount.toLocaleString()}원 보유</p>
+                        </div>
+                      </div>
+                      <p className={`text-sm font-black ${coin.rate >= 0 ? 'text-red-500' : 'text-blue-500'}`}>
+                        {coin.rate > 0 && '+'}{coin.rate}%
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              {/* 커뮤니티 섹션은 이전과 동일한 MOCK 데이터 사용 */}
+              <section className="grid grid-cols-2 gap-3">
+                <ActivityCard label="작성한 글" count={12} />
+                <ActivityCard label="좋아요 한 글" count={45} />
+                <ActivityCard label="팔로우 차티스트" count={8} />
+                <ActivityCard label="좋아요 차티스트" count={21} />
+              </section>
+
+              <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-lg font-black text-gray-900">최근 작성한 글</h3>
+                  <button className="text-xs text-gray-400 font-bold hover:text-gray-600">전체보기</button>
+                </div>
+                <div className="space-y-4">
+                  {MOCK_POSTS.map((post) => (
+                    <div key={post.id} className="group cursor-pointer border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                      <p className="mb-2 text-sm font-bold text-gray-800 group-hover:text-[#0058FF] transition-colors">{post.title}</p>
+                      <div className="flex items-center gap-3 text-[10px] text-gray-400 font-bold">
+                        <span>{post.date}</span>
+                        <span>댓글 {post.comments}</span>
+                        <span>좋아요 {post.likes}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
+          <footer className="pt-4">
+            <Button variant="white" fullWidth size="lg" onClick={handleLogout}>
+              로그아웃
+            </Button>
+          </footer>
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* ⭐️ 프사 수정 모달 컴포넌트 마운트 */}
-      {/* <ProfileImageModal 
-        isOpen={isImageModalOpen}
-        onClose={() => setIsImageModalOpen(false)}
-      /> */}
-
+function ActivityCard({ label, count }: { label: string, count: number }) {
+  return (
+    <div className="rounded-[24px] bg-white p-6 shadow-sm border border-gray-100 flex flex-col items-start">
+      <p className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">{label}</p>
+      <p className="text-xl font-black text-gray-900">{count}</p>
     </div>
   );
 }

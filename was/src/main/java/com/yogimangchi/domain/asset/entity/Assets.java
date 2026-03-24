@@ -44,6 +44,14 @@ public class Assets {
     @Comment("계좌 상태 (ACTIVE: 활성, INACTIVE: 비활성)")
     private String status;
 
+    @Column(name = "retry_count", nullable = false)
+    @Comment("재도전 횟수 (0부터 시작, 최대 5회)")
+    private int retryCount;
+
+    @Column(name = "expired_at", nullable = false)
+    @Comment("콘텐츠 만료 일시")
+    private LocalDateTime expiredAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -53,21 +61,26 @@ public class Assets {
     private LocalDateTime updatedAt;
 
     @Builder
-    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, String status) {
+    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, String status,  int retryCount, LocalDateTime expiredAt) {
         this.member = member;
         this.type = type;
         this.seedMoney = seedMoney;
         this.currentMoney = currentMoney;
         this.status = status;
+        this.retryCount = retryCount;
+        this.expiredAt = expiredAt;
     }
 
-    public static Assets createSpotAssets(Member member, BigDecimal seedMoney) {
+    // 새로운 지갑을 발급
+    public static Assets createNewWallet(Member member, AssetType type, BigDecimal initialMoney, int retryCount, LocalDateTime expiredAt) {
         return Assets.builder()
                 .member(member)
-                .type(AssetType.SPOT)
-                .seedMoney(seedMoney)
-                .currentMoney(seedMoney)
-                .status("INACTIVE")
+                .type(type)
+                .seedMoney(initialMoney)
+                .currentMoney(initialMoney) // 초기 자금을 잔고에 그대로 세팅
+                .status("ACTIVE")
+                .retryCount(retryCount)
+                .expiredAt(expiredAt)
                 .build();
     }
 
@@ -87,5 +100,10 @@ public class Assets {
         }
         // 현재 잔액 - 나가는 금액
         this.currentMoney = this.currentMoney.subtract(amount);
+    }
+
+    // 지갑 만료 처리 메서드
+    public void expireWallet() {
+        this.status = "EXPIRED";
     }
 }

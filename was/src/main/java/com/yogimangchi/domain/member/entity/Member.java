@@ -3,6 +3,7 @@ package com.yogimangchi.domain.member.entity;
 import com.yogimangchi.domain.member.enums.MemberRole;
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -18,15 +19,26 @@ public class Member {
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
-    @Column(name = "profile_img_url", length = 500)
+    @Column(name = "profile_img_url", length = 1000)
     private String profileImgUrl;
 
     @Column(name = "profile_msg", length = 255)
     private String profileMsg;
 
-    @Column(nullable = false)
+    @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
     private MemberRole role;
+
+    // 나를 팔로우하는 사람 수
+    @Column(name = "follower_count", nullable = false)
+    private Long followerCount;
+
+    // 내가 팔로윙하는 사람 수
+    @Column(name = "following_count", nullable = false)
+    private Long followingCount;
+
+    @Column(name = "best_count", nullable = false)
+    private Long bestCount;
 
     @Column(name = "term_agree", nullable = false)
     private boolean termAgree;
@@ -60,17 +72,26 @@ public class Member {
     public static Member createSocialMember(
             String nickname,
             String profileImgUrl,
+            String profileMsg,
             boolean termAgree,
-            boolean privateAgree,
-            String profileMsg
+            boolean privateAgree
     ) {
         Member member = new Member();
         member.nickname = nickname;
         member.profileImgUrl = profileImgUrl;
         member.role = MemberRole.USER;
+        member.profileMsg = profileMsg;
+        member.bestCount = 0L;
+        member.followerCount = 0L;
+        member.followingCount = 0L;
         member.termAgree = termAgree;
         member.privateAgree = privateAgree;
-        member.profileMsg = profileMsg;
         return member;
+    }
+
+    public void updateBasicProfile(String nickname, String profileImgUrl, String profileMsg) {
+        this.nickname = nickname;
+        this.profileImgUrl = profileImgUrl;
+        this.profileMsg = profileMsg;
     }
 }

@@ -8,6 +8,7 @@ import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.auth.oauth.dto.SocialUserInfo;
 import com.yogimangchi.global.auth.oauth.principal.CustomOAuth2User;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -40,10 +41,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         if (result.existingMember()) {
             AuthTokens authTokens = authService.issueTokens(result.memberId());
             authCookieService.addAuthCookies(response, authTokens);
+            invalidateSession(request);
             response.sendRedirect(FRONTEND_URL);
             return;
         }
 
+        invalidateSession(request);
         response.sendRedirect(FRONTEND_URL + "/signup?token=" + result.signupToken());
+    }
+
+    private void invalidateSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
     }
 }
