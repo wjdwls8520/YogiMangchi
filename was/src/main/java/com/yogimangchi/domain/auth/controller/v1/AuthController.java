@@ -14,7 +14,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -71,8 +74,26 @@ public class AuthController {
         String refreshToken = resolveCookie(request, authCookieService.getRefreshTokenCookieName());
         authService.logout(refreshToken);
         authCookieService.expireAuthCookies(response);
+        expireSession(request, response);
         SecurityContextHolder.clearContext();
         return ResponseEntity.noContent().build();
+    }
+
+    private void expireSession(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
+
+        response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from("JSESSIONID", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(0)
+                .build()
+                .toString());
     }
 
     private String resolveCookie(HttpServletRequest request, String cookieName) {

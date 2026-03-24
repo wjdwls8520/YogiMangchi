@@ -9,6 +9,7 @@ import com.yogimangchi.global.validator.NicknameValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,10 @@ public class MemberController {
     public ResponseEntity<MyProfileInfoDto> getMemberInfoMe(
             @AuthenticationPrincipal Long memberId
     ) {
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         MyProfileInfoDto myData =  memberService.getMyProfile(memberId);
 
         return ResponseEntity.ok(myData);
@@ -81,6 +86,10 @@ public class MemberController {
             @AuthenticationPrincipal Long memberId,
             @ModelAttribute UpdateMyProfileDto request
     ) {
+        if (memberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         MyProfileInfoDto updatedProfile = memberService.updateMyProfile(memberId, request);
 
         return ResponseEntity.ok(updatedProfile);

@@ -10,6 +10,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -40,7 +41,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+        Authentication currentAuthentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean hasMemberAuthentication = currentAuthentication != null
+                && currentAuthentication.getPrincipal() instanceof Long;
+
+        if (!hasMemberAuthentication) {
+            SecurityContextHolder.clearContext();
             String accessToken = resolveCookie(request, authCookieService.getAccessTokenCookieName());
 
             if (accessToken == null) {

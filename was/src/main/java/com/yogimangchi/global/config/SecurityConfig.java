@@ -49,7 +49,7 @@ public class SecurityConfig {
 
                                 "/api/auth/**",
                                 "/api/v1/auth/**",
-                                "/api/v1/chartapi/**",
+                                // "/api/v1/chartapi/**",
                                 "/api/v1/member/nickname/duplication",
                                 "/api/v1/trade/**"
                         ).permitAll()
