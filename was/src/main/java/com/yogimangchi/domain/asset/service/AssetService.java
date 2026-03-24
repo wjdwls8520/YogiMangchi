@@ -34,7 +34,7 @@ public class AssetService {
 
         // 재도전 횟수 계산 로직
         int currentRetryCount = 0;
-        int maxRetryLimit = (request.assetType() == AssetType.CONTEST) ? 2 :5;
+        int maxRetryLimit = (request.assetType() == AssetType.CONTEST) ? 0 :5;
 
         Optional<Assets> lastWallet = assetRepository.findTopByMemberIdAndTypeOrderByRetryCountDesc(memberId, request.assetType());
 
@@ -46,12 +46,7 @@ public class AssetService {
         }
 
         // 만료일(expiredAt) 계산 로직
-        LocalDateTime expiredAt;
-        if (request.assetType() == AssetType.CONTEST) {
-            expiredAt = YearMonth.now().atEndOfMonth().atTime(23, 59, 59);
-        } else {
-            expiredAt = LocalDateTime.now().plusDays(14);
-        }
+        LocalDateTime expiredAt = YearMonth.now().atEndOfMonth().atTime(23, 59, 59);
 
         // 초기 자금 설정 (10만 달러)
         BigDecimal initialMoney = new BigDecimal("100000");
@@ -64,6 +59,11 @@ public class AssetService {
 
     @Transactional
     public void giveUp(Long memberId, ParticipateRequestDto request) {
+        // 대회는 재도전 기회가 없기 때문에 포기할 수 없게 설정
+        if (request.assetType() == AssetType.CONTEST) {
+            throw new IllegalArgumentException("대회 진행 중에는 포기할 수 없습니다. 끝까지 완주해 주세요!");
+        }
+
         memberRepository.findByIdForUpdate(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
