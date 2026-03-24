@@ -19,9 +19,11 @@ export default function MainPage() {
         
         {/* 버튼 그룹 */}
         <div className="flex items-center gap-3">
-          <Button size="lg">
-            트레이딩 시작하기
-          </Button>
+          <Link href="/trading">
+            <Button size="lg">
+              트레이딩 시작하기
+            </Button>
+          </Link>
           <Link href="/profile">
             <Button size="lg" variant="sky">
               내 프로필(임시)
