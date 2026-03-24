@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType, Time, CandlestickSeries, HistogramSeries } from "lightweight-charts";
 import Select from "@/components/ui/Select";
 
-// 🌟 2. 드롭다운에 들어갈 옵션 리스트 미리 만들어두기
+// 드롭다운에 들어갈 옵션 리스트 미리 만들어두기
 const timeframeOptions = [
   { label: "1분", value: "1m" },
   { label: "15분", value: "15m" },
@@ -16,13 +16,13 @@ const timeframeOptions = [
 export default function MainCandleChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
-  // 🌟 현재 선택된 봉 간격을 저장하는 상태 (기본값: 1m)
+  // 현재 선택된 봉 간격을 저장하는 상태 (기본값: 1m)
   const [timeframe, setTimeframe] = useState("1m");
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // 1. 차트 기본 뼈대 생성
+    // 차트 기본 뼈대 생성
     const chart = createChart(chartContainerRef.current, {
       layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
       width: chartContainerRef.current.clientWidth,
@@ -31,13 +31,13 @@ export default function MainCandleChart() {
       timeScale: { timeVisible: true, secondsVisible: false, barSpacing: 12, rightOffset: 10 },
     });
 
-    // 2. 캔들 차트(봉) 추가
+    // 캔들 차트(봉) 추가
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#fb2c36', downColor: '#0058FF',
       borderVisible: false, wickUpColor: '#fb2c36', wickDownColor: '#0058FF',
     });
 
-    // 🌟 3. 거래량 차트(막대) 추가
+    // 거래량 차트(막대) 추가
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: '', // 캔들 차트의 가격축과 분리해서 겹쳐 보이게 만듦
@@ -62,8 +62,8 @@ export default function MainCandleChart() {
         candles.push({ time, open, high: parseFloat(d[2]), low: parseFloat(d[3]), close });
         volumes.push({
           time,
-          value: parseFloat(d[5]), // 바이낸스 데이터의 5번째 값이 거래량!
-          // 🌟 종가가 시가보다 높으면 빨강(흐리게), 낮으면 파랑(흐리게)
+          value: parseFloat(d[5]), // 바이낸스 데이터의 5번째 값이 거래
+          // 종가가 시가보다 높으면 빨강(흐리게), 낮으면 파랑(흐리게)
           color: isUp ? 'rgba(251, 44, 54, 0.4)' : 'rgba(0, 88, 255, 0.4)',
         });
       });
@@ -74,7 +74,7 @@ export default function MainCandleChart() {
     let isFetching = false;
     let ws: WebSocket | null = null;
 
-    // 🌟 4. API 요청 시 timeframe 변수 사용 (1m, 15m, 1h, 1d)
+    // API 요청 시 timeframe 변수 사용 (1m, 15m, 1h, 1d)
     fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${timeframe}&limit=1000`)
       .then((res) => res.json())
       .then((data) => {
@@ -84,7 +84,7 @@ export default function MainCandleChart() {
         candlestickSeries.setData(candles);
         volumeSeries.setData(volumes);
 
-        // 🌟 5. 웹소켓도 선택된 timeframe에 맞춰서 연결!
+        // 웹소켓도 선택된 timeframe에 맞춰서 연
         ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${timeframe}`);
         
         ws.onmessage = (event) => {
@@ -112,7 +112,7 @@ export default function MainCandleChart() {
         };
       });
 
-    // 6. 무한 스크롤 (과거 데이터 불러오기)
+    // 무한 스크롤 (과거 데이터 불러오기)
     const onVisibleLogicalRangeChanged = async (newVisibleLogicalRange: any) => {
       if (newVisibleLogicalRange !== null && newVisibleLogicalRange.from < 10 && !isFetching) {
         if (currentCandles.length === 0) return;
@@ -153,17 +153,17 @@ export default function MainCandleChart() {
       if (ws) ws.close();
       chart.remove();
     };
-  }, [timeframe]); // 🌟 핵심! timeframe이 바뀔 때마다 차트를 부수고 새로 그림
+  }, [timeframe]);
 
   return (
     <div className="w-full bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+      <div className="flex items-center justify-end">
+        {/* <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
           비트코인 (BTC/USDT)
-        </h2>
+        </h2> */}
         
-        {/* 🌟 드롭다운 선택 메뉴 추가 */}
-        <div className="flex items-center gap-2">
+        {/* 드롭다운 선택 메뉴 추가 */}
+        <div className="flex items-center">
           <div className="w-[120px]"> {/* 버튼이 너무 길어지지 않게 너비 고정 */}
             <Select 
               options={timeframeOptions}
