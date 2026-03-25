@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Dim from "@/components/Dim";
 import FloatMenu from "./components/FloatMenu";
 import Menu from "./components/Menu";
 import Top5 from "./components/Top5";
