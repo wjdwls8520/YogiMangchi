@@ -1,7 +1,6 @@
 package com.yogimangchi.global.file.Entity;
 
 import com.yogimangchi.domain.community.entity.Post;
-import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -36,4 +35,14 @@ public class File {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
+
+    public static File create(String originalname, Long size, String path, String contentType, Post post) {
+        File file = new File();
+        file.originalname = originalname;
+        file.size = size;
+        file.path = path;
+        file.contentType = contentType;
+        file.post = post;
+        return file;
+    }
 }
