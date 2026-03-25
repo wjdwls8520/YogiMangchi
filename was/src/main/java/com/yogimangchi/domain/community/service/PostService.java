@@ -1,11 +1,13 @@
 package com.yogimangchi.domain.community.service;
 
 import com.yogimangchi.domain.community.dto.request.PostCreateRequest;
+import com.yogimangchi.domain.community.dto.request.PostUpdateRequest;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.global.file.Entity.File;
 import com.yogimangchi.global.file.dto.response.FileDto;
@@ -88,7 +90,7 @@ public class PostService {
      * 게시글 생성 (제목, 내용, 첨부 이미지)
      */
     @Transactional
-    public PostDetailDto createPost(Long memberId, PostCreateRequest request, List<MultipartFile> files) {
+    public PostDetailDto createPost(Long memberId, PostCreateRequest request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String title = normalizeText(request.getTitle(), "제목");
@@ -108,9 +110,9 @@ public class PostService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         // ── 4. 첨부 이미지 필터링 (null·빈 파일 제거) ──
-        List<MultipartFile> images = files == null
+        List<MultipartFile> images = request.getFiles() == null
                 ? List.of()
-                : files.stream()
+                : request.getFiles().stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
 
@@ -187,6 +189,139 @@ public class PostService {
         return trimmed;
     }
 
+    /**
+     * 게시글 수정 (제목, 내용, 첨부 이미지 추가·삭제)
+     */
+    @Transactional
+    public PostDetailDto updatePost(Long memberId, Long postId, PostUpdateRequest request) {
+
+        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
+        Post post = postRepository.findById(postId)
+                .filter(p -> "N".equals(p.getDeleteYn()))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
+
+        // ── 2. 권한 검증 (본인 또는 ADMIN) ──
+        Member requester = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        boolean isAuthor = post.getMember().getId().equals(memberId);
+        boolean isAdmin = requester.getRole() == MemberRole.ADMIN;
+
+        if (!isAuthor && !isAdmin) {
+            throw new SecurityException("게시글 수정 권한이 없습니다.");
+        }
+
+        // ── 3. 입력값 정제 + 길이 검증 ──
+        String title = normalizeText(request.getTitle(), "제목");
+        String content = normalizeText(request.getContent(), "내용");
+
+        if (title.length() > MAX_TITLE_LENGTH) {
+            throw new IllegalArgumentException("제목은 최대 50자까지 입력 가능합니다.");
+        }
+
+        if (content.length() > MAX_CONTENT_LENGTH) {
+            throw new IllegalArgumentException("내용은 최대 1000자까지 입력 가능합니다.");
+        }
+
+        // ── 4. 기존 파일 삭제 처리 (deleteFileIds) ──
+        List<File> existingFiles = fileRepository.findAllByPostId(postId);
+        List<Long> deleteFileIds = request.getDeleteFileIds() == null
+                ? List.of()
+                : request.getDeleteFileIds();
+
+        if (!deleteFileIds.isEmpty()) {
+            List<File> filesToDelete = existingFiles.stream()
+                    .filter(f -> deleteFileIds.contains(f.getId()))
+                    .toList();
+
+            // DB에서 파일 삭제 (트랜잭션 롤백 시 함께 롤백됨)
+            fileRepository.deleteAll(filesToDelete);
+
+            // S3 물리 파일 삭제는 트랜잭션 커밋 성공 후 실행 (롤백 시 S3 파일 보존)
+            List<String> pathsToDelete = filesToDelete.stream()
+                    .map(File::getPath)
+                    .toList();
+            registerDeletedFileCleanup(pathsToDelete);
+
+            // 삭제된 파일을 기존 목록에서 제거
+            existingFiles = existingFiles.stream()
+                    .filter(f -> !deleteFileIds.contains(f.getId()))
+                    .toList();
+        }
+
+        // ── 5. 새 이미지 필터링 (null·빈 파일 제거) ──
+        List<MultipartFile> newImages = request.getFiles() == null
+                ? List.of()
+                : request.getFiles().stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .toList();
+
+        // ── 6. 총 파일 수 검증 (기존 잔여 + 신규) ──
+        int totalFileCount = existingFiles.size() + newImages.size();
+        if (totalFileCount > MAX_POST_IMAGE_COUNT) {
+            throw new IllegalArgumentException(
+                    "첨부 파일은 최대 " + MAX_POST_IMAGE_COUNT + "개까지 가능합니다. " +
+                    "(현재 " + existingFiles.size() + "개 + 신규 " + newImages.size() + "개)");
+        }
+
+        // ── 7. 새 이미지 S3 업로드 (트랜잭션 실패 시 자동 롤백 등록) ──
+        List<S3UploadResult> uploadedImages = new ArrayList<>();
+        registerUploadedFileRollback(uploadedImages);
+        uploadPostImages(newImages, uploadedImages);
+
+        // ── 8. 새 파일 메타데이터 DB 저장 ──
+        List<File> newFilesToSave = new ArrayList<>();
+        for (int i = 0; i < newImages.size(); i++) {
+            MultipartFile image = newImages.get(i);
+            S3UploadResult uploaded = uploadedImages.get(i);
+            String contentType = image.getContentType() == null
+                    ? "application/octet-stream" : image.getContentType();
+
+            newFilesToSave.add(File.create(
+                    image.getOriginalFilename(),
+                    image.getSize(),
+                    uploaded.url(),
+                    contentType,
+                    post
+            ));
+        }
+        List<File> persistedNewFiles = fileRepository.saveAll(newFilesToSave);
+
+        // ── 9. 게시글 제목·내용 업데이트 ──
+        post.update(title, content);
+
+        // ── 10. 응답 DTO 조립 (잔여 기존 파일 + 신규 파일) ──
+        List<FileDto> responseFiles = new ArrayList<>();
+
+        existingFiles.forEach(file -> responseFiles.add(new FileDto(
+                file.getId(), file.getOriginalname(), file.getSize(),
+                file.getPath(), file.getContentType(), file.getCreatedAt(),
+                post.getId()
+        )));
+
+        persistedNewFiles.forEach(file -> responseFiles.add(new FileDto(
+                file.getId(), file.getOriginalname(), file.getSize(),
+                file.getPath(), file.getContentType(), file.getCreatedAt(),
+                post.getId()
+        )));
+
+        Member author = post.getMember();
+        return new PostDetailDto(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getLikeCount(),
+                post.getReplyCount(),
+                post.getReportCount(),
+                post.getCreatedAt(),
+                post.getUpdatedAt(),
+                author.getId(),
+                author.getNickname(),
+                author.getProfileImgUrl(),
+                responseFiles
+        );
+    }
+
     private void uploadPostImages(List<MultipartFile> images, List<S3UploadResult> uploaded) {
         for (MultipartFile image : images) {
             uploaded.add(s3Service.uploadImage(image, POST_IMAGE_DIRECTORY, POST_IMAGE_MAX_FILE_SIZE));
@@ -207,6 +342,31 @@ public class PostService {
                             s3Service.deleteByKey(uploaded.key());
                         } catch (Exception e) {
                             log.error("롤백 대상 업로드 파일 정리에 실패했습니다. key={}", uploaded.key(), e);
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * 트랜잭션 커밋 성공 후에만 S3 물리 파일을 삭제하는 콜백을 등록합니다.
+     * 롤백 시에는 S3 파일이 보존되어 데이터 정합성을 유지합니다.
+     */
+    private void registerDeletedFileCleanup(List<String> filePaths) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    filePaths.forEach(path -> {
+                        try {
+                            s3Service.deleteByUrlIfManaged(path, POST_IMAGE_DIRECTORY);
+                        } catch (Exception e) {
+                            log.error("커밋 후 S3 파일 삭제에 실패했습니다. path={}", path, e);
                         }
                     });
                 }
