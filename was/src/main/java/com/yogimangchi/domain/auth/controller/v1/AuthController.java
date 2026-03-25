@@ -16,8 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Auth", description = "인증 및 회원가입 관련 API") // 도메인 구분
+@Tag(name = "01 - Auth", description = "인증 및 회원가입 관련 API") // 도메인 구분
 public class AuthController {
 
     private final SignupService signupService;
@@ -50,6 +48,7 @@ public class AuthController {
         SignupResponse signupResponse = signupService.signup(signupRequest);
         AuthTokens authTokens = authService.issueTokens(signupResponse.memberId());
         authCookieService.addAuthCookies(response, authTokens);
+        authCookieService.expireSessionCookie(response);
         return ResponseEntity.ok(signupResponse);
     }
 
@@ -86,14 +85,7 @@ public class AuthController {
             session.invalidate();
         }
 
-        response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from("JSESSIONID", "")
-                .httpOnly(true)
-                .secure(false)
-                .path("/")
-                .sameSite("Lax")
-                .maxAge(0)
-                .build()
-                .toString());
+        authCookieService.expireSessionCookie(response);
     }
 
     private String resolveCookie(HttpServletRequest request, String cookieName) {

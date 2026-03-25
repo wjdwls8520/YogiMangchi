@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
-import software.amazon.awssdk.services.s3.endpoints.internal.Value;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -40,7 +39,7 @@ public class TradeHistory {
     @Comment("거래 방향 (BUY: 매수, SELL: 매도)")
     private String side;
 
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(nullable = false, precision = 19, scale = 8)
     @Comment("1개당 체결 단가 (원화 기준)")
     private BigDecimal price;
 

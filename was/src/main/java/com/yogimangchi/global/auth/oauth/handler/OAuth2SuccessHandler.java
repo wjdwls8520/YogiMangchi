@@ -41,20 +41,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         if (result.existingMember()) {
             AuthTokens authTokens = authService.issueTokens(result.memberId());
             authCookieService.addAuthCookies(response, authTokens);
-            invalidateSession(request);
+            clearSession(request, response);
             response.sendRedirect(FRONTEND_URL);
             return;
         }
 
-        invalidateSession(request);
+        clearSession(request, response);
         response.sendRedirect(FRONTEND_URL + "/signup?token=" + result.signupToken());
     }
 
-    private void invalidateSession(HttpServletRequest request) {
+    private void clearSession(HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
 
         if (session != null) {
             session.invalidate();
         }
+
+        authCookieService.expireSessionCookie(response);
     }
 }

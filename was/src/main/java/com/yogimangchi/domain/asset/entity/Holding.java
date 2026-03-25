@@ -40,7 +40,7 @@ public class Holding {
     @Comment("현재 보유 수량 (소수점 8자리)")
     private BigDecimal quantity;
 
-    @Column(name = "average_buy_price", nullable = false, precision = 19, scale = 4)
+    @Column(name = "average_buy_price", nullable = false, precision = 19, scale = 8)
     @Comment("매수 평균 단가 (원화/달러 기준)")
     private BigDecimal averageBuyPrice;
 
