@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const selectTriggerVariants = cva(
-  "flex w-full items-center justify-between rounded-xl border bg-white text-gray-900 transition-all cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500",
+  "flex items-center justify-between gap-2 whitespace-nowrap rounded-xl border bg-white text-gray-900 transition-all cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500",
   {
     variants: {
       variant: {
@@ -24,7 +24,6 @@ const selectTriggerVariants = cva(
   }
 );
 
-// 옵션 데이터 타입 정의
 export interface SelectOption {
   label: string;
   value: string | number;
@@ -37,6 +36,7 @@ export interface CustomSelectProps extends VariantProps<typeof selectTriggerVari
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  fullWidth?: boolean;
 }
 
 export default function Select({
@@ -48,14 +48,13 @@ export default function Select({
   size,
   disabled,
   className,
+  fullWidth = false,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
-  // 현재 선택된 옵션의 label 찾기
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // 화면 바깥 클릭 시 드롭다운 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
@@ -72,28 +71,25 @@ export default function Select({
   };
 
   return (
-    // relative로 감싸서 드롭다운 메뉴가 이 div를 기준으로 뜨게 만듦
-    <div className="relative w-full" ref={selectRef}>
+    <div className={`relative inline-block ${fullWidth ? "w-full" : "w-fit"} ${className || ""}`} ref={selectRef}>
       
-      {/* 🌟 1. 기존 div를 button으로 완벽 교체! (웹 표준 & 실무 정석) */}
       <button
-        type="button" // form 태그 안에서 submit 되는 것 방지
-        disabled={disabled} // HTML 기본 속성 적용 -> Tailwind disabled CSS 완벽 작동
-        className={selectTriggerVariants({ variant, size, className })}
+        type="button"
+        disabled={disabled}
+        className={`${selectTriggerVariants({ variant, size })} ${fullWidth ? "w-full" : ""}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         
-        {/* 화살표 아이콘 (열리면 180도 회전 애니메이션) */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
           stroke="currentColor"
-          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+          className={`h-4 w-4 text-gray-400 transition-transform duration-200 shrink-0 ${
             isOpen ? "rotate-180" : ""
           }`}
         >
@@ -101,15 +97,14 @@ export default function Select({
         </svg>
       </button>
 
-      {/* 2. 드롭다운 옵션 리스트 (ul/li로 완벽 커스텀) */}
       {isOpen && (
-        <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg animate-in fade-in slide-in-from-top-2">
+        <ul className="absolute z-50 mt-1 max-h-60 min-w-full w-max overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg animate-in fade-in slide-in-from-top-2">
           {options.map((option) => (
             <li
               key={option.value}
-              className={`flex cursor-pointer items-center px-4 py-3 text-sm transition-colors hover:bg-blue-50 hover:text-[#0058FF] ${
+              className={`flex cursor-pointer items-center px-4 py-3 text-sm whitespace-nowrap transition-colors hover:bg-blue-50 hover:text-[#0058FF] ${
                 value === option.value
-                  ? "bg-blue-50 font-bold text-[#0058FF]" // 선택된 항목 강조
+                  ? "bg-blue-50 font-bold text-[#0058FF]"
                   : "text-gray-700"
               }`}
               onClick={() => handleSelect(option.value)}
