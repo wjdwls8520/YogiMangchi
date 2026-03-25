@@ -62,4 +62,8 @@ public class Post {
         this.title = title;
         this.content = content;
     }
+
+    public void delete() {
+        this.deleteYn = "Y";
+    }
 }

@@ -128,4 +128,14 @@ public class PostController {
         return ResponseEntity.ok(updatedPost);
     }
 
+    @DeleteMapping(value = "/{postId}")
+    public ResponseEntity<PostDetailDto> deletePost(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long postId
+    ) {
+        postService.deletePost(memberId, postId);
+
+        return ResponseEntity.noContent().build();  // 204
+    }
+
 }
