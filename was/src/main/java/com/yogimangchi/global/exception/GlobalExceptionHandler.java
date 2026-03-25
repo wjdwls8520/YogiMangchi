@@ -5,7 +5,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.validation.BindException;
-import org.springframework.validation.FieldError;
 
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -17,9 +16,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    // dto 검증 실패시 에러 발생
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
+    // DTO 검증 실패 시 에러 발생 (BindException, MethodArgumentNotValidException 통합 처리)
+    @ExceptionHandler({BindException.class, MethodArgumentNotValidException.class})
+    public ResponseEntity<ErrorResponse> handleValidationException(BindException e) {
         String errorMessage = e.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -31,7 +30,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "VALIDATION_ERROR", errorMessage));
     }
-
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
@@ -47,37 +45,10 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_SERVER_ERROR", e.getMessage()));
     }
 
-    @ExceptionHandler({BindException.class, MethodArgumentNotValidException.class})
-    public ResponseEntity<ErrorResponse> handleValidationException(Exception e) {
-        log.warn("유효성 검증 예외 발생", e);
-        return ResponseEntity.badRequest()
-                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "BAD_REQUEST", extractValidationMessage(e)));
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("처리되지 않은 예외 발생", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."));
-    }
-
-    private String extractValidationMessage(Exception e) {
-        if (e instanceof BindException bindException) {
-            return extractBindingResultMessage(bindException.getBindingResult().getFieldError());
-        }
-
-        if (e instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
-            return extractBindingResultMessage(methodArgumentNotValidException.getBindingResult().getFieldError());
-        }
-
-        return "잘못된 요청입니다.";
-    }
-
-    private String extractBindingResultMessage(FieldError fieldError) {
-        if (fieldError == null || fieldError.getDefaultMessage() == null || fieldError.getDefaultMessage().isBlank()) {
-            return "잘못된 요청입니다.";
-        }
-
-        return fieldError.getDefaultMessage();
     }
 }
