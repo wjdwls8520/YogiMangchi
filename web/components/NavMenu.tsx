@@ -49,7 +49,7 @@ export default function NavMenu({ classes, onClickItem }: NavMenuProps) {
                     <Link 
                         key={menu.id} 
                         href={menu.href} 
-                        className={cn("py-1.5 px-3 rounded-md", activeId === menu.id && "bg-gray-100")}
+                        className={cn("py-1.5 px-3 rounded-md", activeId === menu.id && "bg-gray-100 dark:bg-zinc-600")}
                         onClick={onClickItem}
                     >
                         {menu.name}

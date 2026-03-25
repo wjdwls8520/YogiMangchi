@@ -16,7 +16,7 @@ export default function SubMenu({ menus }: SubMenuProps) {
     const [active, setActive] = useState(menus[0].id);
 
     return (
-        <ul className="flex gap-7 overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-touch touch-pan-y w-full text-lg border-b border-gray-300 mb-10 mt-5">
+        <ul className="flex gap-7 overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-touch touch-pan-y w-full text-lg border-b border-gray-300 mb-10">
             {menus.map((menu) => <li 
                                     key={menu.id} 
                                     className={cn("snap-start shrink-0 cursor-pointer leading-12", 

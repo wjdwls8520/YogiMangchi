@@ -104,13 +104,16 @@ export default function CommunityItem({ post, variant }: Props) {
                         <small className="text-gray-500">{post.createAt}</small>
                     </div>
                     <div className="relative">
-                        <button type="button" onClick={() => setIsOpen((prev) => !prev)}>
+                        <button type="button" onClick={(e) => {
+                            e.preventDefault();
+                            setIsOpen((prev) => !prev);
+                        }}>
                             <BsThreeDots className="justify-self-end-safe text-gray-500" />
                         </button>
                         {
                             isOpen && 
                             <div className="absolute right-0 w-28 border border-gray-300 rounded-xl p-3">
-                                <Link href="#">신고하기</Link>
+                                <button type="button" onClick={(e) => e.preventDefault()}>신고하기</button>
                             </div>
                         }
                     </div>
@@ -177,6 +180,7 @@ export default function CommunityItem({ post, variant }: Props) {
                 </ul>
             </div>
 
+            {/* 댓글 */}
             { variant === 'detail' &&
                 <>
                     <h3 className="mt-8 font-semibold text-lg">답글 {post.replyCount}개</h3>
@@ -187,7 +191,7 @@ export default function CommunityItem({ post, variant }: Props) {
                         <textarea 
                             name="" id="" 
                             placeholder="댓글을 남겨보세요" 
-                            className="w-full border rounded-xl border-gray-200 p-4"
+                            className="w-full resize-none border rounded-xl border-gray-200 p-4"
                             rows={4}
                         >
                         </textarea>

@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Dim from "@/components/Dim";
 import FloatMenu from "./components/FloatMenu";
 import Menu from "./components/Menu";
 import Top5 from "./components/Top5";
 import { Ranker } from "./types/ranker";
-import { useState } from "react";
+import WriteModal from "./components/WriteModal";
 
 const ranker: Ranker[] = [
     {
@@ -40,6 +41,7 @@ const ranker: Ranker[] = [
     },
 ];
 
+
 export default function CommunityLayout({
   children,
 }: {
@@ -47,7 +49,7 @@ export default function CommunityLayout({
 }) {
 
     const [isOpen, setIsOpen] = useState(false);
-    
+
     return (
         <>
             <section className="md:grid md:grid-cols-11 lg:grid-cols-15 gap-11 relative">
@@ -58,7 +60,10 @@ export default function CommunityLayout({
                 <Top5 ranker={ranker} />
                 <FloatMenu onOpenLayer={() => setIsOpen(true)} />
             </section>
-            <Dim onClickDim={() => setIsOpen(false)} />
+            { 
+                isOpen && 
+                <WriteModal setIsOpen={setIsOpen} />
+            }
         </>
     )
 }

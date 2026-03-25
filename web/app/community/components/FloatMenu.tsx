@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { LuPenLine } from "react-icons/lu";
 
 interface MenuProps {

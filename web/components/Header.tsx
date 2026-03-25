@@ -40,7 +40,7 @@ export default function Header() {
     }
 
     
-    return <header className="w-full">
+    return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white dark:bg-zinc-900">
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
             <Link className="text-2xl font-bold" href="/">여기망치</Link>
             <NavMenu classes={'md:block hidden'} />
@@ -68,7 +68,7 @@ export default function Header() {
                 </button>
                 <div
                 className={cn(
-                    "fixed right-0 top-0 z-50 w-2/3 min-w-2xs h-full md:hidden bg-white transition-transform duration-300 ease-in-out",
+                    "fixed right-0 top-0 z-50 w-2/3 min-w-2xs h-full md:hidden bg-white dark:bg-zinc-900 transition-transform duration-300 ease-in-out",
                     isOpen ? "translate-x-0" : "translate-x-full"
                 )}
                 >

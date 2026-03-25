@@ -10,6 +10,7 @@ const selectTriggerVariants = cva(
       variant: {
         default: "border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF]",
         error: "border-red-500 focus:border-red-500 focus:ring-red-500 text-red-900",
+        noStyle: "border-0 h-auto gap-1"
       },
       size: {
         sm: "h-9 px-3 text-xs",
@@ -73,7 +74,7 @@ export default function Select({
 
   return (
     // relative로 감싸서 드롭다운 메뉴가 이 div를 기준으로 뜨게 만듦
-    <div className="relative w-full" ref={selectRef}>
+    <div className="relative flex w-full" ref={selectRef}>
       
       {/* 🌟 1. 기존 div를 button으로 완벽 교체! (웹 표준 & 실무 정석) */}
       <button
@@ -103,7 +104,7 @@ export default function Select({
 
       {/* 2. 드롭다운 옵션 리스트 (ul/li로 완벽 커스텀) */}
       {isOpen && (
-        <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg animate-in fade-in slide-in-from-top-2">
+        <ul className="absolute top-[100%] z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg animate-in fade-in slide-in-from-top-2">
           {options.map((option) => (
             <li
               key={option.value}
