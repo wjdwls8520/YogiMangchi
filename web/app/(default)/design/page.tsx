@@ -5,21 +5,25 @@ import * as Icons from "@/components/icons";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Tabs from "@/components/ui/Tabs";
 
 export default function DesignSystemPage() {
   // Icons 객체 안에 있는 모든 아이콘들을 배열로 변환합니다.
   const iconList = Object.entries(Icons);
 
-  // 🌟 셀렉트박스 테스트용 상태값
+  // 셀렉트박스 테스트용 상태값
   const [selectedValue, setSelectedValue] = useState<string | number>("");
 
-  // 🌟 셀렉트박스에 들어갈 옵션 데이터
+  // 셀렉트박스에 들어갈 옵션 데이터
   const sampleOptions = [
     { label: "1분봉 실시간", value: "1m" },
     { label: "15분봉", value: "15m" },
     { label: "1시간봉", value: "1h" },
     { label: "1일봉", value: "1d" },
   ];
+
+  //탭상태
+  const [currentTab, setCurrentTab] = useState("buy");
 
 
   return (
@@ -148,7 +152,7 @@ export default function DesignSystemPage() {
                 options={sampleOptions} 
                 value={selectedValue} 
                 onChange={setSelectedValue} 
-                placeholder="차트 간격을 선택하세요" 
+                placeholder="간격" 
               />
               <Select 
                 options={sampleOptions} 
@@ -192,6 +196,32 @@ export default function DesignSystemPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* 탭 섹션 */}
+        <div className="rounded-2xl bg-white p-8 shadow-sm border border-gray-100 mt-10">
+          <h2 className="mb-6 text-xl font-bold text-gray-800 border-b pb-4">
+            탭
+          </h2>
+
+          <Tabs 
+            activeTab={currentTab}
+            onChange={setCurrentTab}
+            fullWidth={true} // 탭을 좌우로 50:50 꽉 채우고 싶을 때
+            // fullWidth={false} 로 하면 왼쪽으로 딱 붙어서 예쁘게 나열됩니다.
+            tabs={[
+              { 
+                label: "BTC 매수", 
+                value: "buy", 
+                activeColor: "text-[#E12343] border-[#E12343]"
+              },
+              { 
+                label: "BTC 매도", 
+                value: "sell", 
+                activeColor: "text-[#1763B6] border-[#1763B6]"
+              }
+            ]}
+          />
         </div>
 
         {/* //섹션끝// */}
