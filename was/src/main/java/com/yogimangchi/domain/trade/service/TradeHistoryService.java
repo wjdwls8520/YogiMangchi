@@ -6,6 +6,9 @@ import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
+import com.yogimangchi.domain.market.entity.MarketSymbol;
+import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
+import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
 import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
@@ -27,6 +30,7 @@ public class TradeHistoryService {
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
+    private final MarketSymbolRepository marketSymbolRepository;
 
     @Transactional
     public void executeMarketOrder(Long memberId, MarketOrderRequestDto request) {
@@ -38,10 +42,31 @@ public class TradeHistoryService {
             throw new IllegalArgumentException("매도 시 수량은 필수입니다.");
         }
 
+        // 거래가능한 코인인지 검증
+        MarketSymbol marketSymbol = marketSymbolRepository.findById(request.symbol())
+                .orElseThrow(() -> new IllegalArgumentException("거래를 지원하지 않는 코인입니다."));
+        if(!marketSymbol.isActive()){
+            throw new IllegalArgumentException("현재 거래가 임시 중지 되거나 상장 폐지된 코인입니다.");
+        }
+
         // 현재 바이낸스 실시간 가격 조회
         ChartPriceDto currentPriceDto = chartPriceRepository.findBySymbol(request.symbol())
                 .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."));
         BigDecimal currentPrice = new BigDecimal(currentPriceDto.price());
+
+        // 최소주문금액 10달러 로직
+        BigDecimal MIN_ORDER_AMOUNT = new BigDecimal("10");
+
+        if("BUY".equalsIgnoreCase(request.side())){
+            if(request.totalAmount().compareTo(MIN_ORDER_AMOUNT) < 0){
+                throw new IllegalArgumentException("최소 주문 금액은 " + MIN_ORDER_AMOUNT + " 달러 이상이어야 합니다.");
+            }
+        }else if("SELL".equalsIgnoreCase(request.side())){
+            BigDecimal sellValue = request.quantity().multiply(currentPrice);
+            if (sellValue.compareTo(MIN_ORDER_AMOUNT) < 0) {
+                throw new IllegalArgumentException("매도하는 코인의 총 가치가 " + MIN_ORDER_AMOUNT + " 달러 이상이어야 합니다.");
+            }
+        }
 
         // 내 지갑 찾기 및 락걸기
         Assets myWallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, request.assetType(), "ACTIVE")
@@ -66,13 +91,17 @@ public class TradeHistoryService {
     private void processMarketBuy(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal orderAmount = request.totalAmount(); // 내가 쓸 현금 (예: 10만 원)
 
-        // 1. 수량 계산 = (투자 금액 / 현재가)
-        BigDecimal quantityToBuy = orderAmount.divide(currentPrice, 8, RoundingMode.HALF_UP);
+        // 1. 수수료 계산 및 실제 매수 금액 산출
+        BigDecimal fee = TradeFeePolicy.calculateFee(orderAmount, TradeFeePolicy.MARKET_FEE_RATE);
+        BigDecimal actualBuyAmount = orderAmount.subtract(fee); // 실제 매수에 사용되는 금액 = 주문금액 - 수수료
 
-        // 2. 지갑에서 돈 빼기 (잔고 부족하면 Assets 엔티티 내부에서 에러 던짐)
+        // 2. 수량 계산 = (실제 매수 금액 / 현재가)
+        BigDecimal quantityToBuy = actualBuyAmount.divide(currentPrice, 8, RoundingMode.HALF_UP);
+
+        // 3. 지갑에서 돈 빼기 (수수료 포함 전체 금액 차감)
         wallet.subtractMoney(orderAmount);
 
-        // 3. 내 코인(Holding) 지갑에 추가 (또는 물타기 평단가 계산)
+        // 4. 내 코인(Holding) 지갑에 추가 (또는 물타기 평단가 계산)
         Holding holding = holdingRepository.findByAssetsAndSymbol(wallet, request.symbol())
                 .orElse(null);
 
@@ -94,13 +123,13 @@ public class TradeHistoryService {
             holding.updateHolding(updatedQuantity, updatedAvgPrice);
         }
 
-        // 4. 영수증(TradeHistory) 남기기
+        // 5. 영수증(TradeHistory) 남기기
         TradeHistory history = TradeHistory.createMarketBuyHistory(
-                wallet, request.symbol(), currentPrice, quantityToBuy, orderAmount, BigDecimal.ZERO
+                wallet, request.symbol(), currentPrice, quantityToBuy, orderAmount, fee
         );
         tradeHistoryRepository.save(history);
 
-        log.info("[매수 완료] 유저: {}, 코인: {}, 금액: {}, 체결수량: {}", wallet.getMember().getId(), request.symbol(), orderAmount, quantityToBuy);
+        log.info("[매수 완료] 유저: {}, 코인: {}, 금액: {}, 수수료: {}, 체결수량: {}", wallet.getMember().getId(), request.symbol(), orderAmount, fee, quantityToBuy);
     }
 
     // 시장가 매도(SELL) 로직
@@ -115,30 +144,34 @@ public class TradeHistoryService {
             throw new IllegalArgumentException("보유 수량이 부족합니다.");
         }
 
-        // 2. 총 획득 현금 = (팔 수량 * 현재가) -> 소수점 4자리까지
+        // 2. 총 매도 대금 = (팔 수량 * 현재가) -> 소수점 4자리까지
         BigDecimal totalAmountEarned = sellQuantity.multiply(currentPrice).setScale(4, RoundingMode.HALF_UP);
 
-        // 3. 실현 수익 계산하기
+        // 3. 수수료 계산 및 실수령액 산출
+        BigDecimal fee = TradeFeePolicy.calculateFee(totalAmountEarned, TradeFeePolicy.MARKET_FEE_RATE);
+        BigDecimal actualReceived = totalAmountEarned.subtract(fee); // 실수령액 = 매도대금 - 수수료
+
+        // 4. 실현 수익 계산하기 (수수료 반영)
         // 내가 구매한 원금(판 수량 * 내 평단가)
         BigDecimal originalCost = sellQuantity.multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
 
-        // 실현 수익 = (총 획득 현금 - 원금)
-        BigDecimal realizedProfit = totalAmountEarned.subtract(originalCost);
+        // 실현 수익 = (실수령액 - 원금)
+        BigDecimal realizedProfit = actualReceived.subtract(originalCost);
 
-        // 4. 지갑에 돈 더해주기
-        wallet.addMoney(totalAmountEarned);
+        // 5. 지갑에 수수료를 뺀 금액만 입금
+        wallet.addMoney(actualReceived);
 
-        // 5. 코인 수량 깎기 (만약 다 팔았다면 평단가는 유지하거나, 0으로 만들거나 비즈니스 정책에 따름)
+        // 6. 코인 수량 깎기 (만약 다 팔았다면 평단가는 유지하거나, 0으로 만들거나 비즈니스 정책에 따름)
         BigDecimal remainQuantity = holding.getQuantity().subtract(sellQuantity);
         holding.updateHolding(remainQuantity, holding.getAverageBuyPrice());
 
-        // 6. 영수증(TradeHistory) 남기기 (실현 수익 계산 추가 필요)
+        // 7. 영수증(TradeHistory) 남기기
         TradeHistory history = TradeHistory.createMarketSellHistory(
-                wallet, request.symbol(), currentPrice, sellQuantity, totalAmountEarned, BigDecimal.ZERO, realizedProfit
+                wallet, request.symbol(), currentPrice, sellQuantity, totalAmountEarned, fee, realizedProfit
         );
         tradeHistoryRepository.save(history);
 
-        log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 획득금액: {}", wallet.getMember().getId(), request.symbol(), sellQuantity, totalAmountEarned);
+        log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 매도대금: {}, 수수료: {}, 실수령액: {}", wallet.getMember().getId(), request.symbol(), sellQuantity, totalAmountEarned, fee, actualReceived);
     }
 
 
