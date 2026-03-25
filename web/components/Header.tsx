@@ -14,6 +14,7 @@ import { cn } from "@/utils/cs";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import NavMenu from "./NavMenu";
+import Dim from "./Dim";
 
 
 export default function Header() {
@@ -76,7 +77,10 @@ export default function Header() {
                     </button>
                     <NavMenu onClickItem={() => setIsOpen(false)} />
                 </div>
-                <div className={cn("dim fixed left-0 top-0 z-49 bg-gray-950 opacity-50 w-full h-full md:hidden", isOpen ? "block" : "hidden")} onClick={() => setIsOpen(false)}></div>
+                {
+                    isOpen && 
+                    <Dim onClickDim={() => setIsOpen(false)} />
+                }
             </div>
         </div>
 

@@ -3,15 +3,35 @@ package com.yogimangchi.global.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.stream.Collectors;
+
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    // dto 검증 실패시 에러 발생
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
+        String errorMessage = e.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> "[" + error.getField() + "] " + error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+
+        log.warn("DTO 입력값 검증 예외 발생: {}", errorMessage);
+
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "VALIDATION_ERROR", errorMessage));
+    }
+
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {

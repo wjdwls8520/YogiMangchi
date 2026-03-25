@@ -27,7 +27,7 @@ body {
   }
 
   .scrollbar-custom::-webkit-scrollbar {
-    height: 6px; /* 가로 스크롤 */
+    height: 3px; /* 가로 스크롤 */
   }
 
   .scrollbar-custom::-webkit-scrollbar-thumb {
