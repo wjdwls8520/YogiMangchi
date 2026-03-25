@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -93,8 +94,17 @@ public class S3Service {
         }
 
         String contentType = imageFile.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
+        if (contentType == null) {
             throw new IllegalArgumentException("이미지 파일만 업로드할 수 있습니다.");
+        }
+
+        String normalizedContentType = contentType.toLowerCase(Locale.ROOT);
+        if (!normalizedContentType.startsWith("image/")) {
+            throw new IllegalArgumentException("이미지 파일만 업로드할 수 있습니다.");
+        }
+
+        if ("image/gif".equals(normalizedContentType)) {
+            throw new IllegalArgumentException("GIF 이미지는 업로드할 수 없습니다.");
         }
     }
 
