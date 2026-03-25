@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -321,6 +322,30 @@ public class PostService {
                 responseFiles
         );
     }
+
+    @Transactional
+    public void deletePost(Long memberId, Long postId) {
+        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
+        Post post = postRepository.findById(postId)
+                .filter(p -> "N".equals(p.getDeleteYn()))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
+
+        // ── 2. 권한 검증 (본인 또는 ADMIN) ──
+        Member requester = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        boolean isAuthor = post.getMember().getId().equals(memberId);
+        boolean isAdmin = requester.getRole() == MemberRole.ADMIN;
+
+        if (!isAuthor && !isAdmin) {
+            throw new SecurityException("게시글 삭제 권한이 없습니다.");
+        }
+
+        // 소프트삭제 deleteYN = Y
+        post.delete();
+    }
+
+
 
     private void uploadPostImages(List<MultipartFile> images, List<S3UploadResult> uploaded) {
         for (MultipartFile image : images) {
