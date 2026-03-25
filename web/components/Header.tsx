@@ -14,6 +14,7 @@ import { cn } from "@/utils/cs";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import NavMenu from "./NavMenu";
+import Dim from "./Dim";
 
 
 export default function Header() {
@@ -39,7 +40,7 @@ export default function Header() {
     }
 
     
-    return <header className="w-full">
+    return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white dark:bg-zinc-900">
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
             <Link className="text-2xl font-bold" href="/">여기망치</Link>
             <NavMenu classes={'md:block hidden'} />
@@ -67,7 +68,7 @@ export default function Header() {
                 </button>
                 <div
                 className={cn(
-                    "fixed right-0 top-0 z-50 w-2/3 min-w-2xs h-full md:hidden bg-white transition-transform duration-300 ease-in-out",
+                    "fixed right-0 top-0 z-50 w-2/3 min-w-2xs h-full md:hidden bg-white dark:bg-zinc-900 transition-transform duration-300 ease-in-out",
                     isOpen ? "translate-x-0" : "translate-x-full"
                 )}
                 >
@@ -76,7 +77,10 @@ export default function Header() {
                     </button>
                     <NavMenu onClickItem={() => setIsOpen(false)} />
                 </div>
-                <div className={cn("dim fixed left-0 top-0 z-49 bg-gray-950 opacity-50 w-full h-full md:hidden", isOpen ? "block" : "hidden")} onClick={() => setIsOpen(false)}></div>
+                {
+                    isOpen && 
+                    <Dim onClickDim={() => setIsOpen(false)} />
+                }
             </div>
         </div>
 

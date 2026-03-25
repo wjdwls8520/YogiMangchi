@@ -10,6 +10,7 @@ const selectTriggerVariants = cva(
       variant: {
         default: "border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF]",
         error: "border-red-500 focus:border-red-500 focus:ring-red-500 text-red-900",
+        noStyle: "border-0 h-auto gap-1"
       },
       size: {
         sm: "h-9 px-3 text-xs",

@@ -30,6 +30,9 @@ export default function Slider({
         if (!el) return;
 
 
+        // a태그 기본 드래그 동작 차단
+        const onDragStart = (e: DragEvent) => e.preventDefault();
+        
         const onWheel = (e: WheelEvent) => {
 
             if (!useWheel) return;
@@ -56,21 +59,16 @@ export default function Slider({
             isDownRef.current = true;
             isDraggingRef.current = false;
 
-            el.setPointerCapture(e.pointerId);
-
             startXRef.current = e.clientX;
             scrollLeftRef.current = el.scrollLeft;
         };
 
-        const onPointerUp = (e: PointerEvent) => {
+        const onPointerUp = () => {
             if (!useDrag) return;
 
             isDownRef.current = false;
 
-            try {
-                el.releasePointerCapture(e.pointerId);
-            } catch {}
-
+            // 추가: 슬라이더 밖에서 손을 떼도 isDraggingRef 초기화
             setTimeout(() => {
                 isDraggingRef.current = false;
             }, 0);
@@ -82,24 +80,16 @@ export default function Slider({
             const walk = e.clientX - startXRef.current;
 
             // 짧은 드래그는 스크롤 작동 안하게 함
-            if (Math.abs(walk) > 5) {
+            if (Math.abs(walk) > 10) {
                 isDraggingRef.current = true;
             }
 
             el.scrollLeft = scrollLeftRef.current - walk;
         };        
 
-        const onPointerLeave = () => {
-            if (isDownRef.current) return;
-
-            isDraggingRef.current = false;
-        };
-
         const onPointerCancel = (e: PointerEvent) => {
             isDownRef.current = false;
             isDraggingRef.current = false;
-
-            try { el.releasePointerCapture(e.pointerId); } catch {}
         };        
 
         if (useWheel) {
@@ -107,21 +97,26 @@ export default function Slider({
         }
 
         if (useDrag) {
+            el.addEventListener("dragstart", onDragStart);
             el.addEventListener("pointerdown", onPointerDown);
-            el.addEventListener("pointermove", onPointerMove);
-            el.addEventListener("pointerup", onPointerUp);
-            el.addEventListener("pointerleave", onPointerLeave);
-            el.addEventListener("pointercancel", onPointerCancel);
+
+            // el → window로 변경
+            window.addEventListener("pointermove", onPointerMove);
+            window.addEventListener("pointerup", onPointerUp);
+            window.addEventListener("pointercancel", onPointerCancel);
+
         }
 
         return () => {
-            el.removeEventListener("wheel", onWheel);
+            el.removeEventListener("dragstart", onDragStart); // 추가
 
+            el.removeEventListener("wheel", onWheel);
+            
             el.removeEventListener("pointerdown", onPointerDown);
-            el.removeEventListener("pointermove", onPointerMove);
-            el.removeEventListener("pointerup", onPointerUp);
-            el.removeEventListener("pointerleave", onPointerLeave);    
-            el.removeEventListener("pointercancel", onPointerCancel);    
+
+            window.removeEventListener("pointermove", onPointerMove);
+            window.removeEventListener("pointerup", onPointerUp);
+            window.removeEventListener("pointercancel", onPointerCancel); 
         };
     }, [useWheel, useDrag]);
 
@@ -130,7 +125,7 @@ export default function Slider({
         <div
         ref={containerRef}
         className={cn(
-            "overflow-x-auto flex snap-x snap-mandatory scrollbar-custom",
+            "overflow-x-auto flex snap-x snap-mandatory scrollbar-custom select-none",
             className
         )}
         onClickCapture={(e) => {
@@ -138,6 +133,9 @@ export default function Slider({
             e.preventDefault();
             e.stopPropagation();
             }
+
+            // 클릭 막은 후 초기화
+            isDraggingRef.current = false;
         }}        
         >
         {children}

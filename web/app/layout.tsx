@@ -12,6 +12,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
   return (
     <html lang="ko">
       <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
