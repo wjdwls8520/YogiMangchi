@@ -25,7 +25,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         )
         FROM Post p
         JOIN p.member m
-        WHERE p.deleteYn = 'n'
+        WHERE p.deleteYn = 'N'
             AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
     """)
@@ -47,7 +47,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         )
         FROM Post p
         JOIN p.member m
-        WHERE p.deleteYn = 'n'
+        WHERE p.deleteYn = 'N'
     """)
     Page<PostAndMemberDto> findAllPosts(Pageable pageable);
 }

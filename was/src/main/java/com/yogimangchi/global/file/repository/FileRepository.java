@@ -9,6 +9,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface FileRepository extends JpaRepository<File, Long> {
+
+    List<File> findAllByPostId(Long postId);
+
     @Query("""
         SELECT new com.yogimangchi.global.file.dto.response.FileDto(
             f.id, f.originalname, f.size, f.path, f.contentType, f.createdAt, p.id
