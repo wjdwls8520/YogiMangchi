@@ -5,6 +5,11 @@ spring:
   application:
     name: yogimangchi
 
+  #서버실행시 코인data.sql실행
+  sql:
+    init:
+      mode: always
+
   #파일용량제한
   servlet:
     multipart:
@@ -14,6 +19,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create
+    #서버실행시 코인data.sql실행
+    defer-datasource-initialization: true
     show-sql: true
     properties:
       hibernate:
