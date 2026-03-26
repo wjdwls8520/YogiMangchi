@@ -12,19 +12,38 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { cn } from "@/utils/cs";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import NavMenu from "./NavMenu";
 import Dim from "./Dim";
 
 
 export default function Header() {
 
-    const { isLogin, login, logout } = useAuthStore();
+    const { isLogin, login, logout, user } = useAuthStore();
     const { isDarkMode, toggleDarkMode } = useUIStore();
 
     const [isOpen, setIsOpen] = useState(false);
 
-    const pathname = usePathname(); // 현재 우리가 접속한 URL 주소를 알려주는 훅
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/member/info/me', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    login(data); // 성공하면 스토어에 유저 데이터 저장
+                } else {
+                    logout(); // 실패하면 로그아웃 상태로 초기화
+                }
+            } catch (error) {
+                logout();
+            }
+        };
+        checkAuth();
+    }, [login, logout]);
 
     useEffect(() => {
         if (isDarkMode) {
@@ -33,18 +52,12 @@ export default function Header() {
         document.documentElement.classList.remove("dark");
         }        
     }, [isDarkMode])
-
-    // 현재주소가 signup login...일때 헤더없음
-    if (pathname === "/signup" || pathname === "/login" || pathname === "/verify" || pathname === "/signup/benefits") {
-        return null; 
-    }
-
     
     return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white dark:bg-zinc-900">
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-            <Link className="text-2xl font-bold" href="/">여기망치</Link>
+            <Link className="text-2xl font-bold" href="/">요기망치</Link>
             <NavMenu classes={'md:block hidden'} />
-            <div className="flex gap-6">
+            <div className="flex gap-6 items-center">
                 <button>
                     <FiSearch className="w-5 h-5" />
                 </button>
@@ -56,13 +69,30 @@ export default function Header() {
                     }
                     
                 </button>
-                <Link href="/login">
+
+                <Link href={isLogin ? "/profile" : "/login"}>
                     {
-                        isLogin ?
-                        <IoPersonOutline className="w-5 h-5" /> :
-                        'Login'
+                        isLogin ? (
+                            // 로그인 정보가 있을 때: 프로필 사진 표시
+                            <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 dark:border-zinc-700 bg-gray-100 flex items-center justify-center">
+                                {user?.profileImgUrl ? (
+                                    <img 
+                                        src={user.profileImgUrl} 
+                                        alt="프로필" 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    // 사진이 없는 경우 기본 아이콘
+                                    <IoPersonOutline className="w-5 h-5 text-gray-400" />
+                                )}
+                            </div>
+                        ) : (
+                            // 로그인 정보가 없을 때: 기존 'Login' 텍스트
+                            <span className="text-sm font-bold dark:text-gray-300">Login</span>
+                        )
                     }
                 </Link>
+
                 <button type="button" className="block md:hidden" onClick={() => setIsOpen(true)}>
                     <IoIosMenu className="w-[25px] h-[25px]" />
                 </button>
