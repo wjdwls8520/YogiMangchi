@@ -1,14 +1,26 @@
+export interface File {
+  id: number;
+  originalname: string;
+  size: number;
+  path: string;
+  contentType: string;
+  createdAt: string;
+  postId: number;
+
+}
+
+
 export interface Post {
-  id: string;
-  nickname: string;
-  profileImg: string;
+  id: number;
   title: string;
   content: string;
-  images: string[];
   likeCount: number;
-  unlikeCount: number;
   replyCount: number;
   reportCount: number;
-  createAt: string;
-  updateAt: string;
+  createdAt: string;
+  updatedAt: string;
+  memberId: number;
+  nickname: string;
+  profileImg: string;
+  files: File[];
 };

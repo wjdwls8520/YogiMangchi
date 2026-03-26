@@ -1,5 +1,5 @@
 import UserAvatar from "@/components/user/UserAvatar";
-import { cn } from "@/utils/cs";
+import { cn } from "@/lib/utils/cs";
 import { VscHeart } from "react-icons/vsc";
 
 interface Comment {

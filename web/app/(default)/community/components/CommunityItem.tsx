@@ -12,11 +12,12 @@ import Slider from "@/components/Slider/Slider";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/utils/cs";
+import { cn } from "@/lib/utils/cs";
 import UserAvatar from "@/components/user/UserAvatar";
 import Image from "next/image";
 import CommentItem from "./CommentItem";
 import Button from "@/components/ui/Button";
+import { formatTime } from "@/lib/utils/date";
 
 interface Props {
   post :Post;
@@ -101,7 +102,7 @@ export default function CommunityItem({ post, variant }: Props) {
                     <UserAvatar profileImg={post.profileImg} />
                     <div className="">
                         <p className="font-semibold">{post.nickname}</p>
-                        <small className="text-gray-500">{post.createAt}</small>
+                        <small className="text-gray-500">{formatTime(post.createdAt)}</small>
                     </div>
                     <div className="relative">
                         <button type="button" onClick={(e) => {
@@ -136,31 +137,15 @@ export default function CommunityItem({ post, variant }: Props) {
                     }
                 </div>
 
-                {/* slide 테스트 코드 */}
-                <Slider className="pt-6 pb-3">
-                    <ul className="flex gap-2 w-full">
-                        {[0,0,0,0,0].map((el, index) => 
-                            <li key={index} className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden">
-                                <Image 
-                                    width={250} height={250} 
-                                    src={testImg} alt="첨부 이미지" 
-                                />
-                            </li>        
-                        )}
-                                                                                
-                    </ul>
-                </Slider>
-
-                {/* 실제 slide 코드 */}
                 {
-                    post.images.length > 0 && 
+                    post?.files?.length > 0 && 
                     <Slider className="pt-6 pb-3">
                         <ul className="flex gap-2 w-full">
                             {
-                                post.images.map((image) => <li key={image}
+                                post.files.map((file) => <li key={file.id}
                                                                 className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
                                                             >
-                                                                <Image src={image} alt="첨부 이미지" width={250} height={250} draggable={false} />
+                                                                <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
                                                             </li>)
                             }
                         </ul>
@@ -169,10 +154,10 @@ export default function CommunityItem({ post, variant }: Props) {
 
                 <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
                     <li>
-                        <button type="button" className="flex items-center gap-1"><VscHeart className="text-xl" strokeWidth={0.3} /> 343</button>
+                        <button type="button" className="flex items-center gap-1"><VscHeart className="text-xl" strokeWidth={0.3} /> {post.likeCount}</button>
                     </li>                
                     <li>
-                        <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> 460</button>
+                        <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>
                     </li>                
                     <li>
                         <button type="button" className="flex items-center gap-1"><GoShareAndroid className="text-xl" strokeWidth={0.3} /> 공유</button>

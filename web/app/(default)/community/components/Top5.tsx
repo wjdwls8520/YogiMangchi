@@ -1,6 +1,6 @@
-import { UserIcon } from "@/components/icons";
 import { Ranker } from "../types/ranker";
 import UserAvatar from "@/components/user/UserAvatar";
+import { useHeaderHeight } from "@/hooks/useHeaderHeight";
 
 
 interface Rankers {
@@ -9,9 +9,10 @@ interface Rankers {
 
 export default function Top5({ranker} :Rankers) {
 
+    const headerHeight = useHeaderHeight();
 
     return (
-        <aside className="col-span-4 pt-6 md:mt-[-11px] sticky top-0 self-start lg:block hidden">
+        <aside className="col-span-4 pt-6 md:mt-[-11px] sticky top-0 self-start lg:block hidden" style={{top: headerHeight}}>
             <h2 className="text-xl font-bold">수익금 상위 투자자 TOP5</h2>
             <small className="text-sm text-gray-500">최근 1주일 기준</small>
             <ul className="flex flex-col gap-6 pt-6.5">
