@@ -7,9 +7,12 @@ import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
+import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.domain.community.support.PostReader;
+import com.yogimangchi.domain.community.support.ReplyReader;
+import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
+import com.yogimangchi.domain.community.validator.ReplyValidator;
 import com.yogimangchi.domain.member.entity.Member;
-import com.yogimangchi.domain.member.enums.MemberRole;
-import com.yogimangchi.domain.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,17 +29,19 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ReplyService {
 
+    private final PostRepository postRepository;
     private final ReplyRepository replyRepository;
     private final ReplyLikeRepository replyLikeRepository;
-    private final MemberRepository memberRepository;
-    private final PostRepository postRepository;
+    private final CommunityMemberReader communityMemberReader;
+    private final PostReader postReader;
+    private final ReplyReader replyReader;
+    private final ReplyValidator replyValidator;
+    private final CommunityPermissionValidator communityPermissionValidator;
 
     private static final int MAX_CONTENT_LENGTH = 1000;
 
     @Transactional
     public ReplyDetailDto createReply(Long memberId, Long postId, ReplyCreateDto request) {
-
-        if(memberId == null) { throw new IllegalArgumentException("로그인 이후 이용할 수 있습니다."); };
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String content = normalizeText(request.content(), "내용");
@@ -46,27 +51,22 @@ public class ReplyService {
             throw new IllegalArgumentException("내용은 최대 1000자까지 입력 가능합니다.");
         }
 
-        // ── 3. 작성자 조회 ──
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        // ── 4. 게시글 조회 ──
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+        // ── 3. 요청자와 활성 게시글을 먼저 확인합니다. ──
+        Member member = communityMemberReader.getAuthenticated(memberId);
+        Post post = postReader.getActive(postId);
+        replyValidator.validateCreateRequest(request);
 
         Reply reply;
-        if(request.parentId() == null) {
+        if (request.parentId() == null) {
             reply = Reply.create(content, member, post);
         } else {
+            Reply replyParent = replyReader.getActive(request.parentId());
+            replyValidator.validateParent(post, replyParent);
 
-            Reply replyParent = replyRepository.findById(request.parentId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글 입니다."));
-
-            Reply replyTarget = replyRepository.findById(request.targetId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글 입니다."));
-
-            if (!replyParent.getPost().getId().equals(post.getId()) ||  !replyTarget.getPost().getId().equals(post.getId())) {
-                throw new IllegalArgumentException("같은 게시글의 댓글에만 대댓글을 작성할 수 있습니다.");
+            Reply replyTarget = null;
+            if (request.targetId() != null) {
+                replyTarget = replyReader.getActive(request.targetId());
+                replyValidator.validateTarget(post, replyParent, replyTarget);
             }
 
             reply = Reply.createChild(content, replyParent, replyTarget, member, post);
@@ -78,8 +78,9 @@ public class ReplyService {
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
         String targetNickname = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getNickname();
 
+        // 저장이 끝난 뒤 게시글과 부모댓글 카운트를 반영합니다.
         postRepository.increaseReplyCount(postId);
-        if( saveReply.getParentReply() != null ) {
+        if (saveReply.getParentReply() != null) {
             replyRepository.increaseReplyCount(saveReply.getParentReply().getId());
         }
 
@@ -117,16 +118,19 @@ public class ReplyService {
     @Transactional(readOnly = true)
     public Page<ReplyDetailDto> getParentReplys(Long memberId, Long postId, Long parentId, int page, int size) {
 
+        Post post = postReader.getActive(postId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<ReplyDetailDto> replys = null;
 
         // 최상위 부모 조회 로직
-        if( parentId == null ) {
-            replys = replyRepository.findAllParentReplys(postId, pageable);
+        if (parentId == null) {
+            replys = replyRepository.findAllParentReplys(post.getId(), pageable);
         }
-        if( parentId != null ) {
-            replys = replyRepository.findAllChildrenReplys(postId, parentId, pageable);
+        if (parentId != null) {
+            Reply parentReply = replyReader.get(parentId);
+            replyValidator.validateReplyGroupParent(post, parentReply);
+            replys = replyRepository.findAllChildrenReplys(post.getId(), parentId, pageable);
         }
 
         if (replys == null || replys.isEmpty()) {
@@ -157,8 +161,6 @@ public class ReplyService {
 
     @Transactional
     public ReplyDetailDto updateReply(Long memberId, Long postId, Long replyId, String content) {
-        if(memberId == null) { throw new IllegalArgumentException("로그인 이후 이용할 수 있습니다."); };
-
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String content1 = normalizeText(content, "내용");
 
@@ -167,25 +169,12 @@ public class ReplyService {
             throw new IllegalArgumentException("내용은 최대 1000자까지 입력 가능합니다.");
         }
 
-        // ── 3. 작성자 조회 ──
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        // ── 4. 게시글 조회 ──
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
-
-        // ── 5. 댓글 조회 ──
-        Reply reply = replyRepository.findById(replyId)
-                .filter(r -> "N".equals(r.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글입니다."));
-
-        boolean isAuthor = reply.getMember().getId().equals(memberId);
-        boolean isAdmin = member.getRole() == MemberRole.ADMIN;
-
-        if (!isAuthor && !isAdmin) {
-            throw new SecurityException("댓글 수정 권한이 없습니다.");
-        }
+        // ── 3. 수정 대상의 소속과 권한을 확인합니다. ──
+        Member member = communityMemberReader.getAuthenticated(memberId);
+        Post post = postReader.getActive(postId);
+        Reply reply = replyReader.getActive(replyId);
+        replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 수정할 수 있습니다.");
+        communityPermissionValidator.validateReplyAuthorOrAdmin(reply, member, "댓글 수정 권한이 없습니다.");
 
         Reply updatedReply = reply.update(content1);
 
@@ -214,39 +203,21 @@ public class ReplyService {
 
     @Transactional
     public void deleteReply(Long memberId, Long postId, Long replyId) {
+        // ── 1. 삭제 대상의 소속과 권한을 확인합니다. ──
+        Member member = communityMemberReader.getAuthenticated(memberId);
+        Post post = postReader.getActive(postId);
+        Reply reply = replyReader.getActive(replyId);
+        replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 삭제할 수 있습니다.");
+        communityPermissionValidator.validateReplyAuthorOrAdmin(reply, member, "댓글 삭제 권한이 없습니다.");
 
-        // ── 1. 작성자 조회 ──
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        reply.delete();
 
-        // ── 2. 게시글 조회 ──
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
-
-        // ── 3. 댓글 조회 ──
-        Reply reply = replyRepository.findById(replyId)
-                .filter(r -> "N".equals(r.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글입니다."));
-
-        boolean isAuthor = reply.getMember().getId().equals(memberId);
-        boolean isAdmin = member.getRole() == MemberRole.ADMIN;
-
-        if (!isAuthor && !isAdmin) {
-            throw new SecurityException("댓글 삭제 권한이 없습니다.");
+        // 자식댓글이 삭제되면 부모댓글의 댓글카운트 -1
+        if (reply.getParentReply() != null) {
+            replyRepository.decreaseReplyCount(reply.getParentReply().getId());
         }
 
-        // 게시글id와 댓글의 게시글 id가 같을 때
-        if(post.getId().equals(reply.getPost().getId())) {
-            reply.delete();
-
-            // 자식댓글이 삭제되면 부모댓글의 댓글카운트 -1
-            if(reply.getParentReply() != null) {
-                replyRepository.decreaseReplyCount(reply.getParentReply().getId());
-            }
-        } else {
-            throw new SecurityException("댓글 삭제 권한이 없습니다.");
-        }
-
+        // 댓글 삭제는 게시글 전체 댓글 수에서도 차감합니다.
         postRepository.decreaseReplyCount(postId);
     }
 

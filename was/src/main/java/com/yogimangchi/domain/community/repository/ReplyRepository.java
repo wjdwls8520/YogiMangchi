@@ -33,6 +33,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         join r.member m
         join r.post p
         where p.id = :postId
+          and p.deleteYn = 'N'
           and r.parentReply is null
     """)
     Page<ReplyDetailDto> findAllParentReplys(@Param("postId") Long postId, Pageable pageable);
@@ -45,8 +46,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             false,
             r.replyCount,
             rp.id,
-            tm.id,
-            tm.nickname,
+            case when r.deleteYn = 'Y' then null else tm.id end,
+            case when r.deleteYn = 'Y' then null else tm.nickname end,
             r.createdAt,
             r.updatedAt,
             m.id,
@@ -60,8 +61,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         left join tr.member tm
         join r.member m
         join r.post p
-        where r.deleteYn = 'N'
-          and p.id = :postId
+        where p.id = :postId
+          and p.deleteYn = 'N'
           and rp.id = :parentId
     """)
     Page<ReplyDetailDto> findAllChildrenReplys(@Param("postId") Long postId, @Param("parentId") Long parentId, Pageable pageable);

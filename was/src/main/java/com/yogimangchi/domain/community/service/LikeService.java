@@ -7,7 +7,10 @@ import com.yogimangchi.domain.community.repository.PostLikeRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
-import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.domain.community.support.PostReader;
+import com.yogimangchi.domain.community.support.ReplyReader;
+import com.yogimangchi.domain.community.validator.ReplyValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,13 +23,16 @@ public class LikeService {
     private final ReplyRepository replyRepository;
     private final PostLikeRepository postLikeRepository;
     private final ReplyLikeRepository replyLikeRepository;
-    private final MemberRepository memberRepository;
+    private final CommunityMemberReader communityMemberReader;
+    private final PostReader postReader;
+    private final ReplyReader replyReader;
+    private final ReplyValidator replyValidator;
 
     @Transactional
     public LikeResponseDto likePost(Long memberId, Long postId) {
-        validateAuthenticated(memberId);
-        validateMemberExists(memberId);
-        validatePost(postId);
+        // 로그인한 사용자가 활성 게시글에만 좋아요를 누를 수 있습니다.
+        communityMemberReader.getAuthenticated(memberId);
+        postReader.getActive(postId);
 
         int insertedCount = postLikeRepository.insertIgnore(memberId, postId);
         if (insertedCount > 0) {
@@ -38,9 +44,9 @@ public class LikeService {
 
     @Transactional
     public LikeResponseDto unlikePost(Long memberId, Long postId) {
-        validateAuthenticated(memberId);
-        validateMemberExists(memberId);
-        validatePost(postId);
+        // 취소 요청도 동일하게 인증과 게시글 활성 상태를 먼저 확인합니다.
+        communityMemberReader.getAuthenticated(memberId);
+        postReader.getActive(postId);
 
         int deletedCount = postLikeRepository.deleteByMemberIdAndPostId(memberId, postId);
         if (deletedCount > 0) {
@@ -52,9 +58,11 @@ public class LikeService {
 
     @Transactional
     public LikeResponseDto likeReply(Long memberId, Long postId, Long replyId) {
-        validateAuthenticated(memberId);
-        validateMemberExists(memberId);
-        validateReply(postId, replyId);
+        // 댓글 좋아요는 게시글-댓글 소속까지 함께 검증합니다.
+        communityMemberReader.getAuthenticated(memberId);
+        Post post = postReader.getActive(postId);
+        Reply reply = replyReader.getActive(replyId);
+        replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
 
         int insertedCount = replyLikeRepository.insertIgnore(memberId, replyId);
         if (insertedCount > 0) {
@@ -66,9 +74,11 @@ public class LikeService {
 
     @Transactional
     public LikeResponseDto unlikeReply(Long memberId, Long postId, Long replyId) {
-        validateAuthenticated(memberId);
-        validateMemberExists(memberId);
-        validateReply(postId, replyId);
+        // 취소 요청도 같은 게시글의 활성 댓글인지 먼저 확인합니다.
+        communityMemberReader.getAuthenticated(memberId);
+        Post post = postReader.getActive(postId);
+        Reply reply = replyReader.getActive(replyId);
+        replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
 
         int deletedCount = replyLikeRepository.deleteByMemberIdAndReplyId(memberId, replyId);
         if (deletedCount > 0) {
@@ -76,36 +86,5 @@ public class LikeService {
         }
 
         return new LikeResponseDto(replyId, replyRepository.findLikeCountById(replyId), false);
-    }
-
-    private void validateAuthenticated(Long memberId) {
-        if (memberId == null) {
-            throw new IllegalArgumentException("로그인 이후 이용할 수 있습니다.");
-        }
-    }
-
-    private void validateMemberExists(Long memberId) {
-        memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-    }
-
-    private void validatePost(Long postId) {
-        postRepository.findById(postId)
-                .filter(post -> "N".equals(post.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
-    }
-
-    private void validateReply(Long postId, Long replyId) {
-        Post post = postRepository.findById(postId)
-                .filter(savedPost -> "N".equals(savedPost.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
-
-        Reply reply = replyRepository.findById(replyId)
-                .filter(savedReply -> "N".equals(savedReply.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글입니다."));
-
-        if (!reply.getPost().getId().equals(post.getId())) {
-            throw new IllegalArgumentException("같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
-        }
     }
 }

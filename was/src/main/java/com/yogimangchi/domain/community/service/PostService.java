@@ -7,9 +7,10 @@ import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.repository.PostLikeRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
+import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.domain.community.support.PostReader;
+import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
 import com.yogimangchi.domain.member.entity.Member;
-import com.yogimangchi.domain.member.enums.MemberRole;
-import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.global.file.Entity.File;
 import com.yogimangchi.global.file.dto.response.FileDto;
 import com.yogimangchi.global.file.repository.FileRepository;
@@ -42,7 +43,9 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final FileRepository fileRepository;
-    private final MemberRepository memberRepository;
+    private final CommunityMemberReader communityMemberReader;
+    private final PostReader postReader;
+    private final CommunityPermissionValidator communityPermissionValidator;
     private final S3Service s3Service;
 
     private static final int MAX_TITLE_LENGTH = 50;
@@ -98,10 +101,8 @@ public class PostService {
     @Transactional(readOnly = true)
     public PostDetailDto getPost(Long memberId, Long postId) {
 
-        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
-        Post post = postRepository.findById(postId)
-                .filter(p -> "N".equals(p.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
+        // ── 1. 활성 게시글을 조회합니다. ──
+        Post post = postReader.getActive(postId);
 
         // ── 2. 첨부파일 조회 ──
         List<FileDto> files = fileRepository.findAllByPostIds(List.of(postId));
@@ -132,8 +133,8 @@ public class PostService {
     public PostDetailDto createPost(Long memberId, PostCreateDto request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
-        String title = normalizeText(request.getTitle(), "제목");
-        String content = normalizeText(request.getContent(), "내용");
+        String title = normalizeText(request.title(), "제목");
+        String content = normalizeText(request.content(), "내용");
 
         // ── 2. 길이 제한 검증 ──
         if (title.length() > MAX_TITLE_LENGTH) {
@@ -144,14 +145,11 @@ public class PostService {
             throw new IllegalArgumentException("내용은 최대 1000자까지 입력 가능합니다.");
         }
 
-        // ── 3. 작성자 조회 ──
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        // ── 3. 요청자를 확인합니다. ──
+        Member member = communityMemberReader.getAuthenticated(memberId);
 
         // ── 4. 첨부 이미지 필터링 (null·빈 파일 제거) ──
-        List<MultipartFile> images = request.getFiles() == null
-                ? List.of()
-                : request.getFiles().stream()
+        List<MultipartFile> images = request.files().stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
 
@@ -235,25 +233,14 @@ public class PostService {
     @Transactional
     public PostDetailDto updatePost(Long memberId, Long postId, PostUpdateDto request) {
 
-        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
-        Post post = postRepository.findById(postId)
-                .filter(p -> "N".equals(p.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
-
-        // ── 2. 권한 검증 (본인 또는 ADMIN) ──
-        Member requester = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        boolean isAuthor = post.getMember().getId().equals(memberId);
-        boolean isAdmin = requester.getRole() == MemberRole.ADMIN;
-
-        if (!isAuthor && !isAdmin) {
-            throw new SecurityException("게시글 수정 권한이 없습니다.");
-        }
+        // ── 1. 수정 대상과 요청자의 권한을 확인합니다. ──
+        Post post = postReader.getActive(postId);
+        Member requester = communityMemberReader.getAuthenticated(memberId);
+        communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 수정 권한이 없습니다.");
 
         // ── 3. 입력값 정제 + 길이 검증 ──
-        String title = normalizeText(request.getTitle(), "제목");
-        String content = normalizeText(request.getContent(), "내용");
+        String title = normalizeText(request.title(), "제목");
+        String content = normalizeText(request.content(), "내용");
 
         if (title.length() > MAX_TITLE_LENGTH) {
             throw new IllegalArgumentException("제목은 최대 50자까지 입력 가능합니다.");
@@ -265,9 +252,7 @@ public class PostService {
 
         // ── 4. 기존 파일 삭제 처리 (deleteFileIds) ──
         List<File> existingFiles = fileRepository.findAllByPostId(postId);
-        List<Long> deleteFileIds = request.getDeleteFileIds() == null
-                ? List.of()
-                : request.getDeleteFileIds();
+        List<Long> deleteFileIds = request.deleteFileIds();
 
         if (!deleteFileIds.isEmpty()) {
             List<File> filesToDelete = existingFiles.stream()
@@ -290,9 +275,7 @@ public class PostService {
         }
 
         // ── 5. 새 이미지 필터링 (null·빈 파일 제거) ──
-        List<MultipartFile> newImages = request.getFiles() == null
-                ? List.of()
-                : request.getFiles().stream()
+        List<MultipartFile> newImages = request.files().stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
 
@@ -365,21 +348,10 @@ public class PostService {
 
     @Transactional
     public void deletePost(Long memberId, Long postId) {
-        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
-        Post post = postRepository.findById(postId)
-                .filter(p -> "N".equals(p.getDeleteYn()))
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
-
-        // ── 2. 권한 검증 (본인 또는 ADMIN) ──
-        Member requester = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        boolean isAuthor = post.getMember().getId().equals(memberId);
-        boolean isAdmin = requester.getRole() == MemberRole.ADMIN;
-
-        if (!isAuthor && !isAdmin) {
-            throw new SecurityException("게시글 삭제 권한이 없습니다.");
-        }
+        // ── 1. 삭제 대상과 요청자의 권한을 확인합니다. ──
+        Post post = postReader.getActive(postId);
+        Member requester = communityMemberReader.getAuthenticated(memberId);
+        communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 삭제 권한이 없습니다.");
 
         // 소프트삭제 deleteYN = Y
         post.delete();
