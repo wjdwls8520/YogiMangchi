@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.community.service;
 
-import com.yogimangchi.domain.community.dto.request.PostCreateRequest;
-import com.yogimangchi.domain.community.dto.request.PostUpdateRequest;
+import com.yogimangchi.domain.community.dto.request.PostCreateDto;
+import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
@@ -20,7 +20,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -88,10 +87,42 @@ public class PostService {
     }
 
     /**
+     * 단건 게시글 조회 (게시글 + 작성자 + 첨부파일)
+     */
+    @Transactional(readOnly = true)
+    public PostDetailDto getPost(Long postId) {
+
+        // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
+        Post post = postRepository.findById(postId)
+                .filter(p -> "N".equals(p.getDeleteYn()))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 삭제된 게시글입니다."));
+
+        // ── 2. 첨부파일 조회 ──
+        List<FileDto> files = fileRepository.findAllByPostIds(List.of(postId));
+
+        // ── 3. 응답 DTO 조립 ──
+        Member author = post.getMember();
+        return new PostDetailDto(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getLikeCount(),
+                post.getReplyCount(),
+                post.getReportCount(),
+                post.getCreatedAt(),
+                post.getUpdatedAt(),
+                author.getId(),
+                author.getNickname(),
+                author.getProfileImgUrl(),
+                files
+        );
+    }
+
+    /**
      * 게시글 생성 (제목, 내용, 첨부 이미지)
      */
     @Transactional
-    public PostDetailDto createPost(Long memberId, PostCreateRequest request) {
+    public PostDetailDto createPost(Long memberId, PostCreateDto request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String title = normalizeText(request.getTitle(), "제목");
@@ -194,7 +225,7 @@ public class PostService {
      * 게시글 수정 (제목, 내용, 첨부 이미지 추가·삭제)
      */
     @Transactional
-    public PostDetailDto updatePost(Long memberId, Long postId, PostUpdateRequest request) {
+    public PostDetailDto updatePost(Long memberId, Long postId, PostUpdateDto request) {
 
         // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
         Post post = postRepository.findById(postId)
