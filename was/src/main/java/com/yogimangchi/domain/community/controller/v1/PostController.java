@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.community.controller.v1;
 
-import com.yogimangchi.domain.community.dto.request.PostCreateRequest;
-import com.yogimangchi.domain.community.dto.request.PostUpdateRequest;
+import com.yogimangchi.domain.community.dto.request.PostCreateDto;
+import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,6 +58,21 @@ public class PostController {
     }
 
     @Operation(
+            summary = "단건 게시글 조회",
+            description = "게시글 ID로 단건 게시글을 조회합니다. 첨부 파일 정보를 포함합니다.\n" +
+                    "\n" +
+                    "비회원도 조회 가능합니다."
+    )
+    @GetMapping("/{postId}")
+    public ResponseEntity<PostDetailDto> getPost(
+            @PathVariable Long postId
+    ) {
+        PostDetailDto post = postService.getPost(postId);
+
+        return ResponseEntity.ok(post);
+    }
+
+    @Operation(
             summary = "커뮤니티 글 쓰기",
             description = "제목, 내용, 첨부 이미지 파일을 함께 등록합니다. multipart/form-data 형식으로 요청합니다.\n" +
                     "\n" +
@@ -83,7 +98,7 @@ public class PostController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostDetailDto> createPost(
             @AuthenticationPrincipal Long memberId,
-            @ModelAttribute @Valid PostCreateRequest request
+            @ModelAttribute @Valid PostCreateDto request
     ) {
         PostDetailDto createdPost = postService.createPost(memberId, request);
 
@@ -121,15 +136,21 @@ public class PostController {
     public ResponseEntity<PostDetailDto> updatePost(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long postId,
-            @ModelAttribute @Valid PostUpdateRequest request
+            @ModelAttribute @Valid PostUpdateDto request
     ) {
         PostDetailDto updatedPost = postService.updatePost(memberId, postId, request);
 
         return ResponseEntity.ok(updatedPost);
     }
 
+    @Operation(
+            summary = "커뮤니티 글 삭제",
+            description = "게시글을 소프트 삭제합니다. (deleteYn = 'Y')\n" +
+                    "\n" +
+                    "삭제 권한: **본인** 또는 **ADMIN**만 가능합니다."
+    )
     @DeleteMapping(value = "/{postId}")
-    public ResponseEntity<PostDetailDto> deletePost(
+    public ResponseEntity<Void> deletePost(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long postId
     ) {
