@@ -47,12 +47,13 @@ public class PostController {
     )
     @GetMapping
     public ResponseEntity<Page<PostDetailDto>> getPosts(
+            @AuthenticationPrincipal Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String keyword
     ) {
 
-        Page<PostDetailDto> postsList = postService.getPosts(page, size, keyword);
+        Page<PostDetailDto> postsList = postService.getPosts(memberId, page, size, keyword);
 
         return ResponseEntity.ok(postsList);
     }
@@ -65,9 +66,10 @@ public class PostController {
     )
     @GetMapping("/{postId}")
     public ResponseEntity<PostDetailDto> getPost(
+            @AuthenticationPrincipal Long memberId,
             @PathVariable Long postId
     ) {
-        PostDetailDto post = postService.getPost(postId);
+        PostDetailDto post = postService.getPost(memberId, postId);
 
         return ResponseEntity.ok(post);
     }

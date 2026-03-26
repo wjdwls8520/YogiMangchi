@@ -5,6 +5,7 @@ import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
+import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.enums.MemberRole;
@@ -17,11 +18,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class ReplyService {
 
     private final ReplyRepository replyRepository;
+    private final ReplyLikeRepository replyLikeRepository;
     private final MemberRepository memberRepository;
     private final PostRepository postRepository;
 
@@ -81,6 +87,7 @@ public class ReplyService {
                 saveReply.getId(),
                 saveReply.getContent(),
                 saveReply.getLikeCount(),
+                false,
                 saveReply.getReplyCount(),
                 parentId,
                 targetMemberId,
@@ -108,7 +115,7 @@ public class ReplyService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getParentReplys(Long postId, Long parentId, int page, int size) {
+    public Page<ReplyDetailDto> getParentReplys(Long memberId, Long postId, Long parentId, int page, int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -122,7 +129,30 @@ public class ReplyService {
             replys = replyRepository.findAllChildrenReplys(postId, parentId, pageable);
         }
 
-        return replys;
+        if (replys == null || replys.isEmpty()) {
+            return replys;
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(memberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
+        return replys.map(reply -> new ReplyDetailDto(
+                reply.id(),
+                reply.content(),
+                reply.likeCount(),
+                likedReplyIds.contains(reply.id()),
+                reply.replyCount(),
+                reply.parentReplyId(),
+                reply.targetMemberId(),
+                reply.targetNickname(),
+                reply.createdAt(),
+                reply.updatedAt(),
+                reply.memberId(),
+                reply.nickname(),
+                reply.profileImgUrl(),
+                reply.postId()
+        ));
     }
 
     @Transactional
@@ -167,6 +197,7 @@ public class ReplyService {
                 updatedReply.getId(),
                 updatedReply.getContent(),
                 updatedReply.getLikeCount(),
+                replyLikeRepository.existsByMember_IdAndReply_Id(memberId, replyId),
                 updatedReply.getReplyCount(),
                 parentId,
                 targetMemberId,
@@ -217,5 +248,13 @@ public class ReplyService {
         }
 
         postRepository.decreaseReplyCount(postId);
+    }
+
+    private Set<Long> getLikedReplyIds(Long memberId, List<Long> replyIds) {
+        if (memberId == null || replyIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(replyLikeRepository.findLikedReplyIds(memberId, replyIds));
     }
 }

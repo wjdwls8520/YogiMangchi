@@ -5,6 +5,7 @@ import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
+import com.yogimangchi.domain.community.repository.PostLikeRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.enums.MemberRole;
@@ -27,8 +28,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +40,7 @@ import java.util.stream.Collectors;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
     private final FileRepository fileRepository;
     private final MemberRepository memberRepository;
     private final S3Service s3Service;
@@ -51,7 +55,7 @@ public class PostService {
      * 게시글 목록 조회 (페이징 + 키워드 검색)
      */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getPosts(Integer page, Integer size, String keyword) {
+    public Page<PostDetailDto> getPosts(Long memberId, Integer page, Integer size, String keyword) {
 
         String q = (keyword == null) ? null : keyword.trim();
 
@@ -69,12 +73,14 @@ public class PostService {
 
         Map<Long, List<FileDto>> filesByPostId = fileRepository.findAllByPostIds(postIds)
                 .stream().collect(Collectors.groupingBy(FileDto::postId));
+        Set<Long> likedPostIds = getLikedPostIds(memberId, postIds);
 
         return posts.map(post -> new PostDetailDto(
                 post.id(),
                 post.title(),
                 post.content(),
                 post.likeCount(),
+                likedPostIds.contains(post.id()),
                 post.replyCount(),
                 post.reportCount(),
                 post.createdAt(),
@@ -90,7 +96,7 @@ public class PostService {
      * 단건 게시글 조회 (게시글 + 작성자 + 첨부파일)
      */
     @Transactional(readOnly = true)
-    public PostDetailDto getPost(Long postId) {
+    public PostDetailDto getPost(Long memberId, Long postId) {
 
         // ── 1. 게시글 조회 (삭제되지 않은 게시글만) ──
         Post post = postRepository.findById(postId)
@@ -107,6 +113,7 @@ public class PostService {
                 post.getTitle(),
                 post.getContent(),
                 post.getLikeCount(),
+                isPostLikedByMember(memberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
                 post.getCreatedAt(),
@@ -197,6 +204,7 @@ public class PostService {
                 savedPost.getTitle(),
                 savedPost.getContent(),
                 savedPost.getLikeCount(),
+                false,
                 savedPost.getReplyCount(),
                 savedPost.getReportCount(),
                 savedPost.getCreatedAt(),
@@ -343,6 +351,7 @@ public class PostService {
                 post.getTitle(),
                 post.getContent(),
                 post.getLikeCount(),
+                postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
                 post.getCreatedAt(),
@@ -428,5 +437,21 @@ public class PostService {
                 }
             }
         });
+    }
+
+    private Set<Long> getLikedPostIds(Long memberId, List<Long> postIds) {
+        if (memberId == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(postLikeRepository.findLikedPostIds(memberId, postIds));
+    }
+
+    private boolean isPostLikedByMember(Long memberId, Long postId) {
+        if (memberId == null) {
+            return false;
+        }
+
+        return postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId);
     }
 }

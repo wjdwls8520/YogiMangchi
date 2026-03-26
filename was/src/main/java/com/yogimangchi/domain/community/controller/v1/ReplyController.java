@@ -27,12 +27,13 @@ public class ReplyController {
     )
     @GetMapping
     public ResponseEntity<Page<ReplyDetailDto>> getParentReplys(
+            @AuthenticationPrincipal Long memberId,
             @PathVariable Long postId,
             @RequestParam(required = false) Long parentId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size
     ) {
-        Page<ReplyDetailDto> getReply = replyService.getParentReplys(postId, parentId, page, size);
+        Page<ReplyDetailDto> getReply = replyService.getParentReplys(memberId, postId, parentId, page, size);
         return ResponseEntity.ok(getReply);
     }
 
