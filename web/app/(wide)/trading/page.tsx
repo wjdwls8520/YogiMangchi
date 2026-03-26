@@ -179,10 +179,8 @@ export default function TradingPage() {
             </div>
           </header>
 
-          <section className="h-[450px] lg:h-[500px] bg-white border border-gray-200 overflow-hidden relative shrink-0">
-             <div className="absolute inset-0 bg-gray-50/10 flex items-center justify-center">
-                <MainCandleChart />
-             </div>
+          <section className="w-full bg-white border border-gray-200 shrink-0">
+            <MainCandleChart />
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 shrink-0 items-stretch">

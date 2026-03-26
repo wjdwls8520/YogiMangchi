@@ -23,7 +23,7 @@ const menuList: menuType[] = [
         id: 'Home'
     },
     {
-        href: '#',
+        href: '/trading',
         name: '트레이딩',
         id: 'trading'
     },    
