@@ -17,6 +17,8 @@ public record PostDetailDto(
         String content,
         @Schema(description = "좋아요 수", example = "101")
         Long likeCount,
+        @Schema(description = "로그인한 사용자의 좋아요 여부", example = "true")
+        Boolean likedByMe,
         @Schema(description = "댓글 수", example = "101")
         Long replyCount,
         @Schema(description = "신고 수", example = "101")
