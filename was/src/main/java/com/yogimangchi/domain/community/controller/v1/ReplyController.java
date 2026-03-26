@@ -1,10 +1,7 @@
 package com.yogimangchi.domain.community.controller.v1;
 
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
-import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
-import com.yogimangchi.domain.community.entity.Reply;
-import com.yogimangchi.domain.community.service.PostService;
 import com.yogimangchi.domain.community.service.ReplyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,13 +43,29 @@ public class ReplyController {
     @PostMapping
     public ResponseEntity<ReplyDetailDto> createReply(
         @AuthenticationPrincipal Long memberId,
-        @PathVariable @Valid Long postId,
+        @PathVariable Long postId,
         @RequestBody @Valid ReplyCreateDto request
 
     ) {
         ReplyDetailDto createdReply = replyService.createReply(memberId, postId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReply);
+    }
+
+    @Operation(
+            summary = "댓글 수정",
+            description = "게시글에 댓글을 수정합니다."
+    )
+    @PutMapping
+    public ResponseEntity<ReplyDetailDto> updateReply(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long postId,
+            @RequestParam("replyId") Long replyId,
+            @RequestParam("content") String content
+    ) {
+        ReplyDetailDto updatedReply = replyService.updateReply(memberId, postId, replyId, content);
+
+        return ResponseEntity.ok(updatedReply);
     }
 
 

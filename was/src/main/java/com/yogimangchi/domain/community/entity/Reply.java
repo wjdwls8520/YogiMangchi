@@ -73,4 +73,9 @@ public class Reply {
         return reply;
     }
 
+    public Reply update(String content) {
+        this.content = content;
+        return this;
+    }
+
 }

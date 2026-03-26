@@ -7,6 +7,7 @@ import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -109,7 +110,7 @@ public class ReplyService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<ReplyDetailDto> replys = null;
-        
+
         // 최상위 부모 조회 로직
         if( parentId == null ) {
             replys = replyRepository.findAllParentReplys(postId, pageable);
@@ -117,7 +118,63 @@ public class ReplyService {
         if( parentId != null ) {
             replys = replyRepository.findAllChildrenReplys(postId, parentId, pageable);
         }
-        
+
         return replys;
+    }
+
+    @Transactional
+    public ReplyDetailDto updateReply(Long memberId, Long postId, Long replyId, String content) {
+        if(memberId == null) { throw new IllegalArgumentException("로그인 이후 이용할 수 있습니다."); };
+
+        // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
+        String content1 = normalizeText(content, "내용");
+
+        // ── 2. 길이 제한 검증 ──
+        if (content1.length() > MAX_CONTENT_LENGTH) {
+            throw new IllegalArgumentException("내용은 최대 1000자까지 입력 가능합니다.");
+        }
+
+        // ── 3. 작성자 조회 ──
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        // ── 4. 게시글 조회 ──
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+
+        // ── 5. 댓글 조회 ──
+        Reply reply = replyRepository.findById(replyId)
+                .filter(r -> "N".equals(r.getDeleteYn()))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글입니다."));
+
+        boolean isAuthor = reply.getMember().getId().equals(memberId);
+        boolean isAdmin = member.getRole() == MemberRole.ADMIN;
+
+        if (!isAuthor && !isAdmin) {
+            throw new SecurityException("게시글 수정 권한이 없습니다.");
+        }
+
+        Reply updatedReply = reply.update(content1);
+
+        Long parentId = updatedReply.getParentReply() == null ? null : updatedReply.getParentReply().getId();
+        Long targetMemberId = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getId();
+        String targetNickname = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getNickname();
+
+        return new ReplyDetailDto(
+                updatedReply.getId(),
+                updatedReply.getContent(),
+                updatedReply.getLikeCount(),
+                updatedReply.getReplyCount(),
+                parentId,
+                targetMemberId,
+                targetNickname,
+                updatedReply.getCreatedAt(),
+                updatedReply.getUpdatedAt(),
+                updatedReply.getMember().getId(),
+                updatedReply.getMember().getNickname(),
+                updatedReply.getMember().getProfileImgUrl(),
+                updatedReply.getPost().getId()
+        );
+
     }
 }
