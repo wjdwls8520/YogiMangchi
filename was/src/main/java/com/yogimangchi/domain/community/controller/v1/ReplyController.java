@@ -68,5 +68,18 @@ public class ReplyController {
         return ResponseEntity.ok(updatedReply);
     }
 
+    @Operation(
+            summary = "댓글 삭제",
+            description = "게시글에 댓글을 삭제 합니다."
+    )
+    @DeleteMapping
+    public ResponseEntity<ReplyDetailDto> deleteReply(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long postId,
+            @RequestParam("replyId") Long replyId
+    ) {
+        replyService.deleteReply(memberId, postId, replyId);
 
+        return ResponseEntity.noContent().build();  // 204
+    }
 }
