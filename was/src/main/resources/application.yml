@@ -18,7 +18,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     #서버실행시 코인data.sql실행
     defer-datasource-initialization: true
     show-sql: true

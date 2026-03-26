@@ -47,19 +47,37 @@ public class PortfolioSnapshot {
     @Comment("스냅샷 당시 수익률 (%)")
     private BigDecimal profitRate;
 
+    @Column(name = "holdings_json", columnDefinition = "TEXT")
+    @Comment("스냅샷 당시 보유 코인 상세 내역 (JSON)")
+    private String holdingsJson;
+
     @CreationTimestamp
     @Column(name = "recorded_at", nullable = false, updatable = false)
     @Comment("스냅샷이 기록된 시각")
     private LocalDateTime recordedAt;
 
     @Builder
-    protected PortfolioSnapshot(Assets assets, BigDecimal cashBalance, BigDecimal coinAssetValue, BigDecimal totalAsset, BigDecimal profitAmount, BigDecimal profitRate) {
+    protected PortfolioSnapshot(Assets assets, BigDecimal cashBalance, BigDecimal coinAssetValue, BigDecimal totalAsset, BigDecimal profitAmount, BigDecimal profitRate, String holdingsJson) {
         this.assets = assets;
         this.cashBalance = cashBalance;
         this.coinAssetValue = coinAssetValue;
         this.totalAsset = totalAsset;
         this.profitAmount = profitAmount;
         this.profitRate = profitRate;
+        this.holdingsJson = holdingsJson;
+    }
+
+    // 포기/만료 시점 스냅샷 생성 팩토리 메서드
+    public static PortfolioSnapshot createSnapshot(Assets assets, BigDecimal cashBalance, BigDecimal coinAssetValue, BigDecimal totalAsset, BigDecimal profitAmount, BigDecimal profitRate, String holdingsJson) {
+        return PortfolioSnapshot.builder()
+                .assets(assets)
+                .cashBalance(cashBalance)
+                .coinAssetValue(coinAssetValue)
+                .totalAsset(totalAsset)
+                .profitAmount(profitAmount)
+                .profitRate(profitRate)
+                .holdingsJson(holdingsJson)
+                .build();
     }
 
 
