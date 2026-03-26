@@ -11,10 +11,10 @@ interface Props {
 export default function UserAvatar({ profileImg, classes="w-[40px] h-[40px]" }: Props) {
 
     return(
-        <div className="profile">
+        <div className={`profile rounded-full overflow-hidden ${classes} object-cover`}>
             {
                 profileImg ? 
-                <Image src={profileImg} alt="프로필 이미지" /> : 
+                <Image src={profileImg} alt="프로필 이미지" width={40} height={40} /> : 
                 <UserIcon className={classes} />
             }
         </div>

@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@/utils/cs";
+import { cn } from "@/lib/utils/cs";
 import { RankProps } from "../types/user";
 import UserAvatar from "@/components/user/UserAvatar";
 

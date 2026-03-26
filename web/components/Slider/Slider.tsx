@@ -1,4 +1,4 @@
-import { cn } from "@/utils/cs";
+import { cn } from "@/lib/utils/cs";
 import { useEffect, useRef } from "react";
 
 type SliderProps = {

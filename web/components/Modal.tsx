@@ -7,7 +7,7 @@ import { IoCloseOutline } from "react-icons/io5";
 interface ModalInfo {
     title :string;
     onClose :() => void;
-    onSubmit ?:() => void;
+    isSubmit: boolean;
 }
 
 
@@ -46,9 +46,12 @@ export default function Modal({ props, children } :ModalProps) {
           <Button onClick={props.onClose} variant="ghost" size="sm" >
             취소
           </Button>
-          <Button onClick={props.onClose} variant="ghost" size="sm">
-            게시
-          </Button>          
+          {
+            props.isSubmit &&
+            <Button type="submit" variant="ghost" size="sm">
+              게시
+            </Button>          
+          }
         </div>
         
       </div>

@@ -10,7 +10,7 @@ import Link from "next/link";
 
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
-import { cn } from "@/utils/cs";
+import { cn } from "@/lib/utils/cs";
 import { useEffect, useState } from "react";
 import NavMenu from "./NavMenu";
 import Dim from "./Dim";
