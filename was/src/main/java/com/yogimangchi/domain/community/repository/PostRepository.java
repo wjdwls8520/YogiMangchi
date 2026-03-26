@@ -5,6 +5,7 @@ import com.yogimangchi.domain.community.entity.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -50,4 +51,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         WHERE p.deleteYn = 'N'
     """)
     Page<PostAndMemberDto> findAllPosts(Pageable pageable);
+
+    @Modifying
+    @Query("update Post p set p.replyCount = p.replyCount + 1 where p.id = :postId")
+    void replyCountUp(@Param("postId") Long postId);
+
 }
