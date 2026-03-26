@@ -17,6 +17,9 @@ public record HoldingResponseDto(
     @Schema(description = "바이낸스 실시간 현재가 (달러)", example = "65000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
     BigDecimal currentPrice,
 
+    @Schema(description = "매수 금액(투자원금)", example = "30000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
+    BigDecimal buyAmount,
+
     @Schema(description = "현재 평가 금액 (수량 × 현재가)", example = "32500.0000", requiredMode = Schema.RequiredMode.REQUIRED)
     BigDecimal coinTotalValue,
 
@@ -24,6 +27,12 @@ public record HoldingResponseDto(
     BigDecimal profit,
 
     @Schema(description = "수익률 (%)", example = "8.33", requiredMode = Schema.RequiredMode.REQUIRED)
-    BigDecimal roi
+    BigDecimal roi,
+
+    @Schema(description = "자산 비중 % - 총 자산 대비 이 코인의 비율", example = "35.50", requiredMode = Schema.RequiredMode.REQUIRED)
+    BigDecimal holdingRatio,
+
+    @Schema(description = "실시간 가격 지연 여부 (true면 평단가로 임시 계산됨)", example = "false", requiredMode = Schema.RequiredMode.REQUIRED)
+    boolean isPriceStale
 ) {
 }
