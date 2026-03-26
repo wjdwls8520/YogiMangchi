@@ -72,7 +72,10 @@ public class ReplyService {
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
         String targetNickname = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getNickname();
 
-        postRepository.replyCountUp(postId);
+        postRepository.increaseReplyCount(postId);
+        if( saveReply.getParentReply() != null ) {
+            replyRepository.increaseReplyCount(saveReply.getParentReply().getId());
+        }
 
         return new ReplyDetailDto(
                 saveReply.getId(),
@@ -151,7 +154,7 @@ public class ReplyService {
         boolean isAdmin = member.getRole() == MemberRole.ADMIN;
 
         if (!isAuthor && !isAdmin) {
-            throw new SecurityException("게시글 수정 권한이 없습니다.");
+            throw new SecurityException("댓글 수정 권한이 없습니다.");
         }
 
         Reply updatedReply = reply.update(content1);
@@ -176,5 +179,43 @@ public class ReplyService {
                 updatedReply.getPost().getId()
         );
 
+    }
+
+    @Transactional
+    public void deleteReply(Long memberId, Long postId, Long replyId) {
+
+        // ── 1. 작성자 조회 ──
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        // ── 2. 게시글 조회 ──
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+
+        // ── 3. 댓글 조회 ──
+        Reply reply = replyRepository.findById(replyId)
+                .filter(r -> "N".equals(r.getDeleteYn()))
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 댓글입니다."));
+
+        boolean isAuthor = reply.getMember().getId().equals(memberId);
+        boolean isAdmin = member.getRole() == MemberRole.ADMIN;
+
+        if (!isAuthor && !isAdmin) {
+            throw new SecurityException("댓글 삭제 권한이 없습니다.");
+        }
+
+        // 게시글id와 댓글의 게시글 id가 같을 때
+        if(post.getId().equals(reply.getPost().getId())) {
+            reply.delete();
+
+            // 자식댓글이 삭제되면 부모댓글의 댓글카운트 -1
+            if(reply.getParentReply() != null) {
+                replyRepository.decreaseReplyCount(reply.getParentReply().getId());
+            }
+        } else {
+            throw new SecurityException("댓글 삭제 권한이 없습니다.");
+        }
+
+        postRepository.decreaseReplyCount(postId);
     }
 }

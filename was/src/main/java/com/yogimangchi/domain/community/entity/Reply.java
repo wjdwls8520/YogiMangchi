@@ -78,4 +78,7 @@ public class Reply {
         return this;
     }
 
+    public void delete() {
+        this.deleteYn = "Y";
+    }
 }
