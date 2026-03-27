@@ -37,11 +37,15 @@ public class Assets {
     private BigDecimal seedMoney;
 
     @Column(name = "current_money", nullable = false, precision = 19, scale = 4)
-    @Comment("현재 보유 현금")
+    @Comment("현재 보유 (접근 가능한) 현금 잔고")
     private BigDecimal currentMoney;
 
+    @Column(name = "locked_money", nullable = false, precision = 19, scale = 4)
+    @Comment("지정가 매수 대기 중인 사용 불가(잠긴) 현금")
+    private BigDecimal lockedMoney;
+
     @Column(nullable = false)
-    @Comment("계좌 상태 (ACTIVE: 활성, INACTIVE: 비활성)")
+    @Comment("계좌 상태 (ACTIVE: 활성, INACTIVE: 비활성, EXPIRED: 만료)")
     private String status;
 
     @Column(name = "retry_count", nullable = false)
@@ -61,11 +65,12 @@ public class Assets {
     private LocalDateTime updatedAt;
 
     @Builder
-    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, String status,  int retryCount, LocalDateTime expiredAt) {
+    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, BigDecimal lockedMoney, String status,  int retryCount, LocalDateTime expiredAt) {
         this.member = member;
         this.type = type;
         this.seedMoney = seedMoney;
         this.currentMoney = currentMoney;
+        this.lockedMoney = lockedMoney;
         this.status = status;
         this.retryCount = retryCount;
         this.expiredAt = expiredAt;
@@ -78,6 +83,7 @@ public class Assets {
                 .type(type)
                 .seedMoney(initialMoney)
                 .currentMoney(initialMoney) // 초기 자금을 잔고에 그대로 세팅
+                .lockedMoney(BigDecimal.ZERO) // 신규 발급 시 잠긴 돈은 0원
                 .status("ACTIVE")
                 .retryCount(retryCount)
                 .expiredAt(expiredAt)

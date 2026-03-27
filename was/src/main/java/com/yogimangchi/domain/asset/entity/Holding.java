@@ -37,8 +37,12 @@ public class Holding {
     private String symbol;
 
     @Column(nullable = false, precision = 19, scale = 8)
-    @Comment("현재 보유 수량 (소수점 8자리)")
+    @Comment("현재 보유 (가용 가능한) 수량 (소수점 8자리)")
     private BigDecimal quantity;
+
+    @Column(name = "locked_quantity", nullable = false, precision = 19, scale = 8)
+    @Comment("지정가 매도 대기 중인 묶인(잠긴) 수량")
+    private BigDecimal lockedQuantity;
 
     @Column(name = "average_buy_price", nullable = false, precision = 19, scale = 8)
     @Comment("매수 평균 단가 (원화/달러 기준)")
@@ -53,10 +57,11 @@ public class Holding {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Holding(Assets assets, String symbol, BigDecimal quantity, BigDecimal averageBuyPrice){
+    public Holding(Assets assets, String symbol, BigDecimal quantity, BigDecimal lockedQuantity, BigDecimal averageBuyPrice){
         this.assets = assets;
         this.symbol = symbol;
         this.quantity = quantity;
+        this.lockedQuantity = lockedQuantity;
         this.averageBuyPrice = averageBuyPrice;
     }
 
@@ -72,6 +77,7 @@ public class Holding {
                 .assets(assets)
                 .symbol(symbol)
                 .quantity(quantity)
+                .lockedQuantity(BigDecimal.ZERO) // 첫 매수 시 지정가 락 수량은 0
                 .averageBuyPrice(buyPrice) // 첫 매수니까 평단가가 곧 매수가
                 .build();
     }
