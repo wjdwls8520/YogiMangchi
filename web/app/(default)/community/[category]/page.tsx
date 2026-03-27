@@ -1,6 +1,6 @@
 import SubMenu from "@/components/SubMenu";
-import CommunityList from "../components/CommunityList";
 import NewsList from "./components/NewsList";
+import CommunityContainer from "../components/CommunityContainer";
 import { getPosts } from "@/lib/api/post";
 
 const menus  = [
@@ -17,12 +17,13 @@ export default async function CategoryPage({
     const { category } = await params;
     const isNews = category === "news";
 
-    const posts = await getPosts();
+    const result = await getPosts();
+    const posts = result.content;
 
     return (
         <>
             {!isNews && <SubMenu menus={menus} />}
-            {!isNews ? <CommunityList posts={posts} /> : <NewsList />}
+            {!isNews ? <CommunityContainer initialPosts={posts} /> : <NewsList />}
         </>
     )
 }

@@ -1,26 +1,31 @@
 "use client";
 
-import testImg from "./test.png";
+
 import { BsThreeDots } from "react-icons/bs";
 import { VscHeart } from "react-icons/vsc";
 import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
 import { GoShareAndroid } from "react-icons/go";
+import { FaRegTrashAlt } from "react-icons/fa";
+import { FiFlag } from "react-icons/fi";
+import { LuPenLine } from "react-icons/lu";
 
-import { Post } from "../types/post";
-
-import Slider from "@/components/Slider/Slider";
-
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
+import { Post } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
-import Image from "next/image";
-import CommentItem from "./CommentItem";
+import Slider from "@/components/Slider/Slider";
 import Button from "@/components/ui/Button";
 import { formatTime } from "@/lib/utils/date";
+import CommentItem from "./CommentItem";
+import Image from "next/image";
+import { deletePost } from "@/lib/api/post";
+import { useAuthStore } from "@/stores/useAuthStore";
+
+
 
 interface Props {
   post :Post;
+  setAllPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   variant: "list" | "detail";
 }
 
@@ -80,13 +85,25 @@ const comments = [
   },
 ];
 
-export default function CommunityItem({ post, variant }: Props) {
+export default function CommunityItem({ post, setAllPosts, variant }: Props) {
 
     const [isOpen, setIsOpen] = useState(false);
 
     const textRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const { user } = useAuthStore();
+
+    const isSlide = (post?.files?.length ?? 0) > 2;
+
+    const handleDelete = async (e: React.MouseEvent, postId: number) => {
+        e.preventDefault();
+        
+        await deletePost(postId);
+        setAllPosts(prev => prev.filter(post => post.id !== postId));
+        
+    }
 
     useEffect(() => {
         const el = textRef.current;
@@ -105,7 +122,7 @@ export default function CommunityItem({ post, variant }: Props) {
                         <small className="text-gray-500">{formatTime(post.createdAt)}</small>
                     </div>
                     <div className="relative">
-                        <button type="button" onClick={(e) => {
+                        <button type="button" className="p-1.5" onClick={(e) => {
                             e.preventDefault();
                             setIsOpen((prev) => !prev);
                         }}>
@@ -113,8 +130,38 @@ export default function CommunityItem({ post, variant }: Props) {
                         </button>
                         {
                             isOpen && 
-                            <div className="absolute right-0 w-28 border border-gray-300 rounded-xl p-3">
-                                <button type="button" onClick={(e) => e.preventDefault()}>신고하기</button>
+                            <div className="absolute right-0 z-10 w-24 bg-white dark:bg-zinc-900 border border-gray-300 rounded-xl p-3 text-sm">
+                                
+                            { 
+                                (user?.memberId === post.memberId) && 
+                                <>
+                                <button 
+                                    type="button" 
+                                    onClick={(e) => e.preventDefault()} 
+                                    className="flex items-center gap-1 text-left py-1"
+                                >
+                                    <LuPenLine className="w-[18px] h-[16px] text-gray-500" />
+                                    수정
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={(e) => handleDelete(e, post.id)} 
+                                    className="flex items-center gap-1 text-left py-1"
+                                >
+                                    <FaRegTrashAlt className="w-[18px] h-[14px] text-gray-500" />
+                                    삭제
+                                </button>
+                                </>
+                            }
+                                <button 
+                                    type="button" 
+                                    onClick={(e) => e.preventDefault()} 
+                                    className="flex items-center gap-1 text-left py-1"
+                                >
+                                    <FiFlag className="w-[18px] h-[15px] text-gray-500" />
+                                    신고
+                                </button>
+
                             </div>
                         }
                     </div>
@@ -138,18 +185,39 @@ export default function CommunityItem({ post, variant }: Props) {
                 </div>
 
                 {
-                    post?.files?.length > 0 && 
-                    <Slider className="pt-6 pb-3">
-                        <ul className="flex gap-2 w-full">
-                            {
-                                post.files.map((file) => <li key={file.id}
-                                                                className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
-                                                            >
-                                                                <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
-                                                            </li>)
-                            }
-                        </ul>
-                    </Slider>
+                    post?.files?.length > 0 && (
+                        isSlide ? (
+                            <Slider>
+                                <ul className="flex gap-2 w-full pt-6 pb-3">
+                                    {
+                                        post?.files.map((file) => <li key={file.id}
+                                                                        className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
+                                                                    >
+                                                                        {
+                                                                            file.previewUrl ? 
+                                                                            <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
+                                                                            <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
+                                                                        }
+                                                                    </li>)
+                                    }
+                                </ul>
+                            </Slider>
+                        ) : (
+                            <ul className="flex gap-2 w-full pt-6 pb-3">
+                                {
+                                    post?.files.map((file) => <li key={file.id}
+                                                                    className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
+                                                                >
+                                                                    {
+                                                                        file.previewUrl ? 
+                                                                        <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
+                                                                        <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
+                                                                    }
+                                                                </li>)
+                                }
+                            </ul>
+                        )
+                    )
                 }
 
                 <ul className="flex gap-4 mt-4 text-gray-400 text-sm">

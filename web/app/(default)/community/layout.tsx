@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import FloatMenu from "./components/FloatMenu";
 import Menu from "./components/Menu";
 import Top5 from "./components/Top5";
 import { Ranker } from "./types/ranker";
-import WriteModal from "./components/WriteModal";
+import { useModalStore } from "@/stores/useModalStore";
+
 
 const ranker: Ranker[] = [
     {
@@ -47,7 +47,7 @@ export default function CommunityLayout({
   children: React.ReactNode;
 }) {
 
-    const [isOpen, setIsOpen] = useState(false);
+    const { open } = useModalStore();
 
     return (
         <>
@@ -57,12 +57,8 @@ export default function CommunityLayout({
                     {children}
                 </div>
                 <Top5 ranker={ranker} />
-                <FloatMenu onOpenLayer={() => setIsOpen(true)} />
+                <FloatMenu onOpenLayer={open} />
             </section>
-            { 
-                isOpen && 
-                <WriteModal setIsOpen={setIsOpen} />
-            }
         </>
     )
 }

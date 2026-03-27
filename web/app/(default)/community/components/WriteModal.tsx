@@ -8,11 +8,14 @@ import Modal from "@/components/Modal";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { createPost } from "@/lib/api/post";
-import { useRouter } from "next/navigation";
+import { createPost, getPosts } from "@/lib/api/post";
+import { MemberInfo } from "@/types/member";
+import { Post } from "../types/post";
 
 interface ModalProps {
     setIsOpen: (arg0: boolean) => void;
+    myInfo: MemberInfo | null;
+    setAllPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }
 
 type UploadFile = {
@@ -21,9 +24,7 @@ type UploadFile = {
 };
 
 
-export default function WriteModal({setIsOpen}: ModalProps) {
-
-    const router = useRouter();
+export default function WriteModal({setIsOpen, myInfo, setAllPosts}: ModalProps) {
 
     const modalProps = {
         title: "글쓰기",
@@ -48,7 +49,6 @@ export default function WriteModal({setIsOpen}: ModalProps) {
         }));
 
         setFiles((prev) => [...prev, ...mapped]);
-
         e.target.value = ""; // 같은 파일 다시 선택 가능
     };
 
@@ -64,16 +64,44 @@ export default function WriteModal({setIsOpen}: ModalProps) {
 
     // 메모리 누수 방지
     useEffect(() => {
-    return () => {
-        files.forEach((file) => URL.revokeObjectURL(file.preview));
-    };
+        return () => {
+            files.forEach((file) => URL.revokeObjectURL(file.preview));
+        };
     }, [files]);
 
 
     const handleSubmit = async (e :React.SubmitEvent) => {
-        console.log('submit')
+
         e.preventDefault(); // 폼 보내고 새로고침 방지
-        
+
+        // 1. 임시 글 먼저 추가
+        const tempPost: Post = {
+            id: Date.now(),
+            title: form.title,
+            content: form.content,
+            memberId: myInfo?.memberId ?? 0,
+            likeCount: 0,
+            replyCount: 0,
+            reportCount: 0,
+            nickname: myInfo?.nickname ?? "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            profileImg: '',
+            files: files.map((file, index) => ({
+                id: Date.now() + index,
+                originalname: file.file.name,
+                size: file.file.size,
+                path: '',
+                contentType: file.file.type,
+                createdAt: '',
+                postId: 0,
+                previewUrl: URL.createObjectURL(file.file),
+            }))
+        };
+
+        setAllPosts((prev) => [tempPost, ...prev]);
+        setIsOpen(false); // 모달 먼저 닫기
+
         const formData = new FormData();
 
         formData.append('title', form.title);
@@ -83,17 +111,19 @@ export default function WriteModal({setIsOpen}: ModalProps) {
         });
 
         await createPost(formData);
-        router.refresh();
-        setIsOpen(false);
+        const fresh = await getPosts({ page: 0 });
+        setAllPosts(fresh.content);
+
     }
+
 
     return (
         <form name="" className="mt-2" onSubmit={handleSubmit}>
             <Modal props={modalProps}>
                 <header className="flex align-middle gap-3 pb-3">
-                    <UserAvatar classes="w-[34px] h-[34px]" />
+                    <UserAvatar classes="w-[34px] h-[34px]" profileImg={myInfo?.profileImgUrl} />
                     <div>
-                        <div className="flex align-center w-full gap-2 font-bold whitespace-nowrap">익명의 투자자</div>
+                        <div className="flex align-center w-full gap-2 font-bold whitespace-nowrap">{myInfo?.nickname}</div>
                     </div>
                 </header>
                 <div className="mt-2">

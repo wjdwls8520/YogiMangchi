@@ -20,5 +20,11 @@ export async function fetchClient(
         throw new Error(`API 에러: ${res.status}`);
     }
 
+    const contentType = res.headers.get("content-type");
+
+    if (contentType?.includes("application/json")) {
     return res.json();
+    }
+
+    return null;
 }

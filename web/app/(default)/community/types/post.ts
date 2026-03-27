@@ -6,6 +6,7 @@ export interface File {
   contentType: string;
   createdAt: string;
   postId: number;
+  previewUrl?: string; // 글 등록 시 이미지 미리보기 url
 
 }
 
