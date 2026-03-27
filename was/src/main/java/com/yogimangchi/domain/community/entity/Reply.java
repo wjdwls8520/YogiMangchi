@@ -24,6 +24,9 @@ public class Reply {
     @Column(name = "reply_count", nullable = false, columnDefinition = "bigint default 0")
     private Long replyCount = 0L;
 
+    @Column(name = "report_count", nullable = false, columnDefinition = "bigint default 0")
+    private Long reportCount = 0L;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

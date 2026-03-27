@@ -6,6 +6,7 @@ import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.repository.PostLikeRepository;
+import com.yogimangchi.domain.report.repository.PostReportRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.support.CommunityMemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
@@ -42,6 +43,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final PostReportRepository postReportRepository;
     private final FileRepository fileRepository;
     private final CommunityMemberReader communityMemberReader;
     private final PostReader postReader;
@@ -77,6 +79,7 @@ public class PostService {
         Map<Long, List<FileDto>> filesByPostId = fileRepository.findAllByPostIds(postIds)
                 .stream().collect(Collectors.groupingBy(FileDto::postId));
         Set<Long> likedPostIds = getLikedPostIds(memberId, postIds);
+        Set<Long> reportedPostIds = getReportedPostIds(memberId, postIds);
 
         return posts.map(post -> new PostDetailDto(
                 post.id(),
@@ -86,6 +89,7 @@ public class PostService {
                 likedPostIds.contains(post.id()),
                 post.replyCount(),
                 post.reportCount(),
+                reportedPostIds.contains(post.id()),
                 post.createdAt(),
                 post.updatedAt(),
                 post.memberId(),
@@ -117,6 +121,7 @@ public class PostService {
                 isPostLikedByMember(memberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
+                isPostReportedByMember(memberId, postId),
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 author.getId(),
@@ -205,6 +210,7 @@ public class PostService {
                 false,
                 savedPost.getReplyCount(),
                 savedPost.getReportCount(),
+                false,
                 savedPost.getCreatedAt(),
                 savedPost.getUpdatedAt(),
                 member.getId(),
@@ -337,6 +343,7 @@ public class PostService {
                 postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
+                isPostReportedByMember(memberId, postId),
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 author.getId(),
@@ -425,5 +432,21 @@ public class PostService {
         }
 
         return postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId);
+    }
+
+    private Set<Long> getReportedPostIds(Long memberId, List<Long> postIds) {
+        if (memberId == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(postReportRepository.findReportedPostIds(memberId, postIds));
+    }
+
+    private boolean isPostReportedByMember(Long memberId, Long postId) {
+        if (memberId == null) {
+            return false;
+        }
+
+        return postReportRepository.existsByMember_IdAndPost_Id(memberId, postId);
     }
 }

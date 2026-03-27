@@ -18,6 +18,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             case when r.deleteYn = 'Y' then '삭제된 댓글입니다.' else r.content end,
             r.likeCount,
             false,
+            r.reportCount,
+            false,
             r.replyCount,
             null,
             null,
@@ -43,6 +45,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.id,
             case when r.deleteYn = 'Y' then '삭제된 댓글입니다.' else r.content end,
             r.likeCount,
+            false,
+            r.reportCount,
             false,
             r.replyCount,
             rp.id,
@@ -85,4 +89,15 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
 
     @Query("select r.likeCount from Reply r where r.id = :replyId")
     Long findLikeCountById(@Param("replyId") Long replyId);
+
+    @Modifying
+    @Query("update Reply r set r.reportCount = r.reportCount + 1 where r.id = :replyId")
+    void increaseReportCount(@Param("replyId") Long replyId);
+
+    @Modifying
+    @Query("update Reply r set r.reportCount = r.reportCount - 1 where r.id = :replyId AND r.reportCount > 0")
+    void decreaseReportCount(@Param("replyId") Long replyId);
+
+    @Query("select r.reportCount from Reply r where r.id = :replyId")
+    Long findReportCountById(@Param("replyId") Long replyId);
 }

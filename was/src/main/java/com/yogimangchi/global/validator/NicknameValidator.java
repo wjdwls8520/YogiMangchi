@@ -2,6 +2,13 @@ package com.yogimangchi.global.validator;
 
 import java.util.regex.Pattern;
 
+/**
+ * 닉네임 형식 검증 유틸리티 (글로벌 공용)
+ * 닉네임이 "공백 없는 한글/영문/숫자, 2~12자" 규칙을 만족하는지 검사합니다.
+ *
+ * 예시: NicknameValidator.validate("망치길동")  → 통과
+ *       NicknameValidator.validate("a")         → IllegalArgumentException (2자 미만)
+ */
 public final class NicknameValidator {
 
     public static final String REQUIRED_MESSAGE = "닉네임은 필수입니다.";

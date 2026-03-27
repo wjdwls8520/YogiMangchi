@@ -5,6 +5,13 @@ import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import org.springframework.stereotype.Component;
 
+/**
+ * 댓글 도메인의 구조·소속 검증기
+ * 댓글 생성·조회 시 게시글 소속, 부모-자식 계층, 댓글 그룹 규칙을 검증합니다.
+ *
+ * 예시: replyService.createReply() → validateParent(post, parentReply)
+ *       likeService.likeReply()    → validateReplyBelongsToPost(post, reply, "...")
+ */
 @Component
 public class ReplyValidator {
 

@@ -23,6 +23,8 @@ public record PostDetailDto(
         Long replyCount,
         @Schema(description = "신고 수", example = "101")
         Long reportCount,
+        @Schema(description = "로그인한 사용자의 신고 여부", example = "false")
+        Boolean reportedByMe,
         @Schema(description = "작성일시", example = "2026-03-24T10:20:00", type = "string", format = "date-time")
         LocalDateTime createdAt,
         @Schema(description = "수정일시", example = "2026-03-24T10:20:00", type = "string", format = "date-time")

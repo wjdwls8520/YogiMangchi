@@ -17,6 +17,12 @@ public record ReplyDetailDto(
     @Schema(description = "로그인한 사용자의 댓글 좋아요 여부", example = "true")
     Boolean likedByMe,
 
+    @Schema(description = "댓글 신고 수", example = "0")
+    Long reportCount,
+
+    @Schema(description = "로그인한 사용자의 댓글 신고 여부", example = "false")
+    Boolean reportedByMe,
+
     @Schema(description = "댓글 수", example = "1")
     Long replyCount,
 
