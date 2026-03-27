@@ -17,7 +17,7 @@ public class MockAssetController {
 
     private final MockAssetService mockAssetService;
 
-    @Operation(summary = "모의투자 10만달러 지급 (새 지갑 생성)", description = "모의투자에 참가하여 새로운 지갑과 초기 자금을 발급받습니다.")
+    @Operation(summary = "모의투자 1만달러 지급 (새 지갑 생성)", description = "모의투자에 참가하여 새로운 지갑과 초기 자금을 발급받습니다.")
     @PostMapping("/participate")
     public ResponseEntity<String> participate(@AuthenticationPrincipal Long memberId) {
         mockAssetService.participateMock(memberId);
