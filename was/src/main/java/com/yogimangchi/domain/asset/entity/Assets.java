@@ -49,7 +49,7 @@ public class Assets {
     private String status;
 
     @Column(name = "retry_count", nullable = false)
-    @Comment("재도전 횟수 (0부터 시작, 최대 5회)")
+    @Comment("재도전 횟수 (모의투자(현물) 무재한) / 대회에서는 retry_count를 회차개념으로 사용")
     private int retryCount;
 
     @Column(name = "expired_at", nullable = false)
