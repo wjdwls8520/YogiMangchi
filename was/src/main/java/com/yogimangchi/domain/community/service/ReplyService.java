@@ -7,6 +7,7 @@ import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
+import com.yogimangchi.domain.report.repository.ReplyReportRepository;
 import com.yogimangchi.domain.community.support.CommunityMemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
@@ -32,6 +33,7 @@ public class ReplyService {
     private final PostRepository postRepository;
     private final ReplyRepository replyRepository;
     private final ReplyLikeRepository replyLikeRepository;
+    private final ReplyReportRepository replyReportRepository;
     private final CommunityMemberReader communityMemberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
@@ -89,6 +91,8 @@ public class ReplyService {
                 saveReply.getContent(),
                 saveReply.getLikeCount(),
                 false,
+                saveReply.getReportCount(),
+                false,
                 saveReply.getReplyCount(),
                 parentId,
                 targetMemberId,
@@ -141,11 +145,17 @@ public class ReplyService {
                 .map(ReplyDetailDto::id)
                 .toList());
 
+        Set<Long> reportedReplyIds = getReportedReplyIds(memberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
         return replys.map(reply -> new ReplyDetailDto(
                 reply.id(),
                 reply.content(),
                 reply.likeCount(),
                 likedReplyIds.contains(reply.id()),
+                reply.reportCount(),
+                reportedReplyIds.contains(reply.id()),
                 reply.replyCount(),
                 reply.parentReplyId(),
                 reply.targetMemberId(),
@@ -187,6 +197,8 @@ public class ReplyService {
                 updatedReply.getContent(),
                 updatedReply.getLikeCount(),
                 replyLikeRepository.existsByMember_IdAndReply_Id(memberId, replyId),
+                updatedReply.getReportCount(),
+                isReplyReportedByMember(memberId, replyId),
                 updatedReply.getReplyCount(),
                 parentId,
                 targetMemberId,
@@ -227,5 +239,21 @@ public class ReplyService {
         }
 
         return new HashSet<>(replyLikeRepository.findLikedReplyIds(memberId, replyIds));
+    }
+
+    private Set<Long> getReportedReplyIds(Long memberId, List<Long> replyIds) {
+        if (memberId == null || replyIds.isEmpty()) {
+            return Set.of();
+        }
+
+        return new HashSet<>(replyReportRepository.findReportedReplyIds(memberId, replyIds));
+    }
+
+    private boolean isReplyReportedByMember(Long memberId, Long replyId) {
+        if (memberId == null) {
+            return false;
+        }
+
+        return replyReportRepository.existsByMember_IdAndReply_Id(memberId, replyId);
     }
 }

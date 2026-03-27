@@ -6,6 +6,12 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.enums.MemberRole;
 import org.springframework.stereotype.Component;
 
+/**
+ * 커뮤니티 도메인의 권한 검증기
+ * 게시글·댓글의 수정/삭제 시 "본인 또는 ADMIN"인지 확인합니다.
+ *
+ * 예시: postService.updatePost() → validatePostAuthorOrAdmin(post, requester, "수정 권한이 없습니다.")
+ */
 @Component
 public class CommunityPermissionValidator {
 

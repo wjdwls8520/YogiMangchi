@@ -70,4 +70,15 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("select p.likeCount from Post p where p.id = :postId")
     Long findLikeCountById(@Param("postId") Long postId);
+
+    @Modifying
+    @Query("update Post p set p.reportCount = p.reportCount + 1 where p.id = :postId")
+    void increaseReportCount(@Param("postId") Long postId);
+
+    @Modifying
+    @Query("update Post p set p.reportCount = p.reportCount - 1 where p.id = :postId AND p.reportCount > 0")
+    void decreaseReportCount(@Param("postId") Long postId);
+
+    @Query("select p.reportCount from Post p where p.id = :postId")
+    Long findReportCountById(@Param("postId") Long postId);
 }
