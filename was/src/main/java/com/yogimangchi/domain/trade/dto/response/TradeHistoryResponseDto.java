@@ -1,6 +1,8 @@
 package com.yogimangchi.domain.trade.dto.response;
 
+import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
+import com.yogimangchi.domain.trade.enums.OrderStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -11,6 +13,9 @@ public record TradeHistoryResponseDto(
         @Schema(description = "거래 내역 ID", example = "152")
         Long tradeId,
 
+        @Schema(description = "지갑 타입 (컨텐츠 구분)", example = "MOCK")
+        AssetType assetType,
+
         @Schema(description = "마켓 심볼", example = "BTCUSDT")
         String symbol,
 
@@ -19,6 +24,9 @@ public record TradeHistoryResponseDto(
 
         @Schema(description = "주문 타입 (MARKET: 시장가 / LIMIT: 지정가)", example = "MARKET")
         String orderType,
+
+        @Schema(description = "주문 상태 (PENDING / COMPLETED / CANCELED)", example = "COMPLETED")
+        OrderStatus orderStatus,
 
         @Schema(description = "체결 단가 (1개당 가격)", example = "70500.50")
         BigDecimal price,
@@ -35,21 +43,27 @@ public record TradeHistoryResponseDto(
         @Schema(description = "실현 손익 (매수일 경우 0 또는 null, 매도일 경우 실제 손익)", example = "500.00")
         BigDecimal realizedProfit,
 
-        @Schema(description = "체결시간")
+        @Schema(description = "주문 일시")
+        LocalDateTime orderedAt,
+
+        @Schema(description = "체결시간(지정가일 때는 null일 수 있음)", nullable = true)
         LocalDateTime executedAt
 ) {
     // Entity를 DTO로 변환하는 정적 팩토리 메서드
     public static TradeHistoryResponseDto from(TradeHistory history) {
         return new TradeHistoryResponseDto(
                 history.getId(),
+                history.getAssets().getType(),
                 history.getSymbol(),
                 history.getSide(),
                 history.getOrderType(),
+                history.getStatus(),
                 history.getPrice(),
                 history.getQuantity(),
                 history.getTotalAmount(),
                 history.getFee(),
                 history.getRealizedProfit(),
+                history.getCreatedAt(),
                 history.getExecutedAt()
         );
     }

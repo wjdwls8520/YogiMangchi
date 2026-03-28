@@ -5,6 +5,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
+import com.yogimangchi.domain.trade.enums.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -34,6 +35,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
                         cursorIdLt(cond.cursorId()),         // 커서 페이징 조건 (선택)
                         symbolEq(cond.symbol()),             // 심볼 필터 (선택)
                         sideEq(cond.side()),                 // 매수/매도 필터 (선택)
+                        statusEq(cond.status()),             // 주문 상태 필터 (선택)
                         dateBetween(cond.startDate(), cond.endDate()) // 날짜 필터 (선택)
                 )
                 .orderBy(tradeHistory.id.desc())
@@ -67,16 +69,21 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
         return StringUtils.hasText(side) ? tradeHistory.side.eq(side) : null;
     }
 
+    // 주문 상태 검색 블록
+    private BooleanExpression statusEq(OrderStatus status) {
+        return status != null ? tradeHistory.status.eq(status) : null;
+    }
+
     private BooleanExpression dateBetween(LocalDate startDate, LocalDate endDate) {
         if (startDate == null && endDate == null) {
             return null;
         }
         if (startDate != null && endDate == null) {
-            return tradeHistory.executedAt.goe(startDate.atStartOfDay()); // 시작일 ~ 오늘
+            return tradeHistory.createdAt.goe(startDate.atStartOfDay()); // 시작일 ~ 오늘
         }
         if (startDate == null && endDate != null) {
-            return tradeHistory.executedAt.loe(endDate.atTime(LocalTime.MAX)); // 과거 ~ 종료일 밤 11:59:59
+            return tradeHistory.createdAt.loe(endDate.atTime(LocalTime.MAX)); // 과거 ~ 종료일 밤 11:59:59
         }
-        return tradeHistory.executedAt.between(startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        return tradeHistory.createdAt.between(startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
     }
 }
