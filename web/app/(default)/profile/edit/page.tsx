@@ -53,7 +53,7 @@ export default function ProfileEditPage() {
   useEffect(() => {
     const fetchMemberInfo = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/v1/member/info/me", {
+        const response = await fetch("http://localhost:8080/api/v1/member/me/info", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -191,7 +191,7 @@ export default function ProfileEditPage() {
         console.log(`${key}:`, value);
       }
 
-      const response = await fetch("http://localhost:8080/api/v1/member/info/me", {
+      const response = await fetch("http://localhost:8080/api/v1/member/me/info", {
         method: "PATCH",
         body: formData,
         credentials: "include",
