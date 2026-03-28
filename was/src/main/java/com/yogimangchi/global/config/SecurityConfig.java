@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -54,6 +55,13 @@ public class SecurityConfig {
                                 "/api/v1/trade/**",
                                 "/api/v1/market/symbols"
                         ).permitAll()
+                        // 내 정보 관련은 로그인 필요
+                        .requestMatchers("/api/v1/member/me", "/api/v1/member/me/**").authenticated()
+
+                        // 다른 멤버 프로필은 비회원도 조회 가능
+                        .requestMatchers(new RegexRequestMatcher("^/api/v1/member/\\d+/info$", "GET")).permitAll()
+
+                        // 커뮤니티 겟요청에 한해 전부 조회 가능
                         .requestMatchers(HttpMethod.GET, "/api/v1/community/**").permitAll() // 커뮤니티 조회는 비회원 허용
                         .anyRequest().authenticated()
                 )
