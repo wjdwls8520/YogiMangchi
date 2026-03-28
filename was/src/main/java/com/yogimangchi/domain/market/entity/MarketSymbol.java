@@ -60,6 +60,7 @@ public class MarketSymbol {
     @Builder
     protected MarketSymbol(String symbol, String baseAsset, String quoteAsset, String displayNameEn, String displayNameKr, boolean isActive) {
         this.symbol = symbol;
+        this.marketType = marketType;
         this.baseAsset = baseAsset;
         this.quoteAsset = quoteAsset;
         this.displayNameEn = displayNameEn;

@@ -54,29 +54,34 @@ public class PortfolioCalculationService {
                     .map(dto -> new BigDecimal(dto.price()))
                     .orElse(holding.getAverageBuyPrice());
 
-            // 산술
+            // 산개별 코인 산술
             BigDecimal coinTotalValue = holding.getQuantity().multiply(currentPrice).setScale(4, RoundingMode.HALF_UP);
             BigDecimal buyAmount = holding.getQuantity().multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
             BigDecimal profit = coinTotalValue.subtract(buyAmount);
 
+            // 개별 코인 수익률(ROI) 계산 - 0% 방지를 위해 미리 100을 곱함
             BigDecimal roi = BigDecimal.ZERO;
             if (buyAmount.compareTo(BigDecimal.ZERO) > 0) {
                 roi = profit.multiply(new BigDecimal("100")).divide(buyAmount, 2, RoundingMode.HALF_UP);
             }
 
+            // 계산 결과 임시 저장
             holdingCalcs.add(new HoldingCalc(
                     holding.getSymbol(), holding.getQuantity(), holding.getAverageBuyPrice(),
                     currentPrice, buyAmount, coinTotalValue, profit, roi, isPriceStale
             ));
 
+            // 전체 코인 평가금 및 매수금액 누적
             totalCoinValue = totalCoinValue.add(coinTotalValue);
             totalBuyAmount = totalBuyAmount.add(buyAmount);
         }
 
-        // HoldingResponseDto 로우 생성
+        // 포트폴리오 코인의 전체 비중(%) 계산 및 DTO 변환
         List<HoldingResponseDto> holdingResponseDtos = new ArrayList<>();
         for (HoldingCalc calc : holdingCalcs) {
             BigDecimal holdingRatio = BigDecimal.ZERO;
+
+            // 내 전체 코인 자산 중 이 코인이 차지하는 비중(%)
             if (totalCoinValue.compareTo(BigDecimal.ZERO) > 0) {
                 holdingRatio = calc.coinTotalValue()
                         .multiply(new BigDecimal("100"))

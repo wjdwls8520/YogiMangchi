@@ -29,7 +29,7 @@ public class Assets {
 
     @Column(name = "asset_type", nullable = false)
     @Enumerated(EnumType.STRING)
-    @Comment("지갑 종류 (SPOT: 현물, FUTURE: 선물, CONTEST: 대회용)")
+    @Comment("지갑 타입 (MOCK: 모의투자, TRADE_SPOT: 실전 현물, TRADE_FUTURE: 실전 선물, CONTEST: 대회 선물)")
     private AssetType type;
 
     @Column(name = "seed_money", nullable = false, precision = 19, scale = 4)

@@ -16,7 +16,10 @@ public record MarketOrderRequestDto(
         String symbol,
 
         @NotNull(message = "지갑 타입은 필수입니다.")
-        @Schema(description = "매매를 진행할 지갑 타입 (SPOT: 현물, FUTURE: 선물, CONTEST: 대회)", example = "SPOT")
+        @Schema(
+                description = "매매를 진행할 지갑 타입 (MOCK: 모의투자, TRADE_SPOT: 실전 현물, TRADE_FUTURE: 실전 선물, CONTEST: 대회)",
+                example = "MOCK"
+        )
         AssetType assetType,
 
         @NotNull(message = "매매 방향은 필수입니다.")
@@ -28,7 +31,7 @@ public record MarketOrderRequestDto(
         BigDecimal quantity,
 
         @Positive(message = "매수 금액은 0보다 커야 합니다.")
-        @Schema(description = "매수(BUY) 시: 사용할 현금 금액", example = "100000")
+        @Schema(description = "매수(BUY) 시: 사용할 현금 금액", example = "10000")
         BigDecimal totalAmount
 
 ){}
