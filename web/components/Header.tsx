@@ -26,7 +26,7 @@ export default function Header() {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const response = await fetch('http://localhost:8080/api/v1/member/info/me', {
+                const response = await fetch('http://localhost:8080/api/v1/member/me/info', {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
