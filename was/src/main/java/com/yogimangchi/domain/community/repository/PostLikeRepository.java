@@ -1,6 +1,10 @@
 package com.yogimangchi.domain.community.repository;
 
+import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
+import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.PostLike;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +39,62 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
           and pl.post.id = :postId
     """)
     int deleteByMemberIdAndPostId(@Param("memberId") Long memberId, @Param("postId") Long postId);
+
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        from PostLike pl
+        join pl.post p
+        join p.member m
+        where pl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+    """)
+    Page<PostAndMemberDto> findAllLikedPosts(
+            @Param("loginMemberId") Long loginMemberId,
+            Pageable pageable
+    );
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        from PostLike pl
+        join pl.post p
+        join p.member m
+        where pl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and (
+              lower(p.title) like lower(concat('%', :keyword, '%'))
+              or lower(p.content) like lower(concat('%', :keyword, '%'))
+          )
+    """)
+    Page<PostAndMemberDto> findLikedPostsByKeyword(
+            @Param("loginMemberId") Long loginMemberId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+
 }
