@@ -73,7 +73,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
     """)
-    Page<PostAndMemberDto> findAuthorMemberByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(@Param("authorMemberId") Long authorMemberId, @Param("keyword") String keyword, Pageable pageable);
+    Page<PostAndMemberDto> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCaseByAuthor(@Param("authorMemberId") Long authorMemberId, @Param("keyword") String keyword, Pageable pageable);
 
     @Query("""
         SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
@@ -93,7 +93,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         JOIN p.member m
         WHERE p.deleteYn = 'N' AND m.id =:authorMemberId
     """)
-    Page<PostAndMemberDto> findAllAuthorMemberPosts(@Param("authorMemberId") Long authorMemberId, Pageable pageable);
+    Page<PostAndMemberDto> findAllPostsByAuthor(@Param("authorMemberId") Long authorMemberId, Pageable pageable);
 
     @Modifying
     @Query("update Post p set p.replyCount = p.replyCount + 1 where p.id = :postId")

@@ -103,15 +103,15 @@ public class PostService {
      * 특정 작성자의 게시글 전부 조회
     */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getAuthorMemberPosts(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
+    public Page<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
         String q = (keyword == null) ? null : keyword.trim();
 
         Member authorMember =  communityMemberReader.getFindMember(authorMemberId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<PostAndMemberDto> posts = (q == null || q.isBlank())
-                ? postRepository.findAllAuthorMemberPosts(authorMemberId, pageable)
-                : postRepository.findAuthorMemberByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(authorMemberId, q, pageable);
+                ? postRepository.findAllPostsByAuthor(authorMemberId, pageable)
+                : postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCaseByAuthor(authorMemberId, q, pageable);
 
         if (posts.isEmpty()) return Page.empty(pageable);
 

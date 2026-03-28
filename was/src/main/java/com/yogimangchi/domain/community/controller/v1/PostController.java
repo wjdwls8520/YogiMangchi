@@ -48,7 +48,7 @@ public class PostController {
             description = "특정 유저의 모든 게시글을 조회합니다. 무한 스크롤로 페이징 합니다. (특정 유저의 memberId를 같이 보내면 해당 유저가 작성한 글을 모두 조회합니다)"
     )
     @GetMapping("/member/{memberId}/posts")
-    public ResponseEntity<Page<PostDetailDto>> getWriterPosts(
+    public ResponseEntity<Page<PostDetailDto>> getPostsByAuthor(
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable("memberId") Long authorMemberId,
             @RequestParam(defaultValue = "0") int page,
@@ -56,7 +56,7 @@ public class PostController {
             @RequestParam(required = false) String keyword
     ) {
 
-        Page<PostDetailDto> postsList = postService.getAuthorMemberPosts(loginMemberId, authorMemberId, page, size, keyword);
+        Page<PostDetailDto> postsList = postService.getPostsByAuthor(loginMemberId, authorMemberId, page, size, keyword);
 
         return ResponseEntity.ok(postsList);
     }
