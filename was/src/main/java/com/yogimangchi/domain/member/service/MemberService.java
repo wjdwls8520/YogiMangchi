@@ -37,9 +37,9 @@ public class MemberService {
     }
 
     @Transactional(readOnly = true)
-    public MyProfileInfoDto getMyProfile(Long memberId) {
+    public MyProfileInfoDto getMyProfile(Long loginMemberId) {
 
-        MyProfileInfoDto myProfileInfo = oAuthAccountRepository.findMyProfileInfo(memberId);
+        MyProfileInfoDto myProfileInfo = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
         return myProfileInfo;
     }
@@ -61,8 +61,8 @@ public class MemberService {
     }
 
     @Transactional
-    public MyProfileInfoDto updateMyProfile(Long memberId, UpdateMyProfileDto request) {
-        if (memberId == null) {
+    public MyProfileInfoDto updateMyProfile(Long loginMemberId, UpdateMyProfileDto request) {
+        if (loginMemberId == null) {
             throw new IllegalArgumentException("로그인이 필요합니다.");
         }
 
@@ -70,7 +70,7 @@ public class MemberService {
             throw new IllegalArgumentException("수정할 프로필 정보가 필요합니다.");
         }
 
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findById(loginMemberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         boolean hasNicknameUpdate = request.getNickname() != null;
@@ -86,7 +86,7 @@ public class MemberService {
             nextNickname = request.getNickname();
             NicknameValidator.validate(nextNickname);
 
-            if (memberRepository.existsByNicknameAndIdNot(nextNickname, memberId)) {
+            if (memberRepository.existsByNicknameAndIdNot(nextNickname, loginMemberId)) {
                 throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
             }
         }
@@ -110,7 +110,7 @@ public class MemberService {
 
         member.updateBasicProfile(nextNickname, nextProfileImgUrl, nextProfileMsg);
 
-        MyProfileInfoDto updatedProfile = oAuthAccountRepository.findMyProfileInfo(memberId);
+        MyProfileInfoDto updatedProfile = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
         if (hasProfileImageUpdate) {
             scheduleOldProfileImageDeletion(previousProfileImgUrl, nextProfileImgUrl);

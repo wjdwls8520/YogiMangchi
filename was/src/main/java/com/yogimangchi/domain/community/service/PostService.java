@@ -60,7 +60,7 @@ public class PostService {
      * 게시글 목록 조회 (페이징 + 키워드 검색)
      */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getPosts(Long memberId, Integer page, Integer size, String keyword) {
+    public Page<PostDetailDto> getPosts(Long loginMemberId, Integer page, Integer size, String keyword) {
 
         String q = (keyword == null) ? null : keyword.trim();
 
@@ -78,8 +78,8 @@ public class PostService {
 
         Map<Long, List<FileDto>> filesByPostId = fileRepository.findAllByPostIds(postIds)
                 .stream().collect(Collectors.groupingBy(FileDto::postId));
-        Set<Long> likedPostIds = getLikedPostIds(memberId, postIds);
-        Set<Long> reportedPostIds = getReportedPostIds(memberId, postIds);
+        Set<Long> likedPostIds = getLikedPostIds(loginMemberId, postIds);
+        Set<Long> reportedPostIds = getReportedPostIds(loginMemberId, postIds);
 
         return posts.map(post -> new PostDetailDto(
                 post.id(),
@@ -103,7 +103,7 @@ public class PostService {
      * 단건 게시글 조회 (게시글 + 작성자 + 첨부파일)
      */
     @Transactional(readOnly = true)
-    public PostDetailDto getPost(Long memberId, Long postId) {
+    public PostDetailDto getPost(Long loginMemberId, Long postId) {
 
         // ── 1. 활성 게시글을 조회합니다. ──
         Post post = postReader.getActive(postId);
@@ -118,10 +118,10 @@ public class PostService {
                 post.getTitle(),
                 post.getContent(),
                 post.getLikeCount(),
-                isPostLikedByMember(memberId, postId),
+                isPostLikedByMember(loginMemberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
-                isPostReportedByMember(memberId, postId),
+                isPostReportedByMember(loginMemberId, postId),
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 author.getId(),
@@ -135,7 +135,7 @@ public class PostService {
      * 게시글 생성 (제목, 내용, 첨부 이미지)
      */
     @Transactional
-    public PostDetailDto createPost(Long memberId, PostCreateDto request) {
+    public PostDetailDto createPost(Long loginMemberId, PostCreateDto request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String title = normalizeText(request.title(), "제목");
@@ -151,7 +151,7 @@ public class PostService {
         }
 
         // ── 3. 요청자를 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(memberId);
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
 
         // ── 4. 첨부 이미지 필터링 (null·빈 파일 제거) ──
         List<MultipartFile> images = request.files().stream()
@@ -237,11 +237,11 @@ public class PostService {
      * 게시글 수정 (제목, 내용, 첨부 이미지 추가·삭제)
      */
     @Transactional
-    public PostDetailDto updatePost(Long memberId, Long postId, PostUpdateDto request) {
+    public PostDetailDto updatePost(Long loginMemberId, Long postId, PostUpdateDto request) {
 
         // ── 1. 수정 대상과 요청자의 권한을 확인합니다. ──
         Post post = postReader.getActive(postId);
-        Member requester = communityMemberReader.getAuthenticated(memberId);
+        Member requester = communityMemberReader.getAuthenticated(loginMemberId);
         communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 수정 권한이 없습니다.");
 
         // ── 3. 입력값 정제 + 길이 검증 ──
@@ -340,10 +340,10 @@ public class PostService {
                 post.getTitle(),
                 post.getContent(),
                 post.getLikeCount(),
-                postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId),
+                postLikeRepository.existsByMember_IdAndPost_Id(loginMemberId, postId),
                 post.getReplyCount(),
                 post.getReportCount(),
-                isPostReportedByMember(memberId, postId),
+                isPostReportedByMember(loginMemberId, postId),
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 author.getId(),
@@ -354,10 +354,10 @@ public class PostService {
     }
 
     @Transactional
-    public void deletePost(Long memberId, Long postId) {
+    public void deletePost(Long loginMemberId, Long postId) {
         // ── 1. 삭제 대상과 요청자의 권한을 확인합니다. ──
         Post post = postReader.getActive(postId);
-        Member requester = communityMemberReader.getAuthenticated(memberId);
+        Member requester = communityMemberReader.getAuthenticated(loginMemberId);
         communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 삭제 권한이 없습니다.");
 
         // 소프트삭제 deleteYN = Y
@@ -418,35 +418,35 @@ public class PostService {
         });
     }
 
-    private Set<Long> getLikedPostIds(Long memberId, List<Long> postIds) {
-        if (memberId == null || postIds.isEmpty()) {
+    private Set<Long> getLikedPostIds(Long loginMemberId, List<Long> postIds) {
+        if (loginMemberId == null || postIds.isEmpty()) {
             return Set.of();
         }
 
-        return new HashSet<>(postLikeRepository.findLikedPostIds(memberId, postIds));
+        return new HashSet<>(postLikeRepository.findLikedPostIds(loginMemberId, postIds));
     }
 
-    private boolean isPostLikedByMember(Long memberId, Long postId) {
-        if (memberId == null) {
+    private boolean isPostLikedByMember(Long loginMemberId, Long postId) {
+        if (loginMemberId == null) {
             return false;
         }
 
-        return postLikeRepository.existsByMember_IdAndPost_Id(memberId, postId);
+        return postLikeRepository.existsByMember_IdAndPost_Id(loginMemberId, postId);
     }
 
-    private Set<Long> getReportedPostIds(Long memberId, List<Long> postIds) {
-        if (memberId == null || postIds.isEmpty()) {
+    private Set<Long> getReportedPostIds(Long loginMemberId, List<Long> postIds) {
+        if (loginMemberId == null || postIds.isEmpty()) {
             return Set.of();
         }
 
-        return new HashSet<>(postReportRepository.findReportedPostIds(memberId, postIds));
+        return new HashSet<>(postReportRepository.findReportedPostIds(loginMemberId, postIds));
     }
 
-    private boolean isPostReportedByMember(Long memberId, Long postId) {
-        if (memberId == null) {
+    private boolean isPostReportedByMember(Long loginMemberId, Long postId) {
+        if (loginMemberId == null) {
             return false;
         }
 
-        return postReportRepository.existsByMember_IdAndPost_Id(memberId, postId);
+        return postReportRepository.existsByMember_IdAndPost_Id(loginMemberId, postId);
     }
 }

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/community/posts/{postId}/replys")
+@RequestMapping("/api/v1/community")
 @Tag(name = "Community-Reply", description = "커뮤니티 댓글 관련 API")
 public class ReplyController {
 
@@ -25,15 +25,15 @@ public class ReplyController {
             summary = "댓글 조회",
             description = "parentId를 보내않으면 최상위 댓글, 값이있다면 대댓글"
     )
-    @GetMapping
+    @GetMapping("/posts/{postId}/replys")
     public ResponseEntity<Page<ReplyDetailDto>> getParentReplys(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @RequestParam(required = false) Long parentId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size
     ) {
-        Page<ReplyDetailDto> getReply = replyService.getParentReplys(memberId, postId, parentId, page, size);
+        Page<ReplyDetailDto> getReply = replyService.getParentReplys(loginMemberId, postId, parentId, page, size);
         return ResponseEntity.ok(getReply);
     }
 
@@ -41,14 +41,14 @@ public class ReplyController {
         summary = "댓글 작성",
         description = "게시글에 댓글을 작성합니다."
     )
-    @PostMapping
+    @PostMapping("/posts/{postId}/replys")
     public ResponseEntity<ReplyDetailDto> createReply(
-        @AuthenticationPrincipal Long memberId,
+        @AuthenticationPrincipal Long loginMemberId,
         @PathVariable Long postId,
         @RequestBody @Valid ReplyCreateDto request
 
     ) {
-        ReplyDetailDto createdReply = replyService.createReply(memberId, postId, request);
+        ReplyDetailDto createdReply = replyService.createReply(loginMemberId, postId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReply);
     }
@@ -57,14 +57,14 @@ public class ReplyController {
             summary = "댓글 수정",
             description = "게시글에 댓글을 수정합니다."
     )
-    @PutMapping
+    @PutMapping("/posts/{postId}/replys")
     public ResponseEntity<ReplyDetailDto> updateReply(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @RequestParam("replyId") Long replyId,
             @RequestParam("content") String content
     ) {
-        ReplyDetailDto updatedReply = replyService.updateReply(memberId, postId, replyId, content);
+        ReplyDetailDto updatedReply = replyService.updateReply(loginMemberId, postId, replyId, content);
 
         return ResponseEntity.ok(updatedReply);
     }
@@ -73,13 +73,13 @@ public class ReplyController {
             summary = "댓글 삭제",
             description = "게시글에 댓글을 삭제 합니다."
     )
-    @DeleteMapping
+    @DeleteMapping("/posts/{postId}/replys")
     public ResponseEntity<ReplyDetailDto> deleteReply(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @RequestParam("replyId") Long replyId
     ) {
-        replyService.deleteReply(memberId, postId, replyId);
+        replyService.deleteReply(loginMemberId, postId, replyId);
 
         return ResponseEntity.noContent().build();  // 204
     }

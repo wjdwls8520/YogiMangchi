@@ -42,13 +42,13 @@ public class MemberController {
     @Operation(summary = "멤버(유저) 프로필 정보", description = "멤버의 프로필 정보를 요청합니다.")
     @GetMapping("/info/me")
     public ResponseEntity<MyProfileInfoDto> getMemberInfoMe(
-            @AuthenticationPrincipal Long memberId
+            @AuthenticationPrincipal Long loginMemberId
     ) {
-        if (memberId == null) {
+        if (loginMemberId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        MyProfileInfoDto myData =  memberService.getMyProfile(memberId);
+        MyProfileInfoDto myData =  memberService.getMyProfile(loginMemberId);
 
         return ResponseEntity.ok(myData);
     }
@@ -83,14 +83,14 @@ public class MemberController {
     )
     @PatchMapping(value = "/info/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MyProfileInfoDto> updateMemberInfoMe(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @ModelAttribute UpdateMyProfileDto request
     ) {
-        if (memberId == null) {
+        if (loginMemberId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        MyProfileInfoDto updatedProfile = memberService.updateMyProfile(memberId, request);
+        MyProfileInfoDto updatedProfile = memberService.updateMyProfile(loginMemberId, request);
 
         return ResponseEntity.ok(updatedProfile);
     }

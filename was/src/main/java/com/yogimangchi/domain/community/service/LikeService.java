@@ -29,12 +29,12 @@ public class LikeService {
     private final ReplyValidator replyValidator;
 
     @Transactional
-    public LikeResponseDto likePost(Long memberId, Long postId) {
+    public LikeResponseDto likePost(Long loginMemberId, Long postId) {
         // 로그인한 사용자가 활성 게시글에만 좋아요를 누를 수 있습니다.
-        communityMemberReader.getAuthenticated(memberId);
+        communityMemberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
-        int insertedCount = postLikeRepository.insertIgnore(memberId, postId);
+        int insertedCount = postLikeRepository.insertIgnore(loginMemberId, postId);
         if (insertedCount > 0) {
             postRepository.increaseLikeCount(postId);
         }
@@ -43,12 +43,12 @@ public class LikeService {
     }
 
     @Transactional
-    public LikeResponseDto unlikePost(Long memberId, Long postId) {
+    public LikeResponseDto unlikePost(Long loginMemberId, Long postId) {
         // 취소 요청도 동일하게 인증과 게시글 활성 상태를 먼저 확인합니다.
-        communityMemberReader.getAuthenticated(memberId);
+        communityMemberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
-        int deletedCount = postLikeRepository.deleteByMemberIdAndPostId(memberId, postId);
+        int deletedCount = postLikeRepository.deleteByMemberIdAndPostId(loginMemberId, postId);
         if (deletedCount > 0) {
             postRepository.decreaseLikeCount(postId);
         }
@@ -57,14 +57,14 @@ public class LikeService {
     }
 
     @Transactional
-    public LikeResponseDto likeReply(Long memberId, Long postId, Long replyId) {
+    public LikeResponseDto likeReply(Long loginMemberId, Long postId, Long replyId) {
         // 댓글 좋아요는 게시글-댓글 소속까지 함께 검증합니다.
-        communityMemberReader.getAuthenticated(memberId);
+        communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
 
-        int insertedCount = replyLikeRepository.insertIgnore(memberId, replyId);
+        int insertedCount = replyLikeRepository.insertIgnore(loginMemberId, replyId);
         if (insertedCount > 0) {
             replyRepository.increaseLikeCount(replyId);
         }
@@ -73,14 +73,14 @@ public class LikeService {
     }
 
     @Transactional
-    public LikeResponseDto unlikeReply(Long memberId, Long postId, Long replyId) {
+    public LikeResponseDto unlikeReply(Long loginMemberId, Long postId, Long replyId) {
         // 취소 요청도 같은 게시글의 활성 댓글인지 먼저 확인합니다.
-        communityMemberReader.getAuthenticated(memberId);
+        communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
 
-        int deletedCount = replyLikeRepository.deleteByMemberIdAndReplyId(memberId, replyId);
+        int deletedCount = replyLikeRepository.deleteByMemberIdAndReplyId(loginMemberId, replyId);
         if (deletedCount > 0) {
             replyRepository.decreaseLikeCount(replyId);
         }

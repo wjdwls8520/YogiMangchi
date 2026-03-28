@@ -43,7 +43,7 @@ public class ReplyService {
     private static final int MAX_CONTENT_LENGTH = 1000;
 
     @Transactional
-    public ReplyDetailDto createReply(Long memberId, Long postId, ReplyCreateDto request) {
+    public ReplyDetailDto createReply(Long loginMemberId, Long postId, ReplyCreateDto request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String content = normalizeText(request.content(), "내용");
@@ -54,7 +54,7 @@ public class ReplyService {
         }
 
         // ── 3. 요청자와 활성 게시글을 먼저 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(memberId);
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         replyValidator.validateCreateRequest(request);
 
@@ -120,7 +120,7 @@ public class ReplyService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getParentReplys(Long memberId, Long postId, Long parentId, int page, int size) {
+    public Page<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, Long parentId, int page, int size) {
 
         Post post = postReader.getActive(postId);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -141,11 +141,11 @@ public class ReplyService {
             return replys;
         }
 
-        Set<Long> likedReplyIds = getLikedReplyIds(memberId, replys.getContent().stream()
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        Set<Long> reportedReplyIds = getReportedReplyIds(memberId, replys.getContent().stream()
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
@@ -170,7 +170,7 @@ public class ReplyService {
     }
 
     @Transactional
-    public ReplyDetailDto updateReply(Long memberId, Long postId, Long replyId, String content) {
+    public ReplyDetailDto updateReply(Long loginMemberId, Long postId, Long replyId, String content) {
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String content1 = normalizeText(content, "내용");
 
@@ -180,7 +180,7 @@ public class ReplyService {
         }
 
         // ── 3. 수정 대상의 소속과 권한을 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(memberId);
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 수정할 수 있습니다.");
@@ -196,9 +196,9 @@ public class ReplyService {
                 updatedReply.getId(),
                 updatedReply.getContent(),
                 updatedReply.getLikeCount(),
-                replyLikeRepository.existsByMember_IdAndReply_Id(memberId, replyId),
+                replyLikeRepository.existsByMember_IdAndReply_Id(loginMemberId, replyId),
                 updatedReply.getReportCount(),
-                isReplyReportedByMember(memberId, replyId),
+                isReplyReportedByMember(loginMemberId, replyId),
                 updatedReply.getReplyCount(),
                 parentId,
                 targetMemberId,
@@ -214,9 +214,9 @@ public class ReplyService {
     }
 
     @Transactional
-    public void deleteReply(Long memberId, Long postId, Long replyId) {
+    public void deleteReply(Long loginMemberId, Long postId, Long replyId) {
         // ── 1. 삭제 대상의 소속과 권한을 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(memberId);
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 삭제할 수 있습니다.");
@@ -233,27 +233,27 @@ public class ReplyService {
         postRepository.decreaseReplyCount(postId);
     }
 
-    private Set<Long> getLikedReplyIds(Long memberId, List<Long> replyIds) {
-        if (memberId == null || replyIds.isEmpty()) {
+    private Set<Long> getLikedReplyIds(Long loginMemberId, List<Long> replyIds) {
+        if (loginMemberId == null || replyIds.isEmpty()) {
             return Set.of();
         }
 
-        return new HashSet<>(replyLikeRepository.findLikedReplyIds(memberId, replyIds));
+        return new HashSet<>(replyLikeRepository.findLikedReplyIds(loginMemberId, replyIds));
     }
 
-    private Set<Long> getReportedReplyIds(Long memberId, List<Long> replyIds) {
-        if (memberId == null || replyIds.isEmpty()) {
+    private Set<Long> getReportedReplyIds(Long loginMemberId, List<Long> replyIds) {
+        if (loginMemberId == null || replyIds.isEmpty()) {
             return Set.of();
         }
 
-        return new HashSet<>(replyReportRepository.findReportedReplyIds(memberId, replyIds));
+        return new HashSet<>(replyReportRepository.findReportedReplyIds(loginMemberId, replyIds));
     }
 
-    private boolean isReplyReportedByMember(Long memberId, Long replyId) {
-        if (memberId == null) {
+    private boolean isReplyReportedByMember(Long loginMemberId, Long replyId) {
+        if (loginMemberId == null) {
             return false;
         }
 
-        return replyReportRepository.existsByMember_IdAndReply_Id(memberId, replyId);
+        return replyReportRepository.existsByMember_IdAndReply_Id(loginMemberId, replyId);
     }
 }
