@@ -25,7 +25,7 @@ public class ReportService {
     private final ReplyRepository replyRepository;
     private final PostReportRepository postReportRepository;
     private final ReplyReportRepository replyReportRepository;
-    private final MemberReader communityMemberReader;
+    private final MemberReader memberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;
@@ -36,7 +36,7 @@ public class ReportService {
     @Transactional
     public ReportResponseDto reportPost(Long loginMemberId, Long postId, ReportReasonType reasonType) {
         // 로그인한 사용자인지 확인하고 회원 정보를 가져옵니다.
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
         // 삭제되지 않은 활성 게시글인지 확인합니다.
         Post post = postReader.getActive(postId);
 
@@ -59,7 +59,7 @@ public class ReportService {
      */
     @Transactional
     public ReportResponseDto unreportPost(Long loginMemberId, Long postId) {
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
         int deletedCount = postReportRepository.deleteByMemberIdAndPostId(loginMemberId, postId);
@@ -75,7 +75,7 @@ public class ReportService {
      */
     @Transactional
     public ReportResponseDto reportReply(Long loginMemberId, Long postId, Long replyId, ReportReasonType reasonType) {
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 신고할 수 있습니다.");
@@ -96,7 +96,7 @@ public class ReportService {
      */
     @Transactional
     public ReportResponseDto unreportReply(Long loginMemberId, Long postId, Long replyId) {
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 신고 취소할 수 있습니다.");

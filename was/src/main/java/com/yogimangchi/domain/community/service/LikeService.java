@@ -23,7 +23,7 @@ public class LikeService {
     private final ReplyRepository replyRepository;
     private final PostLikeRepository postLikeRepository;
     private final ReplyLikeRepository replyLikeRepository;
-    private final MemberReader communityMemberReader;
+    private final MemberReader memberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;
@@ -31,7 +31,7 @@ public class LikeService {
     @Transactional
     public LikeResponseDto likePost(Long loginMemberId, Long postId) {
         // 로그인한 사용자가 활성 게시글에만 좋아요를 누를 수 있습니다.
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
         int insertedCount = postLikeRepository.insertIgnore(loginMemberId, postId);
@@ -45,7 +45,7 @@ public class LikeService {
     @Transactional
     public LikeResponseDto unlikePost(Long loginMemberId, Long postId) {
         // 취소 요청도 동일하게 인증과 게시글 활성 상태를 먼저 확인합니다.
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
         int deletedCount = postLikeRepository.deleteByMemberIdAndPostId(loginMemberId, postId);
@@ -59,7 +59,7 @@ public class LikeService {
     @Transactional
     public LikeResponseDto likeReply(Long loginMemberId, Long postId, Long replyId) {
         // 댓글 좋아요는 게시글-댓글 소속까지 함께 검증합니다.
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
@@ -75,7 +75,7 @@ public class LikeService {
     @Transactional
     public LikeResponseDto unlikeReply(Long loginMemberId, Long postId, Long replyId) {
         // 취소 요청도 같은 게시글의 활성 댓글인지 먼저 확인합니다.
-        communityMemberReader.getAuthenticated(loginMemberId);
+        memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글에만 좋아요를 누를 수 있습니다.");
