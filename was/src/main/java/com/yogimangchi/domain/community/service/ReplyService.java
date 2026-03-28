@@ -8,7 +8,7 @@ import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
 import com.yogimangchi.domain.report.repository.ReplyReportRepository;
-import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
@@ -34,7 +34,7 @@ public class ReplyService {
     private final ReplyRepository replyRepository;
     private final ReplyLikeRepository replyLikeRepository;
     private final ReplyReportRepository replyReportRepository;
-    private final CommunityMemberReader communityMemberReader;
+    private final MemberReader communityMemberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;

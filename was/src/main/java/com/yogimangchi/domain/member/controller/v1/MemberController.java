@@ -40,7 +40,7 @@ public class MemberController {
     }
 
     @Operation(summary = "멤버(유저) 프로필 정보", description = "멤버의 프로필 정보를 요청합니다.")
-    @GetMapping("/info/me")
+    @GetMapping("/me/info")
     public ResponseEntity<MyProfileInfoDto> getMemberInfoMe(
             @AuthenticationPrincipal Long loginMemberId
     ) {
@@ -54,7 +54,7 @@ public class MemberController {
     }
 
     @Operation(summary = "다른멤버(유저) 프로필 정보", description = "다른멤버의 프로필 정보를 요청합니다.")
-    @GetMapping("/info/{memberId}")
+    @GetMapping("/{memberId}/info")
     public ResponseEntity<MemberProfileInfoDto> getMemberInfo(
             @PathVariable Long memberId
     ) {
@@ -65,23 +65,9 @@ public class MemberController {
 
     @Operation(
             summary = "멤버(유저) 프로필 수정",
-            description = "로그인한 멤버의 닉네임, 프로필 이미지 파일, 프로필 메시지를 수정합니다. multipart/form-data 형식으로 요청합니다.\n" +
-                    "\n" +
-                    "Next.js fetch 예시:\n" +
-                    "```javascript\n" +
-                    "const formData = new FormData();\n" +
-                    "formData.append('nickname', '홍길동');\n" +
-                    "formData.append('profileMsg', '안녕하세요!');\n" +
-                    "formData.append('profileImage', file);\n" +
-                    "\n" +
-                    "await fetch('/api/v1/member/info/me', {\n" +
-                    "  method: 'PATCH',\n" +
-                    "  body: formData,\n" +
-                    "  credentials: 'include',\n" +
-                    "});\n" +
-                    "```"
+            description = "로그인한 멤버의 닉네임, 프로필 이미지 파일, 프로필 메시지를 수정합니다. multipart/form-data 형식으로 요청합니다."
     )
-    @PatchMapping(value = "/info/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(value = "/me/info", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MyProfileInfoDto> updateMemberInfoMe(
             @AuthenticationPrincipal Long loginMemberId,
             @ModelAttribute UpdateMyProfileDto request

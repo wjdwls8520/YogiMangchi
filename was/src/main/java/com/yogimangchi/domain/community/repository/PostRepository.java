@@ -52,6 +52,49 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     """)
     Page<PostAndMemberDto> findAllPosts(Pageable pageable);
 
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N'
+            AND m.id =:authorMemberId
+            AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
+    """)
+    Page<PostAndMemberDto> findAuthorMemberByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(@Param("authorMemberId") Long authorMemberId, @Param("keyword") String keyword, Pageable pageable);
+
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N' AND m.id =:authorMemberId
+    """)
+    Page<PostAndMemberDto> findAllAuthorMemberPosts(@Param("authorMemberId") Long authorMemberId, Pageable pageable);
+
     @Modifying
     @Query("update Post p set p.replyCount = p.replyCount + 1 where p.id = :postId")
     void increaseReplyCount(@Param("postId") Long postId);

@@ -7,7 +7,7 @@ import com.yogimangchi.domain.community.repository.PostLikeRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyLikeRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
-import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
@@ -23,7 +23,7 @@ public class LikeService {
     private final ReplyRepository replyRepository;
     private final PostLikeRepository postLikeRepository;
     private final ReplyLikeRepository replyLikeRepository;
-    private final CommunityMemberReader communityMemberReader;
+    private final MemberReader communityMemberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;
