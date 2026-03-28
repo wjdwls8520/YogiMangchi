@@ -50,13 +50,13 @@ public class PostController {
     @GetMapping("/member/{memberId}/posts")
     public ResponseEntity<Page<PostDetailDto>> getWriterPosts(
             @AuthenticationPrincipal Long loginMemberId,
-            @RequestParam(required = true) Long authorMemberId,
+            @PathVariable("memberId") Long authorMemberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String keyword
     ) {
 
-        Page<PostDetailDto> postsList = postService.getPosts(loginMemberId, page, size, keyword);
+        Page<PostDetailDto> postsList = postService.getAuthorMemberPosts(loginMemberId, authorMemberId, page, size, keyword);
 
         return ResponseEntity.ok(postsList);
     }

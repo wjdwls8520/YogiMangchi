@@ -4,7 +4,7 @@ import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
-import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
@@ -25,7 +25,7 @@ public class ReportService {
     private final ReplyRepository replyRepository;
     private final PostReportRepository postReportRepository;
     private final ReplyReportRepository replyReportRepository;
-    private final CommunityMemberReader communityMemberReader;
+    private final MemberReader communityMemberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;

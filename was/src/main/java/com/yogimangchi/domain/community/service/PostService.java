@@ -8,7 +8,7 @@ import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.repository.PostLikeRepository;
 import com.yogimangchi.domain.report.repository.PostReportRepository;
 import com.yogimangchi.domain.community.repository.PostRepository;
-import com.yogimangchi.domain.community.support.CommunityMemberReader;
+import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
 import com.yogimangchi.domain.member.entity.Member;
@@ -45,7 +45,7 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostReportRepository postReportRepository;
     private final FileRepository fileRepository;
-    private final CommunityMemberReader communityMemberReader;
+    private final MemberReader communityMemberReader;
     private final PostReader postReader;
     private final CommunityPermissionValidator communityPermissionValidator;
     private final S3Service s3Service;
@@ -75,6 +75,50 @@ public class PostService {
         List<Long> postIds = posts.getContent().stream()
             .map(PostAndMemberDto::id)
             .toList();
+
+        Map<Long, List<FileDto>> filesByPostId = fileRepository.findAllByPostIds(postIds)
+                .stream().collect(Collectors.groupingBy(FileDto::postId));
+        Set<Long> likedPostIds = getLikedPostIds(loginMemberId, postIds);
+        Set<Long> reportedPostIds = getReportedPostIds(loginMemberId, postIds);
+
+        return posts.map(post -> new PostDetailDto(
+                post.id(),
+                post.title(),
+                post.content(),
+                post.likeCount(),
+                likedPostIds.contains(post.id()),
+                post.replyCount(),
+                post.reportCount(),
+                reportedPostIds.contains(post.id()),
+                post.createdAt(),
+                post.updatedAt(),
+                post.memberId(),
+                post.nickname(),
+                post.profileImg(),
+                filesByPostId.getOrDefault(post.id(), List.of())
+        ));
+    }
+
+    /**
+     * 특정 작성자의 게시글 전부 조회
+    */
+    @Transactional(readOnly = true)
+    public Page<PostDetailDto> getAuthorMemberPosts(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
+        String q = (keyword == null) ? null : keyword.trim();
+
+        Member authorMember =  communityMemberReader.getFindMember(authorMemberId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PostAndMemberDto> posts = (q == null || q.isBlank())
+                ? postRepository.findAllAuthorMemberPosts(authorMemberId, pageable)
+                : postRepository.findAuthorMemberByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(authorMemberId, q, pageable);
+
+        if (posts.isEmpty()) return Page.empty(pageable);
+
+        // 조회된 게시글 ID 목록으로 첨부파일을 한 번에 조회 (N+1 방지)
+        List<Long> postIds = posts.getContent().stream()
+                .map(PostAndMemberDto::id)
+                .toList();
 
         Map<Long, List<FileDto>> filesByPostId = fileRepository.findAllByPostIds(postIds)
                 .stream().collect(Collectors.groupingBy(FileDto::postId));
@@ -449,4 +493,5 @@ public class PostService {
 
         return postReportRepository.existsByMember_IdAndPost_Id(loginMemberId, postId);
     }
+
 }
