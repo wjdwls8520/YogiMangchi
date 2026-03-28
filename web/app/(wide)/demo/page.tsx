@@ -9,12 +9,14 @@ import RecentTrades from "@/components/trade/RecentTrades";
 import OrderBook from "@/components/trade/OrderBook";
 import OrderForm from "@/components/trade/OrderForm";
 import UserOrderHistory from "@/components/trade/UserOrderHistory";
+import DemoNoticeBar from "@/components/demo/DemoNoticeBar";
 
 export default function TradingPage() {
   useBinanceWebSocket();
 
   return (
-
+    <>
+      <DemoNoticeBar />
       <div className="flex flex-col lg:flex-row gap-3 items-start">
         {/* 왼쪽영역 */}
         <div className="w-full lg:w-[390px] shrink-0 lg:sticky lg:top-24.5 lg:h-[calc(100vh-32px)]">
@@ -39,6 +41,6 @@ export default function TradingPage() {
         </main>
 
       </div>
-
+    </>
   );
 }

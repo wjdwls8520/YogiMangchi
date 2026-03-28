@@ -18,11 +18,6 @@ type NavMenuProps = {
 
 const menuList: menuType[] = [
     {
-        href: '/',
-        name: 'Home',
-        id: 'Home'
-    },
-    {
         href: '/trading',
         name: '트레이딩',
         id: 'trading'

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import MainCandleChart from "@/components/MainCandleChart";
 import Button from "@/components/ui/Button";
 
 export default function MainPage() {
@@ -24,16 +23,12 @@ export default function MainPage() {
               트레이딩 시작하기
             </Button>
           </Link>
-          <Link href="/profile">
+          <Link href="/demo">
             <Button size="lg" variant="sky">
-              내 프로필(임시)
+              모의투자 연습하기
             </Button>
           </Link>
         </div>
-      </section>
-
-      <section className="w-full max-w-7xl mx-auto px-4 mb-24">
-        <MainCandleChart />
       </section>
       
     </div>
