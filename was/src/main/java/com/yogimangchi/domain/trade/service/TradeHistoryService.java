@@ -10,6 +10,9 @@ import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
 import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
+import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
+import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
+import com.yogimangchi.domain.trade.dto.response.TradeHistoryResponseDto;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -174,6 +178,37 @@ public class TradeHistoryService {
         log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 매도대금: {}, 수수료: {}, 실수령액: {}", wallet.getMember().getId(), request.symbol(), sellQuantity, totalAmountEarned, fee, actualReceived);
     }
 
+
+    // 무한 스크롤 + 동적 필터가 적용된 매매 영수증 조회 기능
+    @Transactional(readOnly = true)
+    public CursorResponseDto<TradeHistoryResponseDto> getTradeHistories(Long memberId, TradeHistorySearchCondition cond) {
+
+        // 1. QueryDSL 레포지토리 호출 (요청 사이즈 + 1 개를 가져옴)
+        List<TradeHistory> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond);
+
+        // 2. hasNext(다음 페이지 존재 여부) 파악
+        int limitSize = cond.getOrDefaultSize();
+        boolean hasNext = histories.size() > limitSize; // 21개를 가져왔다면 다음 페이지가 있다는 뜻!
+
+        // 3. 만약 다음 페이지가 있다면, 몰래 1개 더 가져왔던 마지막 녀석은 리스트에서 빼버림 (프론트엔드엔 안 줌)
+        if (hasNext) {
+            histories.remove(limitSize);
+        }
+
+        // 4. 다음 페이지 조회를 위한 '커서 ID(마지막 영수증 번호)' 구하기
+        Long nextCursorId = null;
+        if (!histories.isEmpty()) {
+            nextCursorId = histories.get(histories.size() - 1).getId();
+        }
+
+        // 5. Entity -> DTO 변환 (이전에 만들어둔 DTO의 from 메서드 사용)
+        List<TradeHistoryResponseDto> content = histories.stream()
+                .map(TradeHistoryResponseDto::from)
+                .toList();
+
+        // 6. 예쁘게 포장해서 반환
+        return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
 
 
 }

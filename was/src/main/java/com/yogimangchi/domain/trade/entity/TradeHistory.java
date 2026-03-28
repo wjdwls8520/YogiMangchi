@@ -59,7 +59,7 @@ public class TradeHistory {
     @Comment("실현 수익 (매도 시에만 기록, 매수 시에는 null 또는 0)")
     private BigDecimal realizedProfit;
 
-    @Column(name = "executed_at", nullable = false)
+    @Column(name = "executed_at", nullable = true)
     @Comment("실제 바이낸스/서버 기준 체결 시각")
     private LocalDateTime executedAt;
 
