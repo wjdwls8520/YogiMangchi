@@ -1,6 +1,8 @@
 package com.yogimangchi.domain.community.service;
 
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
+import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
+import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostLikeRepository;
@@ -12,6 +14,10 @@ import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +62,23 @@ public class LikeService {
         return new LikeResponseDto(postId, postRepository.findLikeCountById(postId), false);
     }
 
+    @Transactional(readOnly = true)
+    public Page<PostAndMemberDto> getLikedPosts(Long loginMemberId, int page, int size, String keyword) {
+        memberReader.getAuthenticated(loginMemberId);
+
+        String q = (keyword == null) ? null : keyword.trim();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PostAndMemberDto> likedPosts = (q == null || q.isBlank())
+                ? postLikeRepository.findAllLikedPosts(loginMemberId, pageable)
+                : postLikeRepository.findLikedPostsByKeyword(loginMemberId, q, pageable);
+
+        if (likedPosts.isEmpty()) return Page.empty(pageable);
+
+        return likedPosts;
+    }
+
+
     @Transactional
     public LikeResponseDto likeReply(Long loginMemberId, Long postId, Long replyId) {
         // 댓글 좋아요는 게시글-댓글 소속까지 함께 검증합니다.
@@ -87,4 +110,5 @@ public class LikeService {
 
         return new LikeResponseDto(replyId, replyRepository.findLikeCountById(replyId), false);
     }
+
 }
