@@ -1,9 +1,7 @@
 package com.yogimangchi.domain.market.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.yogimangchi.domain.market.enums.MarketType;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,6 +23,11 @@ public class MarketSymbol {
     @Column(length = 20)
     @Comment("코인 심볼 (PK) - 예: BTCUSDT")
     private String symbol;
+
+    @Column(name = "market_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Comment("거래 지원 시장 (SPOT: 현물 전용, FUTURE: 선물 전용, BOTH: 둘 다 지원)")
+    private MarketType marketType;
 
     @Column(name = "base_asset", nullable = false, length = 20)
     @Comment("기초 자산 - 예: BTC")

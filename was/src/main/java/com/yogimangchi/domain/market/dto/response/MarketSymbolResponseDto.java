@@ -3,6 +3,7 @@ package com.yogimangchi.domain.market.dto.response;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "거래 가능한 코인 메뉴판 응답 데이터")
 public record MarketSymbolResponseDto (
     @Schema(description = "코인 심볼", example = "BTCUSDT")
     String symbol,

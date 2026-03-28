@@ -1,7 +1,8 @@
 package com.yogimangchi.domain.market.controller.v1;
 
 import com.yogimangchi.domain.market.dto.response.MarketSymbolResponseDto;
-import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
+import com.yogimangchi.domain.market.enums.MarketType;
+import com.yogimangchi.domain.market.service.MarketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -18,17 +19,19 @@ import java.util.List;
 @Tag(name = "Market", description = "거래소 마켓(코인 메뉴판) API")
 public class MarketController {
 
-    private final MarketSymbolRepository marketSymbolRepository;
+    private final MarketService marketService;
 
-    @Operation(summary = "거래 가능한 마켓 심볼 목록 조회", description = "현재 거래소에서 거래 가능한 모든 코인 목록(메뉴판)을 반환합니다.")
-    @GetMapping("/symbols")
-    public ResponseEntity<List<MarketSymbolResponseDto>> getActiveSymbols() {
+    @Operation(summary = "현물 마켓 심볼 조회", description = "현물 거래가 가능한 코인 목록(메뉴판)을 반환합니다.")
+    @GetMapping("/spot/symbols")
+    public ResponseEntity<List<MarketSymbolResponseDto>> getSpotSymbols() {
+        List<MarketSymbolResponseDto> symbols = marketService.getActiveSymbols(MarketType.SPOT);
+        return ResponseEntity.ok(symbols);
+    }
 
-        List<MarketSymbolResponseDto> symbols = marketSymbolRepository.findAllByIsActiveTrue()
-                .stream()
-                .map(MarketSymbolResponseDto::from)
-                .toList();
-
+    @Operation(summary = "선물 마켓 심볼 조회", description = "선물 거래가 가능한 코인 목록(메뉴판)을 반환합니다.")
+    @GetMapping("/futures/symbols")
+    public ResponseEntity<List<MarketSymbolResponseDto>> getFutureSymbols() {
+        List<MarketSymbolResponseDto> symbols = marketService.getActiveSymbols(MarketType.FUTURE);
         return ResponseEntity.ok(symbols);
     }
 }
