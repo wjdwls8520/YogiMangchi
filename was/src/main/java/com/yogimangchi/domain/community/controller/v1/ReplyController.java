@@ -48,7 +48,9 @@ public class ReplyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size
     ) {
-        replyService.getReplysByAuthor(loginMemberId, authorMemberId, page, size);
+        Page<ReplyDetailDto> replys = replyService.getReplysByAuthor(loginMemberId, authorMemberId, page, size);
+
+        return ResponseEntity.ok(replys);
     }
 
     @Operation(
