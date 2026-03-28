@@ -1,6 +1,9 @@
 package com.yogimangchi.domain.community.repository;
 
+import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.ReplyLike;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +38,38 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
           and rl.reply.id = :replyId
     """)
     int deleteByMemberIdAndReplyId(@Param("memberId") Long memberId, @Param("replyId") Long replyId);
+
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
+            r.id,
+            r.content,
+            r.likeCount,
+            true,
+            r.reportCount,
+            false,
+            r.replyCount,
+            rp.id,
+            tm.id,
+            tm.nickname,
+            r.createdAt,
+            r.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl,
+            p.id
+        )
+        from ReplyLike rl
+        join rl.reply r
+        left join r.parentReply rp
+        left join r.targetReply tr
+        left join tr.member tm
+        join r.member m
+        join r.post p
+        where rl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and r.deleteYn = 'N'
+    """)
+    Page<ReplyDetailDto> getLikedReplys(@Param("loginMemberId") Long loginMemberId, Pageable pageable);
+
 }

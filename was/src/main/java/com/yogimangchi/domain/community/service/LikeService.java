@@ -3,6 +3,7 @@ package com.yogimangchi.domain.community.service;
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
+import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostLikeRepository;
@@ -34,6 +35,7 @@ public class LikeService {
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;
 
+    // 포스트조아요
     @Transactional
     public LikeResponseDto likePost(Long loginMemberId, Long postId) {
         // 로그인한 사용자가 활성 게시글에만 좋아요를 누를 수 있습니다.
@@ -79,6 +81,8 @@ public class LikeService {
     }
 
 
+
+    // 댓글조아요
     @Transactional
     public LikeResponseDto likeReply(Long loginMemberId, Long postId, Long replyId) {
         // 댓글 좋아요는 게시글-댓글 소속까지 함께 검증합니다.
@@ -111,4 +115,13 @@ public class LikeService {
         return new LikeResponseDto(replyId, replyRepository.findLikeCountById(replyId), false);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ReplyDetailDto> getLikedReplys(Long loginMemberId, int page, int size) {
+        memberReader.getAuthenticated(loginMemberId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ReplyDetailDto> likedReplys = replyLikeRepository.getLikedReplys(loginMemberId, pageable);
+
+        return likedReplys;
+    }
 }
