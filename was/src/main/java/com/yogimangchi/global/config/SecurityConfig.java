@@ -51,7 +51,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 // "/api/v1/chartapi/**",
                                 "/api/v1/member/nickname/duplication",
-                                "/api/v1/trade/**"
+                                "/api/v1/trade/**",
+                                "/api/v1/market/symbols"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/community/**").permitAll() // 커뮤니티 조회는 비회원 허용
                         .anyRequest().authenticated()
