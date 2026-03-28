@@ -43,22 +43,22 @@ public class MockAssetService {
         }
 
         // 라운드(기존 retryCount) 계산 로직: 모의투자는 무한 재도전 가능
-        int currentRound = 1;
+        int currentRetryCount = 0;
         Optional<Assets> lastWallet = assetRepository.findTopByMemberIdAndTypeOrderByRetryCountDesc(memberId, AssetType.MOCK);
-        
+
         if (lastWallet.isPresent()) {
-            currentRound = lastWallet.get().getRetryCount() + 1; // 이전 회차 + 1
+            currentRetryCount = lastWallet.get().getRetryCount() + 1; // 이전 도전에 + 1
         }
 
-        // 모의투자 지갑의 만료일 계산 (임시: 이번달 말일)
-        LocalDateTime expiredAt = YearMonth.now().atEndOfMonth().atTime(23, 59, 59);
+        // 모의투자는 시즌이 없기 때문에 기간을 2099년으로 지정
+        LocalDateTime expiredAt = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
 
-        // 초기 자금 10만 요기달러
-        BigDecimal initialMoney = new BigDecimal("100000");
+        // 초기 자금 1만 요기달러
+        BigDecimal initialMoney = new BigDecimal("10000");
 
-        Assets newWallet = Assets.createNewWallet(member, AssetType.MOCK, initialMoney, currentRound, expiredAt);
+        Assets newWallet = Assets.createNewWallet(member, AssetType.MOCK, initialMoney, currentRetryCount, expiredAt);
         assetRepository.save(newWallet);
-        log.info("[모의투자 시작] memberId={}, round={}, walletId={}", memberId, currentRound, newWallet.getId());
+        log.info("[모의투자 시작] memberId={}, round={}, walletId={}", memberId, currentRetryCount, newWallet.getId());
     }
 
     @Transactional
@@ -71,7 +71,6 @@ public class MockAssetService {
         List<Holding> holdings = holdingRepository.findAllByAssets(activeWallet);
         holdingRepository.deleteAll(holdings);
 
-        // 스냅샷 생략 (기획: 모의투자는 재도전 마다 기록 부여주지 않음)
         // 지갑 상태를 만료(EXPIRED)로 변경
         activeWallet.expireWallet();
         
