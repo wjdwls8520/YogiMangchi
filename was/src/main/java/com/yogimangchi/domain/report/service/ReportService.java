@@ -34,9 +34,9 @@ public class ReportService {
      * 게시글 신고
      */
     @Transactional
-    public ReportResponseDto reportPost(Long memberId, Long postId, ReportReasonType reasonType) {
+    public ReportResponseDto reportPost(Long loginMemberId, Long postId, ReportReasonType reasonType) {
         // 로그인한 사용자인지 확인하고 회원 정보를 가져옵니다.
-        Member member = communityMemberReader.getAuthenticated(memberId);
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
         // 삭제되지 않은 활성 게시글인지 확인합니다.
         Post post = postReader.getActive(postId);
 
@@ -44,7 +44,7 @@ public class ReportService {
         validateNotSelfReport(member.getId(), post.getMember().getId());
 
         // 중복 신고 방지: 이미 신고했으면 insert되지 않고 0을 반환합니다. (멱등 처리)
-        int insertedCount = postReportRepository.insertIgnore(memberId, postId, reasonType.name());
+        int insertedCount = postReportRepository.insertIgnore(loginMemberId, postId, reasonType.name());
         // 새로 신고가 등록된 경우에만 게시글의 신고 수를 1 증가시킵니다.
         if (insertedCount > 0) {
             postRepository.increaseReportCount(postId);
@@ -58,11 +58,11 @@ public class ReportService {
      * 게시글 신고 취소
      */
     @Transactional
-    public ReportResponseDto unreportPost(Long memberId, Long postId) {
-        communityMemberReader.getAuthenticated(memberId);
+    public ReportResponseDto unreportPost(Long loginMemberId, Long postId) {
+        communityMemberReader.getAuthenticated(loginMemberId);
         postReader.getActive(postId);
 
-        int deletedCount = postReportRepository.deleteByMemberIdAndPostId(memberId, postId);
+        int deletedCount = postReportRepository.deleteByMemberIdAndPostId(loginMemberId, postId);
         if (deletedCount > 0) {
             postRepository.decreaseReportCount(postId);
         }
@@ -74,8 +74,8 @@ public class ReportService {
      * 댓글 신고
      */
     @Transactional
-    public ReportResponseDto reportReply(Long memberId, Long postId, Long replyId, ReportReasonType reasonType) {
-        Member member = communityMemberReader.getAuthenticated(memberId);
+    public ReportResponseDto reportReply(Long loginMemberId, Long postId, Long replyId, ReportReasonType reasonType) {
+        Member member = communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 신고할 수 있습니다.");
@@ -83,7 +83,7 @@ public class ReportService {
         // 본인 댓글은 신고할 수 없습니다.
         validateNotSelfReport(member.getId(), reply.getMember().getId());
 
-        int insertedCount = replyReportRepository.insertIgnore(memberId, replyId, reasonType.name());
+        int insertedCount = replyReportRepository.insertIgnore(loginMemberId, replyId, reasonType.name());
         if (insertedCount > 0) {
             replyRepository.increaseReportCount(replyId);
         }
@@ -95,13 +95,13 @@ public class ReportService {
      * 댓글 신고 취소
      */
     @Transactional
-    public ReportResponseDto unreportReply(Long memberId, Long postId, Long replyId) {
-        communityMemberReader.getAuthenticated(memberId);
+    public ReportResponseDto unreportReply(Long loginMemberId, Long postId, Long replyId) {
+        communityMemberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 신고 취소할 수 있습니다.");
 
-        int deletedCount = replyReportRepository.deleteByMemberIdAndReplyId(memberId, replyId);
+        int deletedCount = replyReportRepository.deleteByMemberIdAndReplyId(loginMemberId, replyId);
         if (deletedCount > 0) {
             replyRepository.decreaseReportCount(replyId);
         }

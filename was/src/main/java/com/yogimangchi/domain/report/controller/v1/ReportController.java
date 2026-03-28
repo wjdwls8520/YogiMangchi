@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/community/posts")
+@RequestMapping("/api/v1/community")
 @Tag(name = "Community-Report", description = "커뮤니티 신고 관련 API")
 public class ReportController {
 
@@ -22,13 +22,13 @@ public class ReportController {
             summary = "게시글 신고",
             description = "게시글을 신고합니다. 본인 게시글은 신고할 수 없습니다. 이미 신고한 상태에서 다시 요청해도 멱등하게 처리됩니다."
     )
-    @PutMapping("/{postId}/reports")
+    @PutMapping("/posts/{postId}/reports")
     public ResponseEntity<ReportResponseDto> reportPost(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @RequestParam ReportReasonType reasonType
     ) {
-        ReportResponseDto response = reportService.reportPost(memberId, postId, reasonType);
+        ReportResponseDto response = reportService.reportPost(loginMemberId, postId, reasonType);
         return ResponseEntity.ok(response);
     }
 
@@ -36,12 +36,12 @@ public class ReportController {
             summary = "게시글 신고 취소",
             description = "게시글 신고를 취소합니다. 이미 취소된 상태에서 다시 요청해도 멱등하게 처리됩니다."
     )
-    @DeleteMapping("/{postId}/reports")
+    @DeleteMapping("/posts/{postId}/reports")
     public ResponseEntity<ReportResponseDto> unreportPost(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId
     ) {
-        ReportResponseDto response = reportService.unreportPost(memberId, postId);
+        ReportResponseDto response = reportService.unreportPost(loginMemberId, postId);
         return ResponseEntity.ok(response);
     }
 
@@ -49,14 +49,14 @@ public class ReportController {
             summary = "댓글 신고",
             description = "댓글을 신고합니다. 본인 댓글은 신고할 수 없습니다. 이미 신고한 상태에서 다시 요청해도 멱등하게 처리됩니다."
     )
-    @PutMapping("/{postId}/replys/{replyId}/reports")
+    @PutMapping("/posts/{postId}/replys/{replyId}/reports")
     public ResponseEntity<ReportResponseDto> reportReply(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @PathVariable Long replyId,
             @RequestParam ReportReasonType reasonType
     ) {
-        ReportResponseDto response = reportService.reportReply(memberId, postId, replyId, reasonType);
+        ReportResponseDto response = reportService.reportReply(loginMemberId, postId, replyId, reasonType);
         return ResponseEntity.ok(response);
     }
 
@@ -64,13 +64,13 @@ public class ReportController {
             summary = "댓글 신고 취소",
             description = "댓글 신고를 취소합니다. 이미 취소된 상태에서 다시 요청해도 멱등하게 처리됩니다."
     )
-    @DeleteMapping("/{postId}/replys/{replyId}/reports")
+    @DeleteMapping("/posts/{postId}/replys/{replyId}/reports")
     public ResponseEntity<ReportResponseDto> unreportReply(
-            @AuthenticationPrincipal Long memberId,
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @PathVariable Long replyId
     ) {
-        ReportResponseDto response = reportService.unreportReply(memberId, postId, replyId);
+        ReportResponseDto response = reportService.unreportReply(loginMemberId, postId, replyId);
         return ResponseEntity.ok(response);
     }
 }
