@@ -34,13 +34,102 @@ public class ReplyService {
     private final ReplyRepository replyRepository;
     private final ReplyLikeRepository replyLikeRepository;
     private final ReplyReportRepository replyReportRepository;
-    private final MemberReader communityMemberReader;
+    private final MemberReader memberReader;
     private final PostReader postReader;
     private final ReplyReader replyReader;
     private final ReplyValidator replyValidator;
     private final CommunityPermissionValidator communityPermissionValidator;
 
     private static final int MAX_CONTENT_LENGTH = 1000;
+
+
+    @Transactional(readOnly = true)
+    public Page<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, Long parentId, int page, int size) {
+
+        Post post = postReader.getActive(postId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<ReplyDetailDto> replys = null;
+
+        // 최상위 부모 조회 로직
+        if (parentId == null) {
+            replys = replyRepository.findAllParentReplys(post.getId(), pageable);
+        }
+        if (parentId != null) {
+            Reply parentReply = replyReader.get(parentId);
+            replyValidator.validateReplyGroupParent(post, parentReply);
+            replys = replyRepository.findAllChildrenReplys(post.getId(), parentId, pageable);
+        }
+
+        if (replys == null || replys.isEmpty()) {
+            return replys;
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
+        return replys.map(reply -> new ReplyDetailDto(
+                reply.id(),
+                reply.content(),
+                reply.likeCount(),
+                likedReplyIds.contains(reply.id()),
+                reply.reportCount(),
+                reportedReplyIds.contains(reply.id()),
+                reply.replyCount(),
+                reply.parentReplyId(),
+                reply.targetMemberId(),
+                reply.targetNickname(),
+                reply.createdAt(),
+                reply.updatedAt(),
+                reply.memberId(),
+                reply.nickname(),
+                reply.profileImgUrl(),
+                reply.postId()
+        ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, int page, int size) {
+
+        memberReader.getFindMember(authorMemberId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ReplyDetailDto> replys = replyRepository.getReplysByAuthor(authorMemberId, pageable);
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+                .map(ReplyDetailDto::id)
+                .toList());
+
+        return replys.map(reply -> new ReplyDetailDto(
+                reply.id(),
+                reply.content(),
+                reply.likeCount(),
+                likedReplyIds.contains(reply.id()),
+                reply.reportCount(),
+                reportedReplyIds.contains(reply.id()),
+                reply.replyCount(),
+                reply.parentReplyId(),
+                reply.targetMemberId(),
+                reply.targetNickname(),
+                reply.createdAt(),
+                reply.updatedAt(),
+                reply.memberId(),
+                reply.nickname(),
+                reply.profileImgUrl(),
+                reply.postId()
+        ));
+
+    }
+
 
     @Transactional
     public ReplyDetailDto createReply(Long loginMemberId, Long postId, ReplyCreateDto request) {
@@ -54,7 +143,7 @@ public class ReplyService {
         }
 
         // ── 3. 요청자와 활성 게시글을 먼저 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         replyValidator.validateCreateRequest(request);
 
@@ -119,55 +208,6 @@ public class ReplyService {
         return trimmed;
     }
 
-    @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, Long parentId, int page, int size) {
-
-        Post post = postReader.getActive(postId);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        Page<ReplyDetailDto> replys = null;
-
-        // 최상위 부모 조회 로직
-        if (parentId == null) {
-            replys = replyRepository.findAllParentReplys(post.getId(), pageable);
-        }
-        if (parentId != null) {
-            Reply parentReply = replyReader.get(parentId);
-            replyValidator.validateReplyGroupParent(post, parentReply);
-            replys = replyRepository.findAllChildrenReplys(post.getId(), parentId, pageable);
-        }
-
-        if (replys == null || replys.isEmpty()) {
-            return replys;
-        }
-
-        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
-                .map(ReplyDetailDto::id)
-                .toList());
-
-        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
-                .map(ReplyDetailDto::id)
-                .toList());
-
-        return replys.map(reply -> new ReplyDetailDto(
-                reply.id(),
-                reply.content(),
-                reply.likeCount(),
-                likedReplyIds.contains(reply.id()),
-                reply.reportCount(),
-                reportedReplyIds.contains(reply.id()),
-                reply.replyCount(),
-                reply.parentReplyId(),
-                reply.targetMemberId(),
-                reply.targetNickname(),
-                reply.createdAt(),
-                reply.updatedAt(),
-                reply.memberId(),
-                reply.nickname(),
-                reply.profileImgUrl(),
-                reply.postId()
-        ));
-    }
 
     @Transactional
     public ReplyDetailDto updateReply(Long loginMemberId, Long postId, Long replyId, String content) {
@@ -180,7 +220,7 @@ public class ReplyService {
         }
 
         // ── 3. 수정 대상의 소속과 권한을 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 수정할 수 있습니다.");
@@ -216,7 +256,7 @@ public class ReplyService {
     @Transactional
     public void deleteReply(Long loginMemberId, Long postId, Long replyId) {
         // ── 1. 삭제 대상의 소속과 권한을 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
         Post post = postReader.getActive(postId);
         Reply reply = replyReader.getActive(replyId);
         replyValidator.validateReplyBelongsToPost(post, reply, "같은 게시글의 댓글만 삭제할 수 있습니다.");
@@ -256,4 +296,5 @@ public class ReplyService {
 
         return replyReportRepository.existsByMember_IdAndReply_Id(loginMemberId, replyId);
     }
+
 }

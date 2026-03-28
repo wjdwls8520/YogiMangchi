@@ -45,7 +45,7 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostReportRepository postReportRepository;
     private final FileRepository fileRepository;
-    private final MemberReader communityMemberReader;
+    private final MemberReader memberReader;
     private final PostReader postReader;
     private final CommunityPermissionValidator communityPermissionValidator;
     private final S3Service s3Service;
@@ -103,15 +103,15 @@ public class PostService {
      * 특정 작성자의 게시글 전부 조회
     */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getAuthorMemberPosts(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
+    public Page<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
         String q = (keyword == null) ? null : keyword.trim();
 
-        Member authorMember =  communityMemberReader.getFindMember(authorMemberId);
+        Member authorMember =  memberReader.getFindMember(authorMemberId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<PostAndMemberDto> posts = (q == null || q.isBlank())
-                ? postRepository.findAllAuthorMemberPosts(authorMemberId, pageable)
-                : postRepository.findAuthorMemberByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(authorMemberId, q, pageable);
+                ? postRepository.findAllPostsByAuthor(authorMemberId, pageable)
+                : postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCaseByAuthor(authorMemberId, q, pageable);
 
         if (posts.isEmpty()) return Page.empty(pageable);
 
@@ -195,7 +195,7 @@ public class PostService {
         }
 
         // ── 3. 요청자를 확인합니다. ──
-        Member member = communityMemberReader.getAuthenticated(loginMemberId);
+        Member member = memberReader.getAuthenticated(loginMemberId);
 
         // ── 4. 첨부 이미지 필터링 (null·빈 파일 제거) ──
         List<MultipartFile> images = request.files().stream()
@@ -285,7 +285,7 @@ public class PostService {
 
         // ── 1. 수정 대상과 요청자의 권한을 확인합니다. ──
         Post post = postReader.getActive(postId);
-        Member requester = communityMemberReader.getAuthenticated(loginMemberId);
+        Member requester = memberReader.getAuthenticated(loginMemberId);
         communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 수정 권한이 없습니다.");
 
         // ── 3. 입력값 정제 + 길이 검증 ──
@@ -401,7 +401,7 @@ public class PostService {
     public void deletePost(Long loginMemberId, Long postId) {
         // ── 1. 삭제 대상과 요청자의 권한을 확인합니다. ──
         Post post = postReader.getActive(postId);
-        Member requester = communityMemberReader.getAuthenticated(loginMemberId);
+        Member requester = memberReader.getAuthenticated(loginMemberId);
         communityPermissionValidator.validatePostAuthorOrAdmin(post, requester, "게시글 삭제 권한이 없습니다.");
 
         // 소프트삭제 deleteYN = Y

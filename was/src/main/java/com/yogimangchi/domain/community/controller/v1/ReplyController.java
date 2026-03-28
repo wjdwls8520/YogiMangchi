@@ -22,7 +22,7 @@ public class ReplyController {
     private final ReplyService replyService;
 
     @Operation(
-            summary = "댓글 조회",
+            summary = "게시글의 모든 댓글 조회",
             description = "parentId를 보내않으면 최상위 댓글, 값이있다면 대댓글"
     )
     @GetMapping("/posts/{postId}/replys")
@@ -35,6 +35,20 @@ public class ReplyController {
     ) {
         Page<ReplyDetailDto> getReply = replyService.getParentReplys(loginMemberId, postId, parentId, page, size);
         return ResponseEntity.ok(getReply);
+    }
+
+    @Operation(
+            summary = "특정 유저의 모든 댓글,대댓글 한번에 조회",
+            description = "특정 유저의 모든 댓글,대댓글 한번에 조회 \n\n (로그인시 좋아요,신고 유무가 나옴 true로 응답받음),\n\n (삭제된 포스트의 댓글과, 삭제된 댓글은 가져오지않음.)"
+    )
+    @GetMapping("/member/{memberId}/replys")
+    public ResponseEntity<Page<ReplyDetailDto>> getParentReplys(
+            @AuthenticationPrincipal Long loginMemberId,
+            @PathVariable("memberId") Long authorMemberId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        replyService.getReplysByAuthor(loginMemberId, authorMemberId, page, size);
     }
 
     @Operation(
@@ -71,7 +85,7 @@ public class ReplyController {
 
     @Operation(
             summary = "댓글 삭제",
-            description = "게시글에 댓글을 삭제 합니다."
+            description = "게시글에 댓글을 삭제 합니다. (댓글은 삭제되더라도 누구에게 작성한 댓글인지는 표시 됨)"
     )
     @DeleteMapping("/posts/{postId}/replys")
     public ResponseEntity<ReplyDetailDto> deleteReply(
