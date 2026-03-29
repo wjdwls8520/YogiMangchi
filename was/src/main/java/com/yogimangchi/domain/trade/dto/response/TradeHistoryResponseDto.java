@@ -25,7 +25,7 @@ public record TradeHistoryResponseDto(
         @Schema(description = "주문 타입 (MARKET: 시장가 / LIMIT: 지정가)", example = "MARKET")
         String orderType,
 
-        @Schema(description = "주문 상태 (PENDING / COMPLETED / CANCELED)", example = "COMPLETED")
+        @Schema(description = "주문 상태 (PENDING: 대기중(미체결) / PARTIALLY_FILLED: 부분체결 / COMPLETED: 체결완료 / CANCELED: 취소)", example = "COMPLETED")
         OrderStatus orderStatus,
 
         @Schema(description = "체결 단가 (1개당 가격)", example = "70500.50")
@@ -57,13 +57,13 @@ public record TradeHistoryResponseDto(
                 history.getSymbol(),
                 history.getSide(),
                 history.getOrderType(),
-                history.getStatus(),
+                history.getOrder().getStatus(),
                 history.getPrice(),
                 history.getQuantity(),
                 history.getTotalAmount(),
                 history.getFee(),
                 history.getRealizedProfit(),
-                history.getCreatedAt(),
+                history.getOrder().getCreatedAt(),
                 history.getExecutedAt()
         );
     }
