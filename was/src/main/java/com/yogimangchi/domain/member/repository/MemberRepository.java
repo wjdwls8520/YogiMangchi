@@ -24,6 +24,11 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     boolean existsByNicknameAndIdNot(String nickname, Long id);
 
+    @Query(value = """
+        select pg_advisory_xact_lock(hashtext(:nickname))
+    """, nativeQuery = true)
+    void lockNickname(@Param("nickname") String nickname);
+
     // 동시성 방어를 위해 조회 시 Member row에 DB Lock
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

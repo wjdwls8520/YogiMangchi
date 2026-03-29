@@ -1,18 +1,22 @@
 package com.yogimangchi.domain.community.controller.v1;
 
+import com.yogimangchi.domain.community.dto.request.PostSearchDto;
+import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.service.LikeService;
+import com.yogimangchi.global.dto.CursorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springdoc.core.annotations.ParameterObject;
 
 @RestController
 @RequestMapping("/api/v1/me/community")
@@ -24,31 +28,28 @@ public class MyCommunityController {
 
     @Operation(
             summary = "내가 좋아요 누른 모든 게시글 조회",
-            description = "내가 좋아요 누른 모든 게시글 조회, 무한 스크롤로 페이징 합니다."
+            description = "내가 좋아요 누른 모든 게시글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/liked-posts")
-    public ResponseEntity<Page<PostAndMemberDto>> getLikedPosts(
+    public ResponseEntity<CursorResponse<PostAndMemberDto>> getLikedPosts(
             @AuthenticationPrincipal Long loginMemberId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size,
-            @RequestParam(required = false) String keyword
+            @Valid @ParameterObject @ModelAttribute PostSearchDto request
     ) {
-        Page<PostAndMemberDto> likedPosts = likeService.getLikedPosts(loginMemberId, page, size, keyword);
+        CursorResponse<PostAndMemberDto> likedPosts = likeService.getLikedPosts(loginMemberId, request);
 
         return ResponseEntity.ok(likedPosts);
     }
 
     @Operation(
             summary = "내가 좋아요 누른 모든 댓글, 대댓글 한번에 조회",
-            description = "내가 좋아요 누른 모든 댓글, 대댓글 한번에 조회, 무한 스크롤로 페이징 합니다."
+            description = "내가 좋아요 누른 모든 댓글, 대댓글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/liked-replys")
-    public ResponseEntity<Page<ReplyDetailDto>> getLikedReplys(
+    public ResponseEntity<CursorResponse<ReplyDetailDto>> getLikedReplys(
             @AuthenticationPrincipal Long loginMemberId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size
+            @Valid @ParameterObject @ModelAttribute ReplySearchDto request
     ) {
-        Page<ReplyDetailDto> likedReplys = likeService.getLikedReplys(loginMemberId, page, size);
+        CursorResponse<ReplyDetailDto> likedReplys = likeService.getLikedReplys(loginMemberId, request);
 
         return ResponseEntity.ok(likedReplys);
     }

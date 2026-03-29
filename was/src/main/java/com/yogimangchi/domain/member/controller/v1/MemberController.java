@@ -35,7 +35,9 @@ public class MemberController {
             summary = "닉네임 중복 체크",
             description = "중복된 닉네임을 체크합니다. \n" +
                     " 한글영문숫자만 가능하며 최대 2~12자리 까지 가능합니다. 띄어쓰기는 허용되지 않습니다. \n" +
-                    "const resp = await axios.get('/api/v1/member/nickname/duplication?nickname=홍길동');")
+                    "const resp = await axios.get('/api/v1/member/nickname/duplication?nickname=홍길동');" +
+                    "\n\n\n advisory lock : row가 없더라도 특정 논리 키를 잠글 수 있는 기능을 적용 ( postgreSQL에서만 사용가능 하기에 db변경서 참고 ) "
+    )
     @GetMapping("/nickname/duplication")
     public ResponseEntity<NicknameDuplicationDto> isAvailableNickname(
         @RequestParam String nickname

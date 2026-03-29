@@ -37,9 +37,9 @@ public class FollowController {
     public ResponseEntity<CursorResponseDto<FollowMemberDto>> getFollowerMembers(
             @Parameter(description = "조회할 멤버 ID")
             @PathVariable Long memberId,
-            @Valid @ParameterObject @ModelAttribute FollowSearchCondition condition
+            @Valid @ParameterObject @ModelAttribute FollowSearchCondition request
     ) {
-        CursorResponseDto<FollowMemberDto> followerMembers = followService.getFollowerMembers(memberId, condition);
+        CursorResponseDto<FollowMemberDto> followerMembers = followService.getFollowerMembers(memberId, request);
 
         return ResponseEntity.ok(followerMembers);
     }
@@ -52,9 +52,9 @@ public class FollowController {
     public ResponseEntity<CursorResponseDto<FollowMemberDto>> getFollowingMembers(
             @Parameter(description = "조회할 멤버 ID")
             @PathVariable Long memberId,
-            @Valid @ParameterObject @ModelAttribute FollowSearchCondition condition
+            @Valid @ParameterObject @ModelAttribute FollowSearchCondition request
     ) {
-        CursorResponseDto<FollowMemberDto> followingMembers = followService.getFollowingMembers(memberId, condition);
+        CursorResponseDto<FollowMemberDto> followingMembers = followService.getFollowingMembers(memberId, request);
 
         return ResponseEntity.ok(followingMembers);
     }

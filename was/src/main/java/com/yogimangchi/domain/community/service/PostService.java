@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.community.service;
 
 import com.yogimangchi.domain.community.dto.request.PostCreateDto;
+import com.yogimangchi.domain.community.dto.request.PostSearchDto;
 import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
@@ -17,12 +18,11 @@ import com.yogimangchi.global.file.dto.response.FileDto;
 import com.yogimangchi.global.file.repository.FileRepository;
 import com.yogimangchi.global.s3.service.S3Service;
 import com.yogimangchi.global.s3.service.S3UploadResult;
+import com.yogimangchi.global.dto.CursorResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -59,22 +59,28 @@ public class PostService {
     private static final String POST_IMAGE_DIRECTORY = "community/post";
 
     /**
-     * 게시글 목록 조회 (페이징 + 키워드 검색)
+     * 게시글 목록 조회 (커서 기반 무한 스크롤 + 키워드 검색)
      */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getPosts(Long loginMemberId, Integer page, Integer size, String keyword) {
+    public CursorResponse<PostDetailDto> getPosts(Long loginMemberId, PostSearchDto request) {
 
-        String q = (keyword == null) ? null : keyword.trim();
+        String q = (request.keyword() == null) ? null : request.keyword().trim();
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<PostAndMemberDto> posts = (q == null || q.isBlank())
-                ? postRepository.findAllPosts(pageable)
-                : postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(q, pageable);
+        List<PostAndMemberDto> posts = (q == null || q.isBlank())
+                ? postRepository.findAllPostsByCursor(request.cursorId(), pageable)
+                : postRepository.findPostsByKeywordByCursor(request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return Page.empty(pageable);
+        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+
+        boolean hasNext = posts.size() > limitSize;
+        if (hasNext) {
+            posts = new ArrayList<>(posts.subList(0, limitSize));
+        }
 
         // 조회된 게시글 ID 목록으로 첨부파일을 한 번에 조회 (N+1 방지)
-        List<Long> postIds = posts.getContent().stream()
+        List<Long> postIds = posts.stream()
             .map(PostAndMemberDto::id)
             .toList();
 
@@ -83,7 +89,7 @@ public class PostService {
         Set<Long> likedPostIds = getLikedPostIds(loginMemberId, postIds);
         Set<Long> reportedPostIds = getReportedPostIds(loginMemberId, postIds);
 
-        return posts.map(post -> new PostDetailDto(
+        List<PostDetailDto> content = posts.stream().map(post -> new PostDetailDto(
                 post.id(),
                 post.title(),
                 post.content(),
@@ -98,27 +104,36 @@ public class PostService {
                 post.nickname(),
                 post.profileImg(),
                 filesByPostId.getOrDefault(post.id(), List.of())
-        ));
+        )).toList();
+
+        Long nextCursorId = posts.get(posts.size() - 1).id();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     /**
-     * 특정 작성자의 게시글 전부 조회
+     * 특정 작성자의 게시글 전부 조회 (커서 기반 무한 스크롤)
     */
     @Transactional(readOnly = true)
-    public Page<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, int page, int size, String keyword) {
-        String q = (keyword == null) ? null : keyword.trim();
+    public CursorResponse<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, PostSearchDto request) {
+        String q = (request.keyword() == null) ? null : request.keyword().trim();
 
-        Member authorMember =  memberReader.getFindMember(authorMemberId);
+        Member authorMember = memberReader.getFindMember(authorMemberId);
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<PostAndMemberDto> posts = (q == null || q.isBlank())
-                ? postRepository.findAllPostsByAuthor(authorMemberId, pageable)
-                : postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCaseByAuthor(authorMemberId, q, pageable);
+        List<PostAndMemberDto> posts = (q == null || q.isBlank())
+                ? postRepository.findAllPostsByAuthorByCursor(authorMemberId, request.cursorId(), pageable)
+                : postRepository.findPostsByAuthorAndKeywordByCursor(authorMemberId, request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return Page.empty(pageable);
+        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+
+        boolean hasNext = posts.size() > limitSize;
+        if (hasNext) {
+            posts = new ArrayList<>(posts.subList(0, limitSize));
+        }
 
         // 조회된 게시글 ID 목록으로 첨부파일을 한 번에 조회 (N+1 방지)
-        List<Long> postIds = posts.getContent().stream()
+        List<Long> postIds = posts.stream()
                 .map(PostAndMemberDto::id)
                 .toList();
 
@@ -127,7 +142,7 @@ public class PostService {
         Set<Long> likedPostIds = getLikedPostIds(loginMemberId, postIds);
         Set<Long> reportedPostIds = getReportedPostIds(loginMemberId, postIds);
 
-        return posts.map(post -> new PostDetailDto(
+        List<PostDetailDto> content = posts.stream().map(post -> new PostDetailDto(
                 post.id(),
                 post.title(),
                 post.content(),
@@ -142,7 +157,10 @@ public class PostService {
                 post.nickname(),
                 post.profileImg(),
                 filesByPostId.getOrDefault(post.id(), List.of())
-        ));
+        )).toList();
+
+        Long nextCursorId = posts.get(posts.size() - 1).id();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     /**

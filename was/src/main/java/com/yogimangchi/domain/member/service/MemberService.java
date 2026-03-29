@@ -16,6 +16,7 @@ import com.yogimangchi.global.s3.service.S3UploadResult;
 import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -106,14 +107,14 @@ public class MemberService {
             throw new IllegalArgumentException("수정할 프로필 정보가 없습니다.");
         }
 
-        String nextNickname = member.getNickname();
+        String currentNickname = member.getNickname();
+        String nextNickname = currentNickname;
+        boolean nicknameChanged = false;
         if (hasNicknameUpdate) {
             nextNickname = request.getNickname();
             NicknameValidator.validate(nextNickname);
-
-            if (memberRepository.existsByNicknameAndIdNot(nextNickname, loginMemberId)) {
-                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
-            }
+            nicknameChanged = !currentNickname.equals(nextNickname);
+            validateAvailableNicknameForUpdate(loginMemberId, nextNickname, nicknameChanged);
         }
 
         String nextProfileMsg = hasProfileMsgUpdate ? normalizeOptionalText(request.getProfileMsg()) : member.getProfileMsg();
@@ -137,6 +138,7 @@ public class MemberService {
         }
 
         member.updateBasicProfile(nextNickname, nextProfileImgUrl, nextProfileMsg);
+        flushMemberProfileChangeIfNeeded(nicknameChanged);
 
         MyProfileInfoDto updatedProfile = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
@@ -167,6 +169,29 @@ public class MemberService {
 
     private boolean isResetProfileImageType(String type) {
         return RESET_PROFILE_IMAGE_TYPE.equalsIgnoreCase(type);
+    }
+
+    private void validateAvailableNicknameForUpdate(Long loginMemberId, String nickname, boolean nicknameChanged) {
+        if (!nicknameChanged) {
+            return;
+        }
+
+        memberRepository.lockNickname(nickname);
+        if (memberRepository.existsByNicknameAndIdNot(nickname, loginMemberId)) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+    }
+
+    private void flushMemberProfileChangeIfNeeded(boolean nicknameChanged) {
+        if (!nicknameChanged) {
+            return;
+        }
+
+        try {
+            memberRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
     }
 
     private String normalizeOptionalText(String value) {

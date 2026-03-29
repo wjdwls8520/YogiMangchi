@@ -56,18 +56,20 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchCondition condition) {
+    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchCondition request) {
         memberReader.getFindMember(memberId);
 
-        List<FollowMemberQueryDto> followerMembers = memberFollowRepository.searchFollowerMembers(memberId, condition);
-        int limitSize = condition.getOrDefaultSize();
+        List<FollowMemberQueryDto> followerMembers = memberFollowRepository.searchFollowerMembers(memberId, request);
+        int limitSize = request.getOrDefaultSize();
         boolean hasNext = followerMembers.size() > limitSize;
 
         if (hasNext) {
             followerMembers.remove(limitSize);
         }
 
-        Long nextCursorId = followerMembers.isEmpty() ? null : followerMembers.get(followerMembers.size() - 1).cursorId();
+        Long nextCursorId = hasNext && !followerMembers.isEmpty()
+                ? followerMembers.get(followerMembers.size() - 1).cursorId()
+                : null;
 
         List<FollowMemberDto> content = followerMembers.stream()
                 .map(this::toFollowMemberDto)
@@ -77,18 +79,20 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchCondition condition) {
+    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchCondition request) {
         memberReader.getFindMember(memberId);
 
-        List<FollowMemberQueryDto> followingMembers = memberFollowRepository.searchFollowingMembers(memberId, condition);
-        int limitSize = condition.getOrDefaultSize();
+        List<FollowMemberQueryDto> followingMembers = memberFollowRepository.searchFollowingMembers(memberId, request);
+        int limitSize = request.getOrDefaultSize();
         boolean hasNext = followingMembers.size() > limitSize;
 
         if (hasNext) {
             followingMembers.remove(limitSize);
         }
 
-        Long nextCursorId = followingMembers.isEmpty() ? null : followingMembers.get(followingMembers.size() - 1).cursorId();
+        Long nextCursorId = hasNext && !followingMembers.isEmpty()
+                ? followingMembers.get(followingMembers.size() - 1).cursorId()
+                : null;
 
         List<FollowMemberDto> content = followingMembers.stream()
                 .map(this::toFollowMemberDto)

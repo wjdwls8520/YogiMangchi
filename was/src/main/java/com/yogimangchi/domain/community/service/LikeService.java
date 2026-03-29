@@ -1,5 +1,9 @@
 package com.yogimangchi.domain.community.service;
 
+import com.yogimangchi.domain.community.dto.query.PostQueryDto;
+import com.yogimangchi.domain.community.dto.query.ReplyQueryDto;
+import com.yogimangchi.domain.community.dto.request.PostSearchDto;
+import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
@@ -14,13 +18,15 @@ import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
+import com.yogimangchi.global.dto.CursorResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -65,19 +71,27 @@ public class LikeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PostAndMemberDto> getLikedPosts(Long loginMemberId, int page, int size, String keyword) {
+    public CursorResponse<PostAndMemberDto> getLikedPosts(Long loginMemberId, PostSearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
 
-        String q = (keyword == null) ? null : keyword.trim();
+        String q = (request.keyword() == null) ? null : request.keyword().trim();
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<PostAndMemberDto> likedPosts = (q == null || q.isBlank())
-                ? postLikeRepository.findAllLikedPosts(loginMemberId, pageable)
-                : postLikeRepository.findLikedPostsByKeyword(loginMemberId, q, pageable);
+        List<PostQueryDto> posts = (q == null || q.isBlank())
+                ? postLikeRepository.findLikedPostsByCursor(loginMemberId, request.cursorId(), pageable)
+                : postLikeRepository.findLikedPostsByKeywordByCursor(loginMemberId, request.cursorId(), q, pageable);
 
-        if (likedPosts.isEmpty()) return Page.empty(pageable);
+        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
 
-        return likedPosts;
+        boolean hasNext = posts.size() > limitSize;
+        if (hasNext) {
+            posts = new ArrayList<>(posts.subList(0, limitSize));
+        }
+
+        Long nextCursorId = posts.get(posts.size() - 1).cursorId();
+        List<PostAndMemberDto> content = posts.stream().map(PostQueryDto::toPostAndMemberDto).toList();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
 
@@ -116,12 +130,22 @@ public class LikeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getLikedReplys(Long loginMemberId, int page, int size) {
+    public CursorResponse<ReplyDetailDto> getLikedReplys(Long loginMemberId, ReplySearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReplyDetailDto> likedReplys = replyLikeRepository.getLikedReplys(loginMemberId, pageable);
+        List<ReplyQueryDto> replys = replyLikeRepository.getLikedReplysByCursor(loginMemberId, request.cursorId(), pageable);
 
-        return likedReplys;
+        if (replys.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+
+        boolean hasNext = replys.size() > limitSize;
+        if (hasNext) {
+            replys = new ArrayList<>(replys.subList(0, limitSize));
+        }
+
+        Long nextCursorId = replys.get(replys.size() - 1).cursorId();
+        List<ReplyDetailDto> content = replys.stream().map(ReplyQueryDto::toReplyDetailDto).toList();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 }

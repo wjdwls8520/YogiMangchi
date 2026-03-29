@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface MemberFollowRepositoryCustom {
 
-    List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition condition);
+    List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition request);
 
-    List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition condition);
+    List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition request);
 }

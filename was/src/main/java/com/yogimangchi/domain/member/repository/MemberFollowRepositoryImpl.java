@@ -21,7 +21,7 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition condition) {
+    public List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition request) {
         QMember followerMember = new QMember("followerMember");
 
         return queryFactory
@@ -42,16 +42,16 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
                 .where(
                         memberFollow.following.id.eq(memberId),
                         activeMemberOnly(followerMember),
-                        nicknameContains(followerMember, condition.keyword()),
-                        cursorIdLt(condition.cursorId())
+                        nicknameContains(followerMember, request.keyword()),
+                        cursorIdLt(request.cursorId())
                 )
                 .orderBy(memberFollow.id.desc())
-                .limit(condition.getOrDefaultSize() + 1L)
+                .limit(request.getOrDefaultSize() + 1L)
                 .fetch();
     }
 
     @Override
-    public List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition condition) {
+    public List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition request) {
         QMember followingMember = new QMember("followingMember");
 
         return queryFactory
@@ -72,11 +72,11 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
                 .where(
                         memberFollow.follower.id.eq(memberId),
                         activeMemberOnly(followingMember),
-                        nicknameContains(followingMember, condition.keyword()),
-                        cursorIdLt(condition.cursorId())
+                        nicknameContains(followingMember, request.keyword()),
+                        cursorIdLt(request.cursorId())
                 )
                 .orderBy(memberFollow.id.desc())
-                .limit(condition.getOrDefaultSize() + 1L)
+                .limit(request.getOrDefaultSize() + 1L)
                 .fetch();
     }
 
