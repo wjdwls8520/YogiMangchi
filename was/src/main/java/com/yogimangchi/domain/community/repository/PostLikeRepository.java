@@ -40,7 +40,6 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     """)
     int deleteByMemberIdAndPostId(@Param("memberId") Long memberId, @Param("postId") Long postId);
 
-
     @Query("""
         select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
             p.id,

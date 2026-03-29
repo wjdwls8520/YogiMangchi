@@ -12,13 +12,26 @@ import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
+    @Query("""
+        select m
+        from Member m
+        where m.id = :memberId
+          and m.deleteYn = 'N'
+    """)
+    Optional<Member> findActiveById(@Param("memberId") Long memberId);
+
     boolean existsByNickname(String nickname);
 
     boolean existsByNicknameAndIdNot(String nickname, Long id);
 
     // 동시성 방어를 위해 조회 시 Member row에 DB Lock
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT m FROM Member m WHERE m.id = :id")
+    @Query("""
+        select m
+        from Member m
+        where m.id = :id
+          and m.deleteYn = 'N'
+    """)
     Optional<Member> findByIdForUpdate(@Param("id") Long memberId);
 
     @Query("""
@@ -59,4 +72,28 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         where m.id = :memberId
     """)
     void decreaseFollowingCount(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query(value = """
+        update member
+        set follower_count = greatest(follower_count - 1, 0)
+        where id in (
+            select following_id
+            from member_follow
+            where follower_id = :memberId
+        )
+    """, nativeQuery = true)
+    void decreaseFollowerCountForWithdraw(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query(value = """
+        update member
+        set following_count = greatest(following_count - 1, 0)
+        where id in (
+            select follower_id
+            from member_follow
+            where following_id = :memberId
+        )
+    """, nativeQuery = true)
+    void decreaseFollowingCountForWithdraw(@Param("memberId") Long memberId);
 }

@@ -1,9 +1,10 @@
 package com.yogimangchi.domain.member.repository;
 
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.member.dto.request.FollowSearchCondition;
-import com.yogimangchi.domain.member.entity.MemberFollow;
+import com.yogimangchi.domain.member.dto.query.FollowMemberQueryDto;
 import com.yogimangchi.domain.member.entity.QMember;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -20,14 +21,27 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<MemberFollow> searchFollowerMembers(Long memberId, FollowSearchCondition condition) {
+    public List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition condition) {
         QMember followerMember = new QMember("followerMember");
 
         return queryFactory
-                .selectFrom(memberFollow)
-                .join(memberFollow.follower, followerMember).fetchJoin()
+                .select(Projections.constructor(
+                        FollowMemberQueryDto.class,
+                        memberFollow.id,
+                        followerMember.id,
+                        followerMember.nickname,
+                        followerMember.profileImgUrl,
+                        followerMember.profileMsg,
+                        followerMember.bestCount,
+                        followerMember.followerCount,
+                        followerMember.followingCount,
+                        memberFollow.createdAt
+                ))
+                .from(memberFollow)
+                .join(memberFollow.follower, followerMember)
                 .where(
                         memberFollow.following.id.eq(memberId),
+                        activeMemberOnly(followerMember),
                         nicknameContains(followerMember, condition.keyword()),
                         cursorIdLt(condition.cursorId())
                 )
@@ -37,14 +51,27 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
     }
 
     @Override
-    public List<MemberFollow> searchFollowingMembers(Long memberId, FollowSearchCondition condition) {
+    public List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition condition) {
         QMember followingMember = new QMember("followingMember");
 
         return queryFactory
-                .selectFrom(memberFollow)
-                .join(memberFollow.following, followingMember).fetchJoin()
+                .select(Projections.constructor(
+                        FollowMemberQueryDto.class,
+                        memberFollow.id,
+                        followingMember.id,
+                        followingMember.nickname,
+                        followingMember.profileImgUrl,
+                        followingMember.profileMsg,
+                        followingMember.bestCount,
+                        followingMember.followerCount,
+                        followingMember.followingCount,
+                        memberFollow.createdAt
+                ))
+                .from(memberFollow)
+                .join(memberFollow.following, followingMember)
                 .where(
                         memberFollow.follower.id.eq(memberId),
+                        activeMemberOnly(followingMember),
                         nicknameContains(followingMember, condition.keyword()),
                         cursorIdLt(condition.cursorId())
                 )
@@ -55,6 +82,10 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
 
     private BooleanExpression cursorIdLt(Long cursorId) {
         return cursorId != null ? memberFollow.id.lt(cursorId) : null;
+    }
+
+    private BooleanExpression activeMemberOnly(QMember member) {
+        return member.deleteYn.eq("N");
     }
 
     private BooleanExpression nicknameContains(QMember member, String keyword) {

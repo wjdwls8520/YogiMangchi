@@ -39,7 +39,6 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
     """)
     int deleteByMemberIdAndReplyId(@Param("memberId") Long memberId, @Param("replyId") Long replyId);
 
-
     @Query("""
         select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
             r.id,
@@ -51,7 +50,11 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
             r.replyCount,
             rp.id,
             tm.id,
-            tm.nickname,
+            case
+                when tm.deleteYn = 'Y' then '탈퇴한 유저'
+                when tr.deleteYn = 'Y' then '알 수 없음'
+                else tm.nickname
+            end,
             r.createdAt,
             r.updatedAt,
             m.id,

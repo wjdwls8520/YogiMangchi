@@ -5,14 +5,19 @@ import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.service.MemberService;
+import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.validator.NicknameValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MemberController {
 
     private final MemberService memberService;
+    private final AuthCookieService authCookieService;
 
     @Operation(
             summary = "닉네임 중복 체크",
@@ -87,5 +93,34 @@ public class MemberController {
         MyProfileInfoDto updatedProfile = memberService.updateMyProfile(loginMemberId, request);
 
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "로그인한 멤버를 소프트 삭제합니다. \n\n deleteYn 을 'Y'로 변경하고 인증 쿠키를 만료시킵니다. \n\n 탈퇴시 소셜정보는 따로 탈퇴회원 db에 복사하고 기존 소셜정보는 삭제함, \n\n 팔로우 팔로윙 수는 줄어들지만 좋아요수는 그대로 존재함( 게시글, 댓글에 좋아요 누른 유저들의 리스트를 볼 수 없음을 고려함 ) \n\n 게시글과 댓글에 멤버정보 숨김처리 및 타겟 대댓글 멤버정보 숨기처리")
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdrawMember(
+            @AuthenticationPrincipal Long loginMemberId,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        if (loginMemberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        memberService.withdrawMember(loginMemberId);
+        authCookieService.expireAuthCookies(response);
+        expireSession(request, response);
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.noContent().build();
+    }
+
+    private void expireSession(HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
+
+        authCookieService.expireSessionCookie(response);
     }
 }
