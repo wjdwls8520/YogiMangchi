@@ -1,6 +1,9 @@
 package com.yogimangchi.domain.report.repository;
 
+import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.report.entity.PostReport;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +38,59 @@ public interface PostReportRepository extends JpaRepository<PostReport, Long> {
           and pr.post.id = :postId
     """)
     int deleteByMemberIdAndPostId(@Param("memberId") Long memberId, @Param("postId") Long postId);
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        from PostReport pr
+        join pr.post p
+        join p.member m
+        where pr.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+    """)
+    Page<PostAndMemberDto> findAllReportedPosts(
+            @Param("loginMemberId") Long loginMemberId,
+            Pageable pageable
+    );
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id,
+            p.title,
+            p.content,
+            p.likeCount,
+            p.replyCount,
+            p.reportCount,
+            p.createdAt,
+            p.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl
+        )
+        from PostReport pr
+        join pr.post p
+        join p.member m
+        where pr.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and (
+              lower(p.title) like lower(concat('%', :keyword, '%'))
+              or lower(p.content) like lower(concat('%', :keyword, '%'))
+          )
+    """)
+    Page<PostAndMemberDto> findReportedPostsByKeyword(
+            @Param("loginMemberId") Long loginMemberId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
