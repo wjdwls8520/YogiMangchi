@@ -242,11 +242,18 @@ public class TradeHistoryService {
 
         // 5. Entity -> DTO 변환 (이전에 만들어둔 DTO의 from 메서드 사용)
         List<TradeHistoryResponseDto> content = histories.stream()
-                .map(TradeHistoryResponseDto::from)
+                .map(history -> TradeHistoryResponseDto.from(history, resolveDisplayNameKr(history.getSymbol())))
                 .toList();
 
         // 6. 예쁘게 포장해서 반환
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
+
+    // 영수증에서도 심볼 대신 한글 코인명을 함께 보여줄 수 있도록 내려준다
+    private String resolveDisplayNameKr(String symbol) {
+        return marketSymbolRepository.findById(symbol)
+                .map(MarketSymbol::getDisplayNameKr)
+                .orElse(symbol);
     }
 
 
