@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import NavMenu from "./NavMenu";
 import Dim from "./Dim";
 
+import Logo from "./ui/Logo";
+
 
 export default function Header() {
 
@@ -54,8 +56,9 @@ export default function Header() {
     }, [isDarkMode])
     
     return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white dark:bg-zinc-900">
+        
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-            <Link className="text-2xl font-bold" href="/">요기망치</Link>
+            <Link href="/" aria-label="메인 페이지로 이동"><Logo /></Link>
             <NavMenu classes={'md:block hidden'} />
             <div className="flex gap-6 items-center">
                 <button>

@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import PolicyModal from "@/components/PolicyModal";
+import Link from "next/link";
+import Logo from "@/components/ui/Logo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -48,7 +50,6 @@ export default function SignupPage() {
 
       const data = await response.json();
       
-      // 💡 백엔드 주석: 존재하지 않으면 true(사용가능), 존재하면 false
       if (data.available === true || data === true) { 
         alert("사용 가능한 닉네임입니다! 😊");
         setIsNicknameChecked(true);
@@ -70,7 +71,6 @@ export default function SignupPage() {
     if (!isFormValid) return;
 
     try {
-      // 변경된 기획에 맞춘 간결한 데이터 전송
       const response = await fetch("http://localhost:8080/api/v1/auth/signup", {
         method: "POST",
         headers: {
@@ -102,12 +102,13 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-[520px] rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
-
+        <div className="flex justify-center mb-2">
+          <Link href="/" aria-label="메인 페이지로 이동">
+            <Logo className="h-12"/>
+          </Link>
+        </div>
         {/* 헤더 영역 */}
         <div className="mb-10 text-center">
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-            환영합니다!
-          </h1>
           <p className="mt-3 text-sm text-gray-500">
             요기망치에서 사용할 닉네임을 설정해 주세요.
           </p>
