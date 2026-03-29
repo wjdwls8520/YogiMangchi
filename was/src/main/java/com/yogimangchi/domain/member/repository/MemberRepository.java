@@ -4,6 +4,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,43 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT m FROM Member m WHERE m.id = :id")
     Optional<Member> findByIdForUpdate(@Param("id") Long memberId);
+
+    @Query("""
+        select m.followerCount
+        from Member m
+        where m.id = :memberId
+    """)
+    Long findFollowerCountById(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query("""
+        update Member m
+        set m.followerCount = m.followerCount + 1
+        where m.id = :memberId
+    """)
+    void increaseFollowerCount(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query("""
+        update Member m
+        set m.followerCount = m.followerCount - 1
+        where m.id = :memberId
+    """)
+    void decreaseFollowerCount(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query("""
+        update Member m
+        set m.followingCount = m.followingCount + 1
+        where m.id = :memberId
+    """)
+    void increaseFollowingCount(@Param("memberId") Long memberId);
+
+    @Modifying
+    @Query("""
+        update Member m
+        set m.followingCount = m.followingCount - 1
+        where m.id = :memberId
+    """)
+    void decreaseFollowingCount(@Param("memberId") Long memberId);
 }

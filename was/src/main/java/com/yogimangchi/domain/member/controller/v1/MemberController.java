@@ -58,9 +58,10 @@ public class MemberController {
     @Operation(summary = "다른멤버(유저) 프로필 정보", description = "다른멤버의 프로필 정보를 요청합니다.")
     @GetMapping("/{memberId}/info")
     public ResponseEntity<MemberProfileInfoDto> getMemberInfo(
+            @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long memberId
     ) {
-        MemberProfileInfoDto memberData = memberService.getMemberProfile(memberId);
+        MemberProfileInfoDto memberData = memberService.getMemberProfile(loginMemberId, memberId);
 
         return ResponseEntity.ok(memberData);
     }

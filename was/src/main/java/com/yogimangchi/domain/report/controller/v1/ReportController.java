@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/community")
-@Tag(name = "Community-Report", description = "커뮤니티 신고 관련 API")
+@Tag(name = "Report", description = "커뮤니티 신고 관련 API")
 public class ReportController {
 
     private final ReportService reportService;
