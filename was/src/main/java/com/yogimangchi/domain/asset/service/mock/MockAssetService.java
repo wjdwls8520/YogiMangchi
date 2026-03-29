@@ -80,7 +80,7 @@ public class MockAssetService {
     @Transactional(readOnly = true)
     public PortfolioResponseDto getMyMockPortfolio(Long memberId) {
         // 사용자 확인
-        memberRepository.findById(memberId)
+        memberRepository.findActiveById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         // 활성화 지갑 조회

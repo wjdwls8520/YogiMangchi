@@ -25,4 +25,12 @@ public interface MemberFollowRepository extends JpaRepository<MemberFollow, Long
           and mf.following.id = :followingId
     """)
     int deleteByFollowerIdAndFollowingId(@Param("followerId") Long followerId, @Param("followingId") Long followingId);
+
+    @Modifying
+    @Query("""
+        delete from MemberFollow mf
+        where mf.follower.id = :memberId
+           or mf.following.id = :memberId
+    """)
+    int deleteAllByMemberId(@Param("memberId") Long memberId);
 }

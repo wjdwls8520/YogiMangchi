@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReplyRepository extends JpaRepository<Reply, Long> {
 
+    String WITHDRAWN_MEMBER_NICKNAME = "탈퇴한 유저";
+    String DELETED_REPLY_NICKNAME = "알 수 없음";
+    String WITHDRAWN_PROFILE_IMAGE_PATH = "/images/profile/widthdrawn_profile.png";
 
     @Query("""
         select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
@@ -27,8 +30,16 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.createdAt,
             r.updatedAt,
             m.id,
-            case when r.deleteYn = 'Y' then '알수없음' else m.nickname end,
-            case when r.deleteYn = 'Y' then null else m.profileImgUrl end,
+            case
+                when m.deleteYn = 'Y' then '탈퇴한 유저'
+                when r.deleteYn = 'Y' then '알 수 없음'
+                else m.nickname
+            end,
+            case
+                when m.deleteYn = 'Y' then m.profileImgUrl
+                when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png'
+                else m.profileImgUrl
+            end,
             p.id
         )
         from Reply r
@@ -51,12 +62,24 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.replyCount,
             rp.id,
             tm.id,
-            tm.nickname,
+            case
+                when tm.deleteYn = 'Y' then '탈퇴한 유저'
+                when tr.deleteYn = 'Y' then '알 수 없음'
+                else tm.nickname
+            end,
             r.createdAt,
             r.updatedAt,
             m.id,
-            case when r.deleteYn = 'Y' then '알수없음' else m.nickname end,
-            case when r.deleteYn = 'Y' then null else m.profileImgUrl end,
+            case
+                when m.deleteYn = 'Y' then '탈퇴한 유저'
+                when r.deleteYn = 'Y' then '알 수 없음'
+                else m.nickname
+            end,
+            case
+                when m.deleteYn = 'Y' then m.profileImgUrl
+                when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png'
+                else m.profileImgUrl
+            end,
             p.id
         )
         from Reply r
@@ -82,11 +105,15 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.replyCount,
             rp.id,
             tm.id,
-            tm.nickname,
+            case
+                when tm.deleteYn = 'Y' then '탈퇴한 유저'
+                when tr.deleteYn = 'Y' then '알 수 없음'
+                else tm.nickname
+            end,
             r.createdAt,
             r.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl,
             p.id
         )    

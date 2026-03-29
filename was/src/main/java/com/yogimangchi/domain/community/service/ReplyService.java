@@ -30,6 +30,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ReplyService {
 
+    private static final String WITHDRAWN_MEMBER_NICKNAME = "탈퇴한 유저";
+
     private final PostRepository postRepository;
     private final ReplyRepository replyRepository;
     private final ReplyLikeRepository replyLikeRepository;
@@ -167,7 +169,9 @@ public class ReplyService {
 
         Long parentId = saveReply.getParentReply() == null ? null : saveReply.getParentReply().getId();
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
-        String targetNickname = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getNickname();
+        String targetNickname = saveReply.getTargetReply() == null
+                ? null
+                : displayNickname(saveReply.getTargetReply().getMember());
 
         // 저장이 끝난 뒤 게시글과 부모댓글 카운트를 반영합니다.
         postRepository.increaseReplyCount(postId);
@@ -230,7 +234,9 @@ public class ReplyService {
 
         Long parentId = updatedReply.getParentReply() == null ? null : updatedReply.getParentReply().getId();
         Long targetMemberId = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getId();
-        String targetNickname = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getNickname();
+        String targetNickname = updatedReply.getTargetReply() == null
+                ? null
+                : displayNickname(updatedReply.getTargetReply().getMember());
 
         return new ReplyDetailDto(
                 updatedReply.getId(),
@@ -295,6 +301,10 @@ public class ReplyService {
         }
 
         return replyReportRepository.existsByMember_IdAndReply_Id(loginMemberId, replyId);
+    }
+
+    private String displayNickname(Member member) {
+        return member.isDeleted() ? WITHDRAWN_MEMBER_NICKNAME : member.getNickname();
     }
 
 }

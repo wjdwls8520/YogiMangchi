@@ -21,7 +21,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         FROM Post p
@@ -43,7 +43,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         FROM Post p
@@ -63,7 +63,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         FROM Post p
@@ -86,7 +86,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         FROM Post p

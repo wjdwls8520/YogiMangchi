@@ -41,6 +41,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class PostService {
 
+    private static final String WITHDRAWN_MEMBER_NICKNAME = "탈퇴한 유저";
+
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final PostReportRepository postReportRepository;
@@ -169,7 +171,7 @@ public class PostService {
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 author.getId(),
-                author.getNickname(),
+                author.isDeleted() ? WITHDRAWN_MEMBER_NICKNAME : author.getNickname(),
                 author.getProfileImgUrl(),
                 files
         );
