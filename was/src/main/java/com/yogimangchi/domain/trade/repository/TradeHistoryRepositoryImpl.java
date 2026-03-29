@@ -16,6 +16,7 @@ import java.util.List;
 
 // Q클래스 static import
 import static com.yogimangchi.domain.asset.entity.QAssets.assets;
+import static com.yogimangchi.domain.trade.entity.QOrder.order;
 import static com.yogimangchi.domain.trade.entity.QTradeHistory.tradeHistory;
 
 @Repository
@@ -29,6 +30,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
         return queryFactory
                 .selectFrom(tradeHistory)
                 .join(tradeHistory.assets, assets) // 멤버 ID 검사와 지갑 타입 필터를 위해 지갑(Assets) 테이블 조인
+                .join(tradeHistory.order, order)   // 주문 상태 필터를 위해 주문(Order) 테이블 조인
                 .where(
                         assetIdEq(assetId),                  // MOCK 조회 시 현재 ACTIVE 지갑만 조회
                         assets.member.id.eq(memberId),       //  내 지갑의 거래내역만 (필수)
@@ -76,7 +78,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
 
     // 주문 상태 검색 블록
     private BooleanExpression statusEq(OrderStatus status) {
-        return status != null ? tradeHistory.status.eq(status) : null;
+        return status != null ? order.status.eq(status) : null;
     }
 
     private BooleanExpression dateBetween(LocalDate startDate, LocalDate endDate) {

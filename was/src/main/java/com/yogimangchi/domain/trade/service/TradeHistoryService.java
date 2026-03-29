@@ -14,7 +14,9 @@ import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
 import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
 import com.yogimangchi.domain.trade.dto.response.TradeHistoryResponseDto;
+import com.yogimangchi.domain.trade.entity.Order;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
+import com.yogimangchi.domain.trade.repository.OrderRepository;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class TradeHistoryService {
     private final ChartPriceRepository chartPriceRepository;
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
+    private final OrderRepository orderRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
     private final MarketSymbolRepository marketSymbolRepository;
 
@@ -79,7 +82,7 @@ public class TradeHistoryService {
 
         // 지갑의 기간 만료 검증
         if (LocalDateTime.now().isAfter(myWallet.getExpiredAt())) {
-            throw new IllegalArgumentException("해당 콘텐츠의 진행 기간이 만료되어 더 이상 매매할 수 없습니다. 포기 후 재도전해주세요.");
+            throw new IllegalArgumentException("해당 콘텐츠의 진행 기간이 만료되어 더 이상 매매할 수 없습니다. 지갑을 다시 생성해주세요.");
         }
 
         // 매수 / 매도 분기 처리
@@ -94,7 +97,12 @@ public class TradeHistoryService {
 
     // 시장가 매수(BUY) 로직
     private void processMarketBuy(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
-        BigDecimal orderAmount = request.totalAmount(); // 내가 쓸 현금 (예: 10만 원)
+        BigDecimal orderAmount = request.totalAmount(); // 내가 쓸 현금
+
+        // 체결 전 주문 원장을 먼저 생성
+        Order order = orderRepository.save(
+                Order.createMarketBuyOrder(wallet, request.symbol(), orderAmount)
+        );
 
         // 1. 수수료 계산 및 실제 매수 금액 산출
         BigDecimal fee = TradeFeePolicy.calculateFee(orderAmount, TradeFeePolicy.MARKET_FEE_RATE);
@@ -128,11 +136,20 @@ public class TradeHistoryService {
             holding.updateHolding(updatedQuantity, updatedAvgPrice);
         }
 
-        // 5. 영수증(TradeHistory) 남기기
+        // 영수증은 체결된 주문과 함께 기록한다
         TradeHistory history = TradeHistory.createMarketBuyHistory(
-                wallet, request.symbol(), currentPrice, quantityToBuy, orderAmount, fee
+                wallet, order, request.symbol(), currentPrice, quantityToBuy, orderAmount, fee
         );
         tradeHistoryRepository.save(history);
+
+        // 시장가 주문은 생성 즉시 전량 체결로 상태를 마감
+        order.completeOrder(
+                quantityToBuy,
+                currentPrice,
+                orderAmount,
+                fee,
+                history.getExecutedAt()
+        );
 
         log.info("[매수 완료] 유저: {}, 코인: {}, 금액: {}, 수수료: {}, 체결수량: {}", wallet.getMember().getId(), request.symbol(), orderAmount, fee, quantityToBuy);
     }
@@ -140,6 +157,11 @@ public class TradeHistoryService {
     // 시장가 매도(SELL) 로직
     private void processMarketSell(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
         BigDecimal sellQuantity = request.quantity(); // 팔고자 하는 코인 수량
+
+        // 체결 전 주문 원장을 먼저 생성
+        Order order = orderRepository.save(
+                Order.createMarketSellOrder(wallet, request.symbol(), sellQuantity)
+        );
 
         // 1. 내가 진짜로 그만큼 코인을 가지고 있는지 확인
         Holding holding = holdingRepository.findByAssetsAndSymbol(wallet, request.symbol())
@@ -170,11 +192,20 @@ public class TradeHistoryService {
         BigDecimal remainQuantity = holding.getQuantity().subtract(sellQuantity);
         holding.updateHolding(remainQuantity, holding.getAverageBuyPrice());
 
-        // 7. 영수증(TradeHistory) 남기기
+        // 영수증은 체결된 주문과 함께 기록한다
         TradeHistory history = TradeHistory.createMarketSellHistory(
-                wallet, request.symbol(), currentPrice, sellQuantity, totalAmountEarned, fee, realizedProfit
+                wallet, order, request.symbol(), currentPrice, sellQuantity, totalAmountEarned, fee, realizedProfit
         );
         tradeHistoryRepository.save(history);
+
+        // 시장가 주문은 생성 즉시 전량 체결로 상태를 마감
+        order.completeOrder(
+                sellQuantity,
+                currentPrice,
+                totalAmountEarned,
+                fee,
+                history.getExecutedAt()
+        );
 
         log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 매도대금: {}, 수수료: {}, 실수령액: {}", wallet.getMember().getId(), request.symbol(), sellQuantity, totalAmountEarned, fee, actualReceived);
     }
