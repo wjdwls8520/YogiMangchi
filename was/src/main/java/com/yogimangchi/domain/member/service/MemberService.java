@@ -16,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,12 @@ public class MemberService {
     private static final long PROFILE_IMAGE_MAX_FILE_SIZE = 5L * 1024L * 1024L;
     private static final int PROFILE_IMG_URL_MAX_LENGTH = 1000;
     private static final int PROFILE_MSG_MAX_LENGTH = 255;
+    private static final String RESET_PROFILE_IMAGE_TYPE = "reset";
+    private static final String[] DEFAULT_PROFILE_IMAGE_PATHS = {
+            "/images/profile/defaultProfile-green.png",
+            "/images/profile/defaultProfile-blue.png",
+            "/images/profile/defaultProfile-gray.png"
+    };
 
     private final OAuthAccountRepository oAuthAccountRepository;
     private final MemberRepository memberRepository;
@@ -73,11 +82,15 @@ public class MemberService {
         Member member = memberRepository.findById(loginMemberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
+        String profileImageType = normalizeOptionalText(request.getType());
         boolean hasNicknameUpdate = request.getNickname() != null;
         boolean hasProfileImageUpdate = hasProfileImage(request.getProfileImage());
+        boolean hasProfileImageReset = isResetProfileImageType(profileImageType);
         boolean hasProfileMsgUpdate = request.getProfileMsg() != null;
 
-        if (!hasNicknameUpdate && !hasProfileImageUpdate && !hasProfileMsgUpdate) {
+        validateProfileImageRequest(hasProfileImageUpdate, profileImageType, hasProfileImageReset);
+
+        if (!hasNicknameUpdate && !hasProfileImageUpdate && !hasProfileImageReset && !hasProfileMsgUpdate) {
             throw new IllegalArgumentException("수정할 프로필 정보가 없습니다.");
         }
 
@@ -106,13 +119,16 @@ public class MemberService {
             scheduleUploadedImageRollbackCleanup(uploadedProfileImage.key());
             nextProfileImgUrl = uploadedProfileImage.url();
             validateLength(nextProfileImgUrl, PROFILE_IMG_URL_MAX_LENGTH, "프로필 이미지 경로는 1000자 이하여야 합니다.");
+        } else if (hasProfileImageReset) {
+            nextProfileImgUrl = pickRandomDefaultProfileImageUrl();
+            validateLength(nextProfileImgUrl, PROFILE_IMG_URL_MAX_LENGTH, "프로필 이미지 경로는 1000자 이하여야 합니다.");
         }
 
         member.updateBasicProfile(nextNickname, nextProfileImgUrl, nextProfileMsg);
 
         MyProfileInfoDto updatedProfile = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
-        if (hasProfileImageUpdate) {
+        if (hasProfileImageUpdate || hasProfileImageReset) {
             scheduleOldProfileImageDeletion(previousProfileImgUrl, nextProfileImgUrl);
         }
 
@@ -121,6 +137,10 @@ public class MemberService {
 
     private boolean hasProfileImage(MultipartFile profileImage) {
         return profileImage != null && !profileImage.isEmpty();
+    }
+
+    private boolean isResetProfileImageType(String type) {
+        return RESET_PROFILE_IMAGE_TYPE.equalsIgnoreCase(type);
     }
 
     private String normalizeOptionalText(String value) {
@@ -135,6 +155,28 @@ public class MemberService {
     private void validateLength(String value, int maxLength, String errorMessage) {
         if (value != null && value.length() > maxLength) {
             throw new IllegalArgumentException(errorMessage);
+        }
+    }
+
+    private void validateProfileImageRequest(boolean hasProfileImageUpdate, String profileImageType, boolean hasProfileImageReset) {
+        if (hasProfileImageUpdate && profileImageType != null) {
+            throw new IllegalArgumentException("프로필 이미지 파일과 type은 동시에 요청할 수 없습니다.");
+        }
+
+        if (profileImageType != null && !hasProfileImageReset) {
+            throw new IllegalArgumentException("type 은 reset 또는 null 만 가능합니다.");
+        }
+    }
+
+    private String pickRandomDefaultProfileImageUrl() {
+        String path = DEFAULT_PROFILE_IMAGE_PATHS[ThreadLocalRandom.current().nextInt(DEFAULT_PROFILE_IMAGE_PATHS.length)];
+
+        try {
+            return ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path(path)
+                    .toUriString();
+        } catch (IllegalStateException e) {
+            return path;
         }
     }
 
