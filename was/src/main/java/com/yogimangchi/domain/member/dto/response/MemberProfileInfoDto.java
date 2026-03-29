@@ -18,9 +18,15 @@ public record MemberProfileInfoDto(
     @Schema(description = "인기도 수", example = "777")
     Long bestCount,
 
-    @Schema(description = "내가 팔로우한 수", example = "3")
+    @Schema(description = "나를 팔로우한 수", example = "3")
     Long followerCount,
 
-    @Schema(description = "나를 팔로우한 수", example = "7")
-    Long followingCount
+    @Schema(description = "내가 팔로우한 수", example = "7")
+    Long followingCount,
+
+    @Schema(description = "로그인한 사용자가 이 멤버를 팔로우하고 있는지 여부", example = "true")
+    Boolean followedByMe,
+
+    @Schema(description = "로그인한 사용자가 이 멤버에게 팔로우받고 있는지 여부", example = "false")
+    Boolean followingMe
 ) {}

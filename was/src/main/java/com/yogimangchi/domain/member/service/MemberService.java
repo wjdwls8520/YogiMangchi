@@ -5,6 +5,7 @@ import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
 import com.yogimangchi.global.s3.service.S3Service;
@@ -36,6 +37,7 @@ public class MemberService {
     };
 
     private final OAuthAccountRepository oAuthAccountRepository;
+    private final MemberFollowRepository memberFollowRepository;
     private final MemberRepository memberRepository;
     private final S3Service s3Service;
 
@@ -54,7 +56,7 @@ public class MemberService {
     }
 
     @Transactional(readOnly = true)
-    public MemberProfileInfoDto getMemberProfile(Long memberId) {
+    public MemberProfileInfoDto getMemberProfile(Long loginMemberId, Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
         MemberProfileInfoDto memberProfileInfo = new MemberProfileInfoDto(
                 member.getId(),
@@ -63,7 +65,9 @@ public class MemberService {
                 member.getProfileMsg(),
                 member.getBestCount(),
                 member.getFollowerCount(),
-                member.getFollowingCount()
+                member.getFollowingCount(),
+                isFollowedByLoginMember(loginMemberId, memberId),
+                isFollowingLoginMember(loginMemberId, memberId)
         );
 
         return memberProfileInfo;
@@ -166,6 +170,22 @@ public class MemberService {
         if (profileImageType != null && !hasProfileImageReset) {
             throw new IllegalArgumentException("type 은 reset 또는 null 만 가능합니다.");
         }
+    }
+
+    private boolean isFollowedByLoginMember(Long loginMemberId, Long memberId) {
+        if (loginMemberId == null) {
+            return false;
+        }
+
+        return memberFollowRepository.existsByFollower_IdAndFollowing_Id(loginMemberId, memberId);
+    }
+
+    private boolean isFollowingLoginMember(Long loginMemberId, Long memberId) {
+        if (loginMemberId == null) {
+            return false;
+        }
+
+        return memberFollowRepository.existsByFollower_IdAndFollowing_Id(memberId, loginMemberId);
     }
 
     private String pickRandomDefaultProfileImageUrl() {

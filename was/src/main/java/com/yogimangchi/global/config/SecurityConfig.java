@@ -60,6 +60,8 @@ public class SecurityConfig {
 
                         // 다른 멤버 프로필은 비회원도 조회 가능
                         .requestMatchers(new RegexRequestMatcher("^/api/v1/member/\\d+/info$", "GET")).permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/api/v1/member/\\d+/followers$", "GET")).permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/api/v1/member/\\d+/followings$", "GET")).permitAll()
 
                         // 커뮤니티 겟요청에 한해 전부 조회 가능
                         .requestMatchers(HttpMethod.GET, "/api/v1/community/**").permitAll() // 커뮤니티 조회는 비회원 허용
