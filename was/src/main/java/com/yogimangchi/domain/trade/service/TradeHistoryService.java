@@ -2,6 +2,7 @@ package com.yogimangchi.domain.trade.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
+import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
@@ -183,8 +184,15 @@ public class TradeHistoryService {
     @Transactional(readOnly = true)
     public CursorResponseDto<TradeHistoryResponseDto> getTradeHistories(Long memberId, TradeHistorySearchCondition cond) {
 
+        Long assetId = null;
+        if (cond.assetType() == AssetType.MOCK) {
+            assetId = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE")
+                    .map(Assets::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("현재 참여중인 모의투자 계좌가 존재하지 않습니다."));
+        }
+
         // 1. QueryDSL 레포지토리 호출 (요청 사이즈 + 1 개를 가져옴)
-        List<TradeHistory> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond);
+        List<TradeHistory> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond, assetId);
 
         // 2. hasNext(다음 페이지 존재 여부) 파악
         int limitSize = cond.getOrDefaultSize();

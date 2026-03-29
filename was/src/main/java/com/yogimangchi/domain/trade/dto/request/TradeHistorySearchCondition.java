@@ -12,7 +12,7 @@ public record TradeHistorySearchCondition(
         @Schema(description = "마지막으로 조회한 영수증 ID (처음엔 비워두면 최신부터 조회)", example = "", nullable = true)
         Long cursorId,
 
-        @Schema(description = "한 번에 가져올 개수 (기본값 20)", example = "10", defaultValue = "10")
+        @Schema(description = "한 번에 가져올 개수 (기본값 10)", example = "10", defaultValue = "10")
         Integer size,
 
         @NotNull(message = "지갑 타입은 필수입니다.")
