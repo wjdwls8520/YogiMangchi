@@ -13,11 +13,17 @@ public record TradeHistoryResponseDto(
         @Schema(description = "거래 내역 ID", example = "152")
         Long tradeId,
 
+        @Schema(description = "원주문 ID", example = "78")
+        Long orderId,
+
         @Schema(description = "지갑 타입 (컨텐츠 구분)", example = "MOCK")
         AssetType assetType,
 
         @Schema(description = "마켓 심볼", example = "BTCUSDT")
         String symbol,
+
+        @Schema(description = "코인 한글명", example = "비트코인")
+        String displayNameKr,
 
         @Schema(description = "매매 방향 (BUY / SELL)", example = "BUY")
         String side,
@@ -50,11 +56,13 @@ public record TradeHistoryResponseDto(
         LocalDateTime executedAt
 ) {
     // Entity를 DTO로 변환하는 정적 팩토리 메서드
-    public static TradeHistoryResponseDto from(TradeHistory history) {
+    public static TradeHistoryResponseDto from(TradeHistory history, String displayNameKr) {
         return new TradeHistoryResponseDto(
                 history.getId(),
+                history.getOrder().getId(),
                 history.getAssets().getType(),
                 history.getSymbol(),
+                displayNameKr,
                 history.getSide(),
                 history.getOrderType(),
                 history.getOrder().getStatus(),
