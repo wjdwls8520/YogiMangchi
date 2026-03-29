@@ -1,6 +1,9 @@
 package com.yogimangchi.domain.report.repository;
 
+import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.report.entity.ReplyReport;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +38,36 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
           and rr.reply.id = :replyId
     """)
     int deleteByMemberIdAndReplyId(@Param("memberId") Long memberId, @Param("replyId") Long replyId);
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
+            r.id,
+            r.content,
+            r.likeCount,
+            false,
+            r.reportCount,
+            true,
+            r.replyCount,
+            rp.id,
+            tm.id,
+            tm.nickname,
+            r.createdAt,
+            r.updatedAt,
+            m.id,
+            m.nickname,
+            m.profileImgUrl,
+            p.id
+        )
+        from ReplyReport rr
+        join rr.reply r
+        left join r.parentReply rp
+        left join r.targetReply tr
+        left join tr.member tm
+        join r.member m
+        join r.post p
+        where rr.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and r.deleteYn = 'N'
+    """)
+    Page<ReplyDetailDto> getReportedReplys(@Param("loginMemberId") Long loginMemberId, Pageable pageable);
 }

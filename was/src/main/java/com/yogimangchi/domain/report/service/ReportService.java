@@ -1,5 +1,7 @@
 package com.yogimangchi.domain.report.service;
 
+import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
+import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
@@ -14,6 +16,10 @@ import com.yogimangchi.domain.report.enums.ReportReasonType;
 import com.yogimangchi.domain.report.repository.PostReportRepository;
 import com.yogimangchi.domain.report.repository.ReplyReportRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +113,34 @@ public class ReportService {
         }
 
         return new ReportResponseDto(replyId, replyRepository.findReportCountById(replyId), false);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PostAndMemberDto> getReportedPosts(Long loginMemberId, int page, int size, String keyword) {
+        memberReader.getAuthenticated(loginMemberId);
+
+        String q = (keyword == null) ? null : keyword.trim();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PostAndMemberDto> reportedPosts = (q == null || q.isBlank())
+                ? postReportRepository.findAllReportedPosts(loginMemberId, pageable)
+                : postReportRepository.findReportedPostsByKeyword(loginMemberId, q, pageable);
+
+        if (reportedPosts.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        return reportedPosts;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReplyDetailDto> getReportedReplys(Long loginMemberId, int page, int size) {
+        memberReader.getAuthenticated(loginMemberId);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ReplyDetailDto> reportedReplys = replyReportRepository.getReportedReplys(loginMemberId, pageable);
+
+        return reportedReplys;
     }
 
     private void validateNotSelfReport(Long reporterId, Long authorId) {

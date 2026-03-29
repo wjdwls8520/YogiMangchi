@@ -1,16 +1,12 @@
 package com.yogimangchi.domain.community.controller.v1;
 
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
-import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.service.LikeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/me/community")
 @RequiredArgsConstructor
-@Tag(name = "03 - Me-Community-Post", description = "내가 좋아요한 글 / 댓글 관련 api")
+@Tag(name = "03 - Me-Community-Contents", description = "내가 좋아요한 글 / 댓글 관련 api")
 public class MyCommunityController {
 
     private final LikeService likeService;
