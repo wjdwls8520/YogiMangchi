@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import AddressSearchModal from "@/components/AddressSearchModal";
+import Link from "next/link";
+import Logo from "@/components/ui/Logo";
 
 export default function VerifyDetailPage() {
   const router = useRouter();
@@ -62,7 +64,11 @@ export default function VerifyDetailPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-[520px] rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
-        
+        <div className="flex justify-center mb-8">
+          <Link href="/" aria-label="메인 페이지로 이동">
+            <Logo className="h-12"/>
+          </Link>
+        </div>
         {/* 타이틀 영역 */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
