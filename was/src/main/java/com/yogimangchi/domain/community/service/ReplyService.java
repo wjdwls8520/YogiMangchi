@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.community.service;
 
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
+import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
@@ -14,14 +15,14 @@ import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.global.dto.CursorResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,36 +47,41 @@ public class ReplyService {
 
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, Long parentId, int page, int size) {
+    public CursorResponse<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, ReplySearchDto request) {
 
         Post post = postReader.getActive(postId);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Page<ReplyDetailDto> replys = null;
+        List<ReplyDetailDto> replys;
 
         // 최상위 부모 조회 로직
-        if (parentId == null) {
-            replys = replyRepository.findAllParentReplys(post.getId(), pageable);
-        }
-        if (parentId != null) {
-            Reply parentReply = replyReader.get(parentId);
+        if (request.parentId() == null) {
+            replys = replyRepository.findAllParentReplysByCursor(post.getId(), request.cursorId(), pageable);
+        } else {
+            Reply parentReply = replyReader.get(request.parentId());
             replyValidator.validateReplyGroupParent(post, parentReply);
-            replys = replyRepository.findAllChildrenReplys(post.getId(), parentId, pageable);
+            replys = replyRepository.findAllChildrenReplysByCursor(post.getId(), request.parentId(), request.cursorId(), pageable);
         }
 
         if (replys == null || replys.isEmpty()) {
-            return replys;
+            return new CursorResponse<>(List.of(), null, false);
         }
 
-        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+        boolean hasNext = replys.size() > limitSize;
+        if (hasNext) {
+            replys = new ArrayList<>(replys.subList(0, limitSize));
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        return replys.map(reply -> new ReplyDetailDto(
+        List<ReplyDetailDto> content = replys.stream().map(reply -> new ReplyDetailDto(
                 reply.id(),
                 reply.content(),
                 reply.likeCount(),
@@ -92,26 +98,37 @@ public class ReplyService {
                 reply.nickname(),
                 reply.profileImgUrl(),
                 reply.postId()
-        ));
+        )).toList();
+
+        Long nextCursorId = replys.get(replys.size() - 1).id();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, int page, int size) {
+    public CursorResponse<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, ReplySearchDto request) {
 
         memberReader.getFindMember(authorMemberId);
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReplyDetailDto> replys = replyRepository.getReplysByAuthor(authorMemberId, pageable);
+        List<ReplyDetailDto> replys = replyRepository.getReplysByAuthorByCursor(authorMemberId, request.cursorId(), pageable);
 
-        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+        if (replys.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+
+        boolean hasNext = replys.size() > limitSize;
+        if (hasNext) {
+            replys = new ArrayList<>(replys.subList(0, limitSize));
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        return replys.map(reply -> new ReplyDetailDto(
+        List<ReplyDetailDto> content = replys.stream().map(reply -> new ReplyDetailDto(
                 reply.id(),
                 reply.content(),
                 reply.likeCount(),
@@ -128,8 +145,10 @@ public class ReplyService {
                 reply.nickname(),
                 reply.profileImgUrl(),
                 reply.postId()
-        ));
+        )).toList();
 
+        Long nextCursorId = replys.get(replys.size() - 1).id();
+        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
 

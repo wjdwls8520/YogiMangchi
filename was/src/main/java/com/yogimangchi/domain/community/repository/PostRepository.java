@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
@@ -124,4 +126,72 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("select p.reportCount from Post p where p.id = :postId")
     Long findReportCountById(@Param("postId") Long postId);
+
+    // ── 커서 기반 페이징 메서드 (no-offset) ──
+
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id, p.title, p.content, p.likeCount, p.replyCount, null,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N'
+          AND (:cursorId IS NULL OR p.id < :cursorId)
+        ORDER BY p.id DESC
+    """)
+    List<PostAndMemberDto> findAllPostsByCursor(@Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id, p.title, p.content, p.likeCount, p.replyCount, null,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N'
+          AND (:cursorId IS NULL OR p.id < :cursorId)
+          AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        ORDER BY p.id DESC
+    """)
+    List<PostAndMemberDto> findPostsByKeywordByCursor(@Param("cursorId") Long cursorId, @Param("keyword") String keyword, Pageable pageable);
+
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id, p.title, p.content, p.likeCount, p.replyCount, null,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N'
+          AND m.id = :authorMemberId
+          AND (:cursorId IS NULL OR p.id < :cursorId)
+        ORDER BY p.id DESC
+    """)
+    List<PostAndMemberDto> findAllPostsByAuthorByCursor(@Param("authorMemberId") Long authorMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("""
+        SELECT new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
+            p.id, p.title, p.content, p.likeCount, p.replyCount, null,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        FROM Post p
+        JOIN p.member m
+        WHERE p.deleteYn = 'N'
+          AND m.id = :authorMemberId
+          AND (:cursorId IS NULL OR p.id < :cursorId)
+          AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        ORDER BY p.id DESC
+    """)
+    List<PostAndMemberDto> findPostsByAuthorAndKeywordByCursor(@Param("authorMemberId") Long authorMemberId, @Param("cursorId") Long cursorId, @Param("keyword") String keyword, Pageable pageable);
 }
