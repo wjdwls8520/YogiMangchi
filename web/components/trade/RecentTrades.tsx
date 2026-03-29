@@ -1,45 +1,140 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
 
+type TradeItem = {
+  id: number;
+  price: number;
+  quantity: number;
+  time: number;
+  isBuyerMaker: boolean;
+};
+
+type BinanceTradeMessage = {
+  t: number;
+  p: string;
+  q: string;
+  T: number;
+  m: boolean;
+};
+
+const formatPrice = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: value < 1 ? 4 : 2,
+    maximumFractionDigits: value < 1 ? 6 : 4,
+  });
+};
+
+const formatQty = (value: number) => {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  });
+};
+
+const formatTime = (timestamp: number) => {
+  return new Date(timestamp).toLocaleTimeString("ko-KR", {
+    hour12: false,
+  });
+};
+
 export default function RecentTrades() {
-  const { selectedCoin, tickers } = useTickerStore();
-  const realtime = tickers[selectedCoin];
+  const { selectedCoin } = useTickerStore();
+  const [trades, setTrades] = useState<TradeItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 로딩 처리
-  if (!realtime) {
-    return <div className="lg:col-span-3 bg-white border border-gray-200 h-[600px] animate-pulse"></div>;
-  }
+  useEffect(() => {
+    if (!selectedCoin) return;
 
-  const { price } = realtime;
+    let isActive = true;
+
+    setTrades([]);
+    setIsLoading(true);
+
+    const stream = `${selectedCoin.toLowerCase()}@trade`;
+    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as BinanceTradeMessage;
+
+        if (!isActive) return;
+
+        const nextTrade: TradeItem = {
+          id: data.t,
+          price: Number(data.p),
+          quantity: Number(data.q),
+          time: data.T,
+          isBuyerMaker: data.m,
+        };
+
+        if (
+          !Number.isFinite(nextTrade.price) ||
+          !Number.isFinite(nextTrade.quantity)
+        ) {
+          return;
+        }
+
+        setTrades((prev) => [nextTrade, ...prev].slice(0, 40));
+        setIsLoading(false);
+      } catch (error) {
+        console.error("바이낸스 체결 데이터 파싱 실패:", error);
+      }
+    };
+
+    ws.onerror = () => {
+      if (!isActive) return;
+      setIsLoading(false);
+    };
+
+    return () => {
+      isActive = false;
+      ws.close();
+    };
+  }, [selectedCoin]);
 
   return (
     <div className="h-[520px] lg:col-span-3 bg-white border border-gray-200 flex flex-col lg:h-full overflow-hidden">
-      <div className="p-3 border-b border-gray-200 bg-gray-50/50 font-black text-xs">체결내역</div>
-      <div className="p-3 flex-1 overflow-y-auto custom-scrollbar">
-        <div className="grid grid-cols-3 text-[10px] font-bold text-gray-500 mb-3 px-1 uppercase">
-          <span>시간</span>
-          <span className="text-center">가격</span>
-          <span className="text-right">수량</span>
-        </div>
-        <div className="space-y-2">
-          {/* 스토어의 실시간 가격(price)을 기준으로 가짜 체결내역 생성 */}
-          {[...Array(20)].map((_, i) => {
-            // 위아래로 약간씩 흔들리는 가짜 가격
-            const tradePrice = price + (i % 2 === 0 ? i * 150 : -i * 120); 
-            const isBuy = i % 3 === 0; // 빨간색(매수), 파란색(매도) 교차
-            
-            return (
-              <div key={i} className="grid grid-cols-3 text-[11px] font-bold px-1">
-                <span className="text-gray-400 font-medium">17:06:{60 - i}</span>
-                <span className={`text-center ${isBuy ? "text-[#E12343]" : "text-[#1763B6]"}`}>
-                  {tradePrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                </span>
-                <span className="text-right text-gray-900">0.00{i + 1}</span>
-              </div>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-3 p-3 border-b border-gray-200 font-black text-xs bg-gray-50/50">
+        <span>체결시간</span>
+        <span className="text-right">체결가</span>
+        <span className="text-right">체결량</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {isLoading && trades.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm font-bold text-gray-400">
+            체결 내역 불러오는 중...
+          </div>
+        ) : trades.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm font-bold text-gray-400">
+            체결 내역이 없습니다.
+          </div>
+        ) : (
+          trades.map((trade) => (
+            <div
+              key={trade.id}
+              className="grid grid-cols-3 items-center h-10 px-4 border-b border-gray-100 hover:bg-gray-50"
+            >
+              <span className="text-[11px] font-medium text-gray-500">
+                {formatTime(trade.time)}
+              </span>
+
+              <span
+                className={`text-[12px] font-black text-right ${
+                  trade.isBuyerMaker ? "text-[#1763B6]" : "text-[#E12343]"
+                }`}
+              >
+                {formatPrice(trade.price)}
+              </span>
+
+              <span className="text-[11px] font-bold text-gray-500 text-right">
+                {formatQty(trade.quantity)}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export default function MainPage() {
               트레이딩 시작하기
             </Button>
           </Link>
-          <Link href="/demo">
+          <Link href="/mock">
             <Button size="lg" variant="sky">
               모의투자 연습하기
             </Button>
