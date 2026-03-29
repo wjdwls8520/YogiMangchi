@@ -7,6 +7,7 @@ import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.service.MemberService;
 import com.yogimangchi.global.validator.NicknameValidator;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/member")
@@ -65,17 +67,22 @@ public class MemberController {
 
     @Operation(
             summary = "멤버(유저) 프로필 수정",
-            description = "로그인한 멤버의 닉네임, 프로필 이미지 파일, 프로필 메시지를 수정합니다. multipart/form-data 형식으로 요청합니다."
+            description = "로그인한 멤버의 닉네임, 프로필 이미지 파일, 프로필 메시지를 수정합니다. multipart/form-data 형식으로 요청합니다. \n\n\n type=null, 파일값존재 하면 이미지변경 \n\n\n type=null, 파일값=null 이면 기존 프로필 그대로 \n\n\n type=reset, 파일값=null 이면 기본프로필로 초기화 \n\n\n type=reset, 파일값존재 하면 에러 (둘다값이있으면 안됨)"
     )
     @PatchMapping(value = "/me/info", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MyProfileInfoDto> updateMemberInfoMe(
             @AuthenticationPrincipal Long loginMemberId,
-            @ModelAttribute UpdateMyProfileDto request
+            @RequestParam(required = false) String nickname,
+            @Parameter(description = "변경할 프로필 이미지 파일")
+            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String profileMsg
     ) {
         if (loginMemberId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        UpdateMyProfileDto request = UpdateMyProfileDto.of(nickname, profileImage, type, profileMsg);
         MyProfileInfoDto updatedProfile = memberService.updateMyProfile(loginMemberId, request);
 
         return ResponseEntity.ok(updatedProfile);
