@@ -25,11 +25,12 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<TradeHistory> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond) {
+    public List<TradeHistory> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond, Long assetId) {
         return queryFactory
                 .selectFrom(tradeHistory)
                 .join(tradeHistory.assets, assets) // 멤버 ID 검사와 지갑 타입 필터를 위해 지갑(Assets) 테이블 조인
                 .where(
+                        assetIdEq(assetId),                  // MOCK 조회 시 현재 ACTIVE 지갑만 조회
                         assets.member.id.eq(memberId),       //  내 지갑의 거래내역만 (필수)
                         assetTypeEq(cond.assetType()),       // 특정 지갑 타입 (MOCK 등) 필터 (필수)
                         cursorIdLt(cond.cursorId()),         // 커서 페이징 조건 (선택)
@@ -51,6 +52,10 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
 
     private BooleanExpression assetTypeEq(AssetType assetType) {
         return assetType != null ? assets.type.eq(assetType) : null;
+    }
+
+    private BooleanExpression assetIdEq(Long assetId) {
+        return assetId != null ? assets.id.eq(assetId) : null;
     }
 
     private BooleanExpression cursorIdLt(Long cursorId) {
