@@ -1,14 +1,34 @@
+import { Post } from "@/app/(default)/community/types/post";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 interface ModalState {
-    isOpen: boolean;
-    open: () => void;
-    close: () => void;
+  isOpen: boolean;
+
+  // 🔥 추가
+  mode: "create" | "edit" | null;
+  selectedPost: Post | null;
+
+  // 🔥 open 확장
+  open: (params?: { mode?: "create" | "edit"; post?: Post }) => void;
+  close: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
   isOpen: false,
-  open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false }),
+  mode: null,
+  selectedPost: null,
+
+  open: (params) =>
+    set({
+      isOpen: true,
+      mode: params?.mode ?? null,
+      selectedPost: params?.post ?? null,
+    }),
+
+  close: () =>
+    set({
+      isOpen: false,
+      selectedPost: null,
+      mode: null,
+    }),
 }));

@@ -1,19 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Post } from "../types/post";
 import CommunityItem from "./CommunityItem";
 import { useParams } from "next/navigation";
 import { getPosts } from "@/lib/api/post";
 import { useEffect, useRef, useState } from "react";
 import CommunityItemSkeleton from "./CommunityItemSkeleton";
+import { usePostStore } from "@/stores/usePostStore";
 
-type Props = {
-  allPosts: Post[];
-  setAllPosts: React.Dispatch<React.SetStateAction<Post[]>>;
-}
+export default function CommunityList() {
 
-export default function CommunityList({ allPosts, setAllPosts } :Props) {
+    const { posts, appendPosts } = usePostStore();
 
     const params = useParams();
     const category = params.category;
@@ -23,6 +20,7 @@ export default function CommunityList({ allPosts, setAllPosts } :Props) {
     const [hasMore, setHasMore] = useState(true);
     const observerRef = useRef<HTMLDivElement | null>(null); // 스크롤 위치 확인
 
+    // 무한 스크롤, 이전 게시글 불러오기
     // page를 인자로 받아 클로저 문제 해결
     const fetchPosts = async (currentPage: number) => {
         if (!hasMore || isLoading) return;
@@ -32,7 +30,7 @@ export default function CommunityList({ allPosts, setAllPosts } :Props) {
 
             const result = await getPosts({ page: currentPage });
 
-            setAllPosts(prev => [...prev, ...result.content]);
+            appendPosts(result.content); // 이전 게시글 state에 저장
             setHasMore(!result.last);
 
         } finally {
@@ -63,8 +61,8 @@ export default function CommunityList({ allPosts, setAllPosts } :Props) {
     return(
         <article className="contents">
             <ul className="flex flex-col gap-5">
-                {allPosts.map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
-                        <li><CommunityItem post={post} setAllPosts={setAllPosts} variant="list" /></li>
+                {posts.map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
+                        <li><CommunityItem post={post} variant="list" /></li>
                     </Link>
                 )}
                 <div ref={observerRef} />

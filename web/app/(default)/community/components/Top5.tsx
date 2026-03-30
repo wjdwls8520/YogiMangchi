@@ -1,3 +1,5 @@
+"use client";
+
 import { Ranker } from "../types/ranker";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useHeaderHeight } from "@/hooks/useHeaderHeight";

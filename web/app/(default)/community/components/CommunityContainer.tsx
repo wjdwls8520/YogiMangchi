@@ -1,30 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CommunityList from "./CommunityList";
-import WriteModal from "./WriteModal";
-import { useModalStore } from "@/stores/useModalStore";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { Post } from "../types/post";
+import { usePostStore } from "@/stores/usePostStore";
 
 
-interface ContainerProps {
+interface Props {
     initialPosts: Post[];
 }
 
-export default function CommunityContainer({ initialPosts }:ContainerProps) {
-    const [allPosts, setAllPosts] = useState(initialPosts);
+export default function CommunityContainer({ initialPosts }:Props) {
+    const setPosts = usePostStore((state) => state.setPosts);
 
-    const user = useAuthStore((state) => state.user);   
-    const { isOpen, close } = useModalStore();
+    useEffect(() => {
+      setPosts(initialPosts);
+    }, [initialPosts, setPosts]);
 
   return (
     <>
-      <CommunityList allPosts={allPosts} setAllPosts={setAllPosts} />
-        { 
-            isOpen && 
-            <WriteModal setIsOpen={close} myInfo={user} setAllPosts={setAllPosts} />
-        }
+      <CommunityList />
     </>
   );
 }

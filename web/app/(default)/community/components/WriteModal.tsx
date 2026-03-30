@@ -8,15 +8,13 @@ import Modal from "@/components/Modal";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { createPost, getPosts } from "@/lib/api/post";
-import { MemberInfo } from "@/types/member";
-import { Post } from "../types/post";
+import { createPost, getPosts, updatePost } from "@/lib/api/post";
 
-interface ModalProps {
-    setIsOpen: (arg0: boolean) => void;
-    myInfo: MemberInfo | null;
-    setAllPosts: React.Dispatch<React.SetStateAction<Post[]>>;
-}
+import { File as ServerFile, Post } from "../types/post";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useModalStore } from "@/stores/useModalStore";
+import { usePostStore } from "@/stores/usePostStore";
+
 
 type UploadFile = {
   file: File;
@@ -24,51 +22,27 @@ type UploadFile = {
 };
 
 
-export default function WriteModal({setIsOpen, myInfo, setAllPosts}: ModalProps) {
+export default function WriteModal() {
+
+
+    const userInfo = useAuthStore((state) => state.user);   
+    const { isOpen, close, mode, selectedPost } = useModalStore();
+    const { addPost, setPosts } = usePostStore();
 
     const modalProps = {
-        title: "글쓰기",
-        onClose: () => setIsOpen(false),
+        title: mode === "edit" ? "글 수정" : "글쓰기",
+        onClose: () => close(),
         isSubmit: true,
     }
 
-    const [files, setFiles] = useState<UploadFile[]>([]);
+    const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]); // 업로드 할 파일
+    const [serverFiles, setServerFiles] = useState<ServerFile[]>(selectedPost?.files ?? []); // 서버에서 가져온 파일
+    const [deleteFileIds, setDeleteFileIds] = useState<number[]>([]); // 서버에서 삭제할 파일
+
     const [form, setForm] = useState({
-        title: "",
-        content: "",
+        title: mode === "edit" ? (selectedPost?.title ?? "") : "",
+        content: mode === "edit" ? (selectedPost?.content ?? "") : "",
     });
-
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newFiles = e.target.files;
-        if (!newFiles) return;
-
-        const mapped = Array.from(newFiles).map((file) => ({
-            file,
-            preview: URL.createObjectURL(file),
-        }));
-
-        setFiles((prev) => [...prev, ...mapped]);
-        e.target.value = ""; // 같은 파일 다시 선택 가능
-    };
-
-    const handleDelete = (index: number) => {
-        setFiles((prev) => {
-            const newArr = [...prev];
-            URL.revokeObjectURL(newArr[index].preview);
-            newArr.splice(index, 1);
-            return newArr;
-        });
-    };
-
-
-    // 메모리 누수 방지
-    useEffect(() => {
-        return () => {
-            files.forEach((file) => URL.revokeObjectURL(file.preview));
-        };
-    }, [files]);
-
 
     const handleSubmit = async (e :React.SubmitEvent) => {
 
@@ -79,15 +53,15 @@ export default function WriteModal({setIsOpen, myInfo, setAllPosts}: ModalProps)
             id: Date.now(),
             title: form.title,
             content: form.content,
-            memberId: myInfo?.memberId ?? 0,
+            memberId: userInfo?.memberId ?? 0,
             likeCount: 0,
             replyCount: 0,
             reportCount: 0,
-            nickname: myInfo?.nickname ?? "",
+            nickname: userInfo?.nickname ?? "",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             profileImg: '',
-            files: files.map((file, index) => ({
+            files: uploadFiles.map((file, index) => ({
                 id: Date.now() + index,
                 originalname: file.file.name,
                 size: file.file.size,
@@ -99,31 +73,78 @@ export default function WriteModal({setIsOpen, myInfo, setAllPosts}: ModalProps)
             }))
         };
 
-        setAllPosts((prev) => [tempPost, ...prev]);
-        setIsOpen(false); // 모달 먼저 닫기
+        addPost(tempPost);
+        close(); // 모달 먼저 닫기
+        // 모달 내용 초기화
+        setForm({
+            title: "",
+            content: "",
+        });
+        setUploadFiles([]);
 
         const formData = new FormData();
 
         formData.append('title', form.title);
         formData.append('content', form.content);
-          files.forEach((file) => {
+          uploadFiles.forEach((file) => {
             formData.append("files", file.file);
         });
 
-        await createPost(formData);
-        const fresh = await getPosts({ page: 0 });
-        setAllPosts(fresh.content);
+        if (mode === "edit") {
+            deleteFileIds.forEach(id => {
+                formData.append('deleteFileIds', id.toString()); // number -> string으로 변환
+            });
+            await updatePost({postId : selectedPost?.id, formData});
+        } else {
+            await createPost(formData);
+        }
 
+        const fresh = await getPosts({ page: 0 });
+        setPosts(fresh.content);
     }
 
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newFiles = e.target.files;
+        if (!newFiles) return;
 
+        const mapped = Array.from(newFiles).map((file) => ({
+            file,
+            preview: URL.createObjectURL(file),
+        }));
+
+        setUploadFiles((prev) => [...prev, ...mapped]);
+        e.target.value = ""; // 같은 파일 다시 선택 가능
+    };
+
+    // 임시 이미지 삭제
+    const handleDelete = (index: number) => {
+        setUploadFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // 서버 이미지 삭제
+    const handleUploadDelete = (id: number) => {
+        setServerFiles(prev => prev.filter((file) => file.id !== id));
+        setDeleteFileIds(prev => [...prev, id]);
+    }
+
+    // 메모리 누수 방지
+    useEffect(() => {
+        return () => {
+            uploadFiles.forEach((file) => URL.revokeObjectURL(file.preview));
+        };
+    }, [uploadFiles]);
+    
+    
+
+    if (!isOpen) return null;
+    
     return (
         <form name="" className="mt-2" onSubmit={handleSubmit}>
             <Modal props={modalProps}>
                 <header className="flex align-middle gap-3 pb-3">
-                    <UserAvatar classes="w-[34px] h-[34px]" profileImg={myInfo?.profileImgUrl} />
+                    <UserAvatar classes="w-[34px] h-[34px]" profileImg={userInfo?.profileImgUrl} />
                     <div>
-                        <div className="flex align-center w-full gap-2 font-bold whitespace-nowrap">{myInfo?.nickname}</div>
+                        <div className="flex align-center w-full gap-2 font-bold whitespace-nowrap">{userInfo?.nickname}</div>
                     </div>
                 </header>
                 <div className="mt-2">
@@ -153,10 +174,26 @@ export default function WriteModal({setIsOpen, myInfo, setAllPosts}: ModalProps)
                     <input type="file" id="file" className="hidden" multiple onChange={handleChange} />
                     <label htmlFor="file" className="flex align-middle gap-1 text-gray-400 text-sm cursor-pointer"><LuImagePlus className="w-[25px] h-[25px]" /> 사진추가</label>
                     {
-                        files?.length > 0 &&
+                        (mode === "edit" && serverFiles?.length > 0) ? 
                         <ul className="flex gap-2 mt-3">
-                            {files.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
-                                    <Image src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
+                            {serverFiles.map((file) =>  <li key={file.id} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
+                                    <Image loading="eager" src={file.path} alt="첨부파일" fill className="object-cover object-center" />
+                                    <button type="button" onClick={() => handleUploadDelete(file.id)} className="absolute right-0 top-0 p-1">
+                                        <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
+                                    </button>
+                                </li>)}
+                            {uploadFiles?.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
+                                    <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
+                                    <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1">
+                                        <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
+                                    </button>
+                                </li>)}                                
+                        </ul>
+                        :
+                        uploadFiles?.length > 0 &&
+                        <ul className="flex gap-2 mt-3">
+                            {uploadFiles.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
+                                    <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
                                     <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1">
                                         <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
                                     </button>

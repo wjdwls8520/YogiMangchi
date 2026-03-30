@@ -20,12 +20,13 @@ import CommentItem from "./CommentItem";
 import Image from "next/image";
 import { deletePost } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { usePostStore } from "@/stores/usePostStore";
+import { useModalStore } from "@/stores/useModalStore";
 
 
 
 interface Props {
   post :Post;
-  setAllPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   variant: "list" | "detail";
 }
 
@@ -85,7 +86,10 @@ const comments = [
   },
 ];
 
-export default function CommunityItem({ post, setAllPosts, variant }: Props) {
+export default function CommunityItem({ post, variant }: Props) {
+
+    const { removePost } = usePostStore();
+    const { open: ModalOpen } = useModalStore();
 
     const [isOpen, setIsOpen] = useState(false);
 
@@ -101,8 +105,14 @@ export default function CommunityItem({ post, setAllPosts, variant }: Props) {
         e.preventDefault();
         
         await deletePost(postId);
-        setAllPosts(prev => prev.filter(post => post.id !== postId));
+        removePost(postId); // post[] 상태 삭제
         
+    }
+
+    const openEditModal = async (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        ModalOpen({mode: "edit", post: post});
     }
 
     useEffect(() => {
@@ -137,7 +147,7 @@ export default function CommunityItem({ post, setAllPosts, variant }: Props) {
                                 <>
                                 <button 
                                     type="button" 
-                                    onClick={(e) => e.preventDefault()} 
+                                    onClick={(e) => openEditModal(e)} 
                                     className="flex items-center gap-1 text-left py-1"
                                 >
                                     <LuPenLine className="w-[18px] h-[16px] text-gray-500" />
@@ -169,7 +179,7 @@ export default function CommunityItem({ post, setAllPosts, variant }: Props) {
                 <div className="pt-3">
                     <p className="text-xl font-semibold">{post.title}</p>
                     <div className={cn("pt-1", (!isExpanded && variant !== 'detail') &&"line-clamp-4")} ref={textRef}>
-                        {post.content}{post.content}{post.content}{post.content}
+                        {post.content}
                     </div>
                     {
                         (isOverflow && variant !== 'detail')&&

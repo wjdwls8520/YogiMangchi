@@ -4,7 +4,6 @@ export async function fetchClient(
   url: string,
   options: RequestInit = {}
 ) {
-
     const isFormData = options.body instanceof FormData;        
 
     const res = await fetch(`http://localhost:8080/api/v1/${url}`, {

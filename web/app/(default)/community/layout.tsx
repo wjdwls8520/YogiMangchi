@@ -1,11 +1,9 @@
-"use client";
-
 import FloatMenu from "./components/FloatMenu";
 import Menu from "./components/Menu";
 import Top5 from "./components/Top5";
+import WriteModal from "./components/WriteModal";
+import WriteModalWrapper from "./components/WriteModalWrapper";
 import { Ranker } from "./types/ranker";
-import { useModalStore } from "@/stores/useModalStore";
-
 
 const ranker: Ranker[] = [
     {
@@ -47,8 +45,6 @@ export default function CommunityLayout({
   children: React.ReactNode;
 }) {
 
-    const { open } = useModalStore();
-
     return (
         <>
             <section className="md:grid md:grid-cols-11 lg:grid-cols-15 gap-11 relative">
@@ -57,7 +53,8 @@ export default function CommunityLayout({
                     {children}
                 </div>
                 <Top5 ranker={ranker} />
-                <FloatMenu onOpenLayer={open} />
+                <FloatMenu />
+                <WriteModalWrapper />             
             </section>
         </>
     )
