@@ -30,21 +30,6 @@ type OpenOrderItem = {
   executedAt: string | null;
 };
 
-type TradeHistoryItem = {
-  tradeId: number;
-  symbol: string;
-  side: "BUY" | "SELL";
-  orderType: string;
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
-  price: number;
-  quantity: number;
-  totalAmount: number;
-  fee: number;
-  realizedProfit: number | null;
-  orderedAt: string;
-  executedAt: string | null;
-};
-
 type TableRow = {
   id: number;
   date: string | null;
@@ -72,9 +57,14 @@ const formatDateTime = (value: string | null) => {
     return value;
   }
 
-  return date.toLocaleString("ko-KR", {
-    hour12: false,
-  });
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const formatNumber = (value: number | null | undefined) => {
@@ -203,7 +193,7 @@ export default function UserOrderHistory({
         } else {
           params.set("status", "COMPLETED");
           params.set("size", "20");
-          url = `http://localhost:8080/api/v1/trade/histories?${params.toString()}`;
+          url = `http://localhost:8080/api/v1/trade/orders?${params.toString()}`;
         }
 
         const response = await fetch(url, {
@@ -249,18 +239,18 @@ export default function UserOrderHistory({
             }))
           );
         } else {
-          const trades = getCursorContent<TradeHistoryItem>(payload);
+          const orders = getCursorContent<OpenOrderItem>(payload);
 
           setRows(
-            trades.map((item) => ({
-              id: item.tradeId,
+            orders.map((item) => ({
+              id: item.orderId,
               date: item.executedAt || item.orderedAt,
               symbol: item.symbol,
               side: item.side,
-              quantity: item.quantity,
-              price: item.price,
-              totalAmount: item.totalAmount,
-              fee: item.fee,
+              quantity: item.filledQuantity ?? item.orderQuantity,
+              price: item.avgFilledPrice ?? item.orderPrice,
+              totalAmount: item.executedAmount ?? item.orderAmount,
+              fee: item.totalFee,
               status: item.orderStatus,
             }))
           );
