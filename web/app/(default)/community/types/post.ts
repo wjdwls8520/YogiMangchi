@@ -16,8 +16,10 @@ export interface Post {
   title: string;
   content: string;
   likeCount: number;
+  likedByMe: boolean;
   replyCount: number;
   reportCount: number;
+  reportedByMe: boolean;
   createdAt: string;
   updatedAt: string;
   memberId: number;

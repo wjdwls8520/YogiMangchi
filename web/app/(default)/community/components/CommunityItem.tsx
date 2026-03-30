@@ -3,6 +3,7 @@
 
 import { BsThreeDots } from "react-icons/bs";
 import { VscHeart } from "react-icons/vsc";
+import { VscHeartFilled } from "react-icons/vsc";
 import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
 import { GoShareAndroid } from "react-icons/go";
 import { FaRegTrashAlt } from "react-icons/fa";
@@ -18,7 +19,7 @@ import Button from "@/components/ui/Button";
 import { formatTime } from "@/lib/utils/date";
 import CommentItem from "./CommentItem";
 import Image from "next/image";
-import { deletePost } from "@/lib/api/post";
+import { deletePost, updateLike } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { useModalStore } from "@/stores/useModalStore";
@@ -88,10 +89,9 @@ const comments = [
 
 export default function CommunityItem({ post, variant }: Props) {
 
-    const { removePost } = usePostStore();
-    const { open: ModalOpen } = useModalStore();
-
-    const [isOpen, setIsOpen] = useState(false);
+    const { removePost, replacePost } = usePostStore();
+    const { openMenuId, toggleMenu, open: ModalOpen } = useModalStore();
+    const isMenuOpen = openMenuId === post.id; // 내 아이템이 열려있는지 확인
 
     const textRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
@@ -115,6 +115,15 @@ export default function CommunityItem({ post, variant }: Props) {
         ModalOpen({mode: "edit", post: post});
     }
 
+    const handleLike = async (e: React.MouseEvent, post: Post) => {
+        e.preventDefault();
+
+        await updateLike(post.id);
+        replacePost(post);
+
+    }
+
+
     useEffect(() => {
         const el = textRef.current;
         if (!el) return;
@@ -134,12 +143,12 @@ export default function CommunityItem({ post, variant }: Props) {
                     <div className="relative">
                         <button type="button" className="p-1.5" onClick={(e) => {
                             e.preventDefault();
-                            setIsOpen((prev) => !prev);
+                            toggleMenu(post.id);
                         }}>
                             <BsThreeDots className="justify-self-end-safe text-gray-500" />
                         </button>
                         {
-                            isOpen && 
+                            (isMenuOpen) && 
                             <div className="absolute right-0 z-10 w-24 bg-white dark:bg-zinc-900 border border-gray-300 rounded-xl p-3 text-sm">
                                 
                             { 
@@ -148,7 +157,7 @@ export default function CommunityItem({ post, variant }: Props) {
                                 <button 
                                     type="button" 
                                     onClick={(e) => openEditModal(e)} 
-                                    className="flex items-center gap-1 text-left py-1"
+                                    className="flex items-center gap-1 text-left py-1 w-full"
                                 >
                                     <LuPenLine className="w-[18px] h-[16px] text-gray-500" />
                                     수정
@@ -156,7 +165,7 @@ export default function CommunityItem({ post, variant }: Props) {
                                 <button 
                                     type="button" 
                                     onClick={(e) => handleDelete(e, post.id)} 
-                                    className="flex items-center gap-1 text-left py-1"
+                                    className="flex items-center gap-1 text-left py-1 w-full"
                                 >
                                     <FaRegTrashAlt className="w-[18px] h-[14px] text-gray-500" />
                                     삭제
@@ -166,7 +175,7 @@ export default function CommunityItem({ post, variant }: Props) {
                                 <button 
                                     type="button" 
                                     onClick={(e) => e.preventDefault()} 
-                                    className="flex items-center gap-1 text-left py-1"
+                                    className="flex items-center gap-1 text-left py-1 w-full"
                                 >
                                     <FiFlag className="w-[18px] h-[15px] text-gray-500" />
                                     신고
@@ -232,7 +241,15 @@ export default function CommunityItem({ post, variant }: Props) {
 
                 <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
                     <li>
-                        <button type="button" className="flex items-center gap-1"><VscHeart className="text-xl" strokeWidth={0.3} /> {post.likeCount}</button>
+                        <button type="button" className="flex items-center gap-1">
+                            {
+                                post.likedByMe ? 
+                                <VscHeartFilled className="text-xl text-red-600" onClick={(e) => handleLike(e, post)} />
+                                : 
+                                <VscHeart className="text-xl" strokeWidth={0.3} onClick={(e) => handleLike(e, post)} />
+                            }
+                            {post.likeCount}
+                        </button>
                     </li>                
                     <li>
                         <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>

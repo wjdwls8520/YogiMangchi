@@ -8,7 +8,7 @@ import Modal from "@/components/Modal";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { createPost, getPosts, updatePost } from "@/lib/api/post";
+import { createPost, getPosts, putPost } from "@/lib/api/post";
 
 import { File as ServerFile, Post } from "../types/post";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -27,7 +27,7 @@ export default function WriteModal() {
 
     const userInfo = useAuthStore((state) => state.user);   
     const { isOpen, close, mode, selectedPost } = useModalStore();
-    const { addPost, setPosts } = usePostStore();
+    const { addPost, setPosts, replacePost } = usePostStore();
 
     const modalProps = {
         title: mode === "edit" ? "글 수정" : "글쓰기",
@@ -44,37 +44,8 @@ export default function WriteModal() {
         content: mode === "edit" ? (selectedPost?.content ?? "") : "",
     });
 
-    const handleSubmit = async (e :React.SubmitEvent) => {
-
-        e.preventDefault(); // 폼 보내고 새로고침 방지
-
-        // 1. 임시 글 먼저 추가
-        const tempPost: Post = {
-            id: Date.now(),
-            title: form.title,
-            content: form.content,
-            memberId: userInfo?.memberId ?? 0,
-            likeCount: 0,
-            replyCount: 0,
-            reportCount: 0,
-            nickname: userInfo?.nickname ?? "",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            profileImg: '',
-            files: uploadFiles.map((file, index) => ({
-                id: Date.now() + index,
-                originalname: file.file.name,
-                size: file.file.size,
-                path: '',
-                contentType: file.file.type,
-                createdAt: '',
-                postId: 0,
-                previewUrl: URL.createObjectURL(file.file),
-            }))
-        };
-
+    const handleCreate = async (tempPost: Post, formData: FormData) => {
         addPost(tempPost);
-        close(); // 모달 먼저 닫기
         // 모달 내용 초기화
         setForm({
             title: "",
@@ -82,25 +53,91 @@ export default function WriteModal() {
         });
         setUploadFiles([]);
 
-        const formData = new FormData();
+        await createPost(formData);
+        
+        const fresh = await getPosts({ page: 0 });
+        setPosts(fresh.content);        
+    }
 
+    const handleEdit = async (tempPost: Post, formData: FormData) => {
+        deleteFileIds.forEach(id => {
+            formData.append('deleteFileIds', id.toString());
+        });
+
+        replacePost(tempPost); // 수정 게시글 임시로 보여줌
+        const post = await putPost({postId : selectedPost?.id, formData});
+        // 임시 게시글 -> 서버 게시글로 업데이트 시 이미지 깜빡이는 현상 해결을 위해
+        const mergedPost: Post = {
+            ...post,
+            files: post.files.map((serverFile: ServerFile) => {
+                // 기존 tempPost의 파일과 매칭해서 previewUrl 재사용
+                const matched = tempPost.files.find(
+                    f => f.path === serverFile.path || f.originalname === serverFile.originalname
+                );
+                return {
+                    ...serverFile,
+                    previewUrl: matched?.previewUrl ?? serverFile.path,
+                };
+            }),
+        };            
+        replacePost(mergedPost);
+    }
+
+    const handleSubmit = async (e :React.SubmitEvent) => {
+
+        e.preventDefault(); // 폼 보내고 새로고침 방지
+
+        close(); // 모달 먼저 닫기
+        
+        // 임시 글 먼저 추가
+        const tempPost: Post = {
+            id: selectedPost?.id ?? Date.now(),
+            title: form.title,
+            content: form.content,
+            memberId: userInfo?.memberId ?? 0,
+            likeCount: 0,
+            likedByMe: false,
+            replyCount: 0,
+            reportCount: 0,
+            reportedByMe: false,
+            nickname: userInfo?.nickname ?? "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            profileImg: '',
+            files: [
+                // 기존 서버 파일 (삭제되지 않은 것만)
+                ...serverFiles.map(file => ({
+                    ...file,
+                    previewUrl: file.path,
+                })),
+                // 새로 첨부한 파일
+                ...uploadFiles.map((file, index) => ({
+                    id: Date.now() + index,
+                    originalname: file.file.name,
+                    size: file.file.size,
+                    path: '',
+                    contentType: file.file.type,
+                    createdAt: '',
+                    postId: selectedPost?.id ?? 0,
+                    previewUrl: URL.createObjectURL(file.file),
+                }))
+            ]
+        };
+
+
+        const formData = new FormData();
+        
         formData.append('title', form.title);
         formData.append('content', form.content);
-          uploadFiles.forEach((file) => {
+        uploadFiles.forEach((file) => {
             formData.append("files", file.file);
         });
 
         if (mode === "edit") {
-            deleteFileIds.forEach(id => {
-                formData.append('deleteFileIds', id.toString()); // number -> string으로 변환
-            });
-            await updatePost({postId : selectedPost?.id, formData});
+            handleEdit(tempPost, formData);
         } else {
-            await createPost(formData);
+            handleCreate(tempPost, formData);
         }
-
-        const fresh = await getPosts({ page: 0 });
-        setPosts(fresh.content);
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,13 +215,13 @@ export default function WriteModal() {
                         <ul className="flex gap-2 mt-3">
                             {serverFiles.map((file) =>  <li key={file.id} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.path} alt="첨부파일" fill className="object-cover object-center" />
-                                    <button type="button" onClick={() => handleUploadDelete(file.id)} className="absolute right-0 top-0 p-1">
+                                    <button type="button" onClick={() => handleUploadDelete(file.id)} className="absolute right-0 top-0 p-1 w-full">
                                         <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
                                     </button>
                                 </li>)}
                             {uploadFiles?.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
-                                    <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1">
+                                    <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1 w-full">
                                         <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
                                     </button>
                                 </li>)}                                
@@ -194,7 +231,7 @@ export default function WriteModal() {
                         <ul className="flex gap-2 mt-3">
                             {uploadFiles.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
-                                    <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1">
+                                    <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1 w-full">
                                         <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
                                     </button>
                                 </li>)}

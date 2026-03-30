@@ -1,49 +1,62 @@
-import { Post } from "@/app/(default)/community/types/post";
 import { create } from "zustand";
+import { Post } from "@/app/(default)/community/types/post";
 
-interface PostState {
-  posts: Post[];
+interface PostsState {
+  postsMap: Map<number, Post>;
 
-  setPosts: (posts: Post[]) => void;
+  // 첫 화면에서 보여줄 배열
+  setPosts: (newPosts: Post[]) => void;
 
+  // 전체 배열로 변환해서 화면에 뿌리기
+  getPostsArray: () => Post[];
+
+  // 게시글 작성 (맨 앞에 추가)
   addPost: (post: Post) => void;
 
-  appendPosts: (post: Post[]) => void;
+  // 무한 스크롤, 리스트 뒤에 추가
+  appendPosts: (newPosts: Post[]) => void;
 
+  // 게시글 삭제
   removePost: (postId: number) => void;
 
-  updatePost: (updatedPost: Post) => void;
+  // 게시글 업데이트
+  replacePost: (replacePost: Post) => void;
 }
 
-export const usePostStore = create<PostState>((set) => ({
-    posts: [],
+export const usePostStore = create<PostsState>((set, get) => ({
+    postsMap: new Map(),
 
-    // 초기 세팅
-    setPosts: (posts) => set({ posts }),
+    getPostsArray: () => Array.from(get().postsMap.values()),
 
-    // 게시글 작성
-    addPost: (post) =>
-    set((state) => ({
-        posts: [post, ...state.posts],
-    })),
+    setPosts: (posts: Post[]) => set({
+        postsMap: new Map(posts.map((p) => [p.id, p])),
+    }),
 
-    // 무한 스크롤, 현재 리스트에서 다음 게시글 리스트 불러오기
-    appendPosts: (newPosts) =>
-        set((state) => ({
-        posts: [...state.posts, ...newPosts],
-    })),
+    addPost: (post: Post) =>
+        set((state) => {
+        const newMap = new Map([[post.id, post], ...state.postsMap.entries()]);
+        return { postsMap: newMap };
+    }),
 
-    // 게시글 삭제
-    removePost: (postId) =>
-    set((state) => ({
-        posts: state.posts.filter((post) => post.id !== postId),
-    })),
+  appendPosts: (newPosts: Post[]) =>
+        set((state) => {
+            const newMap = new Map(state.postsMap);
+            newPosts.forEach((post) => newMap.set(post.id, post)); // 뒤에 추가
+            return { postsMap: newMap };
+    }),
 
-    // 게시글 업데이트
-    updatePost: (updatedPost) =>
-    set((state) => ({
-        posts: state.posts.map((post) =>
-        post.id === updatedPost.id ? updatedPost : post
-        ),
-    })),
+  removePost: (postId: number) =>
+        set((state) => {
+            const newMap = new Map(state.postsMap);
+            newMap.delete(postId);
+            return { postsMap: newMap };
+    }),
+
+  replacePost: (replacePost: Post) =>
+        set((state) => {
+            const newMap = new Map(state.postsMap);
+            console.log(replacePost.id)
+            newMap.set(replacePost.id, replacePost);
+            return { postsMap: newMap };
+    }),
 }));

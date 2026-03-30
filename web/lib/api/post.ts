@@ -33,11 +33,22 @@ export const getPost = async(postId: number) => {
 }
 
 /* 게시글 수정 */
-export const updatePost = async ({ postId, formData }: { postId: number | undefined; formData: FormData;}) => {
-    await fetchClient(`community/posts/${postId}`, {
+export const putPost = async ({ postId, formData }: { postId: number | undefined; formData: FormData;}) => {
+    const result = await fetchClient(`community/posts/${postId}`, {
         method: "PUT",
         body: formData,
     });
+
+    return result;
+}
+
+/* 게시글 좋아요 */
+export const updateLike = async ( postId: number ) => {
+    const result = await fetchClient(`community/posts/${postId}/likes`, {
+        method: "PUT"
+    });
+
+    return result;
 }
 
 

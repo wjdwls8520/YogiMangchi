@@ -10,7 +10,7 @@ import { usePostStore } from "@/stores/usePostStore";
 
 export default function CommunityList() {
 
-    const { posts, appendPosts } = usePostStore();
+    const { getPostsArray, appendPosts } = usePostStore();
 
     const params = useParams();
     const category = params.category;
@@ -61,7 +61,7 @@ export default function CommunityList() {
     return(
         <article className="contents">
             <ul className="flex flex-col gap-5">
-                {posts.map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
+                {getPostsArray().map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
                         <li><CommunityItem post={post} variant="list" /></li>
                     </Link>
                 )}
