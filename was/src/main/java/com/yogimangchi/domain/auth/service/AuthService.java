@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.auth.service;
 
+import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.global.auth.jwt.dto.AuthTokens;
 import com.yogimangchi.global.auth.jwt.service.JwtService;
@@ -16,10 +17,10 @@ public class AuthService {
     private final MemberRepository memberRepository;
 
     public AuthTokens issueTokens(Long memberId) {
-        memberRepository.findActiveById(memberId)
+        Member member = memberRepository.findActiveById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 탈퇴한 회원입니다."));
 
-        String accessToken = jwtService.createAccessToken(memberId);
+        String accessToken = jwtService.createAccessToken(member.getId(), member.getRole());
         String refreshToken = jwtService.createRefreshToken(memberId);
 
         refreshTokenService.saveRefreshToken(memberId, refreshToken);
