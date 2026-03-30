@@ -14,7 +14,8 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 6MB
+      # multipart 경계/헤더 오버헤드를 고려해 요청 한도는 실제 파일 총합(50MB)보다 조금 크게 둡니다.
+      max-request-size: 55MB
 
   jpa:
     hibernate:

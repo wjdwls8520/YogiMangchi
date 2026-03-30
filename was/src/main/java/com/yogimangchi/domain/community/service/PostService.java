@@ -56,6 +56,7 @@ public class PostService {
     private static final int MAX_CONTENT_LENGTH = 1000;
     private static final int MAX_POST_IMAGE_COUNT = 10;
     private static final long POST_IMAGE_MAX_FILE_SIZE = 5L * 1024L * 1024L;
+    private static final long POST_IMAGE_MAX_TOTAL_SIZE = 50L * 1024L * 1024L;
     private static final String POST_IMAGE_DIRECTORY = "community/post";
 
     /**
@@ -222,9 +223,8 @@ public class PostService {
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
 
-        if (images.size() > MAX_POST_IMAGE_COUNT) {
-            throw new IllegalArgumentException("첨부 파일은 최대 10개까지 가능합니다.");
-        }
+        validatePostImageCount(images.size());
+        validatePostImageTotalSize(sumMultipartFileSizes(images));
 
         // ── 5. S3 업로드 (트랜잭션 실패 시 자동 롤백 등록) ──
         List<S3UploadResult> uploadedImages = new ArrayList<>();
@@ -351,11 +351,10 @@ public class PostService {
 
         // ── 6. 총 파일 수 검증 (기존 잔여 + 신규) ──
         int totalFileCount = existingFiles.size() + newImages.size();
-        if (totalFileCount > MAX_POST_IMAGE_COUNT) {
-            throw new IllegalArgumentException(
-                    "첨부 파일은 최대 " + MAX_POST_IMAGE_COUNT + "개까지 가능합니다. " +
-                    "(현재 " + existingFiles.size() + "개 + 신규 " + newImages.size() + "개)");
-        }
+        validatePostImageCount(totalFileCount, existingFiles.size(), newImages.size());
+
+        long totalFileSize = sumPersistedFileSizes(existingFiles) + sumMultipartFileSizes(newImages);
+        validatePostImageTotalSize(totalFileSize);
 
         // ── 7. 새 이미지 S3 업로드 (트랜잭션 실패 시 자동 롤백 등록) ──
         List<S3UploadResult> uploadedImages = new ArrayList<>();
@@ -434,6 +433,38 @@ public class PostService {
         for (MultipartFile image : images) {
             uploaded.add(s3Service.uploadImage(image, POST_IMAGE_DIRECTORY, POST_IMAGE_MAX_FILE_SIZE));
         }
+    }
+
+    private void validatePostImageCount(int totalFileCount) {
+        if (totalFileCount > MAX_POST_IMAGE_COUNT) {
+            throw new IllegalArgumentException("첨부 파일은 최대 10개까지 가능합니다.");
+        }
+    }
+
+    private void validatePostImageCount(int totalFileCount, int existingFileCount, int newFileCount) {
+        if (totalFileCount > MAX_POST_IMAGE_COUNT) {
+            throw new IllegalArgumentException(
+                    "첨부 파일은 최대 " + MAX_POST_IMAGE_COUNT + "개까지 가능합니다. " +
+                            "(현재 " + existingFileCount + "개 + 신규 " + newFileCount + "개)");
+        }
+    }
+
+    private void validatePostImageTotalSize(long totalFileSizeBytes) {
+        if (totalFileSizeBytes > POST_IMAGE_MAX_TOTAL_SIZE) {
+            throw new IllegalArgumentException("첨부 파일 총 용량은 최대 50MB까지 가능합니다.");
+        }
+    }
+
+    private long sumMultipartFileSizes(List<MultipartFile> files) {
+        return files.stream()
+                .mapToLong(MultipartFile::getSize)
+                .sum();
+    }
+
+    private long sumPersistedFileSizes(List<File> files) {
+        return files.stream()
+                .mapToLong(File::getSize)
+                .sum();
     }
 
     private void registerUploadedFileRollback(List<S3UploadResult> uploadedImages) {

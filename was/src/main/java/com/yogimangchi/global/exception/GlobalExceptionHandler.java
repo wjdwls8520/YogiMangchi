@@ -5,7 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.validation.BindException;
-
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -36,6 +37,17 @@ public class GlobalExceptionHandler {
         log.warn("잘못된 요청 예외 발생", e);
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "BAD_REQUEST", e.getMessage()));
+    }
+
+    @ExceptionHandler({MaxUploadSizeExceededException.class, MultipartException.class})
+    public ResponseEntity<ErrorResponse> handleMultipartException(Exception e) {
+        log.warn("멀티파트 업로드 용량 예외 발생", e);
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "BAD_REQUEST",
+                        "업로드 가능한 용량을 초과했습니다. 파일당 최대 5MB, 첨부는 최대 10개, 총 50MB까지 가능합니다."
+                ));
     }
 
     @ExceptionHandler(IllegalStateException.class)
