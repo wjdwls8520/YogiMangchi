@@ -1,10 +1,11 @@
 package com.yogimangchi.domain.trade.repository;
 
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
-import com.yogimangchi.domain.trade.entity.TradeHistory;
+import com.yogimangchi.domain.trade.dto.query.TradeHistoryQueryDto;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import java.util.List;
 
 // Q클래스 static import
 import static com.yogimangchi.domain.asset.entity.QAssets.assets;
+import static com.yogimangchi.domain.market.entity.QMarketSymbol.marketSymbol;
 import static com.yogimangchi.domain.trade.entity.QOrder.order;
 import static com.yogimangchi.domain.trade.entity.QTradeHistory.tradeHistory;
 
@@ -26,11 +28,30 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<TradeHistory> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond, Long assetId) {
+    public List<TradeHistoryQueryDto> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond, Long assetId) {
         return queryFactory
-                .selectFrom(tradeHistory)
+                .select(Projections.constructor(
+                        TradeHistoryQueryDto.class,
+                        tradeHistory.id,
+                        order.id,
+                        assets.type,
+                        tradeHistory.symbol,
+                        marketSymbol.displayNameKr.coalesce(tradeHistory.symbol),
+                        tradeHistory.side,
+                        tradeHistory.orderType,
+                        order.status,
+                        tradeHistory.price,
+                        tradeHistory.quantity,
+                        tradeHistory.totalAmount,
+                        tradeHistory.fee,
+                        tradeHistory.realizedProfit,
+                        order.createdAt,
+                        tradeHistory.executedAt
+                ))
+                .from(tradeHistory)
                 .join(tradeHistory.assets, assets) // 멤버 ID 검사와 지갑 타입 필터를 위해 지갑(Assets) 테이블 조인
                 .join(tradeHistory.order, order)   // 주문 상태 필터를 위해 주문(Order) 테이블 조인
+                .leftJoin(marketSymbol).on(tradeHistory.symbol.eq(marketSymbol.symbol))
                 .where(
                         assetIdEq(assetId),                  // MOCK 조회 시 현재 ACTIVE 지갑만 조회
                         assets.member.id.eq(memberId),       //  내 지갑의 거래내역만 (필수)

@@ -24,7 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/trade")
 @RequiredArgsConstructor
-@Tag(name = "Trade", description = "모의투자 매매(주문) API")
+@Tag(name = "99-03-Trade", description = "모의투자 매매(주문) API")
 public class TradeController {
 
     private final OrderService orderService;

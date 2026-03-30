@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.trade.dto.response;
 
 import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.trade.dto.query.OrderQueryDto;
 import com.yogimangchi.domain.trade.entity.Order;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -86,6 +87,29 @@ public record OrderResponseDto(
                 order.getCreatedAt(),
                 order.getExecutedAt(),
                 order.getCanceledAt()
+        );
+    }
+
+    public static OrderResponseDto from(OrderQueryDto queryDto) {
+        return new OrderResponseDto(
+                queryDto.orderId(),
+                queryDto.assetType(),
+                queryDto.symbol(),
+                queryDto.displayNameKr(),
+                queryDto.orderType(),
+                queryDto.side(),
+                queryDto.orderStatus(),
+                queryDto.orderPrice(),
+                queryDto.orderQuantity(),
+                queryDto.orderAmount(),
+                queryDto.filledQuantity(),
+                queryDto.remainingQuantity(),
+                queryDto.avgFilledPrice(),
+                queryDto.executedAmount(),
+                queryDto.totalFee(),
+                queryDto.orderedAt(),
+                queryDto.executedAt(),
+                queryDto.canceledAt()
         );
     }
 }
