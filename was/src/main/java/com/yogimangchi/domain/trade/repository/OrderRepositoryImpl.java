@@ -1,11 +1,12 @@
 package com.yogimangchi.domain.trade.repository;
 
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.trade.dto.request.OpenOrderSearchConditionDto;
 import com.yogimangchi.domain.trade.dto.request.OrderSearchConditionDto;
-import com.yogimangchi.domain.trade.entity.Order;
+import com.yogimangchi.domain.trade.dto.query.OrderQueryDto;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import static com.yogimangchi.domain.asset.entity.QAssets.assets;
+import static com.yogimangchi.domain.market.entity.QMarketSymbol.marketSymbol;
 import static com.yogimangchi.domain.trade.entity.QOrder.order;
 
 @Repository
@@ -25,10 +27,32 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<Order> searchOrders(Long memberId, OrderSearchConditionDto condition, Long assetId) {
+    public List<OrderQueryDto> searchOrders(Long memberId, OrderSearchConditionDto condition, Long assetId) {
         return queryFactory
-                .selectFrom(order)
+                .select(Projections.constructor(
+                        OrderQueryDto.class,
+                        order.id,
+                        assets.type,
+                        order.symbol,
+                        marketSymbol.displayNameKr.coalesce(order.symbol),
+                        order.orderType,
+                        order.side,
+                        order.status,
+                        order.orderPrice,
+                        order.orderQuantity,
+                        order.orderAmount,
+                        order.filledQuantity,
+                        order.remainingQuantity,
+                        order.avgFilledPrice,
+                        order.executedAmount,
+                        order.totalFee,
+                        order.createdAt,
+                        order.executedAt,
+                        order.canceledAt
+                ))
+                .from(order)
                 .join(order.assets, assets)
+                .leftJoin(marketSymbol).on(order.symbol.eq(marketSymbol.symbol))
                 .where(
                         assetIdEq(assetId),
                         assets.member.id.eq(memberId),
@@ -45,10 +69,32 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     }
 
     @Override
-    public List<Order> searchOpenOrders(Long memberId, OpenOrderSearchConditionDto condition, Long assetId) {
+    public List<OrderQueryDto> searchOpenOrders(Long memberId, OpenOrderSearchConditionDto condition, Long assetId) {
         return queryFactory
-                .selectFrom(order)
+                .select(Projections.constructor(
+                        OrderQueryDto.class,
+                        order.id,
+                        assets.type,
+                        order.symbol,
+                        marketSymbol.displayNameKr.coalesce(order.symbol),
+                        order.orderType,
+                        order.side,
+                        order.status,
+                        order.orderPrice,
+                        order.orderQuantity,
+                        order.orderAmount,
+                        order.filledQuantity,
+                        order.remainingQuantity,
+                        order.avgFilledPrice,
+                        order.executedAmount,
+                        order.totalFee,
+                        order.createdAt,
+                        order.executedAt,
+                        order.canceledAt
+                ))
+                .from(order)
                 .join(order.assets, assets)
+                .leftJoin(marketSymbol).on(order.symbol.eq(marketSymbol.symbol))
                 .where(
                         assetIdEq(assetId),
                         assets.member.id.eq(memberId),

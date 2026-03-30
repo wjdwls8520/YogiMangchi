@@ -10,6 +10,7 @@ import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
+import com.yogimangchi.domain.trade.dto.query.TradeHistoryQueryDto;
 import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
 import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
@@ -223,7 +224,7 @@ public class TradeHistoryService {
         }
 
         // 1. QueryDSL 레포지토리 호출 (요청 사이즈 + 1 개를 가져옴)
-        List<TradeHistory> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond, assetId);
+        List<TradeHistoryQueryDto> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond, assetId);
 
         // 2. hasNext(다음 페이지 존재 여부) 파악
         int limitSize = cond.getOrDefaultSize();
@@ -237,24 +238,15 @@ public class TradeHistoryService {
         // 4. 다음 페이지 조회를 위한 '커서 ID(마지막 영수증 번호)' 구하기
         Long nextCursorId = null;
         if (!histories.isEmpty()) {
-            nextCursorId = histories.get(histories.size() - 1).getId();
+            nextCursorId = histories.get(histories.size() - 1).tradeId();
         }
 
-        // 5. Entity -> DTO 변환 (이전에 만들어둔 DTO의 from 메서드 사용)
+        // 5. Query DTO -> 응답 DTO 변환
         List<TradeHistoryResponseDto> content = histories.stream()
-                .map(history -> TradeHistoryResponseDto.from(history, resolveDisplayNameKr(history.getSymbol())))
+                .map(TradeHistoryResponseDto::from)
                 .toList();
 
         // 6. 예쁘게 포장해서 반환
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
-
-    // 영수증에서도 심볼 대신 한글 코인명을 함께 보여줄 수 있도록 내려준다
-    private String resolveDisplayNameKr(String symbol) {
-        return marketSymbolRepository.findById(symbol)
-                .map(MarketSymbol::getDisplayNameKr)
-                .orElse(symbol);
-    }
-
-
 }

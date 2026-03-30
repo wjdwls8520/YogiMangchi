@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/market")
 @RequiredArgsConstructor
-@Tag(name = "Market", description = "거래소 마켓(코인 메뉴판) API")
+@Tag(name = "99-01-Market", description = "거래소 마켓(코인 메뉴판) API")
 public class MarketController {
 
     private final MarketService marketService;
