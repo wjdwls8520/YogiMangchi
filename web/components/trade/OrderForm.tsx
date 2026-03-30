@@ -13,7 +13,6 @@ type OrderType = "limit" | "market" | "auto";
 type OrderTab = "buy" | "sell";
 
 type OrderFormProps = {
-  // mock mock, 일반 trading에서는 trade
   mode?: "mock" | "trade";
 };
 
@@ -27,6 +26,40 @@ type OrderFormBodyProps = {
   currentPrice: number;
 };
 
+const MARKET_FEE_RATE = 0.0005;
+const LIMIT_FEE_RATE = 0.0003;
+const MIN_ORDER_AMOUNT = 10;
+
+const formatNumber = (value: number, maximumFractionDigits = 2) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat("ko-KR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(value);
+};
+
+const toInputValue = (value: number, maximumFractionDigits = 8) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  return value.toFixed(maximumFractionDigits).replace(/\.?0+$/, "");
+};
+
+const sanitizeDecimalInput = (value: string) => {
+  const normalized = value.replace(/,/g, "").replace(/[^\d.]/g, "");
+  const [integerPart, ...decimalParts] = normalized.split(".");
+
+  if (decimalParts.length === 0) {
+    return integerPart;
+  }
+
+  return `${integerPart}.${decimalParts.join("")}`;
+};
+
 function OrderFormBody({
   mode,
   orderTab,
@@ -37,7 +70,6 @@ function OrderFormBody({
   currentPrice,
 }: OrderFormBodyProps) {
   const router = useRouter();
-
   const { isLogin, user } = useAuthStore();
   const {
     isParticipated,
@@ -47,59 +79,125 @@ function OrderFormBody({
     usdtBalance,
   } = useMockWalletStore();
 
-  // key 리마운트 방식으로 selectedCoin / orderType 변경 시 자동 초기화되게 함
-  const [orderPrice, setOrderPrice] = useState<number | string>(
-    orderType === "limit" ? currentPrice : ""
+  const [orderPrice, setOrderPrice] = useState(
+    orderType === "limit" ? toInputValue(currentPrice, 2) : ""
   );
-  const [orderQty, setOrderQty] = useState<string>("");
+  const [orderQty, setOrderQty] = useState("");
+  const [orderAmount, setOrderAmount] = useState("");
+  const [limitOrderAmount, setLimitOrderAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const availableHolding =
     holdings.find((item) => item.symbol === selectedCoin)?.quantity ?? 0;
 
-  const numericQty = Number(orderQty);
+  const isMarketOrder = orderType === "market";
+  const isMarketBuy = isMarketOrder && orderTab === "buy";
+  const isMarketSell = isMarketOrder && orderTab === "sell";
   const numericPrice = Number(orderPrice);
-
-  // 시장가일 때는 입력 가격이 아니라 현재가 기준으로 금액 계산
-  const effectivePrice =
-    orderType === "market" ? currentPrice : numericPrice;
-
-  const estimatedTotal =
-    Number.isFinite(effectivePrice) && Number.isFinite(numericQty)
-      ? effectivePrice * numericQty
+  const numericQty = Number(orderQty);
+  const numericAmount = Number(orderAmount);
+  const expectedBuyQuantity =
+    currentPrice > 0 && Number.isFinite(numericAmount) && numericAmount > 0
+      ? numericAmount / currentPrice
+      : 0;
+  const expectedSellAmount =
+    currentPrice > 0 && Number.isFinite(numericQty) && numericQty > 0
+      ? numericQty * currentPrice
       : 0;
 
-  const isQtyInvalid = !Number.isFinite(numericQty) || numericQty <= 0;
-  const isPriceInvalid =
-    orderType !== "market" &&
-    (!Number.isFinite(numericPrice) || numericPrice <= 0);
-
-  const isDisabled =
-    isSubmitting ||
-    isLoadingPortfolio ||
-    mode !== "mock" ||
-    orderType !== "market" ||
-    isQtyInvalid ||
-    isPriceInvalid;
+  const availableDisplayValue = orderTab === "buy" ? usdtBalance : availableHolding;
+  const availableUnit = orderTab === "buy" ? "YD" : baseName;
+  const numericLimitAmount = Number(limitOrderAmount);
+  const isDisabled = isSubmitting || isLoadingPortfolio;
 
   const buttonText =
     mode !== "mock"
       ? "실전 주문 준비 중"
-      : orderType !== "market"
-        ? "시장가만 지원"
-        : isSubmitting
-          ? "주문 처리 중..."
-          : orderTab === "buy"
-            ? "매수"
-            : "매도";
+      : isSubmitting
+        ? "주문 처리 중..."
+        : orderTab === "buy"
+          ? "매수"
+          : "매도";
+
+  const feeDescription = isMarketOrder
+    ? `시장가 거래 수수료 ${(MARKET_FEE_RATE * 100).toFixed(2)}%`
+    : `지정가 거래 수수료 ${(LIMIT_FEE_RATE * 100).toFixed(2)}%`;
+
+  const handleSelectRatio = (ratio: number) => {
+    if (isMarketBuy) {
+      setOrderAmount(toInputValue(usdtBalance * ratio, 2));
+      return;
+    }
+
+    if (isMarketSell) {
+      setOrderQty(toInputValue(availableHolding * ratio));
+      return;
+    }
+
+    const maxQty =
+      orderTab === "buy"
+        ? numericPrice > 0
+          ? usdtBalance / numericPrice
+          : 0
+        : availableHolding;
+
+    const nextQty = maxQty * ratio;
+    setOrderQty(toInputValue(nextQty));
+    setLimitOrderAmount(
+      numericPrice > 0 ? toInputValue(numericPrice * nextQty, 2) : ""
+    );
+  };
 
   const handleSubmit = async () => {
+    if (isMarketBuy) {
+      if (!orderAmount.trim()) {
+        alert("주문금액을 입력하세요.");
+        return;
+      }
+    } else if (isMarketSell) {
+      if (!orderQty.trim()) {
+        alert("주문수량을 입력하세요.");
+        return;
+      }
+    } else {
+      if (!orderPrice.trim()) {
+        alert("주문가격을 입력하세요.");
+        return;
+      }
+
+      if (!orderQty.trim()) {
+        alert("주문수량을 입력하세요.");
+        return;
+      }
+
+      if (!limitOrderAmount.trim()) {
+        alert("주문금액을 입력하세요.");
+        return;
+      }
+    }
+
     if (mode !== "mock") {
       alert("실전 주문 API는 아직 연결 전입니다.");
       return;
     }
 
     if (orderType !== "market") {
-      alert("지금은 시장가 주문만 가능합니다.");
+      if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        alert("주문가격을 올바르게 입력해 주세요.");
+        return;
+      }
+
+      if (!Number.isFinite(numericQty) || numericQty <= 0) {
+        alert("주문수량을 올바르게 입력해 주세요.");
+        return;
+      }
+
+      if (!Number.isFinite(numericLimitAmount) || numericLimitAmount <= 0) {
+        alert("주문금액을 올바르게 입력해 주세요.");
+        return;
+      }
+
+      alert("지정가 주문은 아직 지원하지 않습니다.");
       return;
     }
 
@@ -114,31 +212,41 @@ function OrderFormBody({
       return;
     }
 
-    if (isQtyInvalid) {
-      alert("주문 수량을 올바르게 입력해 주세요.");
+    if (currentPrice <= 0) {
+      alert("현재가를 확인할 수 없어 주문할 수 없습니다.");
       return;
     }
 
-    if (orderTab === "buy") {
-      if (estimatedTotal < 10) {
-        alert("최소 주문 금액은 10 USDT 이상입니다.");
+    if (isMarketBuy) {
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        alert("주문 금액을 올바르게 입력해 주세요.");
         return;
       }
 
-      if (estimatedTotal > usdtBalance) {
+      if (numericAmount < MIN_ORDER_AMOUNT) {
+        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        return;
+      }
+
+      if (numericAmount > usdtBalance) {
         alert("주문 가능 금액이 부족합니다.");
         return;
       }
     }
 
-    if (orderTab === "sell") {
-      if (numericQty > availableHolding) {
-        alert("보유 수량이 부족합니다.");
+    if (isMarketSell) {
+      if (!Number.isFinite(numericQty) || numericQty <= 0) {
+        alert("주문수량을 올바르게 입력해 주세요.");
         return;
       }
 
-      if (estimatedTotal < 10) {
-        alert("매도 총액이 10 USDT 이상이어야 합니다.");
+      if (expectedSellAmount < MIN_ORDER_AMOUNT) {
+        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        return;
+      }
+
+      if (numericQty > availableHolding) {
+        alert("보유 수량이 부족합니다.");
         return;
       }
     }
@@ -154,7 +262,7 @@ function OrderFormBody({
               memberId: user.memberId,
               symbol: selectedCoin,
               side,
-              totalAmount: estimatedTotal,
+              totalAmount: numericAmount,
             })
           : await executeMarketOrder({
               memberId: user.memberId,
@@ -170,7 +278,9 @@ function OrderFormBody({
             : "시장가 매도가 완료되었습니다."
         );
 
+        setOrderAmount("");
         setOrderQty("");
+        setLimitOrderAmount("");
         return;
       }
 
@@ -214,23 +324,27 @@ function OrderFormBody({
       </div>
 
       <div className="flex justify-between items-center text-[11px] font-black pt-2">
-        <span className="text-gray-500 uppercase">주문가능</span>
+        <span className="text-gray-500 uppercase">주문 가능</span>
         <span className="text-gray-900 font-black">
-          0 <span className="text-gray-400 font-medium ml-1">USDT</span>
+          {formatNumber(availableDisplayValue, orderTab === "buy" ? 2 : 8)}
+          <span className="text-gray-400 font-medium ml-1">{availableUnit}</span>
         </span>
       </div>
 
       <div className="space-y-3">
-        {orderType !== "market" && (
+        {!isMarketOrder && (
           <div className="flex items-center gap-2">
             <label className="w-20 text-[11px] font-black text-gray-500">
               주문가격
             </label>
             <div className="flex-1 flex gap-1">
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={orderPrice}
-                onChange={(e) => setOrderPrice(e.target.value)}
+                onChange={(e) =>
+                  setOrderPrice(sanitizeDecimalInput(e.target.value))
+                }
                 className="text-right font-black h-10 bg-white border-gray-200 rounded-none flex-1"
               />
               <div className="flex flex-col gap-0.5 shrink-0">
@@ -253,24 +367,52 @@ function OrderFormBody({
 
         <div className="flex items-center gap-2">
           <label className="w-20 text-[11px] font-black text-gray-500">
-            주문수량({baseName})
+            {isMarketBuy ? "주문금액" : `주문수량(${baseName})`}
           </label>
           <div className="flex-1 space-y-1">
-            <Input
-              type="number"
-              placeholder="0"
-              value={orderQty}
-              onChange={(e) => setOrderQty(e.target.value)}
-              className="text-right font-black h-10 bg-white border-gray-200 rounded-none w-full"
-            />
+            {isMarketBuy ? (
+              <div className="relative">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={orderAmount}
+                  onChange={(e) =>
+                    setOrderAmount(sanitizeDecimalInput(e.target.value))
+                  }
+                  className="text-right font-black h-10 bg-white border-gray-200 rounded-none w-full pr-10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
+                  YD
+                </span>
+              </div>
+            ) : (
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={orderQty}
+                onChange={(e) =>
+                  setOrderQty(sanitizeDecimalInput(e.target.value))
+                }
+                className="text-right font-black h-10 bg-white border-gray-200 rounded-none w-full"
+              />
+            )}
             <div className="grid grid-cols-5 gap-1">
-              {[10, 25, 50, 100, "최대"].map((p) => (
+                {[
+                  { label: "10%", ratio: 0.1 },
+                  { label: "25%", ratio: 0.25 },
+                  { label: "50%", ratio: 0.5 },
+                  { label: "100%", ratio: 1 },
+                  { label: "최대", ratio: 1 },
+                ].map((option) => (
                 <button
-                  key={p.toString()}
+                  key={option.label}
                   type="button"
+                  onClick={() => handleSelectRatio(option.ratio)}
                   className="py-1.5 bg-white border border-gray-200 text-[10px] font-bold text-gray-500 hover:bg-gray-100 transition-all"
                 >
-                  {typeof p === "number" ? `${p}%` : p}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -278,16 +420,52 @@ function OrderFormBody({
         </div>
       </div>
 
-      <div className="pt-6 border-t border-gray-200 mt-auto">
-        <div className="flex justify-between items-center mb-5 gap-11">
-          <span className="text-xs font-bold text-gray-500">주문금액</span>
-          <Input
-            type="text"
-            readOnly
-            value={estimatedTotal.toLocaleString()}
-            className="flex-1 bg-gray-50 border-gray-200 rounded-none h-10 text-right font-bold"
-          />
-        </div>
+      <div className="pt-6 border-t border-gray-200 mt-auto space-y-3">
+        {isMarketOrder ? (
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-gray-500">
+              {orderTab === "buy" ? "예상매수" : "예상매도"}
+            </span>
+            <span className="font-black text-gray-900">
+              {isMarketBuy ? (
+                <>
+                  {formatNumber(expectedBuyQuantity, 8)}
+                  <span className="text-gray-400 font-medium ml-1">
+                    {baseName}
+                  </span>
+                </>
+              ) : (
+                <>
+                  {formatNumber(expectedSellAmount)}
+                  <span className="text-gray-400 font-medium ml-1">YD</span>
+                </>
+              )}
+            </span>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center gap-11">
+            <span className="text-xs font-bold text-gray-500">주문금액</span>
+            <div className="relative flex-1">
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={limitOrderAmount}
+                onChange={(e) =>
+                  setLimitOrderAmount(sanitizeDecimalInput(e.target.value))
+                }
+                className="w-full bg-white border-gray-200 rounded-none h-10 text-right font-bold pr-10"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
+                YD
+              </span>
+            </div>
+          </div>
+        )}
+
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          {feeDescription}
+        </p>
 
         <Button
           onClick={handleSubmit}
@@ -322,10 +500,7 @@ export default function OrderForm({ mode = "trade" }: OrderFormProps) {
   }
 
   const baseName = meta.baseAsset;
-
-  // selectedCoin 또는 orderType이 바뀌면 내부 form state를 통째로 초기화
   const formResetKey = `${selectedCoin}-${orderType}-${orderTab}`;
-
 
   return (
     <div className="h-[520px] lg:col-span-5 bg-white border border-gray-200 p-6 flex flex-col lg:h-full">

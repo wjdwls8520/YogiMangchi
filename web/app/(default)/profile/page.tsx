@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   PieChart,
@@ -13,11 +12,23 @@ import {
 } from "recharts";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
-import { useAuthStore } from "@/stores/useAuthStore";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
 type MockSubTab = "holdings" | "open" | "orders" | "trades";
+
+type MemberProfile = {
+  memberId: number;
+  provider: string;
+  nickname: string;
+  profileImgUrl: string | null;
+  profileMsg: string | null;
+  bestCount: number;
+  followerCount: number;
+  followingCount: number;
+  term_agree: boolean;
+  private_agree: boolean;
+};
 
 type MockHolding = {
   symbol: string;
@@ -228,9 +239,10 @@ const isNoMockWalletMessage = (message: string) => {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isLogin, user, login, logout } = useAuthStore();
 
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
   const [mockSubTab, setMockSubTab] = useState<MockSubTab>("holdings");
@@ -249,9 +261,11 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (!isMounted || !isLogin) return;
+    if (!isMounted) return;
 
-    const refreshMemberInfo = async () => {
+    let isActive = true;
+
+    const loadMemberProfile = async () => {
       try {
         const response = await fetch("http://localhost:8080/api/v1/member/me/info", {
           method: "GET",
@@ -259,27 +273,36 @@ export default function ProfilePage() {
         });
 
         if (response.status === 401 || response.status === 403) {
-          logout();
           router.replace("/login");
           return;
         }
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          throw new Error("failed to load member profile");
+        }
 
         const data = await getJson(response);
-        if (data) {
-          login(data as Parameters<typeof login>[0]);
+        if (isActive && data) {
+          setMemberProfile(data as MemberProfile);
         }
       } catch (error) {
         console.error("회원정보 조회 실패:", error);
+      } finally {
+        if (isActive) {
+          setIsLoadingProfile(false);
+        }
       }
     };
 
-    void refreshMemberInfo();
-  }, [isMounted, isLogin, login, logout, router]);
+    void loadMemberProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isMounted, router]);
 
   useEffect(() => {
-    if (!isMounted || !isLogin || !user || portfolioTab !== "mock") return;
+    if (!isMounted || !memberProfile || portfolioTab !== "mock") return;
 
     const loadMockData = async () => {
       setIsLoadingMock(true);
@@ -295,7 +318,7 @@ export default function ProfilePage() {
         );
 
         if (portfolioResponse.status === 401 || portfolioResponse.status === 403) {
-          logout();
+          setMemberProfile(null);
           router.replace("/login");
           return;
         }
@@ -339,7 +362,7 @@ export default function ProfilePage() {
         );
 
         if (openOrdersResponse.status === 401 || openOrdersResponse.status === 403) {
-          logout();
+          setMemberProfile(null);
           router.replace("/login");
           return;
         }
@@ -365,7 +388,7 @@ export default function ProfilePage() {
         );
 
         if (ordersResponse.status === 401 || ordersResponse.status === 403) {
-          logout();
+          setMemberProfile(null);
           router.replace("/login");
           return;
         }
@@ -392,7 +415,7 @@ export default function ProfilePage() {
 
 
         if (historiesResponse.status === 401 || historiesResponse.status === 403) {
-          logout();
+          setMemberProfile(null);
           router.replace("/login");
           return;
         }
@@ -412,7 +435,7 @@ export default function ProfilePage() {
     };
 
     void loadMockData();
-  }, [isMounted, isLogin, user, portfolioTab, logout, router]);
+  }, [isMounted, memberProfile, portfolioTab, router]);
 
   const handleMoveEdit = () => {
     router.push("/profile/edit");
@@ -434,7 +457,7 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("로그아웃 요청 실패:", error);
     } finally {
-      logout();
+      setMemberProfile(null);
       alert("로그아웃되었습니다.");
       router.replace("/");
     }
@@ -472,9 +495,15 @@ export default function ProfilePage() {
 
   if (!isMounted) return null;
 
-  if (!isLogin || !user) {
+  if (isLoadingProfile) {
+    return <div className="p-20 text-center">Loading...</div>;
+  }
+
+  if (!memberProfile) {
     return <div className="p-20 text-center">로그인이 필요합니다.</div>;
   }
+
+  const user = memberProfile;
 
   const summary =
     portfolioTab === "mock" && mockPortfolio
@@ -509,23 +538,15 @@ export default function ProfilePage() {
           <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
             <div className="flex flex-col items-center">
               <div className="relative h-24 w-24 mb-4 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 overflow-hidden text-gray-400">
-                {user.profileImgUrl ? (
-                  <Image
-                    src={user.profileImgUrl}
-                    alt="profile"
-                    fill
-                    sizes="96px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl font-black">
-                    {user.nickname?.slice(0, 1) || "U"}
-                  </span>
-                )}
+                <img
+                  src={memberProfile.profileImgUrl || "/default-profile.png"}
+                  alt="profile"
+                  className="h-full w-full object-cover"
+                />
               </div>
 
               <h2 className="text-2xl font-black text-gray-900">
-                {user.nickname}
+                {memberProfile.nickname}
               </h2>
 
               <p className="text-sm text-gray-400 mt-1 font-medium text-center">
