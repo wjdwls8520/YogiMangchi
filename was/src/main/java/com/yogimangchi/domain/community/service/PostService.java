@@ -18,7 +18,7 @@ import com.yogimangchi.global.file.dto.response.FileDto;
 import com.yogimangchi.global.file.repository.FileRepository;
 import com.yogimangchi.global.s3.service.S3Service;
 import com.yogimangchi.global.s3.service.S3UploadResult;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -63,7 +63,7 @@ public class PostService {
      * 게시글 목록 조회 (커서 기반 무한 스크롤 + 키워드 검색)
      */
     @Transactional(readOnly = true)
-    public CursorResponse<PostDetailDto> getPosts(Long loginMemberId, PostSearchDto request) {
+    public CursorResponseDto<PostDetailDto> getPosts(Long loginMemberId, PostSearchDto request) {
 
         String q = (request.keyword() == null) ? null : request.keyword().trim();
         int limitSize = request.getOrDefaultSize();
@@ -73,7 +73,7 @@ public class PostService {
                 ? postRepository.findAllPostsByCursor(request.cursorId(), pageable)
                 : postRepository.findPostsByKeywordByCursor(request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (posts.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = posts.size() > limitSize;
         if (hasNext) {
@@ -108,14 +108,14 @@ public class PostService {
         )).toList();
 
         Long nextCursorId = posts.get(posts.size() - 1).id();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     /**
      * 특정 작성자의 게시글 전부 조회 (커서 기반 무한 스크롤)
     */
     @Transactional(readOnly = true)
-    public CursorResponse<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, PostSearchDto request) {
+    public CursorResponseDto<PostDetailDto> getPostsByAuthor(Long loginMemberId, Long authorMemberId, PostSearchDto request) {
         String q = (request.keyword() == null) ? null : request.keyword().trim();
 
         Member authorMember = memberReader.getFindMember(authorMemberId);
@@ -126,7 +126,7 @@ public class PostService {
                 ? postRepository.findAllPostsByAuthorByCursor(authorMemberId, request.cursorId(), pageable)
                 : postRepository.findPostsByAuthorAndKeywordByCursor(authorMemberId, request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (posts.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = posts.size() > limitSize;
         if (hasNext) {
@@ -161,7 +161,7 @@ public class PostService {
         )).toList();
 
         Long nextCursorId = posts.get(posts.size() - 1).id();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     /**

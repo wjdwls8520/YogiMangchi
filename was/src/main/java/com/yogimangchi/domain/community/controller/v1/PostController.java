@@ -5,7 +5,7 @@ import com.yogimangchi.domain.community.dto.request.PostSearchDto;
 import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.service.PostService;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,11 +34,11 @@ public class PostController {
             description = "모든 게시글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요. 검색어를 바꾸면 cursorId 는 다시 비워주세요. (로그인이 되어있다면 좋아요한 글의 유무도 같이 보냄)"
     )
     @GetMapping("/posts")
-    public ResponseEntity<CursorResponse<PostDetailDto>> getPosts(
+    public ResponseEntity<CursorResponseDto<PostDetailDto>> getPosts(
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @ParameterObject @ModelAttribute PostSearchDto request
     ) {
-        CursorResponse<PostDetailDto> postsList = postService.getPosts(loginMemberId, request);
+        CursorResponseDto<PostDetailDto> postsList = postService.getPosts(loginMemberId, request);
 
         return ResponseEntity.ok(postsList);
     }
@@ -48,12 +48,12 @@ public class PostController {
             description = "특정 유저의 모든 게시글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요. (특정 유저의 memberId를 같이 보내면 해당 유저가 작성한 글을 모두 조회합니다)"
     )
     @GetMapping("/member/{memberId}/posts")
-    public ResponseEntity<CursorResponse<PostDetailDto>> getPostsByAuthor(
+    public ResponseEntity<CursorResponseDto<PostDetailDto>> getPostsByAuthor(
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable("memberId") Long authorMemberId,
             @Valid @ParameterObject @ModelAttribute PostSearchDto request
     ) {
-        CursorResponse<PostDetailDto> postsList = postService.getPostsByAuthor(loginMemberId, authorMemberId, request);
+        CursorResponseDto<PostDetailDto> postsList = postService.getPostsByAuthor(loginMemberId, authorMemberId, request);
 
         return ResponseEntity.ok(postsList);
     }

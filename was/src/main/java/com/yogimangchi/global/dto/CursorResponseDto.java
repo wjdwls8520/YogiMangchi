@@ -8,7 +8,7 @@ import java.util.List;
  * <p>모든 도메인에서 공통으로 사용할 수 있습니다.</p>
  */
 @Schema(description = "커서 기반 무한 스크롤 공통 응답 DTO")
-public record CursorResponse<T>(
+public record CursorResponseDto<T>(
 
         @Schema(description = "실제 데이터 목록")
         List<T> content,

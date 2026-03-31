@@ -4,7 +4,7 @@ import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.service.ReplyService;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,12 +28,12 @@ public class ReplyController {
             description = "커서 기반 무한 스크롤로 댓글을 조회합니다. parentId를 보내지 않으면 최상위 댓글, 값이 있다면 대댓글을 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/posts/{postId}/replys")
-    public ResponseEntity<CursorResponse<ReplyDetailDto>> getParentReplys(
+    public ResponseEntity<CursorResponseDto<ReplyDetailDto>> getParentReplys(
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId,
             @Valid @ParameterObject @ModelAttribute ReplySearchDto request
     ) {
-        CursorResponse<ReplyDetailDto> getReply = replyService.getParentReplys(loginMemberId, postId, request);
+        CursorResponseDto<ReplyDetailDto> getReply = replyService.getParentReplys(loginMemberId, postId, request);
         return ResponseEntity.ok(getReply);
     }
 
@@ -42,12 +42,12 @@ public class ReplyController {
             description = "특정 유저의 모든 댓글,대댓글을 커서 기반 무한 스크롤로 조회합니다. \n\n (로그인시 좋아요,신고 유무가 나옴 true로 응답받음),\n\n (삭제된 포스트의 댓글과, 삭제된 댓글은 가져오지않음.)"
     )
     @GetMapping("/member/{memberId}/replys")
-    public ResponseEntity<CursorResponse<ReplyDetailDto>> getReplysByAuthor(
+    public ResponseEntity<CursorResponseDto<ReplyDetailDto>> getReplysByAuthor(
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable("memberId") Long authorMemberId,
             @Valid @ParameterObject @ModelAttribute ReplySearchDto request
     ) {
-        CursorResponse<ReplyDetailDto> replys = replyService.getReplysByAuthor(loginMemberId, authorMemberId, request);
+        CursorResponseDto<ReplyDetailDto> replys = replyService.getReplysByAuthor(loginMemberId, authorMemberId, request);
 
         return ResponseEntity.ok(replys);
     }

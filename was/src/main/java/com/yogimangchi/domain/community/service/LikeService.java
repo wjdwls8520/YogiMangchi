@@ -6,7 +6,6 @@ import com.yogimangchi.domain.community.dto.request.PostSearchDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
-import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
@@ -18,7 +17,7 @@ import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -71,7 +70,7 @@ public class LikeService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<PostAndMemberDto> getLikedPosts(Long loginMemberId, PostSearchDto request) {
+    public CursorResponseDto<PostAndMemberDto> getLikedPosts(Long loginMemberId, PostSearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
 
         String q = (request.keyword() == null) ? null : request.keyword().trim();
@@ -82,7 +81,7 @@ public class LikeService {
                 ? postLikeRepository.findLikedPostsByCursor(loginMemberId, request.cursorId(), pageable)
                 : postLikeRepository.findLikedPostsByKeywordByCursor(loginMemberId, request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (posts.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = posts.size() > limitSize;
         if (hasNext) {
@@ -91,7 +90,7 @@ public class LikeService {
 
         Long nextCursorId = posts.get(posts.size() - 1).cursorId();
         List<PostAndMemberDto> content = posts.stream().map(PostQueryDto::toPostAndMemberDto).toList();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
 
@@ -130,14 +129,14 @@ public class LikeService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<ReplyDetailDto> getLikedReplys(Long loginMemberId, ReplySearchDto request) {
+    public CursorResponseDto<ReplyDetailDto> getLikedReplys(Long loginMemberId, ReplySearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
         int limitSize = request.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
         List<ReplyQueryDto> replys = replyLikeRepository.getLikedReplysByCursor(loginMemberId, request.cursorId(), pageable);
 
-        if (replys.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (replys.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = replys.size() > limitSize;
         if (hasNext) {
@@ -146,6 +145,6 @@ public class LikeService {
 
         Long nextCursorId = replys.get(replys.size() - 1).cursorId();
         List<ReplyDetailDto> content = replys.stream().map(ReplyQueryDto::toReplyDetailDto).toList();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 }
