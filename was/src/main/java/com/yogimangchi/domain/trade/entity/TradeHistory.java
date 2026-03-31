@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Comment("사용자의 매매기록")
+@Comment("사용자의 매매 기록")
 public class TradeHistory {
 
     @Id
@@ -33,7 +33,7 @@ public class TradeHistory {
     private Order order;
 
     @Column(nullable = false, length = 20)
-    @Comment("거래한 코인 심볼")
+    @Comment("거래 코인 심볼")
     private String symbol;
 
     @Column(name = "order_type", nullable = false, length = 10)
@@ -45,7 +45,7 @@ public class TradeHistory {
     private String side;
 
     @Column(nullable = false, precision = 19, scale = 8)
-    @Comment("1개당 체결 단가 (원화 기준)")
+    @Comment("1개당 체결 가격")
     private BigDecimal price;
 
     @Column(nullable = false, precision = 19, scale = 8)
@@ -53,24 +53,24 @@ public class TradeHistory {
     private BigDecimal quantity;
 
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 4)
-    @Comment("총 거래 금액 (price * quantity)")
+    @Comment("체결 금액 (수수료 제외)")
     private BigDecimal totalAmount;
 
     @Column(precision = 19, scale = 4)
-    @Comment("발생한 수수료")
+    @Comment("발생 수수료")
     private BigDecimal fee;
 
     @Column(name = "realized_profit", precision = 19, scale = 4)
-    @Comment("실현 수익 (매도 시에만 기록, 매수 시에는 null 또는 0)")
+    @Comment("실현 손익 (매도 시에만 기록, 매수 시에는 null 또는 0)")
     private BigDecimal realizedProfit;
 
     @Column(name = "executed_at", nullable = true)
-    @Comment("실제 바이낸스/서버 기준 체결 시각 (미체결 시 null)")
+    @Comment("실제 체결 시각 (미체결이면 null)")
     private LocalDateTime executedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    @Comment("DB에 기록이 생성된 시각")
+    @Comment("DB 기록 생성 시각")
     private LocalDateTime createdAt;
 
     @Builder
@@ -91,7 +91,9 @@ public class TradeHistory {
     }
 
     // 시장가 매수/매도
-    public static TradeHistory createMarketBuyHistory(Assets assets, Order order, String symbol, BigDecimal price, BigDecimal quantity, BigDecimal totalAmount, BigDecimal fee) {
+    public static TradeHistory createMarketBuyHistory(Assets assets, Order order, String symbol,
+                                                      BigDecimal price, BigDecimal quantity,
+                                                      BigDecimal totalAmount, BigDecimal fee) {
         return TradeHistory.builder()
                 .assets(assets)
                 .order(order)
@@ -107,7 +109,10 @@ public class TradeHistory {
                 .build();
     }
 
-    public static TradeHistory createMarketSellHistory(Assets assets, Order order, String symbol, BigDecimal price, BigDecimal quantity, BigDecimal totalAmount, BigDecimal fee, BigDecimal realizedProfit) {
+    public static TradeHistory createMarketSellHistory(Assets assets, Order order, String symbol,
+                                                       BigDecimal price, BigDecimal quantity,
+                                                       BigDecimal totalAmount, BigDecimal fee,
+                                                       BigDecimal realizedProfit) {
         return TradeHistory.builder()
                 .assets(assets)
                 .order(order)
@@ -122,5 +127,4 @@ public class TradeHistory {
                 .executedAt(LocalDateTime.now())
                 .build();
     }
-
 }

@@ -98,6 +98,29 @@ public class Assets {
         this.currentMoney = this.currentMoney.add(amount);
     }
 
+    // 지정가 매수시 해당 금액 락
+    public void lockMoney(BigDecimal amount) {
+        validatePositiveAmount(amount, "잠글 금액");
+
+        if (this.currentMoney.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("주문 가능한 현금 잔고가 부족합니다.");
+        }
+
+        this.currentMoney = this.currentMoney.subtract(amount);
+        this.lockedMoney = this.lockedMoney.add(amount);
+    }
+
+    public void unlockMoney(BigDecimal amount) {
+        validatePositiveAmount(amount, "해제할 금액");
+
+        if (this.lockedMoney.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("잠긴 금액보다 더 많이 해제할 수 없습니다.");
+        }
+
+        this.lockedMoney = this.lockedMoney.subtract(amount);
+        this.currentMoney = this.currentMoney.add(amount);
+    }
+
     // 코인 매수 시: 내 지갑에서 현금을 차감하는 기능
     public void subtractMoney(BigDecimal amount) {
 
@@ -121,5 +144,14 @@ public class Assets {
     // 지갑 만료 처리 메서드
     public void expireWallet() {
         this.status = "EXPIRED";
+    }
+
+    private void validatePositiveAmount(BigDecimal amount, String label) {
+        if (amount == null) {
+            throw new IllegalArgumentException(label + "이(가) 없습니다.");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(label + "은(는) 0보다 커야 합니다.");
+        }
     }
 }
