@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/admin/contest")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "99 - A - Contest", description = "대회관련 api")
+@Tag(name = "99 - A2 - Contest (admin)", description = "대회관련 api")
 public class AdminContestController {
 
     private final AdminContestService adminContestService;
