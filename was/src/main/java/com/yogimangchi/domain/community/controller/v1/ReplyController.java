@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.controller.v1;
 
+import com.yogimangchi.domain.community.dto.request.AuthorReplySearchDto;
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
@@ -39,15 +40,19 @@ public class ReplyController {
 
     @Operation(
             summary = "특정 유저의 모든 댓글,대댓글 한번에 조회",
-            description = "특정 유저의 모든 댓글,대댓글을 커서 기반 무한 스크롤로 조회합니다. \n\n (로그인시 좋아요,신고 유무가 나옴 true로 응답받음),\n\n (삭제된 포스트의 댓글과, 삭제된 댓글은 가져오지않음.)"
+            description = "특정 유저의 모든 댓글,대댓글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요. \n\n (로그인시 좋아요,신고 유무가 나옴 true로 응답받음),\n\n (삭제된 포스트의 댓글과, 삭제된 댓글은 가져오지않음.)"
     )
     @GetMapping("/member/{memberId}/replys")
     public ResponseEntity<CursorResponseDto<ReplyDetailDto>> getReplysByAuthor(
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable("memberId") Long authorMemberId,
-            @Valid @ParameterObject @ModelAttribute ReplySearchDto request
+            @Valid @ParameterObject @ModelAttribute AuthorReplySearchDto request
     ) {
-        CursorResponseDto<ReplyDetailDto> replys = replyService.getReplysByAuthor(loginMemberId, authorMemberId, request);
+        CursorResponseDto<ReplyDetailDto> replys = replyService.getReplysByAuthor(
+                loginMemberId,
+                authorMemberId,
+                new ReplySearchDto(request.cursorId(), null, request.size())
+        );
 
         return ResponseEntity.ok(replys);
     }

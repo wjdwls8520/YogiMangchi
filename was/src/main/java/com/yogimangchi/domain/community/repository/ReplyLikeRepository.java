@@ -61,7 +61,8 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
             m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from ReplyLike rl
         join rl.reply r
@@ -87,7 +88,7 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
             case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
-            m.profileImgUrl, p.id
+            m.profileImgUrl, p.id, r.deleteYn
         )
         from ReplyLike rl
         join rl.reply r

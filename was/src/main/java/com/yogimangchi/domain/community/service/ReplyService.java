@@ -97,7 +97,8 @@ public class ReplyService {
                 reply.memberId(),
                 reply.nickname(),
                 reply.profileImgUrl(),
-                reply.postId()
+                reply.postId(),
+                reply.deleteYn()
         )).toList();
 
         Long nextCursorId = replys.get(replys.size() - 1).id();
@@ -144,7 +145,8 @@ public class ReplyService {
                 reply.memberId(),
                 reply.nickname(),
                 reply.profileImgUrl(),
-                reply.postId()
+                reply.postId(),
+                reply.deleteYn()
         )).toList();
 
         Long nextCursorId = replys.get(replys.size() - 1).id();
@@ -214,7 +216,8 @@ public class ReplyService {
                 saveReply.getMember().getId(),
                 saveReply.getMember().getNickname(),
                 saveReply.getMember().getProfileImgUrl(),
-                saveReply.getPost().getId()
+                saveReply.getPost().getId(),
+                saveReply.getDeleteYn()
         );
     }
 
@@ -273,7 +276,8 @@ public class ReplyService {
                 updatedReply.getMember().getId(),
                 updatedReply.getMember().getNickname(),
                 updatedReply.getMember().getProfileImgUrl(),
-                updatedReply.getPost().getId()
+                updatedReply.getPost().getId(),
+                updatedReply.getDeleteYn()
         );
 
     }

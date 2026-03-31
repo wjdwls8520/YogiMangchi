@@ -25,10 +25,11 @@ public record ReplyQueryDto(
         Long memberId,
         String nickname,
         String profileImgUrl,
-        Long postId
+        Long postId,
+        String deleteYn
 ) {
     public ReplyDetailDto toReplyDetailDto() {
         return new ReplyDetailDto(id, content, likeCount, likedByMe, reportCount, reportedByMe, replyCount,
-                parentReplyId, targetMemberId, targetNickname, createdAt, updatedAt, memberId, nickname, profileImgUrl, postId);
+                parentReplyId, targetMemberId, targetNickname, createdAt, updatedAt, memberId, nickname, profileImgUrl, postId, deleteYn);
     }
 }

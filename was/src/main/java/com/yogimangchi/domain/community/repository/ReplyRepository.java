@@ -42,7 +42,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
                 when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png'
                 else m.profileImgUrl
             end,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from Reply r
         join r.member m
@@ -82,7 +83,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
                 when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png'
                 else m.profileImgUrl
             end,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from Reply r
         join r.parentReply rp
@@ -117,7 +119,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl,
-            p.id
+            p.id,
+            r.deleteYn
         )    
         from Reply r
         left join r.parentReply rp
@@ -170,7 +173,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' when r.deleteYn = 'Y' then '알 수 없음' else m.nickname end,
             case when m.deleteYn = 'Y' then m.profileImgUrl when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png' else m.profileImgUrl end,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from Reply r
         join r.member m
@@ -194,7 +198,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' when r.deleteYn = 'Y' then '알 수 없음' else m.nickname end,
             case when m.deleteYn = 'Y' then m.profileImgUrl when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png' else m.profileImgUrl end,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from Reply r
         join r.parentReply rp
@@ -205,8 +210,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         where p.id = :postId
           and p.deleteYn = 'N'
           and rp.id = :parentId
-          and (:cursorId is null or r.id < :cursorId)
-        order by r.id desc
+          and (:cursorId is null or r.id > :cursorId)
+        order by r.id asc
     """)
     List<ReplyDetailDto> findAllChildrenReplysByCursor(@Param("postId") Long postId, @Param("parentId") Long parentId, @Param("cursorId") Long cursorId, Pageable pageable);
 
@@ -221,7 +226,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from Reply r
         left join r.parentReply rp
@@ -230,8 +236,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         join r.member m
         join r.post p
         where p.deleteYn = 'N' AND r.deleteYn = 'N' AND m.id = :authorMemberId
-          and (:cursorId is null or r.id < :cursorId)
-        order by r.id desc
+          and (:cursorId is null or r.id > :cursorId)
+        order by r.id asc
     """)
     List<ReplyDetailDto> getReplysByAuthorByCursor(@Param("authorMemberId") Long authorMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
 
