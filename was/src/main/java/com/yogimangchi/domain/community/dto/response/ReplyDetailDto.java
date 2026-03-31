@@ -51,5 +51,8 @@ public record ReplyDetailDto(
     String profileImgUrl,
 
     @Schema(description = "댓글이 달린 게시글 Id")
-    Long postId
+    Long postId,
+
+    @Schema(description = "댓글 삭제 여부", example = "N")
+    String deleteYn
 ) {}
