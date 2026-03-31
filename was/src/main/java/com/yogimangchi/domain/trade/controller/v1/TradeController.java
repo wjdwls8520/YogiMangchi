@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.trade.controller.v1;
 
+import com.yogimangchi.domain.trade.dto.request.LimitOrderRequestDto;
 import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.trade.dto.request.OpenOrderSearchConditionDto;
 import com.yogimangchi.domain.trade.dto.request.OrderSearchConditionDto;
@@ -35,16 +36,24 @@ public class TradeController {
     @PostMapping("/order/market")
     public ResponseEntity<String> createMarketOrder(
             @AuthenticationPrincipal Long memberId,
-            @RequestBody MarketOrderRequestDto request
+            @Valid @RequestBody MarketOrderRequestDto request
     ){
         tradeHistoryService.executeMarketOrder(memberId,request);
 
         return ResponseEntity.ok("주문이 성공적으로 체결되었습니다.");
     }
 
-//    // 지정가 주문 API (나중에 개발)
-//    @PostMapping("/order/limit")
-//    public ResponseEntity<String> createLimitOrder(@RequestBody LimitOrderRequest request) { ... }
+    @Operation(summary = "지정가 주문 등록", description = "지정가(LIMIT)로 코인을 매수하거나 매도 주문을 등록합니다.")
+    @Valid
+    @PostMapping("/order/limit")
+    public ResponseEntity<String> createLimitOrder(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody LimitOrderRequestDto request
+    ) {
+        orderService.createLimitOrder(memberId, request);
+
+        return ResponseEntity.ok("지정가 주문이 성공적으로 접수되었습니다.");
+    }
 
 
     @Operation(

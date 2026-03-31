@@ -12,13 +12,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "trade_order")
-@Comment("사용자의 주문 원장 (주문 생성, 미체결, 체결완료, 취소 상태 관리)")
+@Comment("사용자의 주문 원장 (주문 생성, 미체결, 체결 완료, 취소 상태 관리)")
 public class Order {
 
     @Id
@@ -31,7 +32,7 @@ public class Order {
     private Assets assets;
 
     @Column(nullable = false, length = 20)
-    @Comment("주문한 코인 심볼 - 예: BTCUSDT")
+    @Comment("주문 코인 심볼 - 예: BTCUSDT")
     private String symbol;
 
     @Column(name = "order_type", nullable = false, length = 10)
@@ -44,11 +45,11 @@ public class Order {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false, length = 20)
-    @Comment("주문 상태 (PENDING: 미체결, COMPLETED: 체결완료, CANCELED: 취소)")
+    @Comment("주문 상태 (PENDING: 미체결, PARTIALLY_FILLED: 부분 체결, COMPLETED: 체결 완료, CANCELED: 취소)")
     private OrderStatus status;
 
     @Column(name = "order_price", precision = 19, scale = 8)
-    @Comment("주문 가격 (지정가 주문 시 사용, 시장가 주문은 null 가능)")
+    @Comment("주문 가격(지정가 주문 시 사용, 시장가 주문은 null 가능)")
     private BigDecimal orderPrice;
 
     @Column(name = "order_quantity", precision = 19, scale = 8)
@@ -56,7 +57,7 @@ public class Order {
     private BigDecimal orderQuantity;
 
     @Column(name = "order_amount", precision = 19, scale = 4)
-    @Comment("주문 금액 (시장가 매수 시 사용자가 입력한 총 투자 금액)")
+    @Comment("주문 금액 (시장가 매수 시 사용자가 입력한 총 지출 예정 금액, 수수료 포함)")
     private BigDecimal orderAmount;
 
     @Column(name = "filled_quantity", nullable = false, precision = 19, scale = 8)
@@ -72,7 +73,7 @@ public class Order {
     private BigDecimal avgFilledPrice;
 
     @Column(name = "executed_amount", nullable = false, precision = 19, scale = 4)
-    @Comment("누적 체결 금액")
+    @Comment("누적 체결 원금 (수수료 제외)")
     private BigDecimal executedAmount;
 
     @Column(name = "total_fee", nullable = false, precision = 19, scale = 4)
@@ -80,11 +81,11 @@ public class Order {
     private BigDecimal totalFee;
 
     @Column(name = "executed_at")
-    @Comment("주문이 최종 체결 완료된 시각")
+    @Comment("주문의 최종 체결 완료 시각")
     private LocalDateTime executedAt;
 
     @Column(name = "canceled_at")
-    @Comment("주문이 취소된 시각")
+    @Comment("주문 취소 시각")
     private LocalDateTime canceledAt;
 
     @CreationTimestamp
@@ -120,7 +121,7 @@ public class Order {
         this.canceledAt = canceledAt;
     }
 
-    // 시장가 매수 주문은 주문 금액 기준으로 생성
+    // 시장가 매수 주문은 사용자가 입력한 총 지출 금액(수수료 포함) 기준으로 생성
     public static Order createMarketBuyOrder(Assets assets, String symbol, BigDecimal orderAmount) {
         return Order.builder()
                 .assets(assets)
@@ -161,6 +162,8 @@ public class Order {
     // 지정가 주문은 가격과 수량을 고정한 채 미체결 상태로 시작
     public static Order createLimitOrder(Assets assets, String symbol, String side,
                                          BigDecimal orderPrice, BigDecimal orderQuantity) {
+        BigDecimal orderAmount = orderPrice.multiply(orderQuantity).setScale(4, RoundingMode.HALF_UP);
+
         return Order.builder()
                 .assets(assets)
                 .symbol(symbol)
@@ -169,7 +172,7 @@ public class Order {
                 .status(OrderStatus.PENDING)
                 .orderPrice(orderPrice)
                 .orderQuantity(orderQuantity)
-                .orderAmount(null)
+                .orderAmount(orderAmount)
                 .filledQuantity(BigDecimal.ZERO)
                 .remainingQuantity(orderQuantity)
                 .avgFilledPrice(null)
@@ -178,7 +181,7 @@ public class Order {
                 .build();
     }
 
-    // 전량 체결 시 주문 상태와 누적 체결 정보를 함께 갱신
+    // 전량 체결 시 주문 상태와 누적 체결 원금/수수료 정보를 함께 갱신
     public void completeOrder(BigDecimal filledQuantity, BigDecimal avgFilledPrice,
                               BigDecimal executedAmount, BigDecimal totalFee, LocalDateTime executedAt) {
         this.status = OrderStatus.COMPLETED;

@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
-public record MarketOrderRequestDto(
+public record LimitOrderRequestDto(
 
         @NotBlank(message = "코인 심볼은 필수입니다.")
         @Schema(description = "코인 심볼", example = "BTCUSDT")
@@ -21,16 +21,19 @@ public record MarketOrderRequestDto(
         )
         AssetType assetType,
 
-        @NotNull(message = "매매 방향은 필수입니다.")
+        @NotBlank(message = "매매 방향은 필수입니다.")
         @Schema(description = "매매 방향 (BUY: 매수, SELL: 매도)", example = "BUY")
         String side,
 
-        @Positive(message = "매도 수량은 0보다 커야 합니다.")
-        @Schema(description = "매도(SELL) 시 매도할 코인 수량", example = "0.5")
-        BigDecimal quantity,
+        @NotNull(message = "주문 가격은 필수입니다.")
+        @Positive(message = "주문 가격은 0보다 커야 합니다.")
+        @Schema(description = "지정가 주문 가격", example = "70000")
+        BigDecimal price,
 
-        @Positive(message = "매수 금액은 0보다 커야 합니다.")
-        @Schema(description = "매수(BUY) 시 사용할 총 지출 금액 (수수료 포함)", example = "1000")
-        BigDecimal totalAmount
+        @NotNull(message = "주문 수량은 필수입니다.")
+        @Positive(message = "주문 수량은 0보다 커야 합니다.")
+        @Schema(description = "주문 수량", example = "0.5")
+        BigDecimal quantity
 
-) {}
+) {
+}

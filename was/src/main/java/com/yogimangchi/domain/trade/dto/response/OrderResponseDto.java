@@ -33,13 +33,13 @@ public record OrderResponseDto(
         @Schema(description = "주문 상태", example = "PENDING")
         OrderStatus orderStatus,
 
-        @Schema(description = "주문 가격 (지정가 주문 시 사용)", example = "70000.00", nullable = true)
+        @Schema(description = "주문 가격(지정가 주문 시 사용)", example = "70000.00", nullable = true)
         BigDecimal orderPrice,
 
         @Schema(description = "주문 수량", example = "0.5", nullable = true)
         BigDecimal orderQuantity,
 
-        @Schema(description = "주문 금액 (시장가 매수 시 사용)", example = "1000.00", nullable = true)
+        @Schema(description = "주문 금액 (시장가 매수 시 사용자가 입력한 총 지출 예정 금액, 수수료 포함)", example = "1000.00", nullable = true)
         BigDecimal orderAmount,
 
         @Schema(description = "누적 체결 수량", example = "0.2")
@@ -51,11 +51,14 @@ public record OrderResponseDto(
         @Schema(description = "평균 체결가", example = "70120.00", nullable = true)
         BigDecimal avgFilledPrice,
 
-        @Schema(description = "누적 체결 금액", example = "14024.00")
+        @Schema(description = "누적 체결 원금 (수수료 제외)", example = "999.50")
         BigDecimal executedAmount,
 
-        @Schema(description = "누적 수수료", example = "7.01")
+        @Schema(description = "누적 수수료", example = "0.50")
         BigDecimal totalFee,
+
+        @Schema(description = "누적 정산 금액 (BUY는 실제 차감액, SELL은 실제 수령액, 수수료 반영)", example = "1000.00")
+        BigDecimal settlementAmount,
 
         @Schema(description = "주문 생성 시각")
         LocalDateTime orderedAt,
@@ -66,7 +69,6 @@ public record OrderResponseDto(
         @Schema(description = "주문 취소 시각", nullable = true)
         LocalDateTime canceledAt
 ) {
-    // 주문 엔티티를 화면에서 바로 쓰기 좋은 응답 형식으로 변환
     public static OrderResponseDto from(Order order, String displayNameKr) {
         return new OrderResponseDto(
                 order.getId(),
@@ -84,6 +86,7 @@ public record OrderResponseDto(
                 order.getAvgFilledPrice(),
                 order.getExecutedAmount(),
                 order.getTotalFee(),
+                calculateSettlementAmount(order.getSide(), order.getExecutedAmount(), order.getTotalFee()),
                 order.getCreatedAt(),
                 order.getExecutedAt(),
                 order.getCanceledAt()
@@ -107,9 +110,22 @@ public record OrderResponseDto(
                 queryDto.avgFilledPrice(),
                 queryDto.executedAmount(),
                 queryDto.totalFee(),
+                calculateSettlementAmount(queryDto.side(), queryDto.executedAmount(), queryDto.totalFee()),
                 queryDto.orderedAt(),
                 queryDto.executedAt(),
                 queryDto.canceledAt()
         );
+    }
+
+    private static BigDecimal calculateSettlementAmount(String side, BigDecimal executedAmount, BigDecimal totalFee) {
+        if (executedAmount == null || totalFee == null) {
+            return null;
+        }
+
+        if ("SELL".equalsIgnoreCase(side)) {
+            return executedAmount.subtract(totalFee);
+        }
+
+        return executedAmount.add(totalFee);
     }
 }
