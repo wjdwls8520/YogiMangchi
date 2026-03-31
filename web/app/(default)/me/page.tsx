@@ -237,7 +237,7 @@ const isNoMockWalletMessage = (message: string) => {
   );
 };
 
-export default function ProfilePage() {
+export default function MePage() {
   const router = useRouter();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -438,7 +438,7 @@ export default function ProfilePage() {
   }, [isMounted, memberProfile, portfolioTab, router]);
 
   const handleMoveEdit = () => {
-    router.push("/profile/edit");
+    router.push("/me/settings");
   };
 
   const handleLogout = async () => {

@@ -73,7 +73,7 @@ export default function Header() {
                     
                 </button>
 
-                <Link href={isLogin ? "/profile" : "/login"}>
+                <Link href={isLogin ? "/me" : "/login"}>
                     {
                         isLogin ? (
                             // 로그인 정보가 있을 때: 프로필 사진 표시

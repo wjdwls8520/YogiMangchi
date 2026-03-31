@@ -195,7 +195,7 @@ export default function DemoNoticeBar() {
             >
               <span className="text-gray-300">잔고:</span>
               <strong className="text-[#00C087] font-black">{usdtBalance.toLocaleString()}</strong>
-              <span className="text-gray-400 text-[10px] sm:text-xs">USDT</span>
+              <span className="text-gray-400 text-[10px] sm:text-xs">YD</span>
             </div>
             
             <button

@@ -28,7 +28,7 @@ interface MemberProfile {
 
 const DEFAULT_PROFILE_PREVIEW_IMAGE = "/user_default.png";
 
-export default function ProfileEditPage() {
+export default function MeSettingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const login = useAuthStore((state) => state.login);
