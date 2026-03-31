@@ -67,12 +67,6 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
                 .fetch();
     }
 
-    // =========================================================================
-    //  아래 메서드들이 QueryDSL의 핵심 '동적 쿼리' 처리기입니다.
-    // 파라미터 값이 null 이면 메서드도 null을 반환하고,
-    // QueryDSL의 where() 안에서 null은 자동으로 무시(생략)됩니다!
-    // =========================================================================
-
     private BooleanExpression assetTypeEq(AssetType assetType) {
         return assetType != null ? assets.type.eq(assetType) : null;
     }

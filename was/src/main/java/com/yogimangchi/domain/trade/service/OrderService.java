@@ -101,13 +101,28 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponseDto> getOpenOrders(Long memberId, OpenOrderSearchConditionDto condition) {
+    public CursorResponseDto<OrderResponseDto> getOpenOrders(Long memberId, OpenOrderSearchConditionDto condition) {
         Long assetId = resolveAssetId(memberId, condition.assetType());
 
-        // 미체결 화면은 PENDING, PARTIALLY_FILLED 주문만 내려준다.
-        return orderRepository.searchOpenOrders(memberId, condition, assetId).stream()
+        List<OrderQueryDto> orders = orderRepository.searchOpenOrders(memberId, condition, assetId);
+
+        int limitSize = condition.getOrDefaultSize();
+        boolean hasNext = orders.size() > limitSize;
+
+        if (hasNext) {
+            orders.remove(limitSize);
+        }
+
+        Long nextCursorId = null;
+        if (!orders.isEmpty()) {
+            nextCursorId = orders.get(orders.size() - 1).orderId();
+        }
+
+        List<OrderResponseDto> content = orders.stream()
                 .map(OrderResponseDto::from)
                 .toList();
+
+        return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
     // MOCK는 현재 진행 중인 ACTIVE 지갑 기준으로만 주문을 조회한다
