@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.member.service;
 
 import com.yogimangchi.domain.member.dto.query.FollowMemberQueryDto;
-import com.yogimangchi.domain.member.dto.request.FollowSearchCondition;
+import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
 import com.yogimangchi.domain.member.dto.response.FollowMemberDto;
 import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
@@ -56,7 +56,7 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchCondition request) {
+    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchDto request) {
         memberReader.getFindMember(memberId);
 
         List<FollowMemberQueryDto> followerMembers = memberFollowRepository.searchFollowerMembers(memberId, request);
@@ -79,7 +79,7 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchCondition request) {
+    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchDto request) {
         memberReader.getFindMember(memberId);
 
         List<FollowMemberQueryDto> followingMembers = memberFollowRepository.searchFollowingMembers(memberId, request);

@@ -3,7 +3,7 @@ package com.yogimangchi.domain.member.repository;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.yogimangchi.domain.member.dto.request.FollowSearchCondition;
+import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
 import com.yogimangchi.domain.member.dto.query.FollowMemberQueryDto;
 import com.yogimangchi.domain.member.entity.QMember;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchCondition request) {
+    public List<FollowMemberQueryDto> searchFollowerMembers(Long memberId, FollowSearchDto request) {
         QMember followerMember = new QMember("followerMember");
 
         return queryFactory
@@ -51,7 +51,7 @@ public class MemberFollowRepositoryImpl implements MemberFollowRepositoryCustom 
     }
 
     @Override
-    public List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchCondition request) {
+    public List<FollowMemberQueryDto> searchFollowingMembers(Long memberId, FollowSearchDto request) {
         QMember followingMember = new QMember("followingMember");
 
         return queryFactory

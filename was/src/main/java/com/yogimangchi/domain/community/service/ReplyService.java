@@ -15,7 +15,7 @@ import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
 import com.yogimangchi.domain.member.entity.Member;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -47,7 +47,7 @@ public class ReplyService {
 
 
     @Transactional(readOnly = true)
-    public CursorResponse<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, ReplySearchDto request) {
+    public CursorResponseDto<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, ReplySearchDto request) {
 
         Post post = postReader.getActive(postId);
         int limitSize = request.getOrDefaultSize();
@@ -65,7 +65,7 @@ public class ReplyService {
         }
 
         if (replys == null || replys.isEmpty()) {
-            return new CursorResponse<>(List.of(), null, false);
+            return new CursorResponseDto<>(List.of(), null, false);
         }
 
         boolean hasNext = replys.size() > limitSize;
@@ -101,11 +101,11 @@ public class ReplyService {
         )).toList();
 
         Long nextCursorId = replys.get(replys.size() - 1).id();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, ReplySearchDto request) {
+    public CursorResponseDto<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, ReplySearchDto request) {
 
         memberReader.getFindMember(authorMemberId);
         int limitSize = request.getOrDefaultSize();
@@ -113,7 +113,7 @@ public class ReplyService {
 
         List<ReplyDetailDto> replys = replyRepository.getReplysByAuthorByCursor(authorMemberId, request.cursorId(), pageable);
 
-        if (replys.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (replys.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = replys.size() > limitSize;
         if (hasNext) {
@@ -148,7 +148,7 @@ public class ReplyService {
         )).toList();
 
         Long nextCursorId = replys.get(replys.size() - 1).id();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
 

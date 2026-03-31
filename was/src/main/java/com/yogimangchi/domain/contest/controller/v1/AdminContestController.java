@@ -1,8 +1,10 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,5 +36,17 @@ public class AdminContestController {
         ContestSeasonDetailDto ContestSeasonDetail = adminContestService.createContest(adminId, request);
 
         return ResponseEntity.ok(ContestSeasonDetail);
+    }
+
+    @Operation(
+            summary = "역대 모든 대회 시즌 조회",
+            description = "역대 모든 대회 시즌을 조회합니다."
+    )
+    @GetMapping("/seasons")
+    public ResponseEntity<CursorResponseDto<ContestSeasonDetailDto>> getContestSeasons(@ParameterObject @ModelAttribute ContestSeasonSearchDto request ) {
+
+        CursorResponseDto<ContestSeasonDetailDto> AllSeasons = adminContestService.getContestSeasons(request);
+
+        return ResponseEntity.ok(AllSeasons);
     }
 }

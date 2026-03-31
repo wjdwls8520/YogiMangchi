@@ -3,7 +3,7 @@ package com.yogimangchi.domain.member.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "팔로우 멤버 목록 검색 조건 / 무한 스크롤")
-public record FollowSearchCondition(
+public record FollowSearchDto(
 
         @Schema(description = "첫 요청은 비워두고, 다음 요청부터는 이전 응답의 nextCursorId 값을 넣어주세요.", example = "120", nullable = true)
         Long cursorId,

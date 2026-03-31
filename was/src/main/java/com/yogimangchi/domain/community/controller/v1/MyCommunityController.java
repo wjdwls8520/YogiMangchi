@@ -5,7 +5,7 @@ import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.service.LikeService;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,11 +31,11 @@ public class MyCommunityController {
             description = "내가 좋아요 누른 모든 게시글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/liked-posts")
-    public ResponseEntity<CursorResponse<PostAndMemberDto>> getLikedPosts(
+    public ResponseEntity<CursorResponseDto<PostAndMemberDto>> getLikedPosts(
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @ParameterObject @ModelAttribute PostSearchDto request
     ) {
-        CursorResponse<PostAndMemberDto> likedPosts = likeService.getLikedPosts(loginMemberId, request);
+        CursorResponseDto<PostAndMemberDto> likedPosts = likeService.getLikedPosts(loginMemberId, request);
 
         return ResponseEntity.ok(likedPosts);
     }
@@ -45,11 +45,11 @@ public class MyCommunityController {
             description = "내가 좋아요 누른 모든 댓글, 대댓글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/liked-replys")
-    public ResponseEntity<CursorResponse<ReplyDetailDto>> getLikedReplys(
+    public ResponseEntity<CursorResponseDto<ReplyDetailDto>> getLikedReplys(
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @ParameterObject @ModelAttribute ReplySearchDto request
     ) {
-        CursorResponse<ReplyDetailDto> likedReplys = likeService.getLikedReplys(loginMemberId, request);
+        CursorResponseDto<ReplyDetailDto> likedReplys = likeService.getLikedReplys(loginMemberId, request);
 
         return ResponseEntity.ok(likedReplys);
     }

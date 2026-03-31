@@ -5,7 +5,7 @@ import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.report.service.ReportService;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,11 +31,11 @@ public class MyReportController {
             description = "내가 신고한 게시글을 커서 기반 무한 스크롤 방식으로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/posts")
-    public ResponseEntity<CursorResponse<PostAndMemberDto>> getReportedPosts(
+    public ResponseEntity<CursorResponseDto<PostAndMemberDto>> getReportedPosts(
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @ParameterObject @ModelAttribute PostSearchDto request
     ) {
-        CursorResponse<PostAndMemberDto> reportedPosts = reportService.getReportedPosts(loginMemberId, request);
+        CursorResponseDto<PostAndMemberDto> reportedPosts = reportService.getReportedPosts(loginMemberId, request);
 
         return ResponseEntity.ok(reportedPosts);
     }
@@ -45,11 +45,11 @@ public class MyReportController {
             description = "내가 신고한 모든 댓글, 대댓글을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
     @GetMapping("/replys")
-    public ResponseEntity<CursorResponse<ReplyDetailDto>> getReportedReplys(
+    public ResponseEntity<CursorResponseDto<ReplyDetailDto>> getReportedReplys(
             @AuthenticationPrincipal Long loginMemberId,
             @Valid @ParameterObject @ModelAttribute ReplySearchDto request
     ) {
-        CursorResponse<ReplyDetailDto> reportedReplys = reportService.getReportedReplys(loginMemberId, request);
+        CursorResponseDto<ReplyDetailDto> reportedReplys = reportService.getReportedReplys(loginMemberId, request);
 
         return ResponseEntity.ok(reportedReplys);
     }

@@ -19,7 +19,7 @@ import com.yogimangchi.domain.report.dto.response.ReportResponseDto;
 import com.yogimangchi.domain.report.enums.ReportReasonType;
 import com.yogimangchi.domain.report.repository.PostReportRepository;
 import com.yogimangchi.domain.report.repository.ReplyReportRepository;
-import com.yogimangchi.global.dto.CursorResponse;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -122,7 +122,7 @@ public class ReportService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<PostAndMemberDto> getReportedPosts(Long loginMemberId, PostSearchDto request) {
+    public CursorResponseDto<PostAndMemberDto> getReportedPosts(Long loginMemberId, PostSearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
 
         String q = (request.keyword() == null) ? null : request.keyword().trim();
@@ -133,7 +133,7 @@ public class ReportService {
                 ? postReportRepository.findReportedPostsByCursor(loginMemberId, request.cursorId(), pageable)
                 : postReportRepository.findReportedPostsByKeywordByCursor(loginMemberId, request.cursorId(), q, pageable);
 
-        if (posts.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (posts.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = posts.size() > limitSize;
         if (hasNext) {
@@ -142,18 +142,18 @@ public class ReportService {
 
         Long nextCursorId = posts.get(posts.size() - 1).cursorId();
         List<PostAndMemberDto> content = posts.stream().map(PostQueryDto::toPostAndMemberDto).toList();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public CursorResponse<ReplyDetailDto> getReportedReplys(Long loginMemberId, ReplySearchDto request) {
+    public CursorResponseDto<ReplyDetailDto> getReportedReplys(Long loginMemberId, ReplySearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
         int limitSize = request.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
         List<ReplyQueryDto> replys = replyReportRepository.getReportedReplysByCursor(loginMemberId, request.cursorId(), pageable);
 
-        if (replys.isEmpty()) return new CursorResponse<>(List.of(), null, false);
+        if (replys.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
         boolean hasNext = replys.size() > limitSize;
         if (hasNext) {
@@ -162,7 +162,7 @@ public class ReportService {
 
         Long nextCursorId = replys.get(replys.size() - 1).cursorId();
         List<ReplyDetailDto> content = replys.stream().map(ReplyQueryDto::toReplyDetailDto).toList();
-        return new CursorResponse<>(content, hasNext ? nextCursorId : null, hasNext);
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     private void validateNotSelfReport(Long reporterId, Long authorId) {
