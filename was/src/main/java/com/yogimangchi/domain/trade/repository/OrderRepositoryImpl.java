@@ -99,11 +99,13 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                         assetIdEq(assetId),
                         assets.member.id.eq(memberId),
                         assetTypeEq(condition.assetType()),
+                        cursorIdLt(condition.cursorId()),
                         symbolEq(condition.symbol()),
                         sideEq(condition.side()),
                         openStatus()
                 )
                 .orderBy(order.id.desc())
+                .limit(condition.getOrDefaultSize() + 1)
                 .fetch();
     }
 

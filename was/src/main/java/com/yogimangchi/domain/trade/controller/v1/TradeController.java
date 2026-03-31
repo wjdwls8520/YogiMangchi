@@ -90,11 +90,11 @@ public class TradeController {
             description = "현재 종료되지 않은 주문(PENDING, PARTIALLY_FILLED)만 조회합니다."
     )
     @GetMapping("/orders/open")
-    public ResponseEntity<List<OrderResponseDto>> getOpenOrders(
+    public ResponseEntity<CursorResponseDto<OrderResponseDto>> getOpenOrders(
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute OpenOrderSearchConditionDto condition
     ) {
-        List<OrderResponseDto> response = orderService.getOpenOrders(memberId, condition);
+        CursorResponseDto<OrderResponseDto> response = orderService.getOpenOrders(memberId, condition);
 
         return ResponseEntity.ok(response);
     }
