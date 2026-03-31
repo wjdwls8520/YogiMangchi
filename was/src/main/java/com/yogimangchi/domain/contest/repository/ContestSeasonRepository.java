@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface ContestSeasonRepository extends JpaRepository<ContestSeason, Long>, ContestSeasonRepositoryCustom {
+public interface ContestSeasonRepository extends JpaRepository<ContestSeason, Long> {
     Optional<ContestSeason> findTopByStatusInOrderByContestStartAtDesc(List<ContestSeasonStatus> recruiting);
 }

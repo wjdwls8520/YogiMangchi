@@ -5,7 +5,6 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.contest.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
-import com.yogimangchi.domain.contest.entity.QContestSeason;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +14,7 @@ import static com.yogimangchi.domain.contest.entity.QContestSeason.contestSeason
 
 @Repository
 @RequiredArgsConstructor
-public class ContestSeasonRepositoryImpl implements ContestSeasonRepositoryCustom {
+public class AdminContestSeasonRepositoryImpl implements AdminContestSeasonRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override

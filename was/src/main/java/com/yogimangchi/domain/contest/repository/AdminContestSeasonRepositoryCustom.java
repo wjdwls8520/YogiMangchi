@@ -5,6 +5,6 @@ import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 
 import java.util.List;
 
-public interface ContestSeasonRepositoryCustom {
+public interface AdminContestSeasonRepositoryCustom {
     List<ContestSeasonQueryDto> searchContestSeasons(ContestSeasonSearchDto query);
 }
