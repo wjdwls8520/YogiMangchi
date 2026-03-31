@@ -2,7 +2,8 @@ package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
-import com.yogimangchi.global.support.MemberReader;
+import com.yogimangchi.domain.contest.entity.ContestSeason;
+import com.yogimangchi.domain.contest.repository.AdminContestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,11 +12,22 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminContestService {
 
-    private final MemberReader memberReader;
+    private final AdminContestRepository adminContestRepository;
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
-        memberReader.getAuthenticated(adminId);
-        throw new UnsupportedOperationException("대회 생성 로직은 아직 구현 전입니다.");
+
+        ContestSeason contestSeason = ContestSeason.create(
+                request.title(),
+                request.description(),
+                request.recruitmentStartAt(),
+                request.recruitmentEndAt(),
+                request.contestStartAt(),
+                request.contestEndAt()
+        );
+        ContestSeason savedContestSeason = adminContestRepository.save(contestSeason);
+
+        return ContestSeasonDetailDto.from(savedContestSeason);
+
     }
 }

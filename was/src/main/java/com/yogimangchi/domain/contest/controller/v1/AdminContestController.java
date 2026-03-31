@@ -31,7 +31,6 @@ public class AdminContestController {
             @AuthenticationPrincipal Long adminId,
             @Valid @ParameterObject @RequestBody ContestCreateDto request
     ) {
-
         ContestSeasonDetailDto ContestSeasonDetail = adminContestService.createContest(adminId, request);
 
         return ResponseEntity.ok(ContestSeasonDetail);
