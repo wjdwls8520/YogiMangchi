@@ -5,8 +5,7 @@ import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
-import com.yogimangchi.domain.contest.repository.AdminContestRepository;
-import com.yogimangchi.domain.contest.repository.ContestSeasonRepositoryCustom;
+import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,8 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminContestService {
 
-    private final AdminContestRepository adminContestRepository;
-    private final ContestSeasonRepositoryCustom contestSeasonRepositoryCustom;
+    private final AdminContestSeasonRepository adminContestRepository;
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
@@ -40,7 +38,7 @@ public class AdminContestService {
 
     @Transactional(readOnly = true)
     public CursorResponseDto<ContestSeasonDetailDto> getContestSeasons(ContestSeasonSearchDto request) {
-        List<ContestSeasonQueryDto> seasons = contestSeasonRepositoryCustom.searchContestSeasons(request);
+        List<ContestSeasonQueryDto> seasons = adminContestRepository.searchContestSeasons(request);
 
         int limitSize = request.getOrDefaultSize();
         boolean hasNext = seasons.size() > limitSize;
