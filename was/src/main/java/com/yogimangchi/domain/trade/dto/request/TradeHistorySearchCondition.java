@@ -25,7 +25,7 @@ public record TradeHistorySearchCondition(
         @Schema(description = "매수(BUY)/매도(SELL) 필터 (선택)", example = "BUY", nullable = true)
         String side,
         
-        @Schema(description = "주문 상태 (PENDING: 대기중, COMPLETED: 채결완료, CANCELED: 주문취소) (선택)", example = "COMPLETED", nullable = true)
+        @Schema(description = "주문 상태 (PENDING: 대기중, COMPLETED: 채결완료, CANCELED: 주문취소)", example = "COMPLETED", nullable = true)
         OrderStatus status,
 
         @Schema(description = "조회 시작일 (선택)", example = "2026-03-01", nullable = true)
