@@ -27,4 +27,9 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
             @Param("status") String status
     );
 
+    // 주문 취소/체결 정산 시 현금 자산을 안전하게 수정하기 위해 단건 락 조회를 둔다.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Assets a WHERE a.id = :assetId")
+    Optional<Assets> findByIdForUpdate(@Param("assetId") Long assetId);
+
 }

@@ -55,6 +55,17 @@ public class TradeController {
         return ResponseEntity.ok("지정가 주문이 성공적으로 접수되었습니다.");
     }
 
+    @Operation(summary = "주문 취소", description = "미체결 또는 부분 체결 상태의 주문을 취소합니다.")
+    @PutMapping("/orders/{orderId}/cancel")
+    public ResponseEntity<String> cancelOrder(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long orderId
+    ) {
+        orderService.cancelOrder(memberId, orderId);
+
+        return ResponseEntity.ok("주문이 성공적으로 취소되었습니다.");
+    }
+
 
     @Operation(
             summary = "매매 영수증 내역 조회 (무한 스크롤)",
@@ -86,7 +97,7 @@ public class TradeController {
     }
 
     @Operation(
-            summary = "미체결 주문 조회",
+            summary = "미체결 주문 조회 (무한 스크롤)",
             description = "현재 종료되지 않은 주문(PENDING, PARTIALLY_FILLED)만 조회합니다."
     )
     @GetMapping("/orders/open")
