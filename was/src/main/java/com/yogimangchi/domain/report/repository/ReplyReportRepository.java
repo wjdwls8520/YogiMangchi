@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.report.repository;
 
-import com.yogimangchi.domain.community.dto.query.ReplyQueryDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
+import com.yogimangchi.domain.report.dto.query.MyReportedReplyQueryDto;
 import com.yogimangchi.domain.report.entity.ReplyReport;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -80,7 +80,7 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
     // ── 커서 기반 페이징 메서드 (no-offset) ──
 
     @Query("""
-        select new com.yogimangchi.domain.community.dto.query.ReplyQueryDto(
+        select new com.yogimangchi.domain.report.dto.query.MyReportedReplyQueryDto(
             rr.id,
             r.id, r.content, r.likeCount, false, r.reportCount, true, r.replyCount,
             rp.id,
@@ -88,7 +88,7 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
             case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
-            m.profileImgUrl, p.id, r.deleteYn
+            m.profileImgUrl, p.id, r.deleteYn, rr.reasonType
         )
         from ReplyReport rr
         join rr.reply r
@@ -103,5 +103,5 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
           and (:cursorId is null or rr.id < :cursorId)
         order by rr.id desc
     """)
-    List<ReplyQueryDto> getReportedReplysByCursor(@Param("loginMemberId") Long loginMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
+    List<MyReportedReplyQueryDto> getReportedReplysByCursor(@Param("loginMemberId") Long loginMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
 }
