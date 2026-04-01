@@ -1,31 +1,33 @@
 package com.yogimangchi.domain.report.service;
 
-import com.yogimangchi.domain.community.dto.query.PostQueryDto;
-import com.yogimangchi.domain.community.dto.query.ReplyQueryDto;
 import com.yogimangchi.domain.community.dto.request.PostSearchDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
-import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
-import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.repository.PostRepository;
 import com.yogimangchi.domain.community.repository.ReplyRepository;
-import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.domain.community.support.PostReader;
 import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.report.dto.query.MyReportedPostQueryDto;
+import com.yogimangchi.domain.report.dto.query.MyReportedReplyQueryDto;
+import com.yogimangchi.domain.report.dto.response.MyReportedPostResponseDto;
+import com.yogimangchi.domain.report.dto.response.MyReportedReplyResponseDto;
+import com.yogimangchi.domain.report.dto.response.ReportReasonTypeResponseDto;
 import com.yogimangchi.domain.report.dto.response.ReportResponseDto;
 import com.yogimangchi.domain.report.enums.ReportReasonType;
 import com.yogimangchi.domain.report.repository.PostReportRepository;
 import com.yogimangchi.domain.report.repository.ReplyReportRepository;
 import com.yogimangchi.global.dto.CursorResponseDto;
+import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -122,14 +124,14 @@ public class ReportService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<PostAndMemberDto> getReportedPosts(Long loginMemberId, PostSearchDto request) {
+    public CursorResponseDto<MyReportedPostResponseDto> getReportedPosts(Long loginMemberId, PostSearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
 
         String q = (request.keyword() == null) ? null : request.keyword().trim();
         int limitSize = request.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        List<PostQueryDto> posts = (q == null || q.isBlank())
+        List<MyReportedPostQueryDto> posts = (q == null || q.isBlank())
                 ? postReportRepository.findReportedPostsByCursor(loginMemberId, request.cursorId(), pageable)
                 : postReportRepository.findReportedPostsByKeywordByCursor(loginMemberId, request.cursorId(), q, pageable);
 
@@ -141,17 +143,17 @@ public class ReportService {
         }
 
         Long nextCursorId = posts.get(posts.size() - 1).cursorId();
-        List<PostAndMemberDto> content = posts.stream().map(PostQueryDto::toPostAndMemberDto).toList();
+        List<MyReportedPostResponseDto> content = posts.stream().map(MyReportedPostQueryDto::toResponseDto).toList();
         return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<ReplyDetailDto> getReportedReplys(Long loginMemberId, ReplySearchDto request) {
+    public CursorResponseDto<MyReportedReplyResponseDto> getReportedReplys(Long loginMemberId, ReplySearchDto request) {
         memberReader.getAuthenticated(loginMemberId);
         int limitSize = request.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        List<ReplyQueryDto> replys = replyReportRepository.getReportedReplysByCursor(loginMemberId, request.cursorId(), pageable);
+        List<MyReportedReplyQueryDto> replys = replyReportRepository.getReportedReplysByCursor(loginMemberId, request.cursorId(), pageable);
 
         if (replys.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
 
@@ -161,7 +163,7 @@ public class ReportService {
         }
 
         Long nextCursorId = replys.get(replys.size() - 1).cursorId();
-        List<ReplyDetailDto> content = replys.stream().map(ReplyQueryDto::toReplyDetailDto).toList();
+        List<MyReportedReplyResponseDto> content = replys.stream().map(MyReportedReplyQueryDto::toResponseDto).toList();
         return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
@@ -169,5 +171,20 @@ public class ReportService {
         if (reporterId.equals(authorId)) {
             throw new IllegalArgumentException("본인의 글/댓글은 신고할 수 없습니다.");
         }
+    }
+
+
+
+
+
+
+
+
+    // 신고 구분 카테고리
+    @Transactional(readOnly = true)
+    public List<ReportReasonTypeResponseDto> getResponseReportTypeByCommunity() {
+        return Arrays.stream(ReportReasonType.values())
+                .map(ReportReasonTypeResponseDto::from)
+                .toList();
     }
 }
