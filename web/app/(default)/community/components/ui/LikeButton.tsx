@@ -3,7 +3,7 @@ import { VscHeart, VscHeartFilled } from "react-icons/vsc";
 interface Props {
   liked: boolean;
   likeCount: number;
-  onLike: (e: React.MouseEvent) => void;
+  onLike?: (e: React.MouseEvent) => void;
 }
 
 

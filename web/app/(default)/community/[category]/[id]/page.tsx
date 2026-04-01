@@ -1,3 +1,4 @@
+import CommentContainer from "../../components/comment/CommentContainer";
 import CommunityItem from "../../components/CommunityItem";
 import { getPostServer, getReplysServer } from "@/lib/api/post.server";
 
@@ -15,5 +16,9 @@ export default async function CategoryDetailPage({ params }: PageProps) {
     const post = await getPostServer(postId);
     const replys = await getReplysServer(postId);
 
-    return <CommunityItem post={post} replys={replys} variant="detail" />;
+    return <>
+      <CommunityItem post={post} replys={replys} variant="detail" />
+      <h3 className="mt-8 font-semibold text-lg">답글 {post.replyCount}개</h3>
+      <CommentContainer postId={postId} />
+    </>;
 }

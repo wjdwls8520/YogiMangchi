@@ -45,6 +45,7 @@ export interface Reply {
     targetMemberId: number | null;
     targetNickname: string | null;
     updatedAt: string;
+    deleteYn: string;
     heart?: number;
     comment?: number;
     target?: string;

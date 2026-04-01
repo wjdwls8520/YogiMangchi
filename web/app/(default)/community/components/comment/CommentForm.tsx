@@ -1,3 +1,5 @@
+"use client";
+
 import Button from "@/components/ui/Button";
 import { createReply } from "@/lib/api/post";
 import { useState } from "react";

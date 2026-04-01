@@ -17,10 +17,11 @@ import { deleteLike, deletePost, putLike } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { useModalStore } from "@/stores/useModalStore";
-import CommunityComment from "./comment/CommentForm";
 import HeartButton from "./ui/LikeButton";
 import ActionMenu from "./ui/ActionMenu";
 import ActionMenuButton from "./ui/ActionMenuButton";
+import CommentContainer from "./comment/CommentContainer";
+import { useCommentStore } from "@/stores/useCommentStore";
 
 interface Props {
   post: Post;
@@ -44,9 +45,6 @@ export default function CommunityItem({ post, variant, replys }: Props) {
     const textRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
-
-    // 댓글 상태관리
-    const [commentList, setCommentList] = useState(replys);
 
     // 액션 메뉴 열기, 닫기 상태관리
     const [openActionMenu, setOpenActionMenu] = useState(false);
@@ -194,7 +192,11 @@ export default function CommunityItem({ post, variant, replys }: Props) {
 
                 <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
                     <li>
-                        <HeartButton likeCount={currentPost.likeCount} liked={currentPost.likedByMe} onLike={handleLike} />
+                        <HeartButton 
+                            likeCount={currentPost.likeCount} 
+                            liked={currentPost.likedByMe} 
+                            onLike={handleLike} 
+                        />
                     </li>                
                     <li>
                         <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>
@@ -203,21 +205,7 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                         <button type="button" className="flex items-center gap-1"><GoShareAndroid className="text-xl" strokeWidth={0.3} /> 공유</button>
                     </li>                
                 </ul>
-            </div>
-
-            {/* 댓글 */}
-            { variant === 'detail' &&
-                <>
-                    <h3 className="mt-8 font-semibold text-lg">답글 {post.replyCount}개</h3>
-                    <ul className=" border-b border-gray-200 pb-3">
-                        {commentList?.map((reply, index) => <CommentItem key={index} comment={reply} />)}
-                    </ul>
-                    <div className="relative mt-8">
-                        <CommunityComment postId={post.id} />
-                    </div>
-                </>
-            }
-        
+            </div>        
         </>
     )
 }

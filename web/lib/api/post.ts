@@ -124,6 +124,13 @@ export const putReply = async (postId: number, body: CreateReplyBody) => {
     return result.content;
 }
 
+/* 댓글 좋아요 */
+export const putReplyLike = async (postId: number, replyId: number) => {
+    const result = await fetchClient(`community/posts/${postId}/replys/${replyId}/likes`, {
+        method: "PUT",    
+    });
+    return result.content;
+}
 
 /* 댓글 삭제 */
 export const deleteReply = async (postId: number, replyId: number) => {
