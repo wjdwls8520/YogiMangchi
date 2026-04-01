@@ -18,6 +18,7 @@ public interface OAuthAccountRepository extends JpaRepository<OAuthAccount, Long
             m.id,
             oa.provider,
             m.nickname,
+            m.role,
             m.profileImgUrl,
             m.profileMsg,
             m.bestCount,

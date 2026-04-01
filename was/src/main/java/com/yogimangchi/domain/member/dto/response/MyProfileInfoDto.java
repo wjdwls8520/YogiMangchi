@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.member.dto.response;
 
+import com.yogimangchi.domain.member.enums.MemberRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record MyProfileInfoDto(
@@ -11,6 +12,9 @@ public record MyProfileInfoDto(
 
         @Schema(description = "멤버 닉네임", example = "홍길동")
         String nickname,
+
+        @Schema(description = "멤버 닉네임", example = "USER, VERIFIED_USER, ADMIN")
+        MemberRole role,
 
         @Schema(description = "프로필이미지", example = "assdsss.png")
         String profileImgUrl,
