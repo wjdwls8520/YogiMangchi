@@ -1,24 +1,22 @@
-export async function fetchClient(
+import { cookies } from "next/headers";
+
+export async function serverFetchClient(
   url: string,
   options: RequestInit = {}
 ) {
   const isFormData = options.body instanceof FormData;
 
-  const isObject =
-    options.body &&
-    typeof options.body === "object" &&
-    !isFormData;
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
 
   const res = await fetch(`http://localhost:8080/api/v1/${url}`, {
     ...options,
-    credentials: "include",
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(cookieHeader && { Cookie: cookieHeader }),
       ...options.headers,
     },
-    body: isObject
-      ? JSON.stringify(options.body) // object -> JSON으로 자동 변환
-      : options.body,
+    cache: "no-store",
   });
 
   if (!res.ok) {

@@ -27,3 +27,25 @@ export interface Post {
   profileImg: string;
   files: File[];
 };
+
+
+export interface Reply {
+    id: number;
+    likeCount: number;
+    likedByMe: boolean;
+    memberId: number;
+    postId: number;
+    profileImgUrl: string;
+    nickname: string;
+    createdAt: string;
+    content: string;
+    replyCount: number;
+    reportedByMe: boolean;
+    parentReplyId: number | null;
+    targetMemberId: number | null;
+    targetNickname: string | null;
+    updatedAt: string;
+    heart?: number;
+    comment?: number;
+    target?: string;
+};

@@ -26,7 +26,11 @@ export default function WriteModal() {
 
 
     const userInfo = useAuthStore((state) => state.user);   
-    const { isOpen, close, mode, selectedPost } = useModalStore();
+    const isOpen = useModalStore((state) => state.writeModal.isOpen);
+    const mode = useModalStore((state) => state.writeModal.mode);
+    const selectedPost = useModalStore((state) => state.writeModal.selectedPost);
+    const close = useModalStore((state) => state.closeWrite);
+
     const { addPost, setPosts, replacePost } = usePostStore();
 
     const modalProps = {

@@ -1,7 +1,7 @@
 import SubMenu from "@/components/SubMenu";
 import NewsList from "./components/NewsList";
 import CommunityContainer from "../components/CommunityContainer";
-import { getPosts } from "@/lib/api/post";
+import { getPostsServer } from "@/lib/api/post.server";
 
 const menus  = [
     { id: "best", label: "주간 인기글" },
@@ -17,8 +17,7 @@ export default async function CategoryPage({
     const { category } = await params;
     const isNews = category === "news";
 
-    const result = await getPosts();
-    const posts = result.content;
+    const posts = await getPostsServer();
 
     return (
         <>

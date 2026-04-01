@@ -3,6 +3,12 @@
 import { fetchClient } from "./client";
 
 
+interface CreateReplyBody {
+    content: string;
+    parentId: number | null;
+    targetId: number | null;
+}
+
 export const createPost = async (formData: FormData) => {
     await fetchClient('community/posts', {
         method: "POST",
@@ -28,7 +34,6 @@ export const getPosts = async ({ page, size }: { page?: number; size?: number } 
 export const getPost = async(postId: number) => {
     const result = await fetchClient(`community/posts/${postId}`);
 
-    console.log("결과 : " + result)
     return result;
 }
 
@@ -43,17 +48,93 @@ export const putPost = async ({ postId, formData }: { postId: number | undefined
 }
 
 /* 게시글 좋아요 */
-export const updateLike = async ( postId: number ) => {
+export const putLike = async ( postId: number ) => {
     const result = await fetchClient(`community/posts/${postId}/likes`, {
         method: "PUT"
     });
 
     return result;
 }
+/* 게시글 좋아요 취소 */
+export const deleteLike = async ( postId: number ) => {
+    const result = await fetchClient(`community/posts/${postId}/likes`, {
+        method: "DELETE"
+    });
 
+    return result;
+}
 
+/* 게시글 삭제 */
 export const deletePost = async (postId: number) => {
     await fetchClient(`community/posts/${postId}`, {
         method: "DELETE"
     });
+}
+
+/* 게시글 신고 */
+export const reportPost = async (postId: number, reasonType: string) => {
+    const params = new URLSearchParams();
+    
+    if (reasonType !== undefined) params.append('reasonType', String(reasonType));
+
+    const query = params.toString();
+    const result = await fetchClient(`community/posts/${postId}/reports${query ? `?${query}` : ''}`, {
+        method: "PUT"
+    });
+
+    return result;
+}
+
+/* 게시글 신고 취소 */
+export const unreportPost = async (postId: number, reasonType: string) => {
+    const params = new URLSearchParams();
+    
+    if (reasonType !== undefined) params.append('reasonType', String(reasonType));
+
+    const query = params.toString();
+    const result = await fetchClient(`community/posts/${postId}/reports${query ? `?${query}` : ''}`, {
+        method: "DELETE"
+    });
+
+    return result;
+}
+
+/* 게시글 댓글 불러오기 */
+export const getReplys = async (postId: number) => {
+    const result = await fetchClient(`community/posts/${postId}/replys`);
+
+    return result.content;
+}
+
+/* 댓글 등록 */
+export const createReply = async (postId: number, body: CreateReplyBody) => {
+    const result = await fetchClient(`community/posts/${postId}/replys`, {
+        method: "POST",
+        body: body,        
+    });
+    return result.content;
+}
+
+/* 댓글 수정 */
+export const putReply = async (postId: number, body: CreateReplyBody) => {
+    const result = await fetchClient(`community/posts/${postId}/replys`, {
+        method: "PUT",
+        body: body,        
+    });
+    return result.content;
+}
+
+
+/* 댓글 삭제 */
+export const deleteReply = async (postId: number, replyId: number) => {
+
+    const params = new URLSearchParams();
+    
+    if (replyId !== undefined) params.append('replyId', String(replyId));
+
+    const query = params.toString();
+
+    await fetchClient(`community/posts/${postId}/replys${query ? `?${query}` : ''}`, {
+        method: "DELETE"
+    })
 }

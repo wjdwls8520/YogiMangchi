@@ -7,10 +7,16 @@ import { getPosts } from "@/lib/api/post";
 import { useEffect, useRef, useState } from "react";
 import CommunityItemSkeleton from "./CommunityItemSkeleton";
 import { usePostStore } from "@/stores/usePostStore";
+import { Post } from "../types/post";
 
-export default function CommunityList() {
 
-    const { getPostsArray, appendPosts } = usePostStore();
+interface Props {
+  posts: Post[];
+}
+
+export default function CommunityList({ posts }: Props) {
+
+    const { appendPosts } = usePostStore();
 
     const params = useParams();
     const category = params.category;
@@ -61,7 +67,7 @@ export default function CommunityList() {
     return(
         <article className="contents">
             <ul className="flex flex-col gap-5">
-                {getPostsArray().map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
+                {posts?.map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
                         <li><CommunityItem post={post} variant="list" /></li>
                     </Link>
                 )}

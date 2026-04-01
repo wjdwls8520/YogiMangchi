@@ -2,104 +2,70 @@
 
 
 import { BsThreeDots } from "react-icons/bs";
-import { VscHeart } from "react-icons/vsc";
-import { VscHeartFilled } from "react-icons/vsc";
 import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
 import { GoShareAndroid } from "react-icons/go";
-import { FaRegTrashAlt } from "react-icons/fa";
-import { FiFlag } from "react-icons/fi";
-import { LuPenLine } from "react-icons/lu";
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
-import { Post } from "../types/post";
+import { Post, Reply } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
 import Slider from "@/components/Slider/Slider";
-import Button from "@/components/ui/Button";
 import { formatTime } from "@/lib/utils/date";
-import CommentItem from "./CommentItem";
+import CommentItem from "./comment/CommentItem";
 import Image from "next/image";
-import { deletePost, updateLike } from "@/lib/api/post";
+import { deleteLike, deletePost, putLike } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { useModalStore } from "@/stores/useModalStore";
-
-
+import CommunityComment from "./comment/CommentForm";
+import HeartButton from "./ui/LikeButton";
+import ActionMenu from "./ui/ActionMenu";
+import ActionMenuButton from "./ui/ActionMenuButton";
 
 interface Props {
-  post :Post;
+  post: Post;
   variant: "list" | "detail";
+  replys?: Reply[];
 }
 
-const comments = [
-  {
-    id: 1,
-    profileImg: "",
-    heart: 2,
-    nickname: "주식왕",
-    createAt: "방금전",
-    content: "잘 보고 가요",
-    replies: [
-      {
-        id: 2,
-        profileImg: "",
-        heart: 1,
-        nickname: "익명",
-        createAt: "2026.03.24",
-        content: "익명의 대댓글입니다!",
-        replies: [
-            {
-                id: 33,
-                target: '익명',
-                profileImg: "",
-                heart: 1,
-                nickname: "익명",
-                createAt: "2026.03.24",
-                content: "익명의 대댓글입니다!",
-            },
-        ],
-      },
-    ],
-  },
-  {
-    id: 3,
-    profileImg: "",
-    heart: 4,
-    nickname: "코딩러",
-    createAt: "1분 전",
-    content: "유익한 글 감사합니다 👍",
-  },
-  {
-    id: 4,
-    profileImg: "",
-    heart: 1,
-    nickname: "프론트왕",
-    createAt: "5분 전",
-    content: "이거 진짜 도움 됐어요!",
-  },
-  {
-    id: 5,
-    profileImg: "",
-    nickname: "익명",
-    heart: 0,
-    createAt: "10분 전",
-    content: "좋은 정보 공유 감사합니다 🙌",
-  },
-];
+export default function CommunityItem({ post, variant, replys }: Props) {
 
-export default function CommunityItem({ post, variant }: Props) {
+    // post 상태 관리
+    const postFromStore = usePostStore((state) => state.postsMap.get(post.id));
+    const currentPost = postFromStore ?? post;    
+    const removePost = usePostStore((state) => state.removePost);
+    const replacePost = usePostStore((state) => state.replacePost);
 
-    const { removePost, replacePost } = usePostStore();
-    const { openMenuId, toggleMenu, open: ModalOpen } = useModalStore();
-    const isMenuOpen = openMenuId === post.id; // 내 아이템이 열려있는지 확인
+    // modal 상태 관리
+    const WriteModalOpen = useModalStore((state) => state.openWrite);
+    const ReportModalOpen = useModalStore((state) => state.openReport)
 
+    // 리스트 아이템 UI 상태 관리
     const textRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
+    // 댓글 상태관리
+    const [commentList, setCommentList] = useState(replys);
+
+    // 액션 메뉴 열기, 닫기 상태관리
+    const [openActionMenu, setOpenActionMenu] = useState(false);
+
+    // 내 정보 가져오기
     const { user } = useAuthStore();
 
-    const isSlide = (post?.files?.length ?? 0) > 2;
+    const isSlide = (currentPost?.files?.length ?? 0) > 2;
+
+    const toggleActionMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setOpenActionMenu(prev => !prev);
+    }
+
+    const openUpdateModal = async (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        WriteModalOpen({mode: "edit", post: currentPost});
+    }
 
     const handleDelete = async (e: React.MouseEvent, postId: number) => {
         e.preventDefault();
@@ -109,20 +75,39 @@ export default function CommunityItem({ post, variant }: Props) {
         
     }
 
-    const openEditModal = async (e: React.MouseEvent) => {
+    const openReportModal = async (e: React.MouseEvent) => {
         e.preventDefault();
 
-        ModalOpen({mode: "edit", post: post});
+        ReportModalOpen(currentPost.id);
     }
 
-    const handleLike = async (e: React.MouseEvent, post: Post) => {
+    const handleLike = async (e: React.MouseEvent) => {
         e.preventDefault();
 
-        await updateLike(post.id);
-        replacePost(post);
+        if (!currentPost) return;
 
-    }
+        if (currentPost.likedByMe) {
+            replacePost({
+            ...currentPost,
+            likedByMe: false,
+            likeCount: currentPost.likeCount - 1,
+            });
+            await deleteLike(currentPost.id);
+            return;
+        }
 
+        replacePost({
+            ...currentPost,
+            likedByMe: true,
+            likeCount: currentPost.likeCount + 1,
+        });
+
+        try {
+            await putLike(currentPost.id);
+        } catch {
+            replacePost(currentPost);
+        }
+    };
 
     useEffect(() => {
         const el = textRef.current;
@@ -131,64 +116,32 @@ export default function CommunityItem({ post, variant }: Props) {
         setIsOverflow(el.scrollHeight > el.clientHeight);
     }, []);
 
+
     return(
         <>
             <div className="border border-gray-200 rounded-2xl p-8">
                 <header className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                    <UserAvatar profileImg={post.profileImg} />
+                    <UserAvatar profileImg={currentPost.profileImg} />
                     <div className="">
-                        <p className="font-semibold">{post.nickname}</p>
-                        <small className="text-gray-500">{formatTime(post.createdAt)}</small>
+                        <p className="font-semibold">{currentPost.nickname}</p>
+                        <small className="text-gray-500">{formatTime(currentPost.createdAt)}</small>
                     </div>
                     <div className="relative">
-                        <button type="button" className="p-1.5" onClick={(e) => {
-                            e.preventDefault();
-                            toggleMenu(post.id);
-                        }}>
-                            <BsThreeDots className="justify-self-end-safe text-gray-500" />
-                        </button>
+                        <ActionMenuButton toggleMenu={e => toggleActionMenu(e)} />
                         {
-                            (isMenuOpen) && 
-                            <div className="absolute right-0 z-10 w-24 bg-white dark:bg-zinc-900 border border-gray-300 rounded-xl p-3 text-sm">
-                                
-                            { 
-                                (user?.memberId === post.memberId) && 
-                                <>
-                                <button 
-                                    type="button" 
-                                    onClick={(e) => openEditModal(e)} 
-                                    className="flex items-center gap-1 text-left py-1 w-full"
-                                >
-                                    <LuPenLine className="w-[18px] h-[16px] text-gray-500" />
-                                    수정
-                                </button>
-                                <button 
-                                    type="button" 
-                                    onClick={(e) => handleDelete(e, post.id)} 
-                                    className="flex items-center gap-1 text-left py-1 w-full"
-                                >
-                                    <FaRegTrashAlt className="w-[18px] h-[14px] text-gray-500" />
-                                    삭제
-                                </button>
-                                </>
-                            }
-                                <button 
-                                    type="button" 
-                                    onClick={(e) => e.preventDefault()} 
-                                    className="flex items-center gap-1 text-left py-1 w-full"
-                                >
-                                    <FiFlag className="w-[18px] h-[15px] text-gray-500" />
-                                    신고
-                                </button>
-
-                            </div>
+                            openActionMenu &&
+                            <ActionMenu 
+                                isOwner={post.memberId === user?.memberId} 
+                                onDelete={(e) => handleDelete(e, currentPost.id)} 
+                                onEdit={openUpdateModal} onReport={openReportModal}
+                            />
                         }
                     </div>
                 </header>
                 <div className="pt-3">
-                    <p className="text-xl font-semibold">{post.title}</p>
+                    <p className="text-xl font-semibold">{currentPost.title}</p>
                     <div className={cn("pt-1", (!isExpanded && variant !== 'detail') &&"line-clamp-4")} ref={textRef}>
-                        {post.content}
+                        {currentPost.content}
                     </div>
                     {
                         (isOverflow && variant !== 'detail')&&
@@ -204,12 +157,12 @@ export default function CommunityItem({ post, variant }: Props) {
                 </div>
 
                 {
-                    post?.files?.length > 0 && (
+                    currentPost?.files?.length > 0 && (
                         isSlide ? (
                             <Slider>
                                 <ul className="flex gap-2 w-full pt-6 pb-3">
                                     {
-                                        post?.files.map((file) => <li key={file.id}
+                                        currentPost?.files.map((file) => <li key={file.id}
                                                                         className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
                                                                     >
                                                                         {
@@ -224,7 +177,7 @@ export default function CommunityItem({ post, variant }: Props) {
                         ) : (
                             <ul className="flex gap-2 w-full pt-6 pb-3">
                                 {
-                                    post?.files.map((file) => <li key={file.id}
+                                    currentPost?.files.map((file) => <li key={file.id}
                                                                     className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
                                                                 >
                                                                     {
@@ -241,15 +194,7 @@ export default function CommunityItem({ post, variant }: Props) {
 
                 <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
                     <li>
-                        <button type="button" className="flex items-center gap-1">
-                            {
-                                post.likedByMe ? 
-                                <VscHeartFilled className="text-xl text-red-600" onClick={(e) => handleLike(e, post)} />
-                                : 
-                                <VscHeart className="text-xl" strokeWidth={0.3} onClick={(e) => handleLike(e, post)} />
-                            }
-                            {post.likeCount}
-                        </button>
+                        <HeartButton likeCount={currentPost.likeCount} liked={currentPost.likedByMe} onLike={handleLike} />
                     </li>                
                     <li>
                         <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>
@@ -265,17 +210,10 @@ export default function CommunityItem({ post, variant }: Props) {
                 <>
                     <h3 className="mt-8 font-semibold text-lg">답글 {post.replyCount}개</h3>
                     <ul className=" border-b border-gray-200 pb-3">
-                        {comments.map((data) => <CommentItem key={data.id} comment={data} />)}
+                        {commentList?.map((reply, index) => <CommentItem key={index} comment={reply} />)}
                     </ul>
                     <div className="relative mt-8">
-                        <textarea 
-                            name="" id="" 
-                            placeholder="댓글을 남겨보세요" 
-                            className="w-full resize-none border rounded-xl border-gray-200 p-4"
-                            rows={4}
-                        >
-                        </textarea>
-                        <Button type="button" className="absolute right-5 bottom-5" variant="sky" size="sm" disabled>등록</Button>
+                        <CommunityComment postId={post.id} />
                     </div>
                 </>
             }

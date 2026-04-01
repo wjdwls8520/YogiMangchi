@@ -1,7 +1,7 @@
 import FloatMenu from "./components/FloatMenu";
 import Menu from "./components/Menu";
+import ReportModal from "./components/ReportModal";
 import Top5 from "./components/Top5";
-import WriteModal from "./components/WriteModal";
 import WriteModalWrapper from "./components/WriteModalWrapper";
 import { Ranker } from "./types/ranker";
 
@@ -54,7 +54,8 @@ export default function CommunityLayout({
                 </div>
                 <Top5 ranker={ranker} />
                 <FloatMenu />
-                <WriteModalWrapper />             
+                <WriteModalWrapper />     
+                <ReportModal />
             </section>
         </>
     )
