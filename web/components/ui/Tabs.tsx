@@ -21,8 +21,9 @@ export default function Tabs({
   onChange,
   className = "",
   fullWidth = false,
-  activeColor = "text-gray-900 border-gray-900", // 기본값은 검정
+  activeColor = "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300", // 기본값은 검정
 }: TabsProps) {
+  
   return (
     // 전체 컨테이너: 하단에 연한 회색 보더를 깔아줍니다.
     <div className={`flex border-b border-gray-200 ${className}`}>
@@ -38,8 +39,8 @@ export default function Tabs({
             onClick={() => onChange(tab.value)}
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
             className={`
-              relative pb-3 text-sm transition-all duration-200
-              ${fullWidth ? "flex-1 text-center" : "mr-6 last:mr-0"}
+              relative pb-3 transition-all duration-200
+              ${fullWidth ? "flex-1 text-center" : "w-28 text-centermr-6 last:mr-0"}
               ${isActive 
                 ? `font-black border-b-[3px] ${currentTabColor}`
                 : "font-bold text-gray-400 border-b-[3px] border-transparent hover:text-gray-600"

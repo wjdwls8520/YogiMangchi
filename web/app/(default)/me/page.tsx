@@ -15,7 +15,6 @@ import Button from "@/components/ui/Button";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
-type MockSubTab = "holdings" | "open" | "orders" | "trades";
 
 type MemberProfile = {
   memberId: number;
@@ -56,47 +55,6 @@ type MockPortfolio = {
   holdings: MockHolding[];
 };
 
-type OpenOrderItem = {
-  orderId: number;
-  assetType: string;
-  symbol: string;
-  displayNameKr: string;
-  orderType: string;
-  side: "BUY" | "SELL";
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
-  orderPrice: number | null;
-  orderQuantity: number | null;
-  orderAmount: number | null;
-  filledQuantity: number | null;
-  remainingQuantity: number | null;
-  avgFilledPrice: number | null;
-  executedAmount: number | null;
-  totalFee: number | null;
-  orderedAt: string;
-  executedAt: string | null;
-  canceledAt: string | null;
-};
-
-type OrderHistoryItem = OpenOrderItem;
-
-type TradeHistoryItem = {
-  tradeId: number;
-  orderId: number;
-  assetType: string;
-  symbol: string;
-  displayNameKr: string;
-  side: "BUY" | "SELL";
-  orderType: string;
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
-  price: number;
-  quantity: number;
-  totalAmount: number;
-  fee: number;
-  realizedProfit: number | null;
-  orderedAt: string;
-  executedAt: string | null;
-};
-
 const CHART_COLORS = [
   "#0058FF",
   "#9CB34E",
@@ -105,30 +63,6 @@ const CHART_COLORS = [
   "#B5679B",
   "#E97A31",
   "#00A6A6",
-];
-
-const MOCK_POSTS = [
-  {
-    id: 1,
-    title: "오늘 비트코인 1차 반등 나오면 어디까지 보실까요?",
-    date: "방금 전",
-    comments: 12,
-    likes: 45,
-  },
-  {
-    id: 2,
-    title: "솔라나 수익률 30% 찍었습니다! 익절할지 고민 중",
-    date: "2시간 전",
-    comments: 8,
-    likes: 32,
-  },
-  {
-    id: 3,
-    title: "코인 처음 시작하는데 포트폴리오 조언 부탁드려요.",
-    date: "어제",
-    comments: 5,
-    likes: 10,
-  },
 ];
 
 const formatNumber = (value?: number | null) => {
@@ -157,28 +91,6 @@ const formatSignedPercent = (value?: number | null) => {
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 };
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("ko-KR", {
-    hour12: false,
-  });
-};
-
-const formatOrderStatus = (status?: string) => {
-  if (status === "PENDING") return "대기중";
-  if (status === "PARTIALLY_FILLED") return "부분체결";
-  if (status === "COMPLETED") return "체결완료";
-  if (status === "CANCELED") return "취소";
-  return status || "-";
-};
-
 const getSymbolLabel = (symbol: string) => {
   return symbol.replace("USDT", "");
 };
@@ -189,32 +101,6 @@ const getJson = async (response: Response) => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
-};
-
-const getCursorContent = <T,>(payload: unknown): T[] => {
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  if (data && Array.isArray(data.content)) return data.content as T[];
-
-  const nestedData = data && isRecord(data.data) ? data.data : null;
-  if (nestedData && Array.isArray(nestedData.content)) {
-    return nestedData.content as T[];
-  }
-
-  return [];
-};
-
-const getArrayContent = <T,>(payload: unknown): T[] => {
-  if (Array.isArray(payload)) return payload as T[];
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.data)) return payload.data as T[];
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  return [];
 };
 
 const extractErrorMessage = (payload: unknown) => {
@@ -245,16 +131,12 @@ export default function MePage() {
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
-  const [mockSubTab, setMockSubTab] = useState<MockSubTab>("holdings");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [isLoadingMock, setIsLoadingMock] = useState(false);
   const [mockErrorMessage, setMockErrorMessage] = useState("");
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
-  const [openOrders, setOpenOrders] = useState<OpenOrderItem[]>([]);
-  const [orderHistories, setOrderHistories] = useState<OrderHistoryItem[]>([]);
-  const [tradeHistories, setTradeHistories] = useState<TradeHistoryItem[]>([]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -339,9 +221,6 @@ export default function MePage() {
               ? "모의투자 계좌를 생성하면 데이터가 표시됩니다."
               : portfolioMessage || "모의투자 포트폴리오를 불러오지 못했습니다."
           );
-          setOpenOrders([]);
-          setOrderHistories([]);
-          setTradeHistories([]);
           setIsLoadingMock(false);
           return;
         }
@@ -350,85 +229,6 @@ export default function MePage() {
         console.error("포트폴리오 조회 실패:", error);
         setMockPortfolio(null);
         setMockErrorMessage("모의투자 포트폴리오를 불러오지 못했습니다.");
-      }
-
-      try {
-        const openOrdersResponse = await fetch(
-          "http://localhost:8080/api/v1/trade/orders/open?assetType=MOCK",
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (openOrdersResponse.status === 401 || openOrdersResponse.status === 403) {
-          setMemberProfile(null);
-          router.replace("/login");
-          return;
-        }
-
-        if (openOrdersResponse.ok) {
-          const openOrdersJson = await getJson(openOrdersResponse);
-          setOpenOrders(getArrayContent<OpenOrderItem>(openOrdersJson));
-        } else {
-          setOpenOrders([]);
-        }
-      } catch (error) {
-        console.error("미체결 주문 조회 실패:", error);
-        setOpenOrders([]);
-      }
-
-      try {
-        const ordersResponse = await fetch(
-          "http://localhost:8080/api/v1/trade/orders?assetType=MOCK&size=20",
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (ordersResponse.status === 401 || ordersResponse.status === 403) {
-          setMemberProfile(null);
-          router.replace("/login");
-          return;
-        }
-
-        if (ordersResponse.ok) {
-          const ordersJson = await getJson(ordersResponse);
-          setOrderHistories(getCursorContent<OrderHistoryItem>(ordersJson));
-        } else {
-          setOrderHistories([]);
-        }
-      } catch (error) {
-        console.error("주문내역 조회 실패:", error);
-        setOrderHistories([]);
-      }
-
-      try {
-        const historiesResponse = await fetch(
-          "http://localhost:8080/api/v1/trade/histories?assetType=MOCK&status=COMPLETED&size=20",
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-
-        if (historiesResponse.status === 401 || historiesResponse.status === 403) {
-          setMemberProfile(null);
-          router.replace("/login");
-          return;
-        }
-
-        if (historiesResponse.ok) {
-          const historiesJson = await getJson(historiesResponse);
-          setTradeHistories(getCursorContent<TradeHistoryItem>(historiesJson));
-        } else {
-          setTradeHistories([]);
-        }
-      } catch (error) {
-        console.error("거래내역 조회 실패:", error);
-        setTradeHistories([]);
       }
 
       setIsLoadingMock(false);
@@ -607,13 +407,6 @@ export default function MePage() {
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-sm font-bold opacity-80">주문 가능 금액</span>
-            </div>
-            <h3 className="text-3xl font-black mb-5">
-              {formatNumber(summary.cashBalance)}
-            </h3>
-
-            <div className="flex justify-between items-center">
               <span className="text-sm font-bold opacity-80">총 보유 자산</span>
             </div>
             <h3 className="text-3xl font-black mb-1">
@@ -673,7 +466,7 @@ export default function MePage() {
                     tabs={[
                       { label: "트레이딩", value: "trade" },
                       { label: "대회", value: "contest" },
-                      { label: "모의투자", value: "mock" },
+                      { label: "모의투자(예시)", value: "mock" },
                     ]}
                     activeTab={portfolioTab}
                     onChange={(value) => setPortfolioTab(value as PortfolioTab)}
@@ -753,107 +546,42 @@ export default function MePage() {
               </section>
 
               <section className="rounded-[32px] bg-white shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 pt-6">
-                  <Tabs
-                    tabs={[
-                      { label: "보유자산", value: "holdings" },
-                      { label: "미체결", value: "open" },
-                      { label: "주문내역", value: "orders" },
-                      { label: "거래내역", value: "trades" },
-                    ]}
-                    activeTab={mockSubTab}
-                    onChange={(value) => setMockSubTab(value as MockSubTab)}
-                    fullWidth={true}
-                  />
-                </div>
-
                 <div className="p-6 md:p-10">
                   {portfolioTab !== "mock" ? (
                     <div className="py-32 text-center text-gray-300 font-bold">
-                      아직 해당 탭 데이터는 준비 중입니다.
+                      아직 해당 자산 데이터는 준비 중입니다.
                     </div>
                   ) : isLoadingMock ? (
                     <div className="py-32 text-center text-gray-300 font-bold">
                       데이터를 불러오는 중입니다.
                     </div>
-                  ) : mockSubTab === "holdings" ? (
-                    mockPortfolio && mockPortfolio.holdings.length > 0 ? (
-                      <div className="space-y-4">
-                        {mockPortfolio.holdings.map((item) => (
-                          <HoldingRow key={item.symbol} item={item} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="보유 중인 모의투자 자산이 없습니다." />
-                    )
-                  ) : mockSubTab === "open" ? (
-                    openOrders.length > 0 ? (
-                      <div className="space-y-4">
-                        {openOrders.map((item) => (
-                          <OrderRow key={item.orderId} item={item} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="미체결 주문이 없습니다." />
-                    )
-                  ) : mockSubTab === "orders" ? (
-                    orderHistories.length > 0 ? (
-                      <div className="space-y-4">
-                        {orderHistories.map((item) => (
-                          <OrderRow key={item.orderId} item={item} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="주문내역이 없습니다." />
-                    )
-                  ) : tradeHistories.length > 0 ? (
+                  ) : mockPortfolio && mockPortfolio.holdings.length > 0 ? (
                     <div className="space-y-4">
-                      {tradeHistories.map((item) => (
-                        <TradeHistoryRow key={item.tradeId} item={item} />
+                      <div className="mb-2">
+                        <h3 className="text-lg font-black text-gray-900">
+                          보유자산 목록
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          현재 보유 중인 자산 수량과 평가 정보를 확인할 수 있습니다.
+                        </p>
+                      </div>
+                      {mockPortfolio.holdings.map((item) => (
+                        <HoldingRow key={item.symbol} item={item} />
                       ))}
                     </div>
                   ) : (
-                    <EmptyState text="거래내역이 없습니다." />
+                    <EmptyState text="보유 중인 모의투자 자산이 없습니다." />
                   )}
                 </div>
               </section>
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <CommunityStatCard label="작성 글" count={12} />
-                <CommunityStatCard label="좋아요 받은 글" count={124} />
-                <CommunityStatCard label="팔로워" count={user.followerCount} />
-                <CommunityStatCard label="팔로잉" count={user.followingCount} />
-              </div>
-
               <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="text-lg font-black text-gray-900">
-                    최근 작성한 글
-                  </h3>
-                  <button className="text-xs font-bold text-gray-400 hover:text-blue-500 transition-colors">
-                    전체보기
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {MOCK_POSTS.map((post) => (
-                    <div
-                      key={post.id}
-                      className="group cursor-pointer border-b border-gray-50 pb-6 last:border-0 last:pb-0"
-                    >
-                      <h4 className="text-base font-bold text-gray-800 group-hover:text-[#0058FF] transition-colors mb-2">
-                        {post.title}
-                      </h4>
-                      <div className="flex items-center gap-4 text-xs text-gray-400 font-bold">
-                        <span>{post.date}</span>
-                        <span>댓글 {post.comments}</span>
-                        <span>좋아요 {post.likes}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="text-lg font-black text-gray-900 mb-8">
+                  커뮤니티 활동
+                </h3>
+                <EmptyState text="표시할 커뮤니티 활동 내역이 없습니다." />
               </section>
             </div>
           )}
@@ -878,25 +606,6 @@ function AssetMiniInfo({
         {label}
       </p>
       <p className="text-sm font-black">{value}</p>
-    </div>
-  );
-}
-
-function CommunityStatCard({
-  label,
-  count,
-}: {
-  label: string;
-  count: number;
-}) {
-  return (
-    <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col items-center gap-1">
-      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
-        {label}
-      </p>
-      <p className="text-xl font-black text-gray-900">
-        {count.toLocaleString()}
-      </p>
     </div>
   );
 }
@@ -956,122 +665,6 @@ function HoldingRow({ item }: { item: MockHolding }) {
         <DataBox
           label="매수금액"
           value={formatNumber(item.buyAmount)}
-          unit="USDT"
-        />
-      </div>
-    </div>
-  );
-}
-
-function OrderRow({ item }: { item: OpenOrderItem | OrderHistoryItem }) {
-  const sideColor = item.side === "BUY" ? "text-red-500" : "text-blue-500";
-
-  return (
-    <div className="p-6 rounded-[24px] border border-gray-100 bg-white hover:border-blue-100 hover:shadow-md transition-all">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div>
-          <p className="text-sm font-black text-gray-900">
-            {item.displayNameKr || getSymbolLabel(item.symbol)}
-            <span className={`ml-2 ${sideColor}`}>
-              {item.side === "BUY" ? "매수" : "매도"}
-            </span>
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            주문일시 {formatDateTime(item.orderedAt)}
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            체결완료 {formatDateTime(item.executedAt)}
-          </p>
-        </div>
-
-        <div className="text-right">
-          <p className="text-sm font-black text-gray-900">
-            {formatOrderStatus(item.orderStatus)}
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            {item.orderType}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-gray-50">
-        <DataBox
-          label="주문가격"
-          value={formatNumber(item.orderPrice)}
-          unit="USDT"
-        />
-        <DataBox
-          label="주문수량"
-          value={formatNumber(item.orderQuantity)}
-          unit={getSymbolLabel(item.symbol)}
-        />
-        <DataBox
-          label="주문금액"
-          value={formatNumber(item.orderAmount)}
-          unit="USDT"
-        />
-        <DataBox
-          label="체결수량"
-          value={formatNumber(item.filledQuantity)}
-          unit={getSymbolLabel(item.symbol)}
-        />
-        <DataBox
-          label="남은수량"
-          value={formatNumber(item.remainingQuantity)}
-          unit={getSymbolLabel(item.symbol)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TradeHistoryRow({ item }: { item: TradeHistoryItem }) {
-  const sideColor = item.side === "BUY" ? "text-red-500" : "text-blue-500";
-
-  return (
-    <div className="p-6 rounded-[24px] border border-gray-100 bg-white hover:border-blue-100 hover:shadow-md transition-all">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div>
-          <p className="text-sm font-black text-gray-900">
-            {item.displayNameKr || getSymbolLabel(item.symbol)}
-            <span className={`ml-2 ${sideColor}`}>
-              {item.side === "BUY" ? "매수" : "매도"}
-            </span>
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            주문일시 {formatDateTime(item.orderedAt)}
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            체결일시 {formatDateTime(item.executedAt)}
-          </p>
-        </div>
-
-        <div className="text-right">
-          <p className="text-sm font-black text-gray-900">
-            {formatOrderStatus(item.orderStatus)}
-          </p>
-          <p className="text-[11px] text-gray-400 font-bold mt-1">
-            {item.orderType}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-gray-50">
-        <DataBox label="체결가" value={formatNumber(item.price)} unit="USDT" />
-        <DataBox
-          label="체결수량"
-          value={formatNumber(item.quantity)}
-          unit={getSymbolLabel(item.symbol)}
-        />
-        <DataBox
-          label="총금액"
-          value={formatNumber(item.totalAmount)}
-          unit="USDT"
-        />
-        <DataBox label="수수료" value={formatNumber(item.fee)} unit="USDT" />
-        <DataBox
-          label="실현손익"
-          value={formatSignedNumber(item.realizedProfit ?? 0)}
           unit="USDT"
         />
       </div>
