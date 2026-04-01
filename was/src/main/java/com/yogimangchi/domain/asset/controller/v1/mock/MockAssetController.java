@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/asset/mock")
 @RequiredArgsConstructor
-@Tag(name = "Mock Asset", description = "모의투자 전용 API")
+@Tag(name = "99-02-01-Mock Asset", description = "모의투자 전용 API")
 public class MockAssetController {
 
     private final MockAssetService mockAssetService;

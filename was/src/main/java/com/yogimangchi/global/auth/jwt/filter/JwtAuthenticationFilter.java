@@ -1,6 +1,7 @@
 package com.yogimangchi.global.auth.jwt.filter;
 
 import com.yogimangchi.domain.auth.service.AuthService;
+import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.global.auth.jwt.dto.AuthTokens;
 import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.auth.jwt.service.JwtService;
@@ -12,13 +13,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -57,9 +59,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             if (jwtService.validateToken(accessToken)) {
-                setAuthentication(jwtService.extractMemberId(accessToken), request);
-                filterChain.doFilter(request, response);
-                return;
+                try {
+                    setAuthentication(accessToken, request);
+                    filterChain.doFilter(request, response);
+                    return;
+                } catch (IllegalArgumentException ignored) {
+                    SecurityContextHolder.clearContext();
+                }
             }
 
             tryRefreshToken(request, response);
@@ -78,17 +84,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             AuthTokens authTokens = authService.refresh(refreshToken);
             authCookieService.addAuthCookies(response, authTokens);
-            setAuthentication(jwtService.extractMemberId(authTokens.accessToken()), request);
+            setAuthentication(authTokens.accessToken(), request);
         } catch (IllegalArgumentException ignored) {
         }
     }
 
-    private void setAuthentication(Long memberId, HttpServletRequest request) {
+    private void setAuthentication(String accessToken, HttpServletRequest request) {
+        Long memberId = jwtService.extractMemberId(accessToken);
+        MemberRole role = jwtService.extractRole(accessToken);
+
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        memberId,  // ✨ String 변환 없이 깔끔하게 진짜 Long 객체를 통째로 넘김!
+                        memberId,
                         null,
-                        Collections.emptyList()
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
                 );
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

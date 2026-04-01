@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.community.service;
 
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
+import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
 import com.yogimangchi.domain.community.entity.Reply;
@@ -14,14 +15,14 @@ import com.yogimangchi.domain.community.support.ReplyReader;
 import com.yogimangchi.domain.community.validator.CommunityPermissionValidator;
 import com.yogimangchi.domain.community.validator.ReplyValidator;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,6 +30,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class ReplyService {
+
+    private static final String WITHDRAWN_MEMBER_NICKNAME = "탈퇴한 유저";
 
     private final PostRepository postRepository;
     private final ReplyRepository replyRepository;
@@ -44,36 +47,41 @@ public class ReplyService {
 
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, Long parentId, int page, int size) {
+    public CursorResponseDto<ReplyDetailDto> getParentReplys(Long loginMemberId, Long postId, ReplySearchDto request) {
 
         Post post = postReader.getActive(postId);
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Page<ReplyDetailDto> replys = null;
+        List<ReplyDetailDto> replys;
 
         // 최상위 부모 조회 로직
-        if (parentId == null) {
-            replys = replyRepository.findAllParentReplys(post.getId(), pageable);
-        }
-        if (parentId != null) {
-            Reply parentReply = replyReader.get(parentId);
+        if (request.parentId() == null) {
+            replys = replyRepository.findAllParentReplysByCursor(post.getId(), request.cursorId(), pageable);
+        } else {
+            Reply parentReply = replyReader.get(request.parentId());
             replyValidator.validateReplyGroupParent(post, parentReply);
-            replys = replyRepository.findAllChildrenReplys(post.getId(), parentId, pageable);
+            replys = replyRepository.findAllChildrenReplysByCursor(post.getId(), request.parentId(), request.cursorId(), pageable);
         }
 
         if (replys == null || replys.isEmpty()) {
-            return replys;
+            return new CursorResponseDto<>(List.of(), null, false);
         }
 
-        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+        boolean hasNext = replys.size() > limitSize;
+        if (hasNext) {
+            replys = new ArrayList<>(replys.subList(0, limitSize));
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        return replys.map(reply -> new ReplyDetailDto(
+        List<ReplyDetailDto> content = replys.stream().map(reply -> new ReplyDetailDto(
                 reply.id(),
                 reply.content(),
                 reply.likeCount(),
@@ -89,27 +97,39 @@ public class ReplyService {
                 reply.memberId(),
                 reply.nickname(),
                 reply.profileImgUrl(),
-                reply.postId()
-        ));
+                reply.postId(),
+                reply.deleteYn()
+        )).toList();
+
+        Long nextCursorId = replys.get(replys.size() - 1).id();
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public Page<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, int page, int size) {
+    public CursorResponseDto<ReplyDetailDto> getReplysByAuthor(Long loginMemberId, Long authorMemberId, ReplySearchDto request) {
 
         memberReader.getFindMember(authorMemberId);
+        int limitSize = request.getOrDefaultSize();
+        Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReplyDetailDto> replys = replyRepository.getReplysByAuthor(authorMemberId, pageable);
+        List<ReplyDetailDto> replys = replyRepository.getReplysByAuthorByCursor(authorMemberId, request.cursorId(), pageable);
 
-        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.getContent().stream()
+        if (replys.isEmpty()) return new CursorResponseDto<>(List.of(), null, false);
+
+        boolean hasNext = replys.size() > limitSize;
+        if (hasNext) {
+            replys = new ArrayList<>(replys.subList(0, limitSize));
+        }
+
+        Set<Long> likedReplyIds = getLikedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.getContent().stream()
+        Set<Long> reportedReplyIds = getReportedReplyIds(loginMemberId, replys.stream()
                 .map(ReplyDetailDto::id)
                 .toList());
 
-        return replys.map(reply -> new ReplyDetailDto(
+        List<ReplyDetailDto> content = replys.stream().map(reply -> new ReplyDetailDto(
                 reply.id(),
                 reply.content(),
                 reply.likeCount(),
@@ -125,9 +145,12 @@ public class ReplyService {
                 reply.memberId(),
                 reply.nickname(),
                 reply.profileImgUrl(),
-                reply.postId()
-        ));
+                reply.postId(),
+                reply.deleteYn()
+        )).toList();
 
+        Long nextCursorId = replys.get(replys.size() - 1).id();
+        return new CursorResponseDto<>(content, hasNext ? nextCursorId : null, hasNext);
     }
 
 
@@ -167,7 +190,9 @@ public class ReplyService {
 
         Long parentId = saveReply.getParentReply() == null ? null : saveReply.getParentReply().getId();
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
-        String targetNickname = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getNickname();
+        String targetNickname = saveReply.getTargetReply() == null
+                ? null
+                : displayNickname(saveReply.getTargetReply().getMember());
 
         // 저장이 끝난 뒤 게시글과 부모댓글 카운트를 반영합니다.
         postRepository.increaseReplyCount(postId);
@@ -191,7 +216,8 @@ public class ReplyService {
                 saveReply.getMember().getId(),
                 saveReply.getMember().getNickname(),
                 saveReply.getMember().getProfileImgUrl(),
-                saveReply.getPost().getId()
+                saveReply.getPost().getId(),
+                saveReply.getDeleteYn()
         );
     }
 
@@ -230,7 +256,9 @@ public class ReplyService {
 
         Long parentId = updatedReply.getParentReply() == null ? null : updatedReply.getParentReply().getId();
         Long targetMemberId = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getId();
-        String targetNickname = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getNickname();
+        String targetNickname = updatedReply.getTargetReply() == null
+                ? null
+                : displayNickname(updatedReply.getTargetReply().getMember());
 
         return new ReplyDetailDto(
                 updatedReply.getId(),
@@ -248,7 +276,8 @@ public class ReplyService {
                 updatedReply.getMember().getId(),
                 updatedReply.getMember().getNickname(),
                 updatedReply.getMember().getProfileImgUrl(),
-                updatedReply.getPost().getId()
+                updatedReply.getPost().getId(),
+                updatedReply.getDeleteYn()
         );
 
     }
@@ -295,6 +324,10 @@ public class ReplyService {
         }
 
         return replyReportRepository.existsByMember_IdAndReply_Id(loginMemberId, replyId);
+    }
+
+    private String displayNickname(Member member) {
+        return member.isDeleted() ? WITHDRAWN_MEMBER_NICKNAME : member.getNickname();
     }
 
 }

@@ -1,7 +1,6 @@
 package com.yogimangchi.domain.trade.entity;
 
 import com.yogimangchi.domain.asset.entity.Assets;
-import com.yogimangchi.domain.trade.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -16,7 +15,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Comment("사용자의 매매기록")
+@Comment("사용자의 매매 기록")
 public class TradeHistory {
 
     @Id
@@ -28,8 +27,13 @@ public class TradeHistory {
     @Comment("거래가 발생한 지갑 ID")
     private Assets assets;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    @Comment("체결 이력이 연결된 주문 ID")
+    private Order order;
+
     @Column(nullable = false, length = 20)
-    @Comment("거래한 코인 심볼")
+    @Comment("거래 코인 심볼")
     private String symbol;
 
     @Column(name = "order_type", nullable = false, length = 10)
@@ -41,7 +45,7 @@ public class TradeHistory {
     private String side;
 
     @Column(nullable = false, precision = 19, scale = 8)
-    @Comment("1개당 체결 단가 (원화 기준)")
+    @Comment("1개당 체결 가격")
     private BigDecimal price;
 
     @Column(nullable = false, precision = 19, scale = 8)
@@ -49,36 +53,32 @@ public class TradeHistory {
     private BigDecimal quantity;
 
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 4)
-    @Comment("총 거래 금액 (price * quantity)")
+    @Comment("체결 금액 (수수료 제외)")
     private BigDecimal totalAmount;
 
     @Column(precision = 19, scale = 4)
-    @Comment("발생한 수수료")
+    @Comment("발생 수수료")
     private BigDecimal fee;
 
     @Column(name = "realized_profit", precision = 19, scale = 4)
-    @Comment("실현 수익 (매도 시에만 기록, 매수 시에는 null 또는 0)")
+    @Comment("실현 손익 (매도 시에만 기록, 매수 시에는 null 또는 0)")
     private BigDecimal realizedProfit;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "order_status", nullable = false)
-    @Comment("주문 상태 (PENDING: 미체결, COMPLETED: 체결완료, CANCELED: 취소)")
-    private OrderStatus status;
-
     @Column(name = "executed_at", nullable = true)
-    @Comment("실제 바이낸스/서버 기준 체결 시각 (미체결 시 null)")
+    @Comment("실제 체결 시각 (미체결이면 null)")
     private LocalDateTime executedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    @Comment("DB에 기록이 생성된 시각")
+    @Comment("DB 기록 생성 시각")
     private LocalDateTime createdAt;
 
     @Builder
-    protected TradeHistory(Assets assets, String orderType, String symbol, String side,
+    protected TradeHistory(Assets assets, Order order, String orderType, String symbol, String side,
                            BigDecimal price, BigDecimal quantity, BigDecimal totalAmount,
-                           BigDecimal fee, BigDecimal realizedProfit, OrderStatus status, LocalDateTime executedAt) {
+                           BigDecimal fee, BigDecimal realizedProfit, LocalDateTime executedAt) {
         this.assets = assets;
+        this.order = order;
         this.orderType = orderType;
         this.symbol = symbol;
         this.side = side;
@@ -87,14 +87,16 @@ public class TradeHistory {
         this.totalAmount = totalAmount;
         this.fee = fee;
         this.realizedProfit = realizedProfit;
-        this.status = status;
         this.executedAt = executedAt;
     }
 
     // 시장가 매수/매도
-    public static TradeHistory createMarketBuyHistory(Assets assets, String symbol, BigDecimal price, BigDecimal quantity, BigDecimal totalAmount, BigDecimal fee) {
+    public static TradeHistory createMarketBuyHistory(Assets assets, Order order, String symbol,
+                                                      BigDecimal price, BigDecimal quantity,
+                                                      BigDecimal totalAmount, BigDecimal fee) {
         return TradeHistory.builder()
                 .assets(assets)
+                .order(order)
                 .orderType("MARKET")  // 시장가 고정
                 .symbol(symbol)
                 .side("BUY")          // 매수 고정
@@ -103,14 +105,17 @@ public class TradeHistory {
                 .totalAmount(totalAmount)
                 .fee(fee)
                 .realizedProfit(BigDecimal.ZERO) // 매수는 실현 수익 없음
-                .status(OrderStatus.COMPLETED)   // 시장가는 즉시 체결완료
                 .executedAt(LocalDateTime.now())
                 .build();
     }
 
-    public static TradeHistory createMarketSellHistory(Assets assets, String symbol, BigDecimal price, BigDecimal quantity, BigDecimal totalAmount, BigDecimal fee, BigDecimal realizedProfit) {
+    public static TradeHistory createMarketSellHistory(Assets assets, Order order, String symbol,
+                                                       BigDecimal price, BigDecimal quantity,
+                                                       BigDecimal totalAmount, BigDecimal fee,
+                                                       BigDecimal realizedProfit) {
         return TradeHistory.builder()
                 .assets(assets)
+                .order(order)
                 .orderType("MARKET")  // 시장가 고정
                 .symbol(symbol)
                 .side("SELL")         // 매도 고정
@@ -119,9 +124,7 @@ public class TradeHistory {
                 .totalAmount(totalAmount)
                 .fee(fee)
                 .realizedProfit(realizedProfit) // 매도시 실현 수익 로직
-                .status(OrderStatus.COMPLETED)  // 시장가는 즉시 체결완료
                 .executedAt(LocalDateTime.now())
                 .build();
     }
-
 }

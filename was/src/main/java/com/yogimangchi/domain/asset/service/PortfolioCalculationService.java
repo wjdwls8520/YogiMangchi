@@ -29,18 +29,22 @@ public class PortfolioCalculationService {
     public PortfolioResponseDto calculatePortfolio(String displayAssetTypeName, List<Assets> wallets, List<Holding> holdings) {
 
         BigDecimal totalCashBalance = BigDecimal.ZERO;
+        BigDecimal totalLockedMoney = BigDecimal.ZERO;
         BigDecimal totalSeedMoney = BigDecimal.ZERO;
 
         for (Assets wallet : wallets) {
             totalCashBalance = totalCashBalance.add(wallet.getCurrentMoney());
+            totalLockedMoney = totalLockedMoney.add(wallet.getLockedMoney());
             totalSeedMoney = totalSeedMoney.add(wallet.getSeedMoney());
         }
 
+        BigDecimal totalCashAsset = totalCashBalance.add(totalLockedMoney);
         BigDecimal totalCoinValue = BigDecimal.ZERO;
         BigDecimal totalBuyAmount = BigDecimal.ZERO;
 
         // 내부 구조체 (계산 중간 단계를 캐시하기 위함)
-        record HoldingCalc(String symbol, BigDecimal quantity, BigDecimal averageBuyPrice,
+        record HoldingCalc(String symbol, BigDecimal totalQuantity, BigDecimal availableQuantity, BigDecimal lockedQuantity,
+                           BigDecimal averageBuyPrice,
                            BigDecimal currentPrice, BigDecimal buyAmount,
                            BigDecimal coinTotalValue, BigDecimal profit, BigDecimal roi, boolean isPriceStale) {}
 
@@ -54,9 +58,13 @@ public class PortfolioCalculationService {
                     .map(dto -> new BigDecimal(dto.price()))
                     .orElse(holding.getAverageBuyPrice());
 
+            BigDecimal availableQuantity = holding.getQuantity();
+            BigDecimal lockedQuantity = holding.getLockedQuantity();
+            BigDecimal totalQuantity = availableQuantity.add(lockedQuantity);
+
             // 산개별 코인 산술
-            BigDecimal coinTotalValue = holding.getQuantity().multiply(currentPrice).setScale(4, RoundingMode.HALF_UP);
-            BigDecimal buyAmount = holding.getQuantity().multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal coinTotalValue = totalQuantity.multiply(currentPrice).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal buyAmount = totalQuantity.multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
             BigDecimal profit = coinTotalValue.subtract(buyAmount);
 
             // 개별 코인 수익률(ROI) 계산 - 0% 방지를 위해 미리 100을 곱함
@@ -67,7 +75,7 @@ public class PortfolioCalculationService {
 
             // 계산 결과 임시 저장
             holdingCalcs.add(new HoldingCalc(
-                    holding.getSymbol(), holding.getQuantity(), holding.getAverageBuyPrice(),
+                    holding.getSymbol(), totalQuantity, availableQuantity, lockedQuantity, holding.getAverageBuyPrice(),
                     currentPrice, buyAmount, coinTotalValue, profit, roi, isPriceStale
             ));
 
@@ -89,14 +97,14 @@ public class PortfolioCalculationService {
             }
 
             holdingResponseDtos.add(new HoldingResponseDto(
-                    calc.symbol(), calc.quantity(), calc.averageBuyPrice(),
+                    calc.symbol(), calc.totalQuantity(), calc.availableQuantity(), calc.lockedQuantity(), calc.averageBuyPrice(),
                     calc.currentPrice(), calc.buyAmount(), calc.coinTotalValue(),
                     calc.profit(), calc.roi(), holdingRatio, calc.isPriceStale()
             ));
         }
 
         // 최종 계좌 총계산 (두 지갑을 더한 전체 자산)
-        BigDecimal totalAsset = totalCashBalance.add(totalCoinValue);
+        BigDecimal totalAsset = totalCashAsset.add(totalCoinValue);
         BigDecimal totalProfit = totalAsset.subtract(totalSeedMoney);
 
         BigDecimal totalRoi = BigDecimal.ZERO;
@@ -109,6 +117,8 @@ public class PortfolioCalculationService {
                 holdingResponseDtos.size(),
                 totalSeedMoney,
                 totalCashBalance,
+                totalLockedMoney,
+                totalCashAsset,
                 totalBuyAmount,
                 totalCoinValue,
                 totalAsset,

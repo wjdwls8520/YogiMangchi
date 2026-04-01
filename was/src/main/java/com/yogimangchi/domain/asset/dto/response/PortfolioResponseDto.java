@@ -17,13 +17,19 @@ public record PortfolioResponseDto(
         @Schema(description = "주문 가능 금액 (보유 현금)", example = "50000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal cashBalance,
 
+        @Schema(description = "지정가 주문으로 잠겨 있는 현금", example = "1000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
+        BigDecimal lockedMoney,
+
+        @Schema(description = "총 현금 자산 (주문 가능 금액 + 잠긴 현금)", example = "51000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
+        BigDecimal totalCashAsset,
+
         @Schema(description = "총 매수 금액 (코인 사는데 쓴 돈 합계)", example = "30000.0000", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal totalBuyAmount,
 
-        @Schema(description = "총 평가 금액 (보유 코인들의 현재 가치 합계)", example = "32500.0000", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "총 평가 금액 (보유 코인들의 현재 가치 합계, 잠긴 코인 포함)", example = "32500.0000", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal totalCoinValue,
 
-        @Schema(description = "총 보유 자산 (주문가능금액 + 총 평가금액)", example = "82500.0000", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "총 보유 자산 (총 현금 자산 + 총 평가금액)", example = "83500.0000", requiredMode = Schema.RequiredMode.REQUIRED)
         BigDecimal totalAsset,
 
         @Schema(description = "총 평가 손익", example = "-17500.0000", requiredMode = Schema.RequiredMode.REQUIRED)

@@ -71,6 +71,29 @@ public class Holding {
         this.averageBuyPrice = newAverageBuyPrice;
     }
 
+    // 지정가 매도시 해당 코인 락
+    public void lockQuantity(BigDecimal quantityToLock) {
+        validatePositiveQuantity(quantityToLock, "잠글 수량");
+
+        if (this.quantity.compareTo(quantityToLock) < 0) {
+            throw new IllegalArgumentException("주문 가능한 보유 수량이 부족합니다.");
+        }
+
+        this.quantity = this.quantity.subtract(quantityToLock);
+        this.lockedQuantity = this.lockedQuantity.add(quantityToLock);
+    }
+
+    public void unlockQuantity(BigDecimal quantityToUnlock) {
+        validatePositiveQuantity(quantityToUnlock, "해제할 수량");
+
+        if (this.lockedQuantity.compareTo(quantityToUnlock) < 0) {
+            throw new IllegalArgumentException("잠긴 수량보다 더 많이 해제할 수 없습니다.");
+        }
+
+        this.lockedQuantity = this.lockedQuantity.subtract(quantityToUnlock);
+        this.quantity = this.quantity.add(quantityToUnlock);
+    }
+
     // 코인을 처음 매수했을 때(신규 보유) 사용하는 팩토리 메서드
     public static Holding createFirstHolding(Assets assets, String symbol, BigDecimal quantity, BigDecimal buyPrice) {
         return Holding.builder()
@@ -80,5 +103,14 @@ public class Holding {
                 .lockedQuantity(BigDecimal.ZERO) // 첫 매수 시 지정가 락 수량은 0
                 .averageBuyPrice(buyPrice) // 첫 매수니까 평단가가 곧 매수가
                 .build();
+    }
+
+    private void validatePositiveQuantity(BigDecimal quantity, String label) {
+        if (quantity == null) {
+            throw new IllegalArgumentException(label + "이(가) 없습니다.");
+        }
+        if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(label + "은(는) 0보다 커야 합니다.");
+        }
     }
 }

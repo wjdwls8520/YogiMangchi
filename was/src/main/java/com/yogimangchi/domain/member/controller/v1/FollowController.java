@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.member.controller.v1;
 
-import com.yogimangchi.domain.member.dto.request.FollowSearchCondition;
+import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
 import com.yogimangchi.domain.member.dto.response.FollowMemberDto;
 import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
 import com.yogimangchi.domain.member.service.FollowService;
@@ -37,9 +37,9 @@ public class FollowController {
     public ResponseEntity<CursorResponseDto<FollowMemberDto>> getFollowerMembers(
             @Parameter(description = "조회할 멤버 ID")
             @PathVariable Long memberId,
-            @Valid @ParameterObject @ModelAttribute FollowSearchCondition condition
+            @Valid @ParameterObject @ModelAttribute FollowSearchDto request
     ) {
-        CursorResponseDto<FollowMemberDto> followerMembers = followService.getFollowerMembers(memberId, condition);
+        CursorResponseDto<FollowMemberDto> followerMembers = followService.getFollowerMembers(memberId, request);
 
         return ResponseEntity.ok(followerMembers);
     }
@@ -52,9 +52,9 @@ public class FollowController {
     public ResponseEntity<CursorResponseDto<FollowMemberDto>> getFollowingMembers(
             @Parameter(description = "조회할 멤버 ID")
             @PathVariable Long memberId,
-            @Valid @ParameterObject @ModelAttribute FollowSearchCondition condition
+            @Valid @ParameterObject @ModelAttribute FollowSearchDto request
     ) {
-        CursorResponseDto<FollowMemberDto> followingMembers = followService.getFollowingMembers(memberId, condition);
+        CursorResponseDto<FollowMemberDto> followingMembers = followService.getFollowingMembers(memberId, request);
 
         return ResponseEntity.ok(followingMembers);
     }

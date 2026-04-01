@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.repository;
 
+import com.yogimangchi.domain.community.dto.query.PostQueryDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.PostLike;
@@ -40,7 +41,6 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     """)
     int deleteByMemberIdAndPostId(@Param("memberId") Long memberId, @Param("postId") Long postId);
 
-
     @Query("""
         select new com.yogimangchi.domain.community.dto.response.PostAndMemberDto(
             p.id,
@@ -52,7 +52,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         from PostLike pl
@@ -77,7 +77,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
             p.createdAt,
             p.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl
         )
         from PostLike pl
@@ -96,5 +96,46 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
             Pageable pageable
     );
 
+    // ── 커서 기반 페이징 메서드 (no-offset) ──
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.query.PostQueryDto(
+            pl.id,
+            p.id, p.title, p.content, p.likeCount, p.replyCount, p.reportCount,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        from PostLike pl
+        join pl.post p
+        join p.member m
+        where pl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and (:cursorId is null or pl.id < :cursorId)
+        order by pl.id desc
+    """)
+    List<PostQueryDto> findLikedPostsByCursor(@Param("loginMemberId") Long loginMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.query.PostQueryDto(
+            pl.id,
+            p.id, p.title, p.content, p.likeCount, p.replyCount, p.reportCount,
+            p.createdAt, p.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl
+        )
+        from PostLike pl
+        join pl.post p
+        join p.member m
+        where pl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and (:cursorId is null or pl.id < :cursorId)
+          and (
+              lower(p.title) like lower(concat('%', :keyword, '%'))
+              or lower(p.content) like lower(concat('%', :keyword, '%'))
+          )
+        order by pl.id desc
+    """)
+    List<PostQueryDto> findLikedPostsByKeywordByCursor(@Param("loginMemberId") Long loginMemberId, @Param("cursorId") Long cursorId, @Param("keyword") String keyword, Pageable pageable);
 
 }

@@ -11,6 +11,7 @@ import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
 import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,15 +47,16 @@ public class SignupService {
             throw new IllegalArgumentException("소셜 로그인 이메일 정보가 없습니다.");
         }
 
-        if (memberRepository.existsByNickname(signupRequest.nickname())) {
-            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
-        }
-
         if (oAuthAccountRepository.findByProviderAndProviderUserId(
                 signupTokenPayload.provider(),
                 signupTokenPayload.providerUserId()
         ).isPresent()) {
             throw new IllegalArgumentException("이미 가입된 소셜 계정입니다.");
+        }
+
+        memberRepository.lockNickname(signupRequest.nickname());
+        if (memberRepository.existsByNickname(signupRequest.nickname())) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
         }
 
         Member member = Member.createSocialMember(
@@ -65,7 +67,7 @@ public class SignupService {
                 signupRequest.privateAgree()
         );
 
-        Member savedMember = memberRepository.save(member);
+        Member savedMember = saveMemberOrThrowDuplicateNickname(member);
 
         OAuthAccount oAuthAccount = OAuthAccount.create(
                 savedMember,
@@ -74,7 +76,7 @@ public class SignupService {
                 signupTokenPayload.providerUserId()
         );
 
-        oAuthAccountRepository.save(oAuthAccount);
+        saveOAuthAccountOrThrowDuplicate(oAuthAccount);
         signupTokenService.removeSignupToken(signupRequest.signupToken());
 
         return new SignupResponse(savedMember.getId(), savedMember.getNickname());
@@ -101,6 +103,22 @@ public class SignupService {
 
         if (signupRequest.privateAgree() == false) {
             throw new IllegalArgumentException("개인정보 수집 및 이용 동의가 필요합니다.");
+        }
+    }
+
+    private Member saveMemberOrThrowDuplicateNickname(Member member) {
+        try {
+            return memberRepository.saveAndFlush(member);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+    }
+
+    private void saveOAuthAccountOrThrowDuplicate(OAuthAccount oAuthAccount) {
+        try {
+            oAuthAccountRepository.saveAndFlush(oAuthAccount);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("이미 가입된 소셜 계정입니다.");
         }
     }
 }

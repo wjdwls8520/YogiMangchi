@@ -46,6 +46,9 @@ public class Member {
     @Column(name = "private_agree", nullable = false)
     private boolean privateAgree;
 
+    @Column(name = "delete_yn", nullable = false, length = 1, columnDefinition = "varchar(1) default 'N'")
+    private String deleteYn = "N";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -86,6 +89,7 @@ public class Member {
         member.followingCount = 0L;
         member.termAgree = termAgree;
         member.privateAgree = privateAgree;
+        member.deleteYn = "N";
         return member;
     }
 
@@ -93,5 +97,18 @@ public class Member {
         this.nickname = nickname;
         this.profileImgUrl = profileImgUrl;
         this.profileMsg = profileMsg;
+    }
+
+    public void withdraw(String withdrawnNickname, String withdrawnProfileImgUrl) {
+        this.deleteYn = "Y";
+        this.nickname = withdrawnNickname;
+        this.profileImgUrl = withdrawnProfileImgUrl;
+        this.profileMsg = null;
+        this.followerCount = 0L;
+        this.followingCount = 0L;
+    }
+
+    public boolean isDeleted() {
+        return "Y".equals(this.deleteYn);
     }
 }

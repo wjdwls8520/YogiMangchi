@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.repository;
 
+import com.yogimangchi.domain.community.dto.query.ReplyQueryDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.community.entity.ReplyLike;
 import org.springframework.data.domain.Page;
@@ -39,7 +40,6 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
     """)
     int deleteByMemberIdAndReplyId(@Param("memberId") Long memberId, @Param("replyId") Long replyId);
 
-
     @Query("""
         select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
             r.id,
@@ -51,13 +51,18 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
             r.replyCount,
             rp.id,
             tm.id,
-            tm.nickname,
+            case
+                when tm.deleteYn = 'Y' then '탈퇴한 유저'
+                when tr.deleteYn = 'Y' then '알 수 없음'
+                else tm.nickname
+            end,
             r.createdAt,
             r.updatedAt,
             m.id,
-            m.nickname,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
             m.profileImgUrl,
-            p.id
+            p.id,
+            r.deleteYn
         )
         from ReplyLike rl
         join rl.reply r
@@ -71,5 +76,33 @@ public interface ReplyLikeRepository extends JpaRepository<ReplyLike, Long> {
           and r.deleteYn = 'N'
     """)
     Page<ReplyDetailDto> getLikedReplys(@Param("loginMemberId") Long loginMemberId, Pageable pageable);
+
+    // ── 커서 기반 페이징 메서드 (no-offset) ──
+
+    @Query("""
+        select new com.yogimangchi.domain.community.dto.query.ReplyQueryDto(
+            rl.id,
+            r.id, r.content, r.likeCount, true, r.reportCount, false, r.replyCount,
+            rp.id,
+            tm.id,
+            case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
+            r.createdAt, r.updatedAt, m.id,
+            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
+            m.profileImgUrl, p.id, r.deleteYn
+        )
+        from ReplyLike rl
+        join rl.reply r
+        left join r.parentReply rp
+        left join r.targetReply tr
+        left join tr.member tm
+        join r.member m
+        join r.post p
+        where rl.member.id = :loginMemberId
+          and p.deleteYn = 'N'
+          and r.deleteYn = 'N'
+          and (:cursorId is null or rl.id < :cursorId)
+        order by rl.id desc
+    """)
+    List<ReplyQueryDto> getLikedReplysByCursor(@Param("loginMemberId") Long loginMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
 
 }

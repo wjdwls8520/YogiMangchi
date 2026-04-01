@@ -1,10 +1,10 @@
 package com.yogimangchi.domain.member.service;
 
-import com.yogimangchi.domain.member.dto.request.FollowSearchCondition;
+import com.yogimangchi.domain.member.dto.query.FollowMemberQueryDto;
+import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
 import com.yogimangchi.domain.member.dto.response.FollowMemberDto;
 import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
-import com.yogimangchi.domain.member.entity.MemberFollow;
 import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
@@ -56,42 +56,46 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchCondition condition) {
+    public CursorResponseDto<FollowMemberDto> getFollowerMembers(Long memberId, FollowSearchDto request) {
         memberReader.getFindMember(memberId);
 
-        List<MemberFollow> followerMembers = memberFollowRepository.searchFollowerMembers(memberId, condition);
-        int limitSize = condition.getOrDefaultSize();
+        List<FollowMemberQueryDto> followerMembers = memberFollowRepository.searchFollowerMembers(memberId, request);
+        int limitSize = request.getOrDefaultSize();
         boolean hasNext = followerMembers.size() > limitSize;
 
         if (hasNext) {
             followerMembers.remove(limitSize);
         }
 
-        Long nextCursorId = followerMembers.isEmpty() ? null : followerMembers.get(followerMembers.size() - 1).getId();
+        Long nextCursorId = hasNext && !followerMembers.isEmpty()
+                ? followerMembers.get(followerMembers.size() - 1).cursorId()
+                : null;
 
         List<FollowMemberDto> content = followerMembers.stream()
-                .map(this::toFollowerMemberDto)
+                .map(this::toFollowMemberDto)
                 .toList();
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchCondition condition) {
+    public CursorResponseDto<FollowMemberDto> getFollowingMembers(Long memberId, FollowSearchDto request) {
         memberReader.getFindMember(memberId);
 
-        List<MemberFollow> followingMembers = memberFollowRepository.searchFollowingMembers(memberId, condition);
-        int limitSize = condition.getOrDefaultSize();
+        List<FollowMemberQueryDto> followingMembers = memberFollowRepository.searchFollowingMembers(memberId, request);
+        int limitSize = request.getOrDefaultSize();
         boolean hasNext = followingMembers.size() > limitSize;
 
         if (hasNext) {
             followingMembers.remove(limitSize);
         }
 
-        Long nextCursorId = followingMembers.isEmpty() ? null : followingMembers.get(followingMembers.size() - 1).getId();
+        Long nextCursorId = hasNext && !followingMembers.isEmpty()
+                ? followingMembers.get(followingMembers.size() - 1).cursorId()
+                : null;
 
         List<FollowMemberDto> content = followingMembers.stream()
-                .map(this::toFollowingMemberDto)
+                .map(this::toFollowMemberDto)
                 .toList();
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
@@ -103,31 +107,16 @@ public class FollowService {
         }
     }
 
-    private FollowMemberDto toFollowerMemberDto(MemberFollow memberFollow) {
-        Member followerMember = memberFollow.getFollower();
+    private FollowMemberDto toFollowMemberDto(FollowMemberQueryDto member) {
         return new FollowMemberDto(
-                followerMember.getId(),
-                followerMember.getNickname(),
-                followerMember.getProfileImgUrl(),
-                followerMember.getProfileMsg(),
-                followerMember.getBestCount(),
-                followerMember.getFollowerCount(),
-                followerMember.getFollowingCount(),
-                memberFollow.getCreatedAt()
-        );
-    }
-
-    private FollowMemberDto toFollowingMemberDto(MemberFollow memberFollow) {
-        Member followingMember = memberFollow.getFollowing();
-        return new FollowMemberDto(
-                followingMember.getId(),
-                followingMember.getNickname(),
-                followingMember.getProfileImgUrl(),
-                followingMember.getProfileMsg(),
-                followingMember.getBestCount(),
-                followingMember.getFollowerCount(),
-                followingMember.getFollowingCount(),
-                memberFollow.getCreatedAt()
+                member.memberId(),
+                member.nickname(),
+                member.profileImgUrl(),
+                member.profileMsg(),
+                member.bestCount(),
+                member.followerCount(),
+                member.followingCount(),
+                member.followCreatedAt()
         );
     }
 }

@@ -5,13 +5,18 @@ import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.entity.WithdrawnOAuthAccount;
 import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
+import com.yogimangchi.domain.member.repository.WithdrawnOAuthAccountRepository;
+import com.yogimangchi.global.auth.jwt.service.RefreshTokenService;
 import com.yogimangchi.global.s3.service.S3Service;
 import com.yogimangchi.global.s3.service.S3UploadResult;
+import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -30,6 +35,7 @@ public class MemberService {
     private static final int PROFILE_IMG_URL_MAX_LENGTH = 1000;
     private static final int PROFILE_MSG_MAX_LENGTH = 255;
     private static final String RESET_PROFILE_IMAGE_TYPE = "reset";
+    private static final String WITHDRAWN_PROFILE_IMAGE_PATH = "/images/profile/widthdrawn_profile.png";
     private static final String[] DEFAULT_PROFILE_IMAGE_PATHS = {
             "/images/profile/defaultProfile-green.png",
             "/images/profile/defaultProfile-blue.png",
@@ -39,6 +45,9 @@ public class MemberService {
     private final OAuthAccountRepository oAuthAccountRepository;
     private final MemberFollowRepository memberFollowRepository;
     private final MemberRepository memberRepository;
+    private final WithdrawnOAuthAccountRepository withdrawnOAuthAccountRepository;
+    private final RefreshTokenService refreshTokenService;
+    private final MemberReader memberReader;
     private final S3Service s3Service;
 
     @Transactional(readOnly = true)
@@ -49,6 +58,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public MyProfileInfoDto getMyProfile(Long loginMemberId) {
+        memberReader.getAuthenticated(loginMemberId);
 
         MyProfileInfoDto myProfileInfo = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
@@ -57,7 +67,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public MemberProfileInfoDto getMemberProfile(Long loginMemberId, Long memberId) {
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        Member member = memberReader.getFindMember(memberId);
         MemberProfileInfoDto memberProfileInfo = new MemberProfileInfoDto(
                 member.getId(),
                 member.getNickname(),
@@ -83,8 +93,7 @@ public class MemberService {
             throw new IllegalArgumentException("수정할 프로필 정보가 필요합니다.");
         }
 
-        Member member = memberRepository.findById(loginMemberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        Member member = memberReader.getAuthenticated(loginMemberId);
 
         String profileImageType = normalizeOptionalText(request.getType());
         boolean hasNicknameUpdate = request.getNickname() != null;
@@ -98,14 +107,14 @@ public class MemberService {
             throw new IllegalArgumentException("수정할 프로필 정보가 없습니다.");
         }
 
-        String nextNickname = member.getNickname();
+        String currentNickname = member.getNickname();
+        String nextNickname = currentNickname;
+        boolean nicknameChanged = false;
         if (hasNicknameUpdate) {
             nextNickname = request.getNickname();
             NicknameValidator.validate(nextNickname);
-
-            if (memberRepository.existsByNicknameAndIdNot(nextNickname, loginMemberId)) {
-                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
-            }
+            nicknameChanged = !currentNickname.equals(nextNickname);
+            validateAvailableNicknameForUpdate(loginMemberId, nextNickname, nicknameChanged);
         }
 
         String nextProfileMsg = hasProfileMsgUpdate ? normalizeOptionalText(request.getProfileMsg()) : member.getProfileMsg();
@@ -129,6 +138,7 @@ public class MemberService {
         }
 
         member.updateBasicProfile(nextNickname, nextProfileImgUrl, nextProfileMsg);
+        flushMemberProfileChangeIfNeeded(nicknameChanged);
 
         MyProfileInfoDto updatedProfile = oAuthAccountRepository.findMyProfileInfo(loginMemberId);
 
@@ -139,12 +149,49 @@ public class MemberService {
         return updatedProfile;
     }
 
+    @Transactional
+    public void withdrawMember(Long loginMemberId) {
+        Member member = memberReader.getAuthenticated(loginMemberId);
+        String profileImgUrl = member.getProfileImgUrl();
+        archiveAndDeleteOAuthAccount(loginMemberId);
+
+        memberRepository.decreaseFollowerCountForWithdraw(loginMemberId);
+        memberRepository.decreaseFollowingCountForWithdraw(loginMemberId);
+        memberFollowRepository.deleteAllByMemberId(loginMemberId);
+        member.withdraw(createWithdrawnNickname(loginMemberId), getWithdrawnProfileImageUrl());
+        scheduleRefreshTokenRemoval(loginMemberId);
+        scheduleWithdrawnProfileImageDeletion(profileImgUrl);
+    }
+
     private boolean hasProfileImage(MultipartFile profileImage) {
         return profileImage != null && !profileImage.isEmpty();
     }
 
     private boolean isResetProfileImageType(String type) {
         return RESET_PROFILE_IMAGE_TYPE.equalsIgnoreCase(type);
+    }
+
+    private void validateAvailableNicknameForUpdate(Long loginMemberId, String nickname, boolean nicknameChanged) {
+        if (!nicknameChanged) {
+            return;
+        }
+
+        memberRepository.lockNickname(nickname);
+        if (memberRepository.existsByNicknameAndIdNot(nickname, loginMemberId)) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+    }
+
+    private void flushMemberProfileChangeIfNeeded(boolean nicknameChanged) {
+        if (!nicknameChanged) {
+            return;
+        }
+
+        try {
+            memberRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
     }
 
     private String normalizeOptionalText(String value) {
@@ -230,6 +277,61 @@ public class MemberService {
                 }
             }
         });
+    }
+
+    private void scheduleRefreshTokenRemoval(Long memberId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            refreshTokenService.removeRefreshToken(memberId);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                refreshTokenService.removeRefreshToken(memberId);
+            }
+        });
+    }
+
+    private void scheduleWithdrawnProfileImageDeletion(String profileImgUrl) {
+        if (profileImgUrl == null || profileImgUrl.isBlank()) {
+            return;
+        }
+
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            s3Service.deleteByUrlIfManaged(profileImgUrl, MEMBER_PROFILE_IMAGE_DIRECTORY);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                s3Service.deleteByUrlIfManaged(profileImgUrl, MEMBER_PROFILE_IMAGE_DIRECTORY);
+            }
+        });
+    }
+
+    private void archiveAndDeleteOAuthAccount(Long memberId) {
+        oAuthAccountRepository.findByMember_Id(memberId)
+                .ifPresent(oAuthAccount -> {
+                    WithdrawnOAuthAccount withdrawnOAuthAccount = WithdrawnOAuthAccount.from(oAuthAccount);
+                    withdrawnOAuthAccountRepository.save(withdrawnOAuthAccount);
+                    oAuthAccountRepository.delete(oAuthAccount);
+                });
+    }
+
+    private String createWithdrawnNickname(Long memberId) {
+        return "withdrawn_" + memberId;
+    }
+
+    private String getWithdrawnProfileImageUrl() {
+        try {
+            return ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path(WITHDRAWN_PROFILE_IMAGE_PATH)
+                    .toUriString();
+        } catch (IllegalStateException e) {
+            return WITHDRAWN_PROFILE_IMAGE_PATH;
+        }
     }
 
 }

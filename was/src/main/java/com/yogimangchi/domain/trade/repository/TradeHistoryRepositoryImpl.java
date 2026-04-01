@@ -1,10 +1,11 @@
 package com.yogimangchi.domain.trade.repository;
 
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.trade.dto.request.TradeHistorySearchCondition;
-import com.yogimangchi.domain.trade.entity.TradeHistory;
+import com.yogimangchi.domain.trade.dto.query.TradeHistoryQueryDto;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,8 @@ import java.util.List;
 
 // Q클래스 static import
 import static com.yogimangchi.domain.asset.entity.QAssets.assets;
+import static com.yogimangchi.domain.market.entity.QMarketSymbol.marketSymbol;
+import static com.yogimangchi.domain.trade.entity.QOrder.order;
 import static com.yogimangchi.domain.trade.entity.QTradeHistory.tradeHistory;
 
 @Repository
@@ -25,11 +28,32 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<TradeHistory> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond) {
+    public List<TradeHistoryQueryDto> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond, Long assetId) {
         return queryFactory
-                .selectFrom(tradeHistory)
+                .select(Projections.constructor(
+                        TradeHistoryQueryDto.class,
+                        tradeHistory.id,
+                        order.id,
+                        assets.type,
+                        tradeHistory.symbol,
+                        marketSymbol.displayNameKr.coalesce(tradeHistory.symbol),
+                        tradeHistory.side,
+                        tradeHistory.orderType,
+                        order.status,
+                        tradeHistory.price,
+                        tradeHistory.quantity,
+                        tradeHistory.totalAmount,
+                        tradeHistory.fee,
+                        tradeHistory.realizedProfit,
+                        order.createdAt,
+                        tradeHistory.executedAt
+                ))
+                .from(tradeHistory)
                 .join(tradeHistory.assets, assets) // 멤버 ID 검사와 지갑 타입 필터를 위해 지갑(Assets) 테이블 조인
+                .join(tradeHistory.order, order)   // 주문 상태 필터를 위해 주문(Order) 테이블 조인
+                .leftJoin(marketSymbol).on(tradeHistory.symbol.eq(marketSymbol.symbol))
                 .where(
+                        assetIdEq(assetId),                  // MOCK 조회 시 현재 ACTIVE 지갑만 조회
                         assets.member.id.eq(memberId),       //  내 지갑의 거래내역만 (필수)
                         assetTypeEq(cond.assetType()),       // 특정 지갑 타입 (MOCK 등) 필터 (필수)
                         cursorIdLt(cond.cursorId()),         // 커서 페이징 조건 (선택)
@@ -43,14 +67,12 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
                 .fetch();
     }
 
-    // =========================================================================
-    //  아래 메서드들이 QueryDSL의 핵심 '동적 쿼리' 처리기입니다.
-    // 파라미터 값이 null 이면 메서드도 null을 반환하고,
-    // QueryDSL의 where() 안에서 null은 자동으로 무시(생략)됩니다!
-    // =========================================================================
-
     private BooleanExpression assetTypeEq(AssetType assetType) {
         return assetType != null ? assets.type.eq(assetType) : null;
+    }
+
+    private BooleanExpression assetIdEq(Long assetId) {
+        return assetId != null ? assets.id.eq(assetId) : null;
     }
 
     private BooleanExpression cursorIdLt(Long cursorId) {
@@ -71,7 +93,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
 
     // 주문 상태 검색 블록
     private BooleanExpression statusEq(OrderStatus status) {
-        return status != null ? tradeHistory.status.eq(status) : null;
+        return status != null ? order.status.eq(status) : null;
     }
 
     private BooleanExpression dateBetween(LocalDate startDate, LocalDate endDate) {

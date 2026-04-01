@@ -21,7 +21,7 @@ const menuList: menuType[] = [
         href: '/trading',
         name: '트레이딩',
         id: 'trading'
-    },    
+    },
     {
         href: '/community/all',
         name: '커뮤니티',
