@@ -1,7 +1,7 @@
 "use client";
 import { FiSearch } from "react-icons/fi";
 import { AiOutlineMoon } from "react-icons/ai";
-import { IoPersonOutline } from "react-icons/io5";
+import { IoPersonOutline, IoWalletOutline } from "react-icons/io5";
 import { FiSun } from "react-icons/fi";
 import { IoIosMenu } from "react-icons/io";
 import { IoCloseOutline } from "react-icons/io5";
@@ -60,18 +60,26 @@ export default function Header() {
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
             <Link href="/" aria-label="메인 페이지로 이동"><Logo /></Link>
             <NavMenu classes={'md:block hidden'} />
-            <div className="flex gap-6 items-center">
-                <button>
-                    <FiSearch className="w-5 h-5" />
-                </button>
+            <div className="flex gap-2 items-center">
                 <button onClick={toggleDarkMode}>
                     {
                         isDarkMode ? 
                         <FiSun className="w-5 h-5" /> :
                         <AiOutlineMoon className="w-5 h-5" />
                     }
-                    
                 </button>
+
+                <div className="h-6 w-[1px] bg-gray-200 dark:bg-zinc-700 mx-2" />
+
+                {isLogin && (
+                    <Link 
+                        href="/assets" 
+                        className="hidden sm:flex items-center gap-1.5 py-1.5 px-4 rounded-full bg-white-50 dark:bg-blue-900/20 text-gray-600 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-all font-bold text-sm border border-gray-300 dark:border-blue-800/50 hover:border-gray-500"
+                    >
+                        <IoWalletOutline className="w-4 h-4" />
+                        <span>자산</span>
+                    </Link>
+                )}
 
                 <Link href={isLogin ? "/me" : "/login"}>
                     {

@@ -23,11 +23,6 @@ const menuList: menuType[] = [
         id: 'trading'
     },
     {
-        href: '/assets',
-        name: '자산',
-        id: 'assets'
-    },
-    {
         href: '/community/all',
         name: '커뮤니티',
         id: 'community'
