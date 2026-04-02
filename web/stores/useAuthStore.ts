@@ -12,6 +12,7 @@ interface UserData {
   followingCount: number;
   term_agree: boolean;
   private_agree: boolean;
+  role: "USER" | "VERIFIED_USER" | "ADMIN";
 }
 
 interface AuthState {

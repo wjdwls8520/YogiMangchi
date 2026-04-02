@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/useAuthStore";
+
 import {
   PieChart,
   Pie,
@@ -16,6 +19,7 @@ import Button from "@/components/ui/Button";
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
 
+type MemberRole = "USER" | "VERIFIED_USER" | "ADMIN";
 type MemberProfile = {
   memberId: number;
   provider: string;
@@ -27,6 +31,7 @@ type MemberProfile = {
   followingCount: number;
   term_agree: boolean;
   private_agree: boolean;
+  role: MemberRole;
 };
 
 type MockHolding = {
@@ -64,6 +69,25 @@ const CHART_COLORS = [
   "#E97A31",
   "#00A6A6",
 ];
+
+const getRoleLabel = (role?: "USER" | "VERIFIED_USER" | "ADMIN") => {
+  if (role === "VERIFIED_USER") return "인증회원";
+  if (role === "ADMIN") return "관리자";
+  return "일반회원";
+};
+
+const getRoleBadgeClassName = (role?: "USER" | "VERIFIED_USER" | "ADMIN") => {
+  if (role === "VERIFIED_USER") {
+    return "bg-blue-50 text-blue-600";
+  }
+
+  if (role === "ADMIN") {
+    return "bg-orange-50 text-orange-600";
+  }
+
+  return "bg-gray-100 text-gray-600";
+};
+
 
 const formatNumber = (value?: number | null) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -128,6 +152,7 @@ export default function MePage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileErrorMessage, setProfileErrorMessage] = useState("");
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
@@ -137,6 +162,11 @@ export default function MePage() {
   const [mockErrorMessage, setMockErrorMessage] = useState("");
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
+
+  const logout = useAuthStore((state) => state.logout);
+
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -155,6 +185,11 @@ export default function MePage() {
         });
 
         if (response.status === 401 || response.status === 403) {
+          if (isActive) {
+            logout();
+            setMemberProfile(null);
+            setProfileErrorMessage("");
+          }
           router.replace("/login");
           return;
         }
@@ -164,11 +199,20 @@ export default function MePage() {
         }
 
         const data = await getJson(response);
-        if (isActive && data) {
-          setMemberProfile(data as MemberProfile);
+        const nextProfile = isRecord(data) && isRecord(data.data)
+          ? (data.data as MemberProfile)
+          : (data as MemberProfile | null);
+
+        if (isActive && nextProfile) {
+          setMemberProfile(nextProfile);
+          setProfileErrorMessage("");
         }
       } catch (error) {
-        console.error("회원정보 조회 실패:", error);
+        console.error("failed to load member profile:", error);
+        if (isActive) {
+          setMemberProfile(null);
+          setProfileErrorMessage("회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        }
       } finally {
         if (isActive) {
           setIsLoadingProfile(false);
@@ -181,7 +225,7 @@ export default function MePage() {
     return () => {
       isActive = false;
     };
-  }, [isMounted, router]);
+  }, [isMounted, logout, router]);
 
   useEffect(() => {
     if (!isMounted || !memberProfile || portfolioTab !== "mock") return;
@@ -200,7 +244,10 @@ export default function MePage() {
         );
 
         if (portfolioResponse.status === 401 || portfolioResponse.status === 403) {
+          logout();
           setMemberProfile(null);
+          setMockPortfolio(null);
+          setProfileErrorMessage("");
           router.replace("/login");
           return;
         }
@@ -235,7 +282,7 @@ export default function MePage() {
     };
 
     void loadMockData();
-  }, [isMounted, memberProfile, portfolioTab, router]);
+  }, [isMounted, logout, memberProfile, portfolioTab, router]);
 
   const handleMoveEdit = () => {
     router.push("/me/settings");
@@ -255,13 +302,60 @@ export default function MePage() {
         credentials: "include",
       });
     } catch (error) {
-      console.error("로그아웃 요청 실패:", error);
+      console.error("failed to logout:", error);
     } finally {
+      logout();
       setMemberProfile(null);
+      setMockPortfolio(null);
+      setProfileErrorMessage("");
       alert("로그아웃되었습니다.");
       router.replace("/");
     }
   };
+
+  // 회원탈퇴
+  const handleWithdraw = async () => {
+    if (isDeletingAccount) return;
+
+    const confirmed = window.confirm("정말 회원 탈퇴하시겠습니까?");
+    if (!confirmed) return;
+
+    setIsDeletingAccount(true);
+
+    try {
+      const response = await fetch("http://localhost:8080/api/v1/member/me", {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        logout();
+        setMemberProfile(null);
+        setMockPortfolio(null);
+        setProfileErrorMessage("");
+        alert("로그인 정보가 만료되었습니다.");
+        router.replace("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("failed to withdraw member");
+      }
+
+      logout();
+      setMemberProfile(null);
+      setMockPortfolio(null);
+      setProfileErrorMessage("");
+      alert("회원 탈퇴가 완료되었습니다.");
+      router.replace("/");
+    } catch (error) {
+      console.error("failed to withdraw member:", error);
+      alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
 
   const pieData = useMemo(() => {
     if (portfolioTab !== "mock" || !mockPortfolio) return [];
@@ -299,11 +393,16 @@ export default function MePage() {
     return <div className="p-20 text-center">Loading...</div>;
   }
 
+  if (profileErrorMessage) {
+    return <div className="p-20 text-center">{profileErrorMessage}</div>;
+  }
+
   if (!memberProfile) {
     return <div className="p-20 text-center">로그인이 필요합니다.</div>;
   }
 
   const user = memberProfile;
+  const isGeneralUser = user.role === "USER";
 
   const summary =
     portfolioTab === "mock" && mockPortfolio
@@ -337,13 +436,22 @@ export default function MePage() {
         <aside className="w-full lg:w-[400px] lg:sticky lg:top-24 space-y-6">
           <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
             <div className="flex flex-col items-center">
-              <div className="relative h-24 w-24 mb-4 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 overflow-hidden text-gray-400">
+              <div className="relative h-24 w-24 mb-3 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 overflow-hidden text-gray-400">
                 <img
-                  src={memberProfile.profileImgUrl || "/default-profile.png"}
+                  src={memberProfile.profileImgUrl || "/user_default.png"}
                   alt="profile"
                   className="h-full w-full object-cover"
-                />
+                  onError={(event) => {
+                    event.currentTarget.src = "/user_default.png";
+                  }}
+                  />
               </div>
+
+              <span
+                className={`inline-flex rounded-full mb-2 px-3 py-1 text-xs font-bold ${getRoleBadgeClassName(user.role)}`}
+              >
+                {getRoleLabel(user.role)}
+              </span>
 
               <h2 className="text-2xl font-black text-gray-900">
                 {memberProfile.nickname}
@@ -374,7 +482,13 @@ export default function MePage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-3 w-full mt-8 pt-6 border-t border-gray-50">
+              {isGeneralUser ? (
+                <Button variant="white" fullWidth={true} className="mt-2" onClick={() => router.push("/verify")}>
+                  회원 인증하기
+                </Button>
+              ) : null}
+
+              <div className="grid grid-cols-3 w-full mt-3 pt-6 border-t border-gray-50">
                 <div className="text-center">
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
                     Followers
@@ -431,6 +545,16 @@ export default function MePage() {
               />
             </div>
           </section>
+
+          <Button
+            variant="white"
+            fullWidth={true}
+            onClick={handleWithdraw}
+            disabled={isDeletingAccount}
+          >
+            {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
+          </Button>
+
         </aside>
 
         <main className="flex-1 w-full space-y-6">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import ContestFloatingButton from "@/components/contest/ContestFloatingButton";
 
 export default function MainPage() {
   return (
@@ -30,7 +31,7 @@ export default function MainPage() {
           </Link>
         </div>
       </section>
-      
+      <ContestFloatingButton />
     </div>
   );
 }
