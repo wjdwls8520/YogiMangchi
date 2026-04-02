@@ -183,7 +183,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
           and p.deleteYn = 'N'
           and r.parentReply is null
           and (:cursorId is null or r.id < :cursorId)
-        order by r.id desc
+        order by r.id asc
     """)
     List<ReplyDetailDto> findAllParentReplysByCursor(@Param("postId") Long postId, @Param("cursorId") Long cursorId, Pageable pageable);
 

@@ -2,6 +2,8 @@ package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
@@ -33,9 +35,39 @@ public class AdminContestController {
             @AuthenticationPrincipal Long adminId,
             @Valid @RequestBody ContestCreateDto request
     ) {
-        ContestSeasonDetailDto ContestSeasonDetail = adminContestService.createContest(adminId, request);
+        ContestSeasonDetailDto contestSeasonDetail = adminContestService.createContest(adminId, request);
 
-        return ResponseEntity.ok(ContestSeasonDetail);
+        return ResponseEntity.ok(contestSeasonDetail);
+    }
+
+    @Operation(
+            summary = "대회 시즌 전체 수정",
+            description = "대회 시즌의 제목, 설명, 참가 신청 기간, 실제 대회 기간을 모두 수정합니다. 상태값은 별도 api 로 수정합니다."
+    )
+    @PutMapping("/seasons/{seasonId}")
+    public ResponseEntity<ContestSeasonDetailDto> updateContestSeason(
+            @AuthenticationPrincipal Long adminId,
+            @PathVariable("seasonId") Long seasonId,
+            @Valid @RequestBody ContestSeasonUpdateDto request
+    ) {
+        ContestSeasonDetailDto contestSeasonDetail = adminContestService.updateContestSeason(adminId, seasonId, request);
+
+        return ResponseEntity.ok(contestSeasonDetail);
+    }
+
+    @Operation(
+            summary = "대회 시즌 상태 수정",
+            description = "대회 시즌의 상태값만 수정합니다. 테스트나 운영 중 상태 전환이 필요할 때 사용합니다."
+    )
+    @PatchMapping("/seasons/{seasonId}/status")
+    public ResponseEntity<ContestSeasonDetailDto> updateContestSeasonStatus(
+            @AuthenticationPrincipal Long adminId,
+            @PathVariable("seasonId") Long seasonId,
+            @Valid @RequestBody ContestSeasonStatusUpdateDto request
+    ) {
+        ContestSeasonDetailDto contestSeasonDetail = adminContestService.updateContestSeasonStatus(adminId, seasonId, request);
+
+        return ResponseEntity.ok(contestSeasonDetail);
     }
 
     @Operation(
