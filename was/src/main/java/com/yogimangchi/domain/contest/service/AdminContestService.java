@@ -3,11 +3,15 @@ package com.yogimangchi.domain.contest.service;
 import com.yogimangchi.domain.contest.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
 import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
+import com.yogimangchi.domain.contest.validator.ContestSeasonValidator;
 import com.yogimangchi.global.dto.CursorResponseDto;
+import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +23,11 @@ import java.util.List;
 public class AdminContestService {
 
     private final AdminContestSeasonRepository adminContestRepository;
+    private final ContestSeasonValidator contestSeasonValidator;
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
+        contestSeasonValidator.validateCreateRequest(request);
 
         ContestSeason contestSeason = ContestSeason.create(
                 request.title(),
@@ -34,6 +40,35 @@ public class AdminContestService {
         ContestSeason savedContestSeason = adminContestRepository.save(contestSeason);
 
         return ContestSeasonDetailDto.from(savedContestSeason);
+    }
+
+    @Transactional
+    public ContestSeasonDetailDto updateContestSeason(Long adminId, Long seasonId, ContestSeasonUpdateDto request) {
+        contestSeasonValidator.validateUpdateRequest(request);
+
+        ContestSeason contestSeason = adminContestRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        contestSeason.updateSeasonInfo(
+                request.title(),
+                request.description(),
+                request.recruitmentStartAt(),
+                request.recruitmentEndAt(),
+                request.contestStartAt(),
+                request.contestEndAt()
+        );
+
+        return ContestSeasonDetailDto.from(contestSeason);
+    }
+
+    @Transactional
+    public ContestSeasonDetailDto updateContestSeasonStatus(Long adminId, Long seasonId, ContestSeasonStatusUpdateDto request) {
+        ContestSeason contestSeason = adminContestRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        contestSeason.updateStatus(request.status());
+
+        return ContestSeasonDetailDto.from(contestSeason);
 
     }
 

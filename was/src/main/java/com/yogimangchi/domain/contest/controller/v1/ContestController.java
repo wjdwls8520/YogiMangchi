@@ -2,6 +2,7 @@ package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.service.ContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/contest")
 @RequiredArgsConstructor
@@ -28,6 +31,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContestController {
 
     private final ContestService contestService;
+
+    @Operation(
+            summary = "대회 시즌 상태 목록 조회",
+            description = "대회 조회 화면이나 상태 셀렉트 박스에서 사용할 대회 시즌 상태 코드와 라벨 목록을 조회합니다."
+    )
+    @GetMapping("/seasons/statuses")
+    public ResponseEntity<List<ContestSeasonStatusResponseDto>> getContestSeasonStatuses() {
+        List<ContestSeasonStatusResponseDto> contestSeasonStatuses = contestService.getContestSeasonStatuses();
+
+        return ResponseEntity.ok(contestSeasonStatuses);
+    }
 
     @Operation(
             summary = "참가 신청 모집중인 대회 시즌 목록 조회",

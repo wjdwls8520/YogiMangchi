@@ -2,8 +2,10 @@ package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.entity.ContestApplicant;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
+import com.yogimangchi.domain.contest.enums.ContestSeasonStatus;
 import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
 import com.yogimangchi.domain.contest.repository.ContestSeasonRepository;
 import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
@@ -28,6 +30,13 @@ public class ContestService {
     private final ContestApplicationValidator contestApplicationValidator;
 
     private final MemberReader memberReader;
+
+    @Transactional(readOnly = true)
+    public List<ContestSeasonStatusResponseDto> getContestSeasonStatuses() {
+        return List.of(ContestSeasonStatus.values()).stream()
+                .map(ContestSeasonStatusResponseDto::from)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(ContestSeasonSearchDto request) {

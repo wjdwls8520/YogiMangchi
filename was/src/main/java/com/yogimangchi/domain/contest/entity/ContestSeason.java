@@ -78,4 +78,24 @@ public class ContestSeason {
         contestSeason.status = ContestSeasonStatus.DRAFT;
         return contestSeason;
     }
+
+    public void updateSeasonInfo(
+            String title,
+            String description,
+            LocalDateTime recruitmentStartAt,
+            LocalDateTime recruitmentEndAt,
+            LocalDateTime contestStartAt,
+            LocalDateTime contestEndAt
+    ) {
+        this.title = title;
+        this.description = description;
+        this.recruitmentStartAt = recruitmentStartAt;
+        this.recruitmentEndAt = recruitmentEndAt;
+        this.contestStartAt = contestStartAt;
+        this.contestEndAt = contestEndAt;
+    }
+
+    public void updateStatus(ContestSeasonStatus status) {
+        this.status = status;
+    }
 }
