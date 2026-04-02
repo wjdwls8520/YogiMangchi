@@ -22,7 +22,17 @@ export default async function CategoryPage({
     return (
         <>
             {!isNews && <SubMenu menus={menus} />}
-            {!isNews ? <CommunityContainer initialPosts={posts} /> : <NewsList />}
+            {
+                !isNews ? 
+                <CommunityContainer 
+                    initialPosts={posts.content} 
+                    cursorId={posts.nextCursorId}  
+                    hasNext={posts.hasNext}
+                    
+                /> 
+                : 
+                <NewsList />
+            }
         </>
     )
 }

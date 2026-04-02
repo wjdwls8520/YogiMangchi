@@ -18,15 +18,15 @@ export const createPost = async (formData: FormData) => {
 }
 
 /* 전체 게시글 보기 */
-export const getPosts = async ({ page, size }: { page?: number; size?: number } = {}) => {
+export const getPosts = async ({ cursorId, size }: { cursorId?: number; size?: number } = {}) => {
     const params = new URLSearchParams();
     
-    if (page !== undefined) params.append('page', String(page));
+    if (cursorId !== undefined) params.append('cursorId', String(cursorId));
     if (size !== undefined) params.append('size', String(size));
 
     const query = params.toString();
     const result = await fetchClient(`community/posts${query ? `?${query}` : ''}`);
-
+    console.log(result);
     return result;
 }
 

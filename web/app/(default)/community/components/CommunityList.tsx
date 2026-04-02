@@ -21,34 +21,37 @@ export default function CommunityList({ posts }: Props) {
     const params = useParams();
     const category = params.category;
 
-    const [page, setPage] = useState(0); 
     const [isLoading, setIsLoading] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
     const observerRef = useRef<HTMLDivElement | null>(null); // 스크롤 위치 확인
+
+    const hasMore = usePostStore((state) => state.hasMore);
+    const setHasMore = usePostStore((state) => state.setHasMore);
+    const cursorId = usePostStore((state) => state.cursorId);
+    const setCursorId = usePostStore((state) => state.setCursorId);
 
     // 무한 스크롤, 이전 게시글 불러오기
     // page를 인자로 받아 클로저 문제 해결
-    const fetchPosts = async (currentPage: number) => {
+    const fetchPosts = async () => {
         if (!hasMore || isLoading) return;
 
         try {
             setIsLoading(true);
 
-            const result = await getPosts({ page: currentPage });
+            const result = await getPosts({ cursorId });
 
             appendPosts(result.content); // 이전 게시글 state에 저장
-            setHasMore(!result.last);
+            setHasMore(result.hasNext);
+            setCursorId(result.cursorId);
 
         } finally {
             setIsLoading(false);
         }
     };
 
-
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMore) {
-            setPage(prev => prev + 1);
+            fetchPosts();
         }
         });
 
@@ -59,17 +62,15 @@ export default function CommunityList({ posts }: Props) {
         return () => observer.disconnect();
     }, [hasMore]);    
 
-    useEffect(() => {
-        if (page === 0) return;
-        fetchPosts(page);
-    }, [page])
-
     return(
         <article className="contents">
             <ul className="flex flex-col gap-5">
-                {posts?.map((post) => <Link href={`/community/${category}/${post.id}`} key={post.id}>
-                        <li><CommunityItem post={post} variant="list" /></li>
-                    </Link>
+                {posts?.map((post) => 
+                        <li key={`${post.memberId}${post.id}`}>
+                            <Link href={`/community/${category}/${post.id}`}>
+                                <CommunityItem post={post} variant="list" />
+                            </Link>
+                        </li>
                 )}
                 <div ref={observerRef} />
                 {isLoading && <CommunityItemSkeleton />}

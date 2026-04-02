@@ -3,21 +3,31 @@
 import CommunityList from "./CommunityList";
 import { Post } from "../types/post";
 import { usePostStore } from "@/stores/usePostStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useShallow } from "zustand/shallow";
 
 interface Props {
   initialPosts: Post[];
+  cursorId: number;
+  hasNext: boolean;
 }
 
-export default function CommunityContainer({ initialPosts }: Props) {
-  const posts = usePostStore((state) => state.posts);
+export default function CommunityContainer({ initialPosts, cursorId, hasNext }: Props) {
+  // postsMap의 entries를 shallow 비교로 구독
+  const postsMap = usePostStore(useShallow((state) => state.postsMap));
+  const posts = useMemo(() => Array.from(postsMap.values()), [postsMap]);
   const setPosts = usePostStore((state) => state.setPosts);
+  const setCursorId = usePostStore((state) => state.setCursorId);
+  const setHasMore = usePostStore((state) => state.setHasMore);
+
 
   const isInitialized = useRef(false);
 
   useEffect(() => {
     if (!isInitialized.current) {
       setPosts(initialPosts);
+      setCursorId(cursorId);
+      setHasMore(hasNext);
       isInitialized.current = true;
     }
   }, []);
