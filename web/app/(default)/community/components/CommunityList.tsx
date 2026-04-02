@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import CommunityItem from "./CommunityItem";
-import { useParams } from "next/navigation";
 import { getPosts } from "@/lib/api/post";
 import { useEffect, useRef, useState } from "react";
 import CommunityItemSkeleton from "./CommunityItemSkeleton";
@@ -17,9 +15,6 @@ interface Props {
 export default function CommunityList({ posts }: Props) {
 
     const { appendPosts } = usePostStore();
-
-    const params = useParams();
-    const category = params.category;
 
     const [isLoading, setIsLoading] = useState(false);
     const observerRef = useRef<HTMLDivElement | null>(null); // 스크롤 위치 확인
@@ -67,9 +62,7 @@ export default function CommunityList({ posts }: Props) {
             <ul className="flex flex-col gap-5">
                 {posts?.map((post) => 
                         <li key={`${post.memberId}${post.id}`}>
-                            <Link href={`/community/${category}/${post.id}`}>
-                                <CommunityItem post={post} variant="list" />
-                            </Link>
+                            <CommunityItem post={post} variant="list" />
                         </li>
                 )}
                 <div ref={observerRef} />

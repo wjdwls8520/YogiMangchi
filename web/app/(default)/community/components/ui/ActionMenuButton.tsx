@@ -8,6 +8,6 @@ interface Props {
 export default function ActionMenuButton ({ toggleMenu }: Props) {
 
     return <button type="button" className="p-1.5" onClick={toggleMenu}>
-        <Ellipsis className="justify-self-end-safe text-gray-500" />
+        <Ellipsis strokeWidth={1.5} className="justify-self-end-safe text-gray-500" />
     </button>
 }
