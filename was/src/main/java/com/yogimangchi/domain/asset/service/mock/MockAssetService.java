@@ -10,6 +10,7 @@ import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.asset.service.PortfolioCalculationService;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,11 +31,11 @@ public class MockAssetService {
     private final MemberRepository memberRepository;
     private final HoldingRepository holdingRepository;
     private final PortfolioCalculationService portfolioCalculationService;
+    private final MemberReader memberReader;
 
     @Transactional
     public void participateMock(Long memberId) {
-        Member member = memberRepository.findByIdForUpdate(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        Member member = memberReader.getFindMember(memberId);
 
         // 이미 진행 중인 MOCK 지갑이 있는지 확인
         Optional<Assets> activeWallet = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE");
@@ -80,8 +81,7 @@ public class MockAssetService {
     @Transactional(readOnly = true)
     public PortfolioResponseDto getMyMockPortfolio(Long memberId) {
         // 사용자 확인
-        memberRepository.findActiveById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        Member member = memberReader.getFindMember(memberId);
 
         // 활성화 지갑 조회
         Assets myWallet = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE")

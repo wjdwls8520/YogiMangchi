@@ -59,7 +59,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
                         cursorIdLt(cond.cursorId()),         // 커서 페이징 조건 (선택)
                         symbolEq(cond.symbol()),             // 심볼 필터 (선택)
                         sideEq(cond.side()),                 // 매수/매도 필터 (선택)
-                        statusEq(cond.status()),             // 주문 상태 필터 (선택)
+                        statusEq(cond.status()),             // 주문 상태 필터
                         dateBetween(cond.startDate(), cond.endDate()) // 날짜 필터 (선택)
                 )
                 .orderBy(tradeHistory.id.desc())
