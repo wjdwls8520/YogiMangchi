@@ -55,9 +55,9 @@ export default function Header() {
         }        
     }, [isDarkMode])
     
-    return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white dark:bg-zinc-900">
+    return <header id="header" className="sticky top-0 left-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-zinc-900 ">
         
-        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+        <div className="max-w-[1480px] m-auto px-6 py-4 flex items-center justify-between ">
             <Link href="/" aria-label="메인 페이지로 이동"><Logo /></Link>
             <NavMenu classes={'md:block hidden'} />
             <div className="flex gap-2 items-center">
