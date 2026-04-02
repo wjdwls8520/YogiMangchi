@@ -24,9 +24,12 @@ interface Props {
   post: Post;
   variant: "list" | "detail";
   replys?: Reply[];
+  openActionMenu?: number | null;
+  setActionMenu?: React.Dispatch<React.SetStateAction<number | null>>;
+
 }
 
-export default function CommunityItem({ post, variant }: Props) {
+export default function CommunityItem({ post, variant, openActionMenu, setActionMenu }: Props) {
 
     const params = useParams();
     const category = params.category;    
@@ -47,8 +50,8 @@ export default function CommunityItem({ post, variant }: Props) {
     const [isOverflow, setIsOverflow] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // 액션 메뉴 열기, 닫기 상태관리
-    const [openActionMenu, setOpenActionMenu] = useState(false);
+    const isOpen = openActionMenu === post.id;
+
 
     // 내 정보 가져오기
     const { user } = useAuthStore();
@@ -57,7 +60,7 @@ export default function CommunityItem({ post, variant }: Props) {
 
     const toggleActionMenu = (e: React.MouseEvent) => {
         e.preventDefault();
-        setOpenActionMenu(prev => !prev);
+        setActionMenu?.(prev => prev === post.id ? null : post.id);
     }
 
     const openUpdateModal = async (e: React.MouseEvent) => {
@@ -128,7 +131,7 @@ export default function CommunityItem({ post, variant }: Props) {
                     <div className="relative">
                         <ActionMenuButton toggleMenu={e => toggleActionMenu(e)} />
                         {
-                            openActionMenu &&
+                            isOpen &&
                             <ActionMenu 
                                 isOwner={post.memberId === user?.memberId} 
                                 reportedByMe={post.reportedByMe}

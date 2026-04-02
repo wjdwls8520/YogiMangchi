@@ -14,15 +14,14 @@ import { X } from "lucide-react";
 
 
 interface Props {
-    comment: Reply;
-    classes?: string;
+  comment: Reply;
+  openCommentId: number | null;
+  setOpenCommentId: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
-export default function CommentItem({ comment }: Props) {
-
+export default function CommentItem({ comment, openCommentId, setOpenCommentId }: Props) {
 
     const commentUpdate = useCommentStore((state) => state.updateComment);
-    const [isFormOpen, setIsFormOpen] = useState(false);
 
     const [cursorId, setCursorid] = useState(undefined);
 
@@ -58,13 +57,17 @@ export default function CommentItem({ comment }: Props) {
         setRecomments(result.content);
     }
 
-    console.log(comment);
+    const handleForm = (commentId: number) => {
+        setOpenCommentId(prev => prev === commentId ? null : commentId);
+    }
 
     const handleScroll = (commentId: string) => {
-    document.getElementById(commentId)?.scrollIntoView({
-        behavior: "smooth",
-    });
+        console.log('scroll')
+        document.getElementById(commentId)?.scrollIntoView({
+            behavior: "smooth",
+        });
     };
+
 
     return(
         <>
@@ -131,17 +134,24 @@ export default function CommentItem({ comment }: Props) {
                         </li>                               
                         {comment.deleteYn !== 'Y' &&
                         <li>
-                            <button type="button" className="font-semibold" onClick={() => setIsFormOpen(prev => !prev)}>답글 달기</button>
+                            <button type="button" className="font-semibold" onClick={() => handleForm(comment.id)}>답글 달기</button>
                         </li>
-                        
                         }       
                     </ul>  
                 </div>
 
             </li>     
 
+            { recomments.map((comment) => 
+                <CommentItem key={comment.id} 
+                comment={comment} 
+                openCommentId={openCommentId} 
+                setOpenCommentId={setOpenCommentId} 
+                />) 
+            }    
+
             {
-                isFormOpen &&
+                (openCommentId === comment.id) &&
                 <div className="relative mt-3">
                     <CommentForm 
                         postId={comment.postId} 
@@ -150,8 +160,7 @@ export default function CommentItem({ comment }: Props) {
                             />
                 </div>
             }   
-
-            { recomments.map((comment) => <CommentItem key={comment.id} comment={comment} />) }                
+            
         </>
     )
 }
