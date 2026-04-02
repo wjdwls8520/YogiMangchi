@@ -19,8 +19,6 @@ export const getPostServer = async (postId: number) => {
 /* 게시글 댓글 불러오기 */
 export const getReplysServer = async (postId: number) => {
     const result = await serverFetchClient(`community/posts/${postId}/replys`);
-
-    console.log(result);
-
+    
     return result.content;
 }

@@ -27,8 +27,8 @@ export default function ReportModal() {
     const [reasonType, setReasonType] = useState("ETC");
 
     const handleSubmit = async () => {
-        console.log('report');
-        await reportPost(reportModal.targetId, reasonType);
+
+        const result = await reportPost(reportModal.targetId, reasonType);
     }
 
 

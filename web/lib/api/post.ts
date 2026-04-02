@@ -26,7 +26,6 @@ export const getPosts = async ({ cursorId, size }: { cursorId?: number; size?: n
 
     const query = params.toString();
     const result = await fetchClient(`community/posts${query ? `?${query}` : ''}`);
-    console.log(result);
     return result;
 }
 
@@ -100,10 +99,26 @@ export const unreportPost = async (postId: number, reasonType: string) => {
 }
 
 /* 게시글 댓글 불러오기 */
-export const getReplys = async (postId: number) => {
-    const result = await fetchClient(`community/posts/${postId}/replys`);
+export const getReplys = async ({
+  postId,
+  cursorId,
+  parentId,
+}: {
+  postId: number;
+  cursorId?: number;
+  parentId?: number;
+}) => {
 
-    return result.content;
+    const params = new URLSearchParams();
+    
+    if (cursorId !== undefined) params.append('cursorId', String(cursorId));
+    if (parentId !== undefined) params.append('parentId', String(parentId));
+
+    const query = params.toString();
+
+    const result = await fetchClient(`community/posts/${postId}/replys${query ? `?${query}` : ''}`);
+    console.log(result);
+    return result;
 }
 
 /* 댓글 등록 */

@@ -1,17 +1,12 @@
 "use client";
 
 
-import { BsThreeDots } from "react-icons/bs";
-import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
-import { GoShareAndroid } from "react-icons/go";
-
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
 import { Post, Reply } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
 import Slider from "@/components/Slider/Slider";
 import { formatTime } from "@/lib/utils/date";
-import CommentItem from "./comment/CommentItem";
 import Image from "next/image";
 import { deleteLike, deletePost, putLike } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -20,8 +15,8 @@ import { useModalStore } from "@/stores/useModalStore";
 import HeartButton from "./ui/LikeButton";
 import ActionMenu from "./ui/ActionMenu";
 import ActionMenuButton from "./ui/ActionMenuButton";
-import CommentContainer from "./comment/CommentContainer";
-import { useCommentStore } from "@/stores/useCommentStore";
+import BubbleButton from "./ui/BubbleButton";
+import { Share2 } from "lucide-react";
 
 interface Props {
   post: Post;
@@ -29,7 +24,7 @@ interface Props {
   replys?: Reply[];
 }
 
-export default function CommunityItem({ post, variant, replys }: Props) {
+export default function CommunityItem({ post, variant }: Props) {
 
     // post 상태 관리
     const postFromStore = usePostStore((state) => state.postsMap.get(post.id));
@@ -130,8 +125,10 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                             openActionMenu &&
                             <ActionMenu 
                                 isOwner={post.memberId === user?.memberId} 
+                                reportedByMe={post.reportedByMe}
                                 onDelete={(e) => handleDelete(e, currentPost.id)} 
-                                onEdit={openUpdateModal} onReport={openReportModal}
+                                onEdit={openUpdateModal} 
+                                onReport={openReportModal}
                             />
                         }
                     </div>
@@ -190,7 +187,7 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                     )
                 }
 
-                <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
+                <ul className="flex items-center gap-4 mt-4 text-gray-400 text-sm">
                     <li>
                         <HeartButton 
                             likeCount={currentPost.likeCount} 
@@ -199,10 +196,12 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                         />
                     </li>                
                     <li>
-                        <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>
+                        <BubbleButton>
+                            {currentPost.replyCount}
+                        </BubbleButton>
                     </li>                
                     <li>
-                        <button type="button" className="flex items-center gap-1"><GoShareAndroid className="text-xl" strokeWidth={0.3} /> 공유</button>
+                        <button type="button" className="flex items-center gap-1"><Share2 className="text-xl" size={18} strokeWidth={2} /> 공유</button>
                     </li>                
                 </ul>
             </div>        

@@ -1,15 +1,16 @@
-import { FaRegTrashAlt } from "react-icons/fa";
-import { FiFlag } from "react-icons/fi";
-import { LuPenLine } from "react-icons/lu";
+import { cn } from "@/lib/utils/cs";
+import { Flag, PencilLine, Trash2 } from "lucide-react";
+
 
 type Props = {
   isOwner: boolean;
+  reportedByMe: boolean;
   onEdit: (e: React.MouseEvent) => Promise<void>;
   onDelete: (e: React.MouseEvent) => void;
   onReport: (e: React.MouseEvent) => Promise<void>;
 };
 
-export default function ActionMenu({ isOwner, onEdit, onDelete, onReport }: Props) {
+export default function ActionMenu({ isOwner, reportedByMe, onEdit, onDelete, onReport }: Props) {
 
 
     return (
@@ -23,7 +24,7 @@ export default function ActionMenu({ isOwner, onEdit, onDelete, onReport }: Prop
                     onClick={onEdit} 
                     className="flex items-center gap-1 text-left py-1 w-full"
                 >
-                    <LuPenLine className="w-[18px] h-[16px] text-gray-500" />
+                    <PencilLine strokeWidth={2} size={16} className="text-gray-500" />
                     수정
                 </button>
                 <button 
@@ -31,7 +32,7 @@ export default function ActionMenu({ isOwner, onEdit, onDelete, onReport }: Prop
                     onClick={onDelete} 
                     className="flex items-center gap-1 text-left py-1 w-full"
                 >
-                    <FaRegTrashAlt className="w-[18px] h-[14px] text-gray-500" />
+                    <Trash2 strokeWidth={2} size={16} className="text-gray-500" />
                     삭제
                 </button>
                 </>
@@ -39,9 +40,9 @@ export default function ActionMenu({ isOwner, onEdit, onDelete, onReport }: Prop
                 <button 
                     type="button" 
                     onClick={onReport} 
-                    className="flex items-center gap-1 text-left py-1 w-full"
+                    className={cn("flex items-center gap-1 text-left py-1 w-full", reportedByMe && "text-red-700")}
                 >
-                    <FiFlag className="w-[18px] h-[15px] text-gray-500" />
+                    <Flag strokeWidth={2} size={16} className="text-gray-500" />
                     신고
                 </button>
             </div>        

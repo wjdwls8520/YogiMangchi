@@ -15,9 +15,6 @@ interface PostsState {
   // 첫 화면에서 보여줄 배열
   setPosts: (newPosts: Post[]) => void;
 
-  // 게시글 하나 가져오기
-  getPost: (arg0: number) => void;
-
   // 게시글 작성 (맨 앞에 추가)
   addPost: (post: Post) => void;
 
@@ -41,8 +38,6 @@ export const usePostStore = create<PostsState>((set, get) => ({
     setPosts: (posts: Post[]) => set({
         postsMap: new Map(posts.map((p) => [p.id, p]))
     }),
-
-    getPost: (postId: number) => get().postsMap.get(postId),
 
     // 무한스크롤 시 스크롤 여부 업데이트
     setHasMore: (more) => set((state) => {
