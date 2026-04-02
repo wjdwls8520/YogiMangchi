@@ -34,7 +34,7 @@ export const useModalStore = create<ModalState>((set) => ({
 
   reportModal: {
     isOpen: false,
-    targetId: null,
+    targetId: 0,
   },
 
   // 글쓰기
@@ -69,7 +69,7 @@ export const useModalStore = create<ModalState>((set) => ({
     set({
       reportModal: {
         isOpen: false,
-        targetId: null,
+        targetId: 0,
       },
     }),
 }));

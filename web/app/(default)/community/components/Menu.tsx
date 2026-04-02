@@ -3,22 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { FaRegStar } from "react-icons/fa";
-import { LuNewspaper } from "react-icons/lu";
 import { cn } from "@/lib/utils/cs";
 import Slider from "@/components/Slider/Slider";
 import { useHeaderHeight } from "@/hooks/useHeaderHeight";
+import { Newspaper, Star } from "lucide-react";
 
 const menuList = [
     {
         name: '전체글',
         id: 'all',
-        icon: <FaRegStar />,
+        icon: <Star strokeWidth={1.7} size={17} />,
     },
     {
         name: '뉴스',
         id: 'news',
-        icon: <LuNewspaper />,
+        icon: <Newspaper strokeWidth={1.7} size={17} />,
     },           
 ]
 

@@ -1,10 +1,4 @@
 "use client";
-import { FiSearch } from "react-icons/fi";
-import { AiOutlineMoon } from "react-icons/ai";
-import { IoPersonOutline, IoWalletOutline } from "react-icons/io5";
-import { FiSun } from "react-icons/fi";
-import { IoIosMenu } from "react-icons/io";
-import { IoCloseOutline } from "react-icons/io5";
 
 import Link from "next/link";
 
@@ -16,6 +10,7 @@ import NavMenu from "./NavMenu";
 import Dim from "./Dim";
 
 import Logo from "./ui/Logo";
+import { Moon, Sun, TextAlignJustify, UserRound, Wallet, X } from "lucide-react";
 
 
 export default function Header() {
@@ -64,8 +59,8 @@ export default function Header() {
                 <button onClick={toggleDarkMode}>
                     {
                         isDarkMode ? 
-                        <FiSun className="w-5 h-5" /> :
-                        <AiOutlineMoon className="w-5 h-5" />
+                        <Sun strokeWidth={2} size={20} /> : 
+                        <Moon strokeWidth={2} size={20} />
                     }
                 </button>
 
@@ -76,7 +71,7 @@ export default function Header() {
                         href="/assets" 
                         className="hidden sm:flex items-center gap-1.5 py-1.5 px-4 rounded-full bg-white-50 dark:bg-blue-900/20 text-gray-600 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-all font-bold text-sm border border-gray-300 dark:border-blue-800/50 hover:border-gray-500"
                     >
-                        <IoWalletOutline className="w-4 h-4" />
+                        <Wallet strokeWidth={2} size={16} />
                         <span>자산</span>
                     </Link>
                 )}
@@ -94,7 +89,7 @@ export default function Header() {
                                     />
                                 ) : (
                                     // 사진이 없는 경우 기본 아이콘
-                                    <IoPersonOutline className="w-5 h-5 text-gray-400" />
+                                    <UserRound strokeWidth={2} size={20} className="text-gray-400" />
                                 )}
                             </div>
                         ) : (
@@ -105,7 +100,7 @@ export default function Header() {
                 </Link>
 
                 <button type="button" className="block md:hidden" onClick={() => setIsOpen(true)}>
-                    <IoIosMenu className="w-[25px] h-[25px]" />
+                    <TextAlignJustify strokeWidth={1.9} size={20} />
                 </button>
                 <div
                 className={cn(
@@ -113,8 +108,8 @@ export default function Header() {
                     isOpen ? "translate-x-0" : "translate-x-full"
                 )}
                 >
-                    <button type="button" className="block ml-auto p-[1.5px] mr-[20px] mt-5" onClick={() => setIsOpen(false)}>
-                        <IoCloseOutline className="w-[25px] h-[25px]" />
+                    <button type="button" className="block ml-auto p-[1.5px] mr-[20px] mt-6" onClick={() => setIsOpen(false)}>
+                        <X strokeWidth={1.9} size={22} />
                     </button>
                     <NavMenu onClickItem={() => setIsOpen(false)} />
                 </div>

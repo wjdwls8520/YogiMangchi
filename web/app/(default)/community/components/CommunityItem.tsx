@@ -1,26 +1,24 @@
 "use client";
 
 
-import { BsThreeDots } from "react-icons/bs";
-import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
-import { GoShareAndroid } from "react-icons/go";
-
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
 import { Post, Reply } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
 import Slider from "@/components/Slider/Slider";
 import { formatTime } from "@/lib/utils/date";
-import CommentItem from "./comment/CommentItem";
 import Image from "next/image";
 import { deleteLike, deletePost, putLike } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { useModalStore } from "@/stores/useModalStore";
-import CommunityComment from "./comment/CommentForm";
 import HeartButton from "./ui/LikeButton";
 import ActionMenu from "./ui/ActionMenu";
 import ActionMenuButton from "./ui/ActionMenuButton";
+import BubbleButton from "./ui/BubbleButton";
+import { Share2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface Props {
   post: Post;
@@ -28,7 +26,11 @@ interface Props {
   replys?: Reply[];
 }
 
-export default function CommunityItem({ post, variant, replys }: Props) {
+export default function CommunityItem({ post, variant }: Props) {
+
+    const params = useParams();
+    const category = params.category;    
+    const router = useRouter();
 
     // post 상태 관리
     const postFromStore = usePostStore((state) => state.postsMap.get(post.id));
@@ -44,9 +46,6 @@ export default function CommunityItem({ post, variant, replys }: Props) {
     const textRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
-
-    // 댓글 상태관리
-    const [commentList, setCommentList] = useState(replys);
 
     // 액션 메뉴 열기, 닫기 상태관리
     const [openActionMenu, setOpenActionMenu] = useState(false);
@@ -132,34 +131,52 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                             openActionMenu &&
                             <ActionMenu 
                                 isOwner={post.memberId === user?.memberId} 
+                                reportedByMe={post.reportedByMe}
                                 onDelete={(e) => handleDelete(e, currentPost.id)} 
-                                onEdit={openUpdateModal} onReport={openReportModal}
+                                onEdit={openUpdateModal} 
+                                onReport={openReportModal}
                             />
                         }
                     </div>
                 </header>
-                <div className="pt-3">
-                    <p className="text-xl font-semibold">{currentPost.title}</p>
-                    <div className={cn("pt-1", (!isExpanded && variant !== 'detail') &&"line-clamp-4")} ref={textRef}>
-                        {currentPost.content}
+                <Link href={`/community/${category}/${post.id}`}>
+                    <div className="pt-3">
+                        <p className="text-xl font-semibold">{currentPost.title}</p>
+                        <div className={cn("pt-1", (!isExpanded && variant !== 'detail') &&"line-clamp-4")} ref={textRef}>
+                            {currentPost.content}
+                        </div>
+                        {
+                            (isOverflow && variant !== 'detail')&&
+                            <button type="button" className="mt-7 text-gray-400"  
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setIsExpanded(prev => !prev);
+                            }}>
+                                {isExpanded ? "접기" : "더보기"}
+                            </button>
+                        }
                     </div>
-                    {
-                        (isOverflow && variant !== 'detail')&&
-                        <button type="button" className="mt-7 text-gray-400"  
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            setIsExpanded(prev => !prev);
-                        }}>
-                            {isExpanded ? "접기" : "더보기"}
-                        </button>
-                    }
-                </div>
 
-                {
-                    currentPost?.files?.length > 0 && (
-                        isSlide ? (
-                            <Slider>
+                    {
+                        currentPost?.files?.length > 0 && (
+                            isSlide ? (
+                                <Slider>
+                                    <ul className="flex gap-2 w-full pt-6 pb-3">
+                                        {
+                                            currentPost?.files.map((file) => <li key={file.id}
+                                                                            className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
+                                                                        >
+                                                                            {
+                                                                                file.previewUrl ? 
+                                                                                <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
+                                                                                <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
+                                                                            }
+                                                                        </li>)
+                                        }
+                                    </ul>
+                                </Slider>
+                            ) : (
                                 <ul className="flex gap-2 w-full pt-6 pb-3">
                                     {
                                         currentPost?.files.map((file) => <li key={file.id}
@@ -173,51 +190,28 @@ export default function CommunityItem({ post, variant, replys }: Props) {
                                                                     </li>)
                                     }
                                 </ul>
-                            </Slider>
-                        ) : (
-                            <ul className="flex gap-2 w-full pt-6 pb-3">
-                                {
-                                    currentPost?.files.map((file) => <li key={file.id}
-                                                                    className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
-                                                                >
-                                                                    {
-                                                                        file.previewUrl ? 
-                                                                        <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
-                                                                        <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
-                                                                    }
-                                                                </li>)
-                                }
-                            </ul>
+                            )
                         )
-                    )
-                }
-
-                <ul className="flex gap-4 mt-4 text-gray-400 text-sm">
+                    }      
+                </Link>
+                <ul className="flex items-center gap-4 mt-4 text-gray-400 text-sm">
                     <li>
-                        <HeartButton likeCount={currentPost.likeCount} liked={currentPost.likedByMe} onLike={handleLike} />
+                        <HeartButton 
+                            likeCount={currentPost.likeCount} 
+                            liked={currentPost.likedByMe} 
+                            onLike={handleLike} 
+                        />
                     </li>                
                     <li>
-                        <button type="button" className="flex items-center gap-1"><HiOutlineChatBubbleOvalLeft className="text-xl" strokeWidth={2} /> {post.replyCount}</button>
+                        <BubbleButton openComments={() => router.push(`/community/${category}/${post.id}`)}>
+                            {currentPost.replyCount}
+                        </BubbleButton>
                     </li>                
                     <li>
-                        <button type="button" className="flex items-center gap-1"><GoShareAndroid className="text-xl" strokeWidth={0.3} /> 공유</button>
+                        <button type="button" className="flex items-center gap-1"><Share2 className="text-xl" size={18} strokeWidth={2} /> 공유</button>
                     </li>                
-                </ul>
-            </div>
-
-            {/* 댓글 */}
-            { variant === 'detail' &&
-                <>
-                    <h3 className="mt-8 font-semibold text-lg">답글 {post.replyCount}개</h3>
-                    <ul className=" border-b border-gray-200 pb-3">
-                        {commentList?.map((reply, index) => <CommentItem key={index} comment={reply} />)}
-                    </ul>
-                    <div className="relative mt-8">
-                        <CommunityComment postId={post.id} />
-                    </div>
-                </>
-            }
-        
+                </ul>    
+            </div>        
         </>
     )
 }

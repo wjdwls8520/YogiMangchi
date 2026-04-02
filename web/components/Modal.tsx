@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import Button from "./ui/Button";
-
-import { IoCloseOutline } from "react-icons/io5";
+import { X } from "lucide-react";
 
 
 interface ModalInfo {
@@ -34,7 +33,7 @@ export default function Modal({ props, children } :ModalProps) {
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 px-6 py-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">{props.title}</h2>
           <button onClick={props.onClose}>
-             <IoCloseOutline className="w-6 h-6" />
+             <X strokeWidth={2} size={24} />
           </button>
         </div>
 

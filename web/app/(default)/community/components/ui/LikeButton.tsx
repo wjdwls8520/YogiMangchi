@@ -1,9 +1,9 @@
-import { VscHeart, VscHeartFilled } from "react-icons/vsc";
+import { Heart } from "lucide-react";
 
 interface Props {
   liked: boolean;
   likeCount: number;
-  onLike: (e: React.MouseEvent) => void;
+  onLike?: (e: React.MouseEvent) => void;
 }
 
 
@@ -13,9 +13,9 @@ export default function LikeButton({liked, likeCount, onLike}: Props) {
         <button type="button" className="flex items-center gap-1">
             {
                 liked ? 
-                <VscHeartFilled className="text-xl text-red-600" onClick={onLike} />
+                <Heart className="fill-red-500 stroke-none" />
                 : 
-                <VscHeart className="text-xl" strokeWidth={0.3} onClick={onLike} />
+                <Heart strokeWidth={2} size={18} onClick={onLike} />
             }
             {likeCount}
         </button>

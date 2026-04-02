@@ -1,9 +1,5 @@
 "use client";
 
-
-import { LuImagePlus } from "react-icons/lu";
-import { IoCloseOutline } from "react-icons/io5";
-
 import Modal from "@/components/Modal";
 import UserAvatar from "@/components/user/UserAvatar";
 import { useEffect, useState } from "react";
@@ -14,6 +10,7 @@ import { File as ServerFile, Post } from "../types/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useModalStore } from "@/stores/useModalStore";
 import { usePostStore } from "@/stores/usePostStore";
+import { ImagePlus, X } from "lucide-react";
 
 
 type UploadFile = {
@@ -59,7 +56,7 @@ export default function WriteModal() {
 
         await createPost(formData);
         
-        const fresh = await getPosts({ page: 0 });
+        const fresh = await getPosts();
         setPosts(fresh.content);        
     }
 
@@ -213,20 +210,20 @@ export default function WriteModal() {
                     >
                     </textarea>
                     <input type="file" id="file" className="hidden" multiple onChange={handleChange} />
-                    <label htmlFor="file" className="flex align-middle gap-1 text-gray-400 text-sm cursor-pointer"><LuImagePlus className="w-[25px] h-[25px]" /> 사진추가</label>
+                    <label htmlFor="file" className="flex align-middle gap-1 text-gray-400 text-sm cursor-pointer"><ImagePlus strokeWidth={1.5} size={25} /> 사진추가</label>
                     {
                         (mode === "edit" && serverFiles?.length > 0) ? 
                         <ul className="flex gap-2 mt-3">
                             {serverFiles.map((file) =>  <li key={file.id} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.path} alt="첨부파일" fill className="object-cover object-center" />
                                     <button type="button" onClick={() => handleUploadDelete(file.id)} className="absolute right-0 top-0 p-1 w-full">
-                                        <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
+                                        <X strokeWidth={1.5} size={19} className=" text-gray-400" />
                                     </button>
                                 </li>)}
                             {uploadFiles?.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
                                     <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1 w-full">
-                                        <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
+                                        <X strokeWidth={1.5} size={19} className=" text-gray-400" />
                                     </button>
                                 </li>)}                                
                         </ul>
@@ -236,7 +233,7 @@ export default function WriteModal() {
                             {uploadFiles.map((file, index) => <li key={file.preview} className="relative w-[60px] h-[60px] border border-gray-300 rounded-lg overflow-hidden">
                                     <Image loading="eager" src={file.preview} alt="첨부파일" fill className="object-cover object-center" />
                                     <button type="button" onClick={() => handleDelete(index)} className="absolute right-0 top-0 p-1 w-full">
-                                        <IoCloseOutline className="w-[19px] h-[19px] text-gray-400" />
+                                        <X strokeWidth={1.5} size={19} className=" text-gray-400" />
                                     </button>
                                 </li>)}
                         </ul>

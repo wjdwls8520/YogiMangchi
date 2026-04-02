@@ -13,6 +13,9 @@ body {
 }
 
 @layer utilities {
+  pre {
+    font-family: inherit;
+  }
   .scrollbar-hide {
     -ms-overflow-style: none; /* IE, Edge */
     scrollbar-width: none; /* Firefox */
