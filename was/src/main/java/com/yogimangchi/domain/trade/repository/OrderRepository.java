@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long>, OrderRepositoryCustom {
 
-    // 주문 취소/체결처럼 상태가 바뀌는 명령성 로직에서는 주문 행을 먼저 잠근다.
+    // 회원 소유 주문 취소용 행 잠금 조회
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT o
@@ -24,4 +24,14 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReposi
             @Param("orderId") Long orderId,
             @Param("memberId") Long memberId
     );
+
+    // 지정가 체결 실행용 행 잠금 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT o
+            FROM Order o
+            JOIN FETCH o.assets
+            WHERE o.id = :orderId
+            """)
+    Optional<Order> findByIdForExecution(@Param("orderId") Long orderId);
 }

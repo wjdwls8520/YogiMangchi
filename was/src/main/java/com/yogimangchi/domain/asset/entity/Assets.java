@@ -76,29 +76,30 @@ public class Assets {
         this.expiredAt = expiredAt;
     }
 
-    // 새로운 지갑을 발급
+    // 새로운 지갑 발급 로직
     public static Assets createNewWallet(Member member, AssetType type, BigDecimal initialMoney, int retryCount, LocalDateTime expiredAt) {
         return Assets.builder()
                 .member(member)
                 .type(type)
                 .seedMoney(initialMoney)
-                .currentMoney(initialMoney) // 초기 자금을 잔고에 그대로 세팅
-                .lockedMoney(BigDecimal.ZERO) // 신규 발급 시 잠긴 돈은 0원
+                .currentMoney(initialMoney) // 초기 자금 그대로 반영
+                .lockedMoney(BigDecimal.ZERO) // 잠금 현금 0원 초기화
                 .status("ACTIVE")
                 .retryCount(retryCount)
                 .expiredAt(expiredAt)
                 .build();
     }
 
+    // 입금 잔액 반영
     public void addMoney(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("더할 금액은 0보다 커야 합니다.");
         }
-        // 현재 잔액 + 들어온 금액
+        // 가용 현금 증가 처리
         this.currentMoney = this.currentMoney.add(amount);
     }
 
-    // 지정가 매수시 해당 금액 락
+    // 지정가 매수 예약 금액 잠금
     public void lockMoney(BigDecimal amount) {
         validatePositiveAmount(amount, "잠글 금액");
 
@@ -110,6 +111,7 @@ public class Assets {
         this.lockedMoney = this.lockedMoney.add(amount);
     }
 
+    // 주문 취소 시 예약 금액 복구
     public void unlockMoney(BigDecimal amount) {
         validatePositiveAmount(amount, "해제할 금액");
 
@@ -121,10 +123,21 @@ public class Assets {
         this.currentMoney = this.currentMoney.add(amount);
     }
 
-    // 코인 매수 시: 내 지갑에서 현금을 차감하는 기능
+    // 주문 체결 시 예약 금액 소진
+    public void consumeLockedMoney(BigDecimal amount) {
+        validatePositiveAmount(amount, "소진할 금액");
+
+        if (this.lockedMoney.compareTo(amount) < 0) {
+            throw new IllegalArgumentException("잠긴 금액보다 더 많이 소진할 수 없습니다.");
+        }
+
+        this.lockedMoney = this.lockedMoney.subtract(amount);
+    }
+
+    // 즉시 차감용 현금 사용
     public void subtractMoney(BigDecimal amount) {
 
-        // 음수나 0원 차감 시도 차단
+        // 잘못된 차감 요청 차단
         if (amount == null) {
             throw new IllegalArgumentException("금액이 없습니다.");
         }
@@ -132,16 +145,16 @@ public class Assets {
             throw new IllegalArgumentException("금액은 0보다 커야 합니다.");
         }
 
-        // 잔액 검사
+        // 가용 잔액 검증
         if (this.currentMoney.compareTo(amount) < 0) {
             throw new IllegalArgumentException("잔고가 부족합니다.");
         }
 
-        // 현재 잔액 - 나가는 금액
+        // 가용 현금 차감 처리
         this.currentMoney = this.currentMoney.subtract(amount);
     }
 
-    // 지갑 만료 처리 메서드
+    // 지갑 만료 상태 전환
     public void expireWallet() {
         this.status = "EXPIRED";
     }

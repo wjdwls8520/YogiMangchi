@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.chartapi.dto.BinanceTickerStreamMessage;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
+import com.yogimangchi.domain.trade.matching.LimitOrderMatchCoordinator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -15,6 +16,7 @@ import org.springframework.web.reactive.socket.client.WebSocketClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,51 +33,50 @@ public class BinanceChartApiService {
 
     private final BinanceChartProperties binanceChartProperties;
     private final ChartPriceRepository chartPriceRepository;
+    private final LimitOrderMatchCoordinator limitOrderMatchCoordinator;
     private final ObjectMapper objectMapper;
 
     private final WebSocketClient webSocketClient = new ReactorNettyWebSocketClient();
     private final AtomicBoolean started = new AtomicBoolean(false);
 
+    // 애플리케이션 기동 후 웹소켓 구독 시작
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
-        // 서버가 완전히 뜬 뒤, 바이낸스 공개 웹소켓 연결을 시작합니다.
         if (!started.compareAndSet(false, true)) {
             return;
         }
 
+        // 연결 종료 시 무한 재시도 스트림
         Mono.defer(this::connectOnce)
                 .retryWhen(Retry.backoff(Long.MAX_VALUE, INITIAL_RETRY_DELAY)
                         .maxBackoff(MAX_RETRY_DELAY)
-                        .doBeforeRetry(signal -> log.warn("Binance 웹소켓 재연결 시도 {}회차: {}",
+                        .doBeforeRetry(signal -> log.warn(
+                                "Binance 웹소켓 재연결 시도 {}회차: {}",
                                 signal.totalRetries() + 1,
-                                signal.failure().getMessage())))
+                                signal.failure().getMessage()
+                        )))
                 .subscribe();
     }
 
     public ChartPriceDto getPrice(String symbol) {
-        return chartPriceRepository.findBySymbol(symbol)
-                .orElse(null);
+        return chartPriceRepository.findBySymbol(symbol).orElse(null);
     }
 
+    // 단일 연결 수명주기 처리
     private Mono<Void> connectOnce() {
-        // 여러 종목을 한 번에 받기 위해 combined stream 주소를 만듭니다.
         URI uri = URI.create(buildCombinedStreamUrl());
 
         return webSocketClient.execute(uri, session ->
                         session.receive()
                                 .map(WebSocketMessage::getPayloadAsText)
-                                .doOnSubscribe(subscription ->
-                                        log.info("Binance 웹소켓 연결 성공: {}", uri))
+                                .doOnSubscribe(subscription -> log.info("Binance 웹소켓 연결 성공: {}", uri))
                                 .doOnNext(this::handleMessage)
                                 .then())
                 .then(Mono.error(new IllegalStateException("Binance 웹소켓 연결 종료")));
     }
 
+    // 추적 심볼 대상 결합 스트림 URL 생성
     private String buildCombinedStreamUrl() {
-        // 예:
-        // btcusdt@ticker/ethusdt@ticker/xrpusdt@ticker
-        //
-        // ticker 채널은 "현재 최신 가격 정보"를 받는 용도입니다.
         String streams = binanceChartProperties.getTrackedSymbols().stream()
                 .map(String::toLowerCase)
                 .map(symbol -> symbol + "@ticker")
@@ -84,6 +85,7 @@ public class BinanceChartApiService {
         return binanceChartProperties.getWebsocketUrl() + "/stream?streams=" + streams;
     }
 
+    // 유효한 티커 메시지 저장 및 매칭 전달
     private void handleMessage(String payload) {
         try {
             BinanceTickerStreamMessage message = objectMapper.readValue(payload, BinanceTickerStreamMessage.class);
@@ -92,7 +94,6 @@ public class BinanceChartApiService {
                 return;
             }
 
-            // 바이낸스 원본 응답을, 우리 서버에서 쓰기 쉬운 가격 DTO로 바꿉니다.
             ChartPriceDto price = new ChartPriceDto(
                     message.getData().getSymbol().toUpperCase(),
                     message.getData().getLastPrice(),
@@ -100,8 +101,8 @@ public class BinanceChartApiService {
                     Instant.now()
             );
 
-            // 같은 symbol이면 이전 값을 덮어써서 "최신 가격 1개"만 유지합니다.
             chartPriceRepository.save(price);
+            limitOrderMatchCoordinator.onPriceTick(price.symbol(), new BigDecimal(price.price()));
         } catch (Exception e) {
             log.warn("Binance 시세 메시지 파싱 실패: {}", e.getMessage());
         }

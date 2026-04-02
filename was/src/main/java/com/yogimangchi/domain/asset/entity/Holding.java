@@ -65,13 +65,13 @@ public class Holding {
         this.averageBuyPrice = averageBuyPrice;
     }
 
-    // 나중에 매수/매도 로직에서 수량과 평단가를 수정할 때 쓸 메서드
+    // 보유 수량 및 평균 매수가 갱신
     public void updateHolding(BigDecimal newQuantity, BigDecimal newAverageBuyPrice) {
         this.quantity = newQuantity;
         this.averageBuyPrice = newAverageBuyPrice;
     }
 
-    // 지정가 매도시 해당 코인 락
+    // 지정가 매도 예약 수량 잠금
     public void lockQuantity(BigDecimal quantityToLock) {
         validatePositiveQuantity(quantityToLock, "잠글 수량");
 
@@ -83,6 +83,7 @@ public class Holding {
         this.lockedQuantity = this.lockedQuantity.add(quantityToLock);
     }
 
+    // 주문 취소 시 예약 수량 복구
     public void unlockQuantity(BigDecimal quantityToUnlock) {
         validatePositiveQuantity(quantityToUnlock, "해제할 수량");
 
@@ -94,14 +95,25 @@ public class Holding {
         this.quantity = this.quantity.add(quantityToUnlock);
     }
 
-    // 코인을 처음 매수했을 때(신규 보유) 사용하는 팩토리 메서드
+    // 주문 체결 시 예약 수량 소진
+    public void consumeLockedQuantity(BigDecimal quantityToConsume) {
+        validatePositiveQuantity(quantityToConsume, "소진할 수량");
+
+        if (this.lockedQuantity.compareTo(quantityToConsume) < 0) {
+            throw new IllegalArgumentException("잠긴 수량보다 더 많이 소진할 수 없습니다.");
+        }
+
+        this.lockedQuantity = this.lockedQuantity.subtract(quantityToConsume);
+    }
+
+    // 신규 보유 종목 생성 팩토리
     public static Holding createFirstHolding(Assets assets, String symbol, BigDecimal quantity, BigDecimal buyPrice) {
         return Holding.builder()
                 .assets(assets)
                 .symbol(symbol)
                 .quantity(quantity)
-                .lockedQuantity(BigDecimal.ZERO) // 첫 매수 시 지정가 락 수량은 0
-                .averageBuyPrice(buyPrice) // 첫 매수니까 평단가가 곧 매수가
+                .lockedQuantity(BigDecimal.ZERO) // 잠금 수량 0 초기화
+                .averageBuyPrice(buyPrice) // 첫 매수 단가 기준 평균가 설정
                 .build();
     }
 
