@@ -4,6 +4,7 @@ import com.yogimangchi.domain.contest.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
 import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
 import com.yogimangchi.global.dto.CursorResponseDto;
@@ -63,7 +64,7 @@ public class AdminContestService {
                     season.contestEndAt(),
                     season.createdAt(),
                     season.updatedAt(),
-                    season.status()
+                    ContestSeasonStatusResponseDto.from(season.status())
             ))
             .toList();
 

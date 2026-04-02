@@ -1,13 +1,22 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
+import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.ContestService;
+import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,12 +30,37 @@ public class ContestController {
     private final ContestService contestService;
 
     @Operation(
-            summary = "최신 대회 정보 가져오기",
-            description = "인증회원 또는 관리자만 최신 대회 정보를 가져올 수 있습니다.."
+            summary = "참가 신청 모집중인 대회 시즌 목록 조회",
+            description = "현재 참가 신청을 받고 있는 대회 시즌 목록을 커서 기반 무한 스크롤로 조회합니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
     )
-    @GetMapping("/season/latest")
-    public ResponseEntity<ContestSeasonDetailDto> getLatestContestSeason() {
-        ContestSeasonDetailDto contestSeasonByLatest = contestService.getLatestContestSeason();
-        return ResponseEntity.ok(contestSeasonByLatest);
+    @GetMapping("/seasons/recruiting")
+    public ResponseEntity<CursorResponseDto<ContestSeasonDetailDto>> getRecruitingContestSeasons(
+            // 커서 기반 조회 조건을 쿼리 파라미터로 받는다.
+            @Valid @ParameterObject @ModelAttribute ContestSeasonSearchDto request
+    ) {
+        // 모집중인 대회 시즌 목록을 커서 방식으로 조회한다.
+        CursorResponseDto<ContestSeasonDetailDto> recruitingContestSeasons =
+                contestService.getRecruitingContestSeasons(request);
+
+        // 조회한 목록을 그대로 200 OK 로 반환한다.
+        return ResponseEntity.ok(recruitingContestSeasons);
+    }
+
+    @Operation(
+            summary = "대회 참가 신청",
+            description = "path 의 seasonId 에 참가 신청할 대회 시즌 ID를 넣어주세요. 모집중인 대회 시즌에만 신청할 수 있고, 같은 시즌에는 중복 신청할 수 없습니다."
+    )
+    @PostMapping("/seasons/{seasonId}/applications")
+    public ResponseEntity<Void> applyContestSeason(
+            // 현재 로그인한 회원 ID 를 인증 정보에서 꺼낸다.
+            @AuthenticationPrincipal Long loginMemberId,
+            // 참가 신청할 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId
+    ) {
+        // 로그인한 회원이 해당 시즌에 참가 신청하도록 처리한다.
+        contestService.applyContestSeason(loginMemberId, seasonId);
+
+        // 신청이 생성되었으므로 201 Created 로 응답한다.
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

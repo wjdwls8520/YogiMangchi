@@ -1,5 +1,6 @@
 package com.yogimangchi.global.exception;
 
+import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -83,5 +84,11 @@ public class GlobalExceptionHandler {
         log.error("처리되지 않은 예외 발생", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."));
+    }
+    // 대회 도메인 예외는 각 예외가 가진 상태 코드와 메시지로 응답한다.
+    @ExceptionHandler(ContestException.class)
+    public ResponseEntity<ErrorResponse> handleContestException(ContestException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
     }
 }
