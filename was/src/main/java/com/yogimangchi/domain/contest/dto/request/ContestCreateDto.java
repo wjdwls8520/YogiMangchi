@@ -16,7 +16,7 @@ public record ContestCreateDto(
         @NotBlank
         String description,
 
-        @Schema(description = "대회 참가 신청 시작 일시", example = "input[type=\"datetime-local\"] 2026-04-01T00:00:00")
+        @Schema(description = "대회 참가 신청 시작 일시 input[type=datetime-local] ", example = "2026-04-01T00:00:00")
         @NotNull
         LocalDateTime recruitmentStartAt,
 

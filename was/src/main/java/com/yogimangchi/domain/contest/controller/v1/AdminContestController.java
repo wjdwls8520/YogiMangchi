@@ -31,7 +31,7 @@ public class AdminContestController {
     @PostMapping("/seasons")
     public ResponseEntity<ContestSeasonDetailDto> createContest(
             @AuthenticationPrincipal Long adminId,
-            @Valid @ParameterObject @RequestBody ContestCreateDto request
+            @Valid @RequestBody ContestCreateDto request
     ) {
         ContestSeasonDetailDto ContestSeasonDetail = adminContestService.createContest(adminId, request);
 

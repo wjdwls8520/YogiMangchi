@@ -1,7 +1,6 @@
 package com.yogimangchi.domain.contest.dto.response;
 
 import com.yogimangchi.domain.contest.entity.ContestSeason;
-import com.yogimangchi.domain.contest.enums.ContestSeasonStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -36,8 +35,8 @@ public record ContestSeasonDetailDto(
         @Schema(description = "대회 [시즌 수정] 일시")
         LocalDateTime updatedAt,
 
-        @Schema(description = "대회 시즌 상태", example = "DRAFT")
-        ContestSeasonStatus status
+        @Schema(description = "대회 시즌 상태")
+        ContestSeasonStatusResponseDto status
 ) {
     public static ContestSeasonDetailDto from(ContestSeason contestSeason) {
         return new ContestSeasonDetailDto(
@@ -50,7 +49,7 @@ public record ContestSeasonDetailDto(
                 contestSeason.getContestEndAt(),
                 contestSeason.getCreatedAt(),
                 contestSeason.getUpdatedAt(),
-                contestSeason.getStatus()
+                ContestSeasonStatusResponseDto.from(contestSeason.getStatus())
         );
     }
 }
