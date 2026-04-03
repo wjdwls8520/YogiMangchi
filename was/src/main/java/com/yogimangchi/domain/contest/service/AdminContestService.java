@@ -175,6 +175,9 @@ public class AdminContestService {
         ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonId(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
+        // 현재 시즌이 신청 처리 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
+        contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
+
         // 반려 사유와 함께 반려 이력으로 저장한다.
         ContestRejectedApplicant contestRejectedApplicant =
                 ContestRejectedApplicant.create(contestApplicant, request.rejectReason(), adminId);

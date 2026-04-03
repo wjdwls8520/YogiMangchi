@@ -2,12 +2,15 @@ package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.dto.response.MyContestLatestRejectedApplicationDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
+import com.yogimangchi.domain.contest.dto.query.MyContestLatestRejectedApplicationQueryDto;
 import com.yogimangchi.domain.contest.entity.ContestApplicant;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
 import com.yogimangchi.domain.contest.enums.ContestSeasonStatus;
 import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
 import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
+import com.yogimangchi.domain.contest.repository.ContestRejectedApplicantRepository;
 import com.yogimangchi.domain.contest.repository.ContestSeasonRepository;
 import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.member.entity.Member;
@@ -29,6 +32,7 @@ public class ContestService {
     private final ContestSeasonRepository contestSeasonRepository;
     private final ContestApplicantRepository contestApplicantRepository;
     private final ContestParticipantRepository contestParticipantRepository;
+    private final ContestRejectedApplicantRepository contestRejectedApplicantRepository;
     private final ContestApplicationValidator contestApplicationValidator;
 
     private final MemberReader memberReader;
@@ -41,15 +45,33 @@ public class ContestService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(Long loginMemberId, ContestSeasonSearchDto request) {
+    public MyContestLatestRejectedApplicationDto getMyLatestRejectedContestApplication(Long loginMemberId) {
+        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
+        // 가장 최근 반려 이력 1건을 시즌/관리자 정보와 함께 조회한다.
+        MyContestLatestRejectedApplicationQueryDto latestRejectedApplication =
+                contestRejectedApplicantRepository.findLatestRejectedApplication(member.getId());
+
+        // 반려 이력이 없으면 null 을 반환해 컨트롤러에서 204 로 응답한다.
+        if (latestRejectedApplication == null) {
+            return null;
+        }
+
+        // 조회한 반려 이력을 응답 DTO 로 변환해 반환한다.
+        return latestRejectedApplication.toResponseDto();
+    }
+
+    @Transactional(readOnly = true)
+    public CursorResponseDto<ContestSeasonDetailDto> getApplicableContestSeasons(Long loginMemberId, ContestSeasonSearchDto request) {
         // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
 
         // 요청 size 를 기본값/최댓값 규칙에 맞게 정리한다.
         int limitSize = request.getOrDefaultSize();
 
-        // 모집중인 시즌만 커서 방식으로 size + 1 개까지 조회한다.
-        List<ContestSeason> contestSeasons = contestSeasonRepository.searchRecruitingContestSeasons(request);
+        // 참가 신청 가능한 시즌만 커서 방식으로 size + 1 개까지 조회한다.
+        List<ContestSeason> contestSeasons = contestSeasonRepository.searchApplicableContestSeasons(request);
 
         // 더 이상 내려줄 시즌이 없으면 빈 커서 응답을 반환한다.
         if (contestSeasons.isEmpty()) {

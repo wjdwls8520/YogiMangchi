@@ -116,7 +116,7 @@ public class AdminContestController {
 
     @Operation(
             summary = "대회 신청 반려",
-            description = "특정 대회 시즌의 신청 대기자를 반려하고, 신청서는 제거한 뒤 반려 사유와 함께 반려 이력으로 보관합니다."
+            description = "특정 대회 시즌의 신청 대기자를 반려하고, 신청서는 제거한 뒤 반려 사유와 함께 반려 이력으로 보관합니다. 모집중이거나 진행중인 시즌에서만 반려할 수 있습니다."
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/reject")
     public ResponseEntity<Void> rejectContestApplicant(
