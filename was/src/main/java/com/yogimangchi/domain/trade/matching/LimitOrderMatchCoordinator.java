@@ -18,6 +18,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+// 심볼별 지정가 주문 매칭 실행 조정 컴포넌트
 public class LimitOrderMatchCoordinator {
 
     // 심볼별 한 번에 조회할 체결 후보 최대 개수
@@ -79,7 +80,12 @@ public class LimitOrderMatchCoordinator {
 
                 List<Long> executableOrderIds = findExecutableOrderIds(symbol, priceWindow);
                 for (Long orderId : executableOrderIds) {
-                    limitOrderExecutionService.executeTriggeredOrder(orderId);
+                    try {
+                        limitOrderExecutionService.executeTriggeredOrder(orderId);
+                    } catch (Exception exception) {
+                        log.error("[지정가 주문 체결 실패] symbol={}, orderId={}, message={}",
+                                symbol, orderId, exception.getMessage(), exception);
+                    }
                 }
 
                 // 체결 후 남은 미체결 주문 존재 여부 동기화
