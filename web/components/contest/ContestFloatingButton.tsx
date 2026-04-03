@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { HiOutlineTrophy } from "react-icons/hi2";
+import { Trophy } from "lucide-react";
 import ContestDetailModal from "./ContestDetailModal";
 
 export default function ContestFloatingButton() {
@@ -16,8 +16,7 @@ export default function ContestFloatingButton() {
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
         </span>
-        
-        <HiOutlineTrophy className="w-5 h-5" />
+        <Trophy className="w-5 h-5" />
         <span className="font-bold text-sm">모의투자 대회 신청</span>
       </button>
 
