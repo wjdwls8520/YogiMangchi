@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { getBinanceWsBaseUrl } from "@/lib/utils/market";
 
 type OrderBookLevel = {
   price: number;
@@ -10,9 +11,11 @@ type OrderBookLevel = {
 };
 
 type BinanceDepthMessage = {
-  lastUpdateId: number;
-  bids: [string, string][];
-  asks: [string, string][];
+  lastUpdateId?: number;
+  bids?: [string, string][];
+  asks?: [string, string][];
+  b?: [string, string][];
+  a?: [string, string][];
 };
 
 const parseLevels = (levels: [string, string][]) => {
@@ -27,6 +30,14 @@ const parseLevels = (levels: [string, string][]) => {
         Number.isFinite(level.quantity) &&
         level.quantity > 0
     );
+};
+
+const getDepthLevels = (data: BinanceDepthMessage) => {
+  // Spot and futures use different field names for partial depth payloads.
+  const asks = Array.isArray(data.asks) ? data.asks : Array.isArray(data.a) ? data.a : [];
+  const bids = Array.isArray(data.bids) ? data.bids : Array.isArray(data.b) ? data.b : [];
+
+  return { asks, bids };
 };
 
 const formatPrice = (value: number) => {
@@ -50,6 +61,7 @@ const getBarWidth = (qty: number, maxQty: number) => {
 
 export default function OrderBook() {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
 
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
@@ -69,15 +81,19 @@ export default function OrderBook() {
 
     // 실시간 수신은 유지하고, 화면 반영만 2초마다 한 번씩 한다.
     const stream = `${selectedCoin.toLowerCase()}@depth10`;
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+    const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
+    const ws = new WebSocket(`${wsBaseUrl}/ws/${stream}`);
     const flushInterval = window.setInterval(() => {
       const data = pendingDepthRef.current;
 
       if (!isActive || !data) return;
-      if (!Array.isArray(data.asks) || !Array.isArray(data.bids)) return;
 
-      const nextAsks = parseLevels(data.asks).sort((a, b) => a.price - b.price);
-      const nextBids = parseLevels(data.bids).sort((a, b) => b.price - a.price);
+      const { asks: rawAsks, bids: rawBids } = getDepthLevels(data);
+
+      if (rawAsks.length === 0 || rawBids.length === 0) return;
+
+      const nextAsks = parseLevels(rawAsks).sort((a, b) => a.price - b.price);
+      const nextBids = parseLevels(rawBids).sort((a, b) => b.price - a.price);
 
       setAsks(nextAsks);
       setBids(nextBids);
@@ -108,7 +124,7 @@ export default function OrderBook() {
       pendingDepthRef.current = null;
       ws.close();
     };
-  }, [selectedCoin]);
+  }, [selectedCoin, selectedMarketType]);
 
   // asks는 낮은 가격 -> 높은 가격 순으로 들어오므로,
   // 화면에서는 현재가 바로 위에 가장 낮은 매도호가가 붙게 reverse 해서 보여줌

@@ -1,37 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Tabs from "@/components/ui/Tabs";
 import Select from "@/components/ui/Select";
-import { useMockWalletStore } from "@/stores/useMockWalletStore";
 import { formatDateTime } from "@/lib/utils/date";
 
-type UserOrderHistoryProps = {
-  mode?: "mock" | "trade";
-};
+export type HistoryTab = "unfilled" | "filled";
+export type OrderFilter = "all" | "buy" | "sell";
 
-type HistoryTab = "unfilled" | "filled";
-type OrderFilter = "all" | "buy" | "sell";
-
-type OpenOrderItem = {
-  orderId: number;
-  symbol: string;
-  side: "BUY" | "SELL";
-  orderType: string;
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
-  orderPrice: number | null;
-  orderQuantity: number | null;
-  orderAmount: number | null;
-  filledQuantity: number | null;
-  remainingQuantity: number | null;
-  avgFilledPrice: number | null;
-  executedAmount: number | null;
-  totalFee: number | null;
-  orderedAt: string;
-  executedAt: string | null;
-};
-
-type TableRow = {
+export type UserOrderHistoryRow = {
   id: number;
   date: string | null;
   symbol: string;
@@ -43,12 +19,26 @@ type TableRow = {
   status: string;
 };
 
+type UserOrderHistoryProps = {
+  mode?: "mock" | "trade";
+  historyTab?: HistoryTab;
+  selectedOrderType?: OrderFilter;
+  rows?: UserOrderHistoryRow[];
+  isLoading?: boolean;
+  errorMessage?: string;
+  hasLoadedPortfolio?: boolean;
+  isParticipated?: boolean;
+  onHistoryTabChange?: (nextTab: HistoryTab) => void;
+  onOrderTypeChange?: (nextFilter: OrderFilter) => void;
+  onCancelOrder?: (orderId: number) => void | Promise<void>;
+  cancelingOrderId?: number | null;
+};
+
 const ORDER_OPTIONS = [
   { label: "전체", value: "all" },
   { label: "매수", value: "buy" },
   { label: "매도", value: "sell" },
 ];
-
 
 const formatNumber = (value: number | null | undefined) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -70,202 +60,32 @@ const formatStatus = (status: string) => {
   return status;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null;
-};
-
-const getCursorContent = <T,>(payload: unknown): T[] => {
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  if (data && Array.isArray(data.content)) return data.content as T[];
-
-  const nestedData = data && isRecord(data.data) ? data.data : null;
-  if (nestedData && Array.isArray(nestedData.content)) {
-    return nestedData.content as T[];
-  }
-
-  return [];
-};
-
-const getArrayContent = <T,>(payload: unknown): T[] => {
-  if (Array.isArray(payload)) return payload as T[];
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.data)) return payload.data as T[];
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  return [];
-};
-
-const extractErrorMessage = (payload: unknown) => {
-  if (!isRecord(payload)) return "";
-
-  if (typeof payload.message === "string") return payload.message;
-  if (typeof payload.error === "string") return payload.error;
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  if (data && typeof data.message === "string") return data.message;
-
-  return "";
-};
-
-const isNoMockWalletMessage = (message: string) => {
-  return (
-    message.includes("현재 참여중인 모의투자 계좌가 존재하지 않습니다.") ||
-    message.includes("활성화된 모의투자 지갑을 찾을 수 없습니다.") ||
-    message.includes("참가하기를 먼저 진행해주세요.")
-  );
-};
-
 export default function UserOrderHistory({
   mode = "trade",
+  historyTab = "filled",
+  selectedOrderType = "all",
+  rows = [],
+  isLoading = false,
+  errorMessage = "",
+  hasLoadedPortfolio = true,
+  isParticipated = true,
+  onHistoryTabChange,
+  onOrderTypeChange,
+  onCancelOrder,
+  cancelingOrderId = null,
 }: UserOrderHistoryProps) {
-  const { historyVersion, isParticipated, hasLoadedPortfolio } =
-    useMockWalletStore();
+  const showCancelColumn =
+    mode === "mock" &&
+    historyTab === "unfilled" &&
+    typeof onCancelOrder === "function";
 
-  const [historyTab, setHistoryTab] = useState<HistoryTab>("filled");
-  const [selectedOrderType, setSelectedOrderType] =
-    useState<OrderFilter>("all");
-
-  const [rows, setRows] = useState<TableRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-
-  useEffect(() => {
-    if (mode !== "mock") {
-      setRows([]);
-      return;
-    }
-
-    // 지갑 상태 확인 전에는 대기
-    if (!hasLoadedPortfolio) {
-      return;
-    }
-
-    // 모의투자 계좌가 없으면 API를 때리지 않고 빈 상태로 처리
-    if (!isParticipated) {
-      setRows([]);
-      setErrorMessage("");
-      setIsLoading(false);
-      return;
-    }
-
-    const loadRows = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
-
-      try {
-        const params = new URLSearchParams();
-        params.set("assetType", "MOCK");
-
-        if (selectedOrderType === "buy") {
-          params.set("side", "BUY");
-        }
-
-        if (selectedOrderType === "sell") {
-          params.set("side", "SELL");
-        }
-
-        let url = "";
-
-        if (historyTab === "unfilled") {
-          url = `http://localhost:8080/api/v1/trade/orders/open?${params.toString()}`;
-        } else {
-          params.set("status", "COMPLETED");
-          params.set("size", "20");
-          url = `http://localhost:8080/api/v1/trade/orders?${params.toString()}`;
-        }
-
-        const response = await fetch(url, {
-          method: "GET",
-          credentials: "include",
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          const message = extractErrorMessage(payload);
-
-          if (response.status === 401 || response.status === 403) {
-            setRows([]);
-            setErrorMessage("로그인이 만료되었습니다. 다시 로그인해 주세요.");
-            return;
-          }
-
-          // 백엔드가 계좌 없음도 400으로 주고 있어서 프론트에서 빈 상태 처리
-          if (isNoMockWalletMessage(message)) {
-            setRows([]);
-            setErrorMessage("");
-            return;
-          }
-
-          throw new Error(message || "주문/거래내역을 불러오지 못했습니다.");
-        }
-
-        if (historyTab === "unfilled") {
-          const orders = getArrayContent<OpenOrderItem>(payload);
-
-          setRows(
-            orders.map((item) => ({
-              id: item.orderId,
-              date: item.orderedAt,
-              symbol: item.symbol,
-              side: item.side,
-              quantity: item.orderQuantity,
-              price: item.orderPrice ?? item.avgFilledPrice,
-              totalAmount: item.orderAmount ?? item.executedAmount,
-              fee: item.totalFee,
-              status: item.orderStatus,
-            }))
-          );
-        } else {
-          const orders = getCursorContent<OpenOrderItem>(payload);
-
-          setRows(
-            orders.map((item) => ({
-              id: item.orderId,
-              date: item.executedAt || item.orderedAt,
-              symbol: item.symbol,
-              side: item.side,
-              quantity: item.filledQuantity ?? item.orderQuantity,
-              price: item.avgFilledPrice ?? item.orderPrice,
-              totalAmount: item.executedAmount ?? item.orderAmount,
-              fee: item.totalFee,
-              status: item.orderStatus,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("주문/거래내역 조회 실패:", error);
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "주문/거래내역을 불러오지 못했습니다."
-        );
-        setRows([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadRows();
-  }, [
-    mode,
-    historyTab,
-    selectedOrderType,
-    historyVersion,
-    hasLoadedPortfolio,
-    isParticipated,
-  ]);
+  const columnCount = showCancelColumn ? 9 : 8;
 
   return (
     <footer className="bg-white border border-gray-200 flex flex-col mb-10 w-full shrink-0 p-6">
       <Tabs
         activeTab={historyTab}
-        onChange={(value) => setHistoryTab(value as HistoryTab)}
+        onChange={(value) => onHistoryTabChange?.(value as HistoryTab)}
         fullWidth={false}
         tabs={[
           { label: "미체결 주문", value: "unfilled" },
@@ -278,17 +98,15 @@ export default function UserOrderHistory({
           <Select
             options={ORDER_OPTIONS}
             value={selectedOrderType}
-            onChange={(value) => setSelectedOrderType(value as OrderFilter)}
+            onChange={(value) => onOrderTypeChange?.(value as OrderFilter)}
             size="sm"
           />
 
-          <button
-            type="button"
-            disabled
-            className="h-9 px-3 text-xs font-bold border border-gray-300 rounded-none text-gray-400 cursor-not-allowed"
-          >
-            선택 주문취소
-          </button>
+          {showCancelColumn ? (
+            <span className="text-xs font-bold text-gray-400">
+              미체결 주문만 취소할 수 있습니다.
+            </span>
+          ) : null}
         </div>
 
         <div className="w-full overflow-x-auto border-t border-gray-200">
@@ -303,43 +121,46 @@ export default function UserOrderHistory({
                 <th className="py-2.5 px-3 text-right">금액</th>
                 <th className="py-2.5 px-3 text-right">수수료</th>
                 <th className="py-2.5 px-3">상태</th>
+                {showCancelColumn ? (
+                  <th className="py-2.5 px-3">관리</th>
+                ) : null}
               </tr>
             </thead>
 
             <tbody>
               {mode !== "mock" ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-gray-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-gray-400 font-bold">
                     실전 주문내역은 아직 연결 전입니다.
                   </td>
                 </tr>
               ) : !hasLoadedPortfolio ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-gray-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-gray-400 font-bold">
                     지갑 상태 확인 중...
                   </td>
                 </tr>
               ) : !isParticipated ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-gray-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-gray-400 font-bold">
                     모의투자 계좌를 생성하면 내역이 표시됩니다.
                   </td>
                 </tr>
               ) : isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-gray-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-gray-400 font-bold">
                     주문/거래내역 불러오는 중...
                   </td>
                 </tr>
               ) : errorMessage ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-red-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-red-400 font-bold">
                     {errorMessage}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-gray-400 font-bold">
+                  <td colSpan={columnCount} className="py-12 text-gray-400 font-bold">
                     {historyTab === "unfilled"
                       ? "미체결 주문이 없습니다."
                       : "거래내역이 없습니다."}
@@ -388,6 +209,19 @@ export default function UserOrderHistory({
                     <td className="py-3 px-3 font-bold text-gray-700">
                       {formatStatus(row.status)}
                     </td>
+
+                    {showCancelColumn ? (
+                      <td className="py-3 px-3">
+                        <button
+                          type="button"
+                          onClick={() => onCancelOrder?.(row.id)}
+                          disabled={cancelingOrderId === row.id}
+                          className="min-w-[64px] border border-gray-300 px-2 py-1 text-[10px] font-bold text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300"
+                        >
+                          {cancelingOrderId === row.id ? "취소 중..." : "주문취소"}
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}

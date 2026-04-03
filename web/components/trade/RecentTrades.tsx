@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { getBinanceWsBaseUrl } from "@/lib/utils/market";
 
 type TradeItem = {
   id: number;
@@ -46,6 +47,7 @@ const formatTime = (timestamp: number) => {
 
 export default function RecentTrades() {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const [trades, setTrades] = useState<TradeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const pendingTradesRef = useRef<TradeItem[]>([]);
@@ -61,7 +63,8 @@ export default function RecentTrades() {
     });
 
     const stream = `${selectedCoin.toLowerCase()}@trade`;
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+    const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
+    const ws = new WebSocket(`${wsBaseUrl}/ws/${stream}`);
     const flushInterval = window.setInterval(() => {
       if (!isActive) return;
       if (pendingTradesRef.current.length === 0) return;
@@ -115,7 +118,7 @@ export default function RecentTrades() {
       pendingTradesRef.current = [];
       ws.close();
     };
-  }, [selectedCoin]);
+  }, [selectedCoin, selectedMarketType]);
 
   return (
     <div className="h-[520px] lg:col-span-3 bg-white border border-gray-200 flex flex-col lg:h-full overflow-hidden">
