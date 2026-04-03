@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+// 열린 지정가 주문 심볼 초기 복구 컴포넌트
 public class LimitOrderBootstrapService {
 
     private final OrderRepository orderRepository;

@@ -2,6 +2,7 @@ package com.yogimangchi.domain.trade.matching;
 
 import java.math.BigDecimal;
 
+// 심볼별 가격 범위 누적 값
 public record PriceWindow(
         BigDecimal minPrice,
         BigDecimal maxPrice,

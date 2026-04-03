@@ -22,6 +22,7 @@ import java.math.RoundingMode;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+// 지정가 주문 체결 처리 서비스
 public class LimitOrderExecutionService {
 
     private final OrderRepository orderRepository;

@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+// 지정가 주문 매칭 상태 관리 컴포넌트
 public class LimitOrderSignalRegistry {
 
     // 미체결 지정가 주문이 존재하는 심볼 집합
@@ -22,6 +23,7 @@ public class LimitOrderSignalRegistry {
         openLimitOrderSymbols.add(normalize(symbol));
     }
 
+    // 심볼에 미체결 주문이 있는지 감시
     public void syncOpenSymbol(String symbol, boolean hasOpenOrder) {
         String normalizedSymbol = normalize(symbol);
 
