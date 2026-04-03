@@ -13,11 +13,13 @@ public class LimitOrderBootstrapService {
 
     private final OrderRepository orderRepository;
     private final LimitOrderSignalRegistry signalRegistry;
+    private final LimitOrderScheduler limitOrderScheduler;
 
     // 서버 재기동 시 열린 지정가 주문 심볼 복구
     public void loadOpenSymbols() {
         orderRepository.findDistinctOpenLimitSymbols()
                 .forEach(signalRegistry::registerOpenSymbol);
+        limitOrderScheduler.refreshSchedule();
     }
 
     @EventListener(ApplicationReadyEvent.class)

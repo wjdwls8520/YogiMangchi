@@ -8,6 +8,7 @@ import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
 import com.yogimangchi.domain.trade.entity.Order;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
+import com.yogimangchi.domain.trade.matching.LimitOrderScheduler;
 import com.yogimangchi.domain.trade.matching.LimitOrderSignalRegistry;
 import com.yogimangchi.domain.trade.repository.OrderRepository;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
@@ -22,33 +23,34 @@ import java.math.RoundingMode;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-// 지정가 주문 체결 처리 서비스
+// 筌왖?類? 雅뚯눖揆 筌ｋ떯猿?筌ｌ꼶????뺥돩??
 public class LimitOrderExecutionService {
 
     private final OrderRepository orderRepository;
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
+    private final LimitOrderScheduler limitOrderScheduler;
     private final LimitOrderSignalRegistry limitOrderSignalRegistry;
 
-    // 지정가 주문 체결 진입 로직
+    // 筌왖?類? 雅뚯눖揆 筌ｋ떯猿?筌욊쑴??嚥≪뮇彛?
     @Transactional
     public void executeTriggeredOrder(Long orderId) {
         Order order = orderRepository.findByIdForExecution(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("체결 대상 주문을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("筌ｋ떯猿?????雅뚯눖揆??筌≪뼚??????곷뮸??덈뼄."));
 
         if (!"LIMIT".equals(order.getOrderType())) {
-            throw new IllegalArgumentException("지정가 주문만 체결 서비스의 대상입니다.");
+            throw new IllegalArgumentException("筌왖?類? 雅뚯눖揆筌?筌ｋ떯猿???뺥돩??쇱벥 ???怨몄뿯??덈뼄.");
         }
 
         if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PARTIALLY_FILLED) {
-            log.info("[지정가 체결 스킵] orderId={}, status={}", orderId, order.getStatus());
+            log.info("[筌왖?類? 筌ｋ떯猿???쎄땁] orderId={}, status={}", orderId, order.getStatus());
             return;
         }
 
-        // 체결 처리용 지갑 행 잠금 확보
+        // 筌ｋ떯猿?筌ｌ꼶???筌왖揶????醫됲닊 ?類ｋ궖
         Assets wallet = assetRepository.findByIdForUpdate(order.getAssets().getId())
-                .orElseThrow(() -> new IllegalArgumentException("주문에 연결된 지갑을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("雅뚯눖揆???怨뚭퍙??筌왖揶쏅쵐??筌≪뼚??????곷뮸??덈뼄."));
 
         if ("BUY".equals(order.getSide())) {
             executeLimitBuy(order, wallet);
@@ -60,12 +62,12 @@ public class LimitOrderExecutionService {
             return;
         }
 
-        throw new IllegalArgumentException("지원하지 않는 매매 방향입니다.");
+        throw new IllegalArgumentException("筌왖?癒곕릭筌왖 ??낅뮉 筌띲끇??獄쎻뫚堉??낅빍??");
     }
 
-    // 지정가 매수 체결 로직
+    // 筌왖?類? 筌띲끉??筌ｋ떯猿?嚥≪뮇彛?
     private void executeLimitBuy(Order order, Assets wallet) {
-        // 남은 수량 전체 체결 기준 정산 값 계산
+        // ??? ??롮쎗 ?袁⑷퍥 筌ｋ떯猿?疫꿸퀣? ?類ㅺ텦 揶??④쑴沅?
         BigDecimal filledQuantity = order.getRemainingQuantity();
         BigDecimal executedAmount = order.getOrderPrice()
                 .multiply(filledQuantity)
@@ -73,19 +75,19 @@ public class LimitOrderExecutionService {
         BigDecimal fee = TradeFeePolicy.calculateFee(executedAmount, TradeFeePolicy.LIMIT_FEE_RATE);
         BigDecimal reservedAmount = TradeFeePolicy.calculateReservationAmount(executedAmount, TradeFeePolicy.LIMIT_FEE_RATE);
 
-        // 주문 시 예약한 원금 + 수수료 소진
+        // 雅뚯눖揆 ????됰튋???癒?닊 + ??뤿땾?????춭
         wallet.consumeLockedMoney(reservedAmount);
 
         Holding holding = holdingRepository.findByAssetsAndSymbolForUpdate(wallet, order.getSymbol())
                 .orElse(null);
 
-        // 신규 보유 생성과 기존 보유 갱신 분기 처리
+        // ?醫됲뇣 癰귣똻? ??밴쉐??疫꿸퀣??癰귣똻? 揶쏄퉮???브쑨由?筌ｌ꼶??
         if (holding == null) {
             holdingRepository.save(
                     Holding.createFirstHolding(wallet, order.getSymbol(), filledQuantity, order.getOrderPrice())
             );
         } else {
-            // 잠금 수량 포함 평균 매수가 재계산
+            // ?醫됲닊 ??롮쎗 ??釉????뇧 筌띲끉?붷첎? ?????
             BigDecimal totalQuantityBeforeBuy = holding.getQuantity().add(holding.getLockedQuantity());
             BigDecimal totalBuyAmountBeforeBuy = totalQuantityBeforeBuy.multiply(holding.getAverageBuyPrice());
             BigDecimal totalQuantityAfterBuy = totalQuantityBeforeBuy.add(filledQuantity);
@@ -96,7 +98,7 @@ public class LimitOrderExecutionService {
             holding.updateHolding(updatedAvailableQuantity, updatedAverageBuyPrice);
         }
 
-        // 지정가 매수 체결 이력 저장
+        // 筌왖?類? 筌띲끉??筌ｋ떯猿?????????
         TradeHistory history = TradeHistory.createLimitBuyHistory(
                 wallet,
                 order,
@@ -108,7 +110,7 @@ public class LimitOrderExecutionService {
         );
         tradeHistoryRepository.save(history);
 
-        // 주문 완료 상태 반영
+        // 雅뚯눖揆 ?袁⑥┷ ?怨밴묶 獄쏆꼷??
         order.completeOrder(
                 filledQuantity,
                 order.getOrderPrice(),
@@ -116,13 +118,14 @@ public class LimitOrderExecutionService {
                 fee,
                 history.getExecutedAt()
         );
-        // 미체결 심볼 상태 동기화
+        // 沃섎챷猿쒎칰??????怨밴묶 ??녿┛??
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        limitOrderScheduler.refreshSchedule();
     }
 
-    // 지정가 매도 체결 로직
+    // 筌왖?類? 筌띲끇猷?筌ｋ떯猿?嚥≪뮇彛?
     private void executeLimitSell(Order order, Assets wallet) {
-        // 남은 수량 전체 체결 기준 정산 값 계산
+        // ??? ??롮쎗 ?袁⑷퍥 筌ｋ떯猿?疫꿸퀣? ?類ㅺ텦 揶??④쑴沅?
         BigDecimal sellQuantity = order.getRemainingQuantity();
         BigDecimal executedAmount = order.getOrderPrice()
                 .multiply(sellQuantity)
@@ -131,16 +134,16 @@ public class LimitOrderExecutionService {
         BigDecimal settlementAmount = executedAmount.subtract(fee);
 
         Holding holding = holdingRepository.findByAssetsAndSymbolForUpdate(wallet, order.getSymbol())
-                .orElseThrow(() -> new IllegalArgumentException("체결 대상 보유 코인을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("筌ｋ떯猿?????癰귣똻? ?꾨뗄???筌≪뼚??????곷뮸??덈뼄."));
 
         BigDecimal originalCost = sellQuantity.multiply(holding.getAverageBuyPrice()).setScale(4, RoundingMode.HALF_UP);
         BigDecimal realizedProfit = settlementAmount.subtract(originalCost);
 
-        // 예약 수량 소진과 정산 금액 반영
+        // ??됰튋 ??롮쎗 ???춭???類ㅺ텦 疫뀀뜆釉?獄쏆꼷??
         holding.consumeLockedQuantity(sellQuantity);
         wallet.addMoney(settlementAmount);
 
-        // 지정가 매도 체결 이력 저장
+        // 筌왖?類? 筌띲끇猷?筌ｋ떯猿?????????
         TradeHistory history = TradeHistory.createLimitSellHistory(
                 wallet,
                 order,
@@ -153,7 +156,7 @@ public class LimitOrderExecutionService {
         );
         tradeHistoryRepository.save(history);
 
-        // 주문 완료 상태 반영
+        // 雅뚯눖揆 ?袁⑥┷ ?怨밴묶 獄쏆꼷??
         order.completeOrder(
                 sellQuantity,
                 order.getOrderPrice(),
@@ -161,7 +164,8 @@ public class LimitOrderExecutionService {
                 fee,
                 history.getExecutedAt()
         );
-        // 미체결 심볼 상태 동기화
+        // 沃섎챷猿쒎칰??????怨밴묶 ??녿┛??
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        limitOrderScheduler.refreshSchedule();
     }
 }
