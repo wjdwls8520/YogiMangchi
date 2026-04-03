@@ -1,6 +1,8 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
+import com.yogimangchi.domain.contest.dto.request.ContestCursorSearchDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.dto.response.ContestParticipationSeasonDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.service.ContestService;
@@ -60,6 +62,25 @@ public class ContestController {
 
         // 조회한 목록을 그대로 200 OK 로 반환한다.
         return ResponseEntity.ok(applicableContestSeasons);
+    }
+
+    @Operation(
+            summary = "특정 유저의 모든 참가 이력 + 참가 중 대회 조회",
+            description = "특정 유저의 참가중이거나 이미 참가 완료한 대회 목록을 커서 기반 무한 스크롤로 조회합니다. 모집중, 진행중, 종료된 시즌(RECRUITING, LIVE, FINISHED)만 조회되며 정렬과 커서는 대회 참가자 ID 기준입니다. 첫 요청은 cursorId 없이 보내고, 다음 요청부터는 이전 응답의 nextCursorId 를 넣어주세요."
+    )
+    @GetMapping("/member/{memberId}/participation-seasons")
+    public ResponseEntity<CursorResponseDto<ContestParticipationSeasonDto>> getMemberContestParticipationSeasons(
+            // 조회 대상 회원 ID 를 path 에서 받는다.
+            @PathVariable("memberId") Long memberId,
+            // 커서 기반 조회 조건을 쿼리 파라미터로 받는다.
+            @Valid @ParameterObject @ModelAttribute ContestCursorSearchDto request
+    ) {
+        // 특정 회원의 참가중 + 참가 완료 대회 목록을 커서 방식으로 조회한다.
+        CursorResponseDto<ContestParticipationSeasonDto> participationSeasons =
+                contestService.getMemberContestParticipationSeasons(memberId, request);
+
+        // 조회한 목록을 그대로 200 OK 로 반환한다.
+        return ResponseEntity.ok(participationSeasons);
     }
 
     @Operation(
