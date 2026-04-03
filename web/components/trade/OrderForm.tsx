@@ -75,6 +75,7 @@ function OrderFormBody({
     isParticipated,
     isLoadingPortfolio,
     executeMarketOrder,
+    executeLimitOrder,
     holdings,
     usdtBalance,
   } = useMockWalletStore();
@@ -84,7 +85,6 @@ function OrderFormBody({
   );
   const [orderQty, setOrderQty] = useState("");
   const [orderAmount, setOrderAmount] = useState("");
-  const [limitOrderAmount, setLimitOrderAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableHolding =
@@ -107,7 +107,11 @@ function OrderFormBody({
 
   const availableDisplayValue = orderTab === "buy" ? usdtBalance : availableHolding;
   const availableUnit = orderTab === "buy" ? "YD" : baseName;
-  const numericLimitAmount = Number(limitOrderAmount);
+  const expectedLimitAmount =
+    Number.isFinite(numericPrice) && numericPrice > 0 &&
+    Number.isFinite(numericQty) && numericQty > 0
+      ? numericPrice * numericQty
+      : 0;
   const isDisabled = isSubmitting || isLoadingPortfolio;
 
   const buttonText =
@@ -143,9 +147,6 @@ function OrderFormBody({
 
     const nextQty = maxQty * ratio;
     setOrderQty(toInputValue(nextQty));
-    setLimitOrderAmount(
-      numericPrice > 0 ? toInputValue(numericPrice * nextQty, 2) : ""
-    );
   };
 
   const handleSubmit = async () => {
@@ -169,11 +170,6 @@ function OrderFormBody({
         alert("주문수량을 입력하세요.");
         return;
       }
-
-      if (!limitOrderAmount.trim()) {
-        alert("주문금액을 입력하세요.");
-        return;
-      }
     }
 
     if (mode !== "mock") {
@@ -192,13 +188,20 @@ function OrderFormBody({
         return;
       }
 
-      if (!Number.isFinite(numericLimitAmount) || numericLimitAmount <= 0) {
-        alert("주문금액을 올바르게 입력해 주세요.");
+      if (expectedLimitAmount < MIN_ORDER_AMOUNT) {
+        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
         return;
       }
 
-      alert("지정가 주문은 아직 지원하지 않습니다.");
-      return;
+      if (orderTab === "buy" && expectedLimitAmount > usdtBalance) {
+        alert("주문 가능 금액이 부족합니다.");
+        return;
+      }
+
+      if (orderTab === "sell" && numericQty > availableHolding) {
+        alert("보유 수량이 부족합니다.");
+        return;
+      }
     }
 
     if (!isLogin || !user) {
@@ -212,7 +215,7 @@ function OrderFormBody({
       return;
     }
 
-    if (currentPrice <= 0) {
+    if (isMarketOrder && currentPrice <= 0) {
       alert("현재가를 확인할 수 없어 주문할 수 없습니다.");
       return;
     }
@@ -255,9 +258,8 @@ function OrderFormBody({
 
     try {
       const side = orderTab === "buy" ? "BUY" : "SELL";
-
-      const result =
-        side === "BUY"
+      const result = isMarketOrder
+        ? side === "BUY"
           ? await executeMarketOrder({
               memberId: user.memberId,
               symbol: selectedCoin,
@@ -269,18 +271,32 @@ function OrderFormBody({
               symbol: selectedCoin,
               side,
               quantity: numericQty,
-            });
+            })
+        : await executeLimitOrder({
+            memberId: user.memberId,
+            symbol: selectedCoin,
+            side,
+            price: numericPrice,
+            quantity: numericQty,
+          });
 
       if (result.success) {
         alert(
-          orderTab === "buy"
-            ? "시장가 매수가 완료되었습니다."
-            : "시장가 매도가 완료되었습니다."
+          isMarketOrder
+            ? orderTab === "buy"
+              ? "시장가 매수가 완료되었습니다."
+              : "시장가 매도가 완료되었습니다."
+            : orderTab === "buy"
+              ? "지정가 매수 주문이 등록되었습니다."
+              : "지정가 매도 주문이 등록되었습니다."
         );
 
         setOrderAmount("");
         setOrderQty("");
-        setLimitOrderAmount("");
+
+        if (!isMarketOrder) {
+          setOrderPrice(toInputValue(currentPrice, 2));
+        }
         return;
       }
 
@@ -401,9 +417,9 @@ function OrderFormBody({
             <div className="grid grid-cols-5 gap-1">
                 {[
                   { label: "10%", ratio: 0.1 },
-                  { label: "25%", ratio: 0.25 },
+                  { label: "20%", ratio: 0.2 },
                   { label: "50%", ratio: 0.5 },
-                  { label: "100%", ratio: 1 },
+                  { label: "75%", ratio: 0.75 },
                   { label: "최대", ratio: 1 },
                 ].map((option) => (
                 <button
@@ -450,10 +466,8 @@ function OrderFormBody({
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
-                value={limitOrderAmount}
-                onChange={(e) =>
-                  setLimitOrderAmount(sanitizeDecimalInput(e.target.value))
-                }
+                value={toInputValue(expectedLimitAmount, 2)}
+                readOnly={true}
                 className="w-full bg-white border-gray-200 rounded-none h-10 text-right font-bold pr-10"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
@@ -484,8 +498,9 @@ function OrderFormBody({
 }
 
 export default function OrderForm({ mode = "trade" }: OrderFormProps) {
-  const { selectedCoin, tickers, coinMetaList } = useTickerStore();
-  const realtime = tickers[selectedCoin];
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const coinMetaList = useTickerStore((state) => state.coinMetaList);
+  const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
   const meta = coinMetaList.find((coin) => coin.symbol === selectedCoin);
 
   const [orderTab, setOrderTab] = useState<OrderTab>("buy");

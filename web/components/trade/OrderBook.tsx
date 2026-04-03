@@ -1,7 +1,7 @@
 //호가
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
 
 type OrderBookLevel = {
@@ -49,38 +49,48 @@ const getBarWidth = (qty: number, maxQty: number) => {
 };
 
 export default function OrderBook() {
-  const { selectedCoin, tickers } = useTickerStore();
-  const realtime = tickers[selectedCoin];
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
 
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const pendingDepthRef = useRef<BinanceDepthMessage | null>(null);
 
   useEffect(() => {
     if (!selectedCoin) return;
 
     let isActive = true;
+    const resetFrame = window.requestAnimationFrame(() => {
+      setIsLoading(true);
+      setAsks([]);
+      setBids([]);
+    });
 
-    setIsLoading(true);
-    setAsks([]);
-    setBids([]);
-
-    const stream = `${selectedCoin.toLowerCase()}@depth10@100ms`;
+    // 실시간 수신은 유지하고, 화면 반영만 2초마다 한 번씩 한다.
+    const stream = `${selectedCoin.toLowerCase()}@depth10`;
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+    const flushInterval = window.setInterval(() => {
+      const data = pendingDepthRef.current;
+
+      if (!isActive || !data) return;
+      if (!Array.isArray(data.asks) || !Array.isArray(data.bids)) return;
+
+      const nextAsks = parseLevels(data.asks).sort((a, b) => a.price - b.price);
+      const nextBids = parseLevels(data.bids).sort((a, b) => b.price - a.price);
+
+      setAsks(nextAsks);
+      setBids(nextBids);
+      setIsLoading(false);
+      pendingDepthRef.current = null;
+    }, 2000);
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as BinanceDepthMessage;
 
         if (!isActive) return;
-        if (!Array.isArray(data.asks) || !Array.isArray(data.bids)) return;
-
-        const nextAsks = parseLevels(data.asks).sort((a, b) => a.price - b.price);
-        const nextBids = parseLevels(data.bids).sort((a, b) => b.price - a.price);
-
-        setAsks(nextAsks);
-        setBids(nextBids);
-        setIsLoading(false);
+        pendingDepthRef.current = data;
       } catch (error) {
         console.error("바이낸스 호가 데이터 파싱 실패:", error);
       }
@@ -93,6 +103,9 @@ export default function OrderBook() {
 
     return () => {
       isActive = false;
+      window.cancelAnimationFrame(resetFrame);
+      window.clearInterval(flushInterval);
+      pendingDepthRef.current = null;
       ws.close();
     };
   }, [selectedCoin]);
