@@ -40,12 +40,19 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
 
                 setContestSeason(nextSeason);
             } catch (error) {
-                console.error("대회 시즌 조회 실패:", error);
-
                 if (!isActive) {
                     return;
                 }
 
+                const message = error instanceof Error ? error.message : "";
+
+                if (message.includes("401") || message.includes("403")) {
+                    setContestSeason(null);
+                    setSeasonErrorMessage("대회 정보를 불러올 수 없습니다. 현재는 공개 조회가 막혀 있습니다.");
+                    return;
+                }
+
+                console.error("대회 시즌 조회 실패:", error);
                 setContestSeason(null);
                 setSeasonErrorMessage("모집중인 대회 정보를 불러오지 못했습니다.");
             } finally {
@@ -64,8 +71,9 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
 
     const isAlreadyApplied = contestSeason?.appliedByMe === true;
     const hasRecruitingSeason = contestSeason !== null;
+    const canApply = isLogin && !!user && user.role !== "USER";
     const actionButtonDisabled =
-        isLoadingSeason || isApplying || !hasRecruitingSeason || isAlreadyApplied;
+        isLoadingSeason || isApplying || !hasRecruitingSeason || isAlreadyApplied || !canApply;
 
     const contestStatusLabel = useMemo(() => {
         if (!contestSeason?.status?.label) {
@@ -162,6 +170,15 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
               <div className="p-4 rounded-xl bg-gray-50 dark:bg-zinc-800 text-xs mt-4">
                 * 대회 시작 전까지 신청이 가능하며, 시작 후에는 중도 참여가 불가능합니다.
               </div>
+              {!isLogin ? (
+                <div className="rounded-xl bg-gray-50 p-4 text-xs font-bold text-gray-500 dark:bg-zinc-800">
+                  대회 정보는 누구나 볼 수 있고, 참가 신청은 로그인 후 가능합니다.
+                </div>
+              ) : user?.role === "USER" ? (
+                <div className="rounded-xl bg-gray-50 p-4 text-xs font-bold text-gray-500 dark:bg-zinc-800">
+                  대회 참가 신청은 인증회원만 가능합니다.
+                </div>
+              ) : null}
               {isAlreadyApplied ? (
                 <div className="rounded-xl bg-blue-50 p-4 text-xs font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                   이미 현재 모집중인 대회에 신청한 상태입니다.
@@ -181,10 +198,14 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
             ? "대회 정보 확인 중..."
             : isAlreadyApplied
               ? "이미 신청한 대회입니다"
-              : isApplying
+            : isApplying
                 ? "신청 처리 중..."
                 : !hasRecruitingSeason
                   ? "모집중인 대회가 없습니다"
+                  : !isLogin
+                    ? "로그인 후 참여 신청하기"
+                    : user?.role === "USER"
+                      ? "인증회원만 참가 가능합니다"
                   : "지금 바로 참여 신청하기"}
         </Button>
       </div>
