@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HiOutlineSearch } from "react-icons/hi";
-import { HiOutlineStar, HiStar } from "react-icons/hi2";
+import { Search, Star  } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import { useTickerStore } from "@/stores/useTickerStore";
@@ -162,7 +161,7 @@ export default function CoinList({
             placeholder="자산명, 심볼 검색"
             className="pl-9"
           />
-          <HiOutlineSearch className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
         </div>
 
         <Tabs
@@ -260,9 +259,12 @@ export default function CoinList({
                       className="p-1 active:scale-90 transition-transform"
                     >
                       {isFavorite ? (
-                        <HiStar className="size-4 text-yellow-400 drop-shadow-sm" />
+                        <Star
+                        color="#e4f500"
+                        fill="#f1ff29"
+                        className="size-5"/>
                       ) : (
-                        <HiOutlineStar className="size-4 text-gray-300 hover:text-yellow-200" />
+                        <Star className="size-5 text-gray-300 hover:text-yellow-200" />
                       )}
                     </button>
 
