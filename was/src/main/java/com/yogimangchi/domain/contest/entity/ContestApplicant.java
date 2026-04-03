@@ -71,4 +71,8 @@ public class ContestApplicant {
     public void reject() {
         this.status = ContestApplicantStatus.REJECTED;
     }
+
+    public void updateStatus(ContestApplicantStatus status) {
+        this.status = status;
+    }
 }
