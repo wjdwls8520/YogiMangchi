@@ -19,15 +19,15 @@ public class ContestSeasonRepositoryImpl implements ContestSeasonRepositoryCusto
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<ContestSeason> searchRecruitingContestSeasons(ContestSeasonSearchDto request) {
+    public List<ContestSeason> searchApplicableContestSeasons(ContestSeasonSearchDto request) {
         // 요청 size 를 기본값/최댓값 규칙에 맞게 정리한다.
         int limitSize = request.getOrDefaultSize();
 
-        // 모집중인 시즌만 커서 기준으로 내림차순 조회한다.
+        // 참가 신청 가능한 시즌만 커서 기준으로 내림차순 조회한다.
         return queryFactory
                 .selectFrom(contestSeason)
                 .where(
-                        recruitingStatusEq(),
+                        applicableStatusIn(),
                         cursorIdLt(request.cursorId())
                 )
                 .orderBy(contestSeason.id.desc())
@@ -35,9 +35,9 @@ public class ContestSeasonRepositoryImpl implements ContestSeasonRepositoryCusto
                 .fetch();
     }
 
-    private BooleanExpression recruitingStatusEq() {
-        // 모집중인 시즌만 조회 조건에 포함한다.
-        return contestSeason.status.eq(ContestSeasonStatus.RECRUITING);
+    private BooleanExpression applicableStatusIn() {
+        // 모집중이거나 진행중인 시즌만 조회 조건에 포함한다.
+        return contestSeason.status.in(ContestSeasonStatus.RECRUITING, ContestSeasonStatus.LIVE);
     }
 
     private BooleanExpression cursorIdLt(Long cursorId) {

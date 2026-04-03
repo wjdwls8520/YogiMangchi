@@ -4,6 +4,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.contest.dto.query.ContestRejectedApplicantQueryDto;
+import com.yogimangchi.domain.contest.dto.query.MyContestLatestRejectedApplicationQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
 import com.yogimangchi.domain.member.entity.QMember;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 import static com.yogimangchi.domain.contest.entity.QContestRejectedApplicant.contestRejectedApplicant;
+import static com.yogimangchi.domain.contest.entity.QContestSeason.contestSeason;
 import static com.yogimangchi.domain.member.entity.QMember.member;
 
 @Repository
@@ -48,6 +50,33 @@ public class ContestRejectedApplicantRepositoryImpl implements ContestRejectedAp
                 .orderBy(contestRejectedApplicant.id.desc())
                 .limit(request.getOrDefaultSize() + 1L)
                 .fetch();
+    }
+
+    @Override
+    public MyContestLatestRejectedApplicationQueryDto findLatestRejectedApplication(Long memberId) {
+        QMember rejectedAdmin = new QMember("rejectedAdmin");
+
+        return queryFactory
+                .select(Projections.constructor(
+                        MyContestLatestRejectedApplicationQueryDto.class,
+                        contestRejectedApplicant.id,
+                        contestSeason.id,
+                        contestSeason.title,
+                        contestSeason.description,
+                        contestSeason.status,
+                        contestRejectedApplicant.appliedAt,
+                        contestRejectedApplicant.rejectedAt,
+                        contestRejectedApplicant.rejectReason,
+                        rejectedAdmin.id,
+                        rejectedAdmin.nickname,
+                        rejectedAdmin.profileImgUrl
+                ))
+                .from(contestRejectedApplicant)
+                .join(contestRejectedApplicant.contestSeason, contestSeason)
+                .join(rejectedAdmin).on(rejectedAdmin.id.eq(contestRejectedApplicant.rejectedByAdminId))
+                .where(contestRejectedApplicant.member.id.eq(memberId))
+                .orderBy(contestRejectedApplicant.rejectedAt.desc(), contestRejectedApplicant.id.desc())
+                .fetchFirst();
     }
 
     private BooleanExpression seasonIdEq(Long seasonId) {
