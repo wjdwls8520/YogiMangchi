@@ -1,9 +1,13 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantStatusUpdateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
+import com.yogimangchi.domain.contest.dto.response.ContestApplicantDto;
+import com.yogimangchi.domain.contest.dto.response.ContestApplicantStatusResponseDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
@@ -16,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/contest")
@@ -68,6 +74,50 @@ public class AdminContestController {
         ContestSeasonDetailDto contestSeasonDetail = adminContestService.updateContestSeasonStatus(adminId, seasonId, request);
 
         return ResponseEntity.ok(contestSeasonDetail);
+    }
+
+    @Operation(
+            summary = "대회 신청자 상태 목록 조회",
+            description = "관리자 화면의 신청자 상태 셀렉트 박스에서 사용할 상태 코드와 라벨 목록을 조회합니다. [ 셀렉박스용 ]"
+    )
+    @GetMapping("/applicants/statuses")
+    public ResponseEntity<List<ContestApplicantStatusResponseDto>> getContestApplicantStatuses() {
+        List<ContestApplicantStatusResponseDto> contestApplicantStatuses =
+                adminContestService.getContestApplicantStatuses();
+
+        return ResponseEntity.ok(contestApplicantStatuses);
+    }
+
+    @Operation(
+            summary = "대회 신청자 목록 조회",
+            description = "특정 대회 시즌에 참가 신청한 회원 목록을 커서 기반 무한 스크롤로 조회합니다. 필요하면 신청 상태로 필터링할 수 있습니다."
+    )
+    @GetMapping("/seasons/{seasonId}/applicants")
+    public ResponseEntity<CursorResponseDto<ContestApplicantDto>> getContestApplicants(
+            @PathVariable("seasonId") Long seasonId,
+            @Valid @ParameterObject @ModelAttribute ContestApplicantSearchDto request
+    ) {
+        CursorResponseDto<ContestApplicantDto> contestApplicants =
+                adminContestService.getContestApplicants(seasonId, request);
+
+        return ResponseEntity.ok(contestApplicants);
+    }
+
+    @Operation(
+            summary = "대회 신청자 상태 수정",
+            description = "특정 대회 시즌 신청자의 상태를 승인 대기, 승인 완료, 반려 중 하나로 수정합니다."
+    )
+    @PatchMapping("/seasons/{seasonId}/applicants/{applicantId}/status")
+    public ResponseEntity<ContestApplicantDto> updateContestApplicantStatus(
+            @AuthenticationPrincipal Long adminId,
+            @PathVariable("seasonId") Long seasonId,
+            @PathVariable("applicantId") Long applicantId,
+            @Valid @RequestBody ContestApplicantStatusUpdateDto request
+    ) {
+        ContestApplicantDto contestApplicant =
+                adminContestService.updateContestApplicantStatus(adminId, seasonId, applicantId, request);
+
+        return ResponseEntity.ok(contestApplicant);
     }
 
     @Operation(

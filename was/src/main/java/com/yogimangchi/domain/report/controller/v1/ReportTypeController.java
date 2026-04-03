@@ -20,7 +20,7 @@ public class ReportTypeController {
 
     @Operation(
             summary = "신고 enum 리스트",
-            description = "신고 사유 코드와 한글명을 함께 조회합니다."
+            description = "신고 사유 코드와 한글명을 함께 조회합니다. [ 셀렉박스용 ]"
     )
     @GetMapping("/type/community")
     public ResponseEntity<List<ReportReasonTypeResponseDto>> getResponseReportTypeByCommunity() {

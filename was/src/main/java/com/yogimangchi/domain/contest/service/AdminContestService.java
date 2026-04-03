@@ -1,14 +1,22 @@
 package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.dto.query.ContestSeasonQueryDto;
+import com.yogimangchi.domain.contest.dto.query.ContestApplicantQueryDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantStatusUpdateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
+import com.yogimangchi.domain.contest.dto.response.ContestApplicantDto;
+import com.yogimangchi.domain.contest.dto.response.ContestApplicantStatusResponseDto;
+import com.yogimangchi.domain.contest.entity.ContestApplicant;
+import com.yogimangchi.domain.contest.enums.ContestApplicantStatus;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
 import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
+import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
 import com.yogimangchi.domain.contest.validator.ContestSeasonValidator;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
@@ -23,6 +31,7 @@ import java.util.List;
 public class AdminContestService {
 
     private final AdminContestSeasonRepository adminContestRepository;
+    private final ContestApplicantRepository contestApplicantRepository;
     private final ContestSeasonValidator contestSeasonValidator;
 
     @Transactional
@@ -73,6 +82,62 @@ public class AdminContestService {
     }
 
     @Transactional(readOnly = true)
+    public List<ContestApplicantStatusResponseDto> getContestApplicantStatuses() {
+        return List.of(ContestApplicantStatus.values()).stream()
+                .map(ContestApplicantStatusResponseDto::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CursorResponseDto<ContestApplicantDto> getContestApplicants(Long seasonId, ContestApplicantSearchDto request) {
+        adminContestRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        List<ContestApplicantQueryDto> applicants = contestApplicantRepository.searchContestApplicants(seasonId, request);
+
+        int limitSize = request.getOrDefaultSize();
+        boolean hasNext = applicants.size() > limitSize;
+
+        if (hasNext) {
+            applicants.remove(limitSize);
+        }
+
+        Long nextCursorId = null;
+        if (!applicants.isEmpty()) {
+            nextCursorId = applicants.get(applicants.size() - 1).applicantId();
+        }
+
+        List<ContestApplicantDto> content = applicants.stream()
+                .map(applicant -> new ContestApplicantDto(
+                        applicant.applicantId(),
+                        applicant.memberId(),
+                        applicant.nickname(),
+                        applicant.profileImgUrl(),
+                        applicant.createdAt(),
+                        applicant.updatedAt(),
+                        ContestApplicantStatusResponseDto.from(applicant.status())
+                ))
+                .toList();
+
+        return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
+
+    @Transactional
+    public ContestApplicantDto updateContestApplicantStatus(
+            Long adminId,
+            Long seasonId,
+            Long applicantId,
+            ContestApplicantStatusUpdateDto request
+    ) {
+        ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonId(applicantId, seasonId)
+                .orElseThrow(ContestException::contestApplicantNotFound);
+
+        contestApplicant.updateStatus(request.status());
+
+        return ContestApplicantDto.from(contestApplicant);
+    }
+
+    @Transactional(readOnly = true)
     public CursorResponseDto<ContestSeasonDetailDto> getContestSeasons(ContestSeasonSearchDto request) {
         List<ContestSeasonQueryDto> seasons = adminContestRepository.searchContestSeasons(request);
 
@@ -99,7 +164,8 @@ public class AdminContestService {
                     season.contestEndAt(),
                     season.createdAt(),
                     season.updatedAt(),
-                    ContestSeasonStatusResponseDto.from(season.status())
+                    ContestSeasonStatusResponseDto.from(season.status()),
+                    false
             ))
             .toList();
 

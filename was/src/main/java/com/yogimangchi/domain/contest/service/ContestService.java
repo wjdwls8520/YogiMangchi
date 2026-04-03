@@ -39,7 +39,10 @@ public class ContestService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(ContestSeasonSearchDto request) {
+    public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(Long loginMemberId, ContestSeasonSearchDto request) {
+        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
         // 요청 size 를 기본값/최댓값 규칙에 맞게 정리한다.
         int limitSize = request.getOrDefaultSize();
 
@@ -59,9 +62,18 @@ public class ContestService {
             contestSeasons = new ArrayList<>(contestSeasons.subList(0, limitSize));
         }
 
+        // 조회된 시즌 ID 목록으로 내가 이미 신청한 시즌을 한 번에 조회한다.
+        List<Long> seasonIds = contestSeasons.stream()
+                .map(ContestSeason::getId)
+                .toList();
+        List<Long> appliedSeasonIds = contestApplicantRepository.findAppliedSeasonIds(member.getId(), seasonIds);
+
         // 엔티티 목록을 응답 DTO 목록으로 변환한다.
         List<ContestSeasonDetailDto> content = contestSeasons.stream()
-                .map(ContestSeasonDetailDto::from)
+                .map(contestSeason -> ContestSeasonDetailDto.from(
+                        contestSeason,
+                        appliedSeasonIds.contains(contestSeason.getId())
+                ))
                 .toList();
 
         // 다음 요청에 사용할 커서는 마지막 시즌 ID 로 정한다.
