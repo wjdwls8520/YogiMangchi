@@ -100,8 +100,8 @@ public class ContestService {
         ContestSeason contestSeason = contestSeasonRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
-        // 현재 시즌이 모집중 상태인지 검증한다.
-        contestApplicationValidator.validateRecruitingContestSeason(contestSeason);
+        // 현재 시즌이 참가 신청 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
+        contestApplicationValidator.validateApplicableContestSeason(contestSeason);
 
         // 같은 회원이 같은 시즌에 이미 신청했는지 먼저 확인한다.
         if (contestApplicantRepository.existsByMemberAndContestSeason(member, contestSeason)) {

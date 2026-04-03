@@ -23,6 +23,7 @@ import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
 import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
 import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
 import com.yogimangchi.domain.contest.repository.ContestRejectedApplicantRepository;
+import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.contest.validator.ContestSeasonValidator;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
@@ -41,6 +42,7 @@ public class AdminContestService {
     private final ContestApplicantRepository contestApplicantRepository;
     private final ContestParticipantRepository contestParticipantRepository;
     private final ContestRejectedApplicantRepository contestRejectedApplicantRepository;
+    private final ContestApplicationValidator contestApplicationValidator;
     private final ContestSeasonValidator contestSeasonValidator;
 
     @Transactional
@@ -133,6 +135,9 @@ public class AdminContestService {
         // 현재 시즌에 남아 있는 신청 대기자를 찾는다.
         ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonId(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
+
+        // 현재 시즌이 참가 승인 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
+        contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
 
         // 이미 참가자로 등록된 회원이면 중복 승인하지 않는다.
         if (contestParticipantRepository.existsByMemberAndContestSeason(

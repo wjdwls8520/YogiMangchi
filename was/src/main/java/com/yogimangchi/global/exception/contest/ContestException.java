@@ -29,11 +29,19 @@ public class ContestException extends RuntimeException {
         );
     }
 
-    public static ContestException contestSeasonNotRecruiting() {
+    public static ContestException contestSeasonNotApplicable() {
         return new ContestException(
                 HttpStatus.CONFLICT,
-                "CONTEST_SEASON_NOT_RECRUITING",
-                "현재 참가 신청을 받을 수 없는 대회 시즌입니다."
+                "CONTEST_SEASON_NOT_APPLICABLE",
+                "대회 신청 기간이 아닙니다."
+        );
+    }
+
+    public static ContestException contestSeasonNotApprovable() {
+        return new ContestException(
+                HttpStatus.CONFLICT,
+                "CONTEST_SEASON_NOT_APPROVABLE",
+                "현재 대회가 참가가능 상태가 아닙니다."
         );
     }
 

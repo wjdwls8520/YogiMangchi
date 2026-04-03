@@ -96,7 +96,7 @@ public class AdminContestController {
 
     @Operation(
             summary = "대회 신청 승인",
-            description = "특정 대회 시즌의 신청 대기자를 승인하고, 신청서는 제거한 뒤 대회 참가자 정보로 이동시킵니다."
+            description = "특정 대회 시즌의 신청 대기자를 승인하고, 신청서는 제거한 뒤 대회 참가자 정보로 이동시킵니다. 모집중이거나 진행중인 시즌에서만 승인할 수 있습니다."
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/approve")
     public ResponseEntity<Void> approveContestApplicant(

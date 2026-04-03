@@ -64,7 +64,7 @@ public class ContestController {
 
     @Operation(
             summary = "대회 참가 신청",
-            description = "path 의 seasonId 에 참가 신청할 대회 시즌 ID를 넣어주세요. 모집중인 대회 시즌에만 신청할 수 있고, 같은 시즌에는 중복 신청할 수 없습니다."
+            description = "path 의 seasonId 에 참가 신청할 대회 시즌 ID를 넣어주세요. 모집중이거나 진행중인 대회 시즌에만 신청할 수 있고, 같은 시즌에는 중복 신청할 수 없습니다."
     )
     @PostMapping("/seasons/{seasonId}/applications")
     public ResponseEntity<Void> applyContestSeason(
