@@ -8,7 +8,6 @@ import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
 import com.yogimangchi.domain.trade.entity.Order;
 import com.yogimangchi.domain.trade.entity.TradeHistory;
 import com.yogimangchi.domain.trade.enums.OrderStatus;
-import com.yogimangchi.domain.trade.matching.LimitOrderScheduler;
 import com.yogimangchi.domain.trade.matching.LimitOrderSignalRegistry;
 import com.yogimangchi.domain.trade.repository.OrderRepository;
 import com.yogimangchi.domain.trade.repository.TradeHistoryRepository;
@@ -30,7 +29,6 @@ public class LimitOrderExecutionService {
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
-    private final LimitOrderScheduler limitOrderScheduler;
     private final LimitOrderSignalRegistry limitOrderSignalRegistry;
 
     // 筌왖?類? 雅뚯눖揆 筌ｋ떯猿?筌욊쑴??嚥≪뮇彛?
@@ -120,7 +118,6 @@ public class LimitOrderExecutionService {
         );
         // 沃섎챷猿쒎칰??????怨밴묶 ??녿┛??
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
-        limitOrderScheduler.refreshSchedule();
     }
 
     // 筌왖?類? 筌띲끇猷?筌ｋ떯猿?嚥≪뮇彛?
@@ -166,6 +163,5 @@ public class LimitOrderExecutionService {
         );
         // 沃섎챷猿쒎칰??????怨밴묶 ??녿┛??
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
-        limitOrderScheduler.refreshSchedule();
     }
 }
