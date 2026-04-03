@@ -3,16 +3,12 @@
 import { useTickerStore } from "@/stores/useTickerStore";
 
 export default function CoinHeader() {
-  // 🌟 1. 저수지에서 필요한 물(데이터)만 딱 떠옵니다!
-  const { selectedCoin, tickers, coinMetaList } = useTickerStore();
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const coinMetaList = useTickerStore((state) => state.coinMetaList);
+  const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
 
-  // 🌟 2. 선택된 코인의 '한국어 이름' 등을 찾기 위해 목록을 뒤집니다.
   const meta = coinMetaList.find(c => c.symbol === selectedCoin);
-  
-  // 🌟 3. 선택된 코인의 '실시간 가격 데이터'를 꺼냅니다.
-  const realtime = tickers[selectedCoin];
 
-  // 💡 데이터가 아직 도착하기 전(0.5초)에는 뼈대(스켈레톤)만 보여줘서 에러를 막습니다.
   if (!meta || !realtime) {
     return (
       <header aria-label="코인 요약 정보" className="bg-white p-5 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 h-[88px] animate-pulse">

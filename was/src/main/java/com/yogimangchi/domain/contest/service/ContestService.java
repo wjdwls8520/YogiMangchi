@@ -7,6 +7,7 @@ import com.yogimangchi.domain.contest.entity.ContestApplicant;
 import com.yogimangchi.domain.contest.entity.ContestSeason;
 import com.yogimangchi.domain.contest.enums.ContestSeasonStatus;
 import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
+import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
 import com.yogimangchi.domain.contest.repository.ContestSeasonRepository;
 import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.member.entity.Member;
@@ -27,6 +28,7 @@ public class ContestService {
 
     private final ContestSeasonRepository contestSeasonRepository;
     private final ContestApplicantRepository contestApplicantRepository;
+    private final ContestParticipantRepository contestParticipantRepository;
     private final ContestApplicationValidator contestApplicationValidator;
 
     private final MemberReader memberReader;
@@ -39,7 +41,10 @@ public class ContestService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(ContestSeasonSearchDto request) {
+    public CursorResponseDto<ContestSeasonDetailDto> getRecruitingContestSeasons(Long loginMemberId, ContestSeasonSearchDto request) {
+        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
         // 요청 size 를 기본값/최댓값 규칙에 맞게 정리한다.
         int limitSize = request.getOrDefaultSize();
 
@@ -59,9 +64,22 @@ public class ContestService {
             contestSeasons = new ArrayList<>(contestSeasons.subList(0, limitSize));
         }
 
+        // 조회된 시즌 ID 목록으로 내가 아직 대기 중인 신청 시즌을 한 번에 조회한다.
+        List<Long> seasonIds = contestSeasons.stream()
+                .map(ContestSeason::getId)
+                .toList();
+        List<Long> pendingSeasonIds = contestApplicantRepository.findPendingSeasonIds(member.getId(), seasonIds);
+
+        // 이미 참가 승인된 시즌도 함께 조회해 모집중 목록에서 바로 표시한다.
+        List<Long> participatingSeasonIds = contestParticipantRepository.findParticipatingSeasonIds(member.getId(), seasonIds);
+
         // 엔티티 목록을 응답 DTO 목록으로 변환한다.
         List<ContestSeasonDetailDto> content = contestSeasons.stream()
-                .map(ContestSeasonDetailDto::from)
+                .map(contestSeason -> ContestSeasonDetailDto.from(
+                        contestSeason,
+                        pendingSeasonIds.contains(contestSeason.getId())
+                                || participatingSeasonIds.contains(contestSeason.getId())
+                ))
                 .toList();
 
         // 다음 요청에 사용할 커서는 마지막 시즌 ID 로 정한다.
@@ -90,9 +108,16 @@ public class ContestService {
             throw ContestException.duplicateApplication();
         }
 
+        // 같은 회원이 이미 승인된 참가자인지도 확인한다.
+        if (contestParticipantRepository.existsByMemberAndContestSeason(member, contestSeason)) {
+            throw ContestException.alreadyParticipating();
+        }
+
+        // 반려 이력은 보관만 하고 재신청은 허용하므로 별도 차단하지 않는다.
+
         try {
             // 검증을 통과하면 대회 신청 내역을 저장한다.
-            contestApplicantRepository.save(ContestApplicant.create(contestSeason, member));
+            contestApplicantRepository.saveAndFlush(ContestApplicant.create(contestSeason, member));
         } catch (DataIntegrityViolationException e) {
             // 동시 요청으로 유니크 제약이 걸려도 중복 신청 예외로 통일한다.
             throw ContestException.duplicateApplication();

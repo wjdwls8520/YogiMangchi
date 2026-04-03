@@ -1,9 +1,14 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantRejectDto;
+import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
 import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
+import com.yogimangchi.domain.contest.dto.response.ContestApplicantDto;
+import com.yogimangchi.domain.contest.dto.response.ContestParticipantDto;
+import com.yogimangchi.domain.contest.dto.response.ContestRejectedApplicantDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
@@ -68,6 +73,105 @@ public class AdminContestController {
         ContestSeasonDetailDto contestSeasonDetail = adminContestService.updateContestSeasonStatus(adminId, seasonId, request);
 
         return ResponseEntity.ok(contestSeasonDetail);
+    }
+
+    @Operation(
+            summary = "대회 신청 대기자 목록 조회",
+            description = "특정 대회 시즌에서 아직 승인 또는 반려되지 않은 참가 신청 대기자 목록만 커서 기반 무한 스크롤로 조회합니다."
+    )
+    @GetMapping("/seasons/{seasonId}/applicants")
+    public ResponseEntity<CursorResponseDto<ContestApplicantDto>> getContestApplicants(
+            // 신청 대기자를 조회할 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId,
+            // 커서 기반 신청 대기자 조회 조건을 쿼리 파라미터로 받는다.
+            @Valid @ParameterObject @ModelAttribute ContestApplicantSearchDto request
+    ) {
+        // 아직 처리되지 않은 신청 대기자 목록만 커서 방식으로 조회한다.
+        CursorResponseDto<ContestApplicantDto> contestApplicants =
+                adminContestService.getContestApplicants(seasonId, request);
+
+        // 조회한 대기자 목록을 그대로 200 OK 로 반환한다.
+        return ResponseEntity.ok(contestApplicants);
+    }
+
+    @Operation(
+            summary = "대회 신청 승인",
+            description = "특정 대회 시즌의 신청 대기자를 승인하고, 신청서는 제거한 뒤 대회 참가자 정보로 이동시킵니다."
+    )
+    @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/approve")
+    public ResponseEntity<Void> approveContestApplicant(
+            // 현재 로그인한 관리자 회원 ID 를 인증 정보에서 꺼낸다.
+            @AuthenticationPrincipal Long adminId,
+            // 신청 대기자가 속한 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId,
+            // 승인할 신청서 ID 를 path 에서 받는다.
+            @PathVariable("applicantId") Long applicantId
+    ) {
+        // 신청 대기자를 승인해 참가자 정보로 이동시킨다.
+        adminContestService.approveContestApplicant(adminId, seasonId, applicantId);
+
+        // 승인 처리가 끝났으므로 204 No Content 로 응답한다.
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "대회 신청 반려",
+            description = "특정 대회 시즌의 신청 대기자를 반려하고, 신청서는 제거한 뒤 반려 사유와 함께 반려 이력으로 보관합니다."
+    )
+    @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/reject")
+    public ResponseEntity<Void> rejectContestApplicant(
+            // 현재 로그인한 관리자 회원 ID 를 인증 정보에서 꺼낸다.
+            @AuthenticationPrincipal Long adminId,
+            // 신청 대기자가 속한 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId,
+            // 반려할 신청서 ID 를 path 에서 받는다.
+            @PathVariable("applicantId") Long applicantId,
+            // 반려 사유를 요청 본문에서 받는다.
+            @Valid @RequestBody ContestApplicantRejectDto request
+    ) {
+        // 신청 대기자를 반려 이력으로 이동시키고 사유를 함께 보관한다.
+        adminContestService.rejectContestApplicant(adminId, seasonId, applicantId, request);
+
+        // 반려 처리가 끝났으므로 204 No Content 로 응답한다.
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "대회 참가자 목록 조회",
+            description = "특정 대회 시즌에서 승인 완료된 참가자 목록을 커서 기반 무한 스크롤로 조회합니다. 신청자 정보와 승인 처리 관리자 정보까지 함께 조회합니다."
+    )
+    @GetMapping("/seasons/{seasonId}/participants")
+    public ResponseEntity<CursorResponseDto<ContestParticipantDto>> getContestParticipants(
+            // 참가자 목록을 조회할 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId,
+            // 커서 기반 참가자 조회 조건을 쿼리 파라미터로 받는다.
+            @Valid @ParameterObject @ModelAttribute ContestApplicantSearchDto request
+    ) {
+        // 승인 완료된 참가자 목록을 커서 방식으로 조회한다.
+        CursorResponseDto<ContestParticipantDto> contestParticipants =
+                adminContestService.getContestParticipants(seasonId, request);
+
+        // 조회한 참가자 목록을 그대로 200 OK 로 반환한다.
+        return ResponseEntity.ok(contestParticipants);
+    }
+
+    @Operation(
+            summary = "반려된 대회 신청 이력 조회",
+            description = "특정 대회 시즌에서 반려된 신청 이력 목록을 커서 기반 무한 스크롤로 조회합니다. 신청자 정보와 반려 처리 관리자 정보까지 함께 조회합니다."
+    )
+    @GetMapping("/seasons/{seasonId}/rejected-applicants")
+    public ResponseEntity<CursorResponseDto<ContestRejectedApplicantDto>> getRejectedContestApplicants(
+            // 반려 이력을 조회할 대회 시즌 ID 를 path 에서 받는다.
+            @PathVariable("seasonId") Long seasonId,
+            // 커서 기반 반려 이력 조회 조건을 쿼리 파라미터로 받는다.
+            @Valid @ParameterObject @ModelAttribute ContestApplicantSearchDto request
+    ) {
+        // 반려된 신청 이력 목록을 커서 방식으로 조회한다.
+        CursorResponseDto<ContestRejectedApplicantDto> rejectedContestApplicants =
+                adminContestService.getRejectedContestApplicants(seasonId, request);
+
+        // 조회한 반려 이력 목록을 그대로 200 OK 로 반환한다.
+        return ResponseEntity.ok(rejectedContestApplicants);
     }
 
     @Operation(

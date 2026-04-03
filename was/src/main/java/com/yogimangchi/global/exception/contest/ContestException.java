@@ -37,6 +37,14 @@ public class ContestException extends RuntimeException {
         );
     }
 
+    public static ContestException contestApplicantNotFound() {
+        return new ContestException(
+                HttpStatus.NOT_FOUND,
+                "CONTEST_APPLICANT_NOT_FOUND",
+                "존재하지 않는 대회 신청자입니다."
+        );
+    }
+
     public static ContestException alreadyParticipating() {
         return new ContestException(
                 HttpStatus.CONFLICT,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
 
 type TradeItem = {
@@ -18,6 +18,8 @@ type BinanceTradeMessage = {
   T: number;
   m: boolean;
 };
+
+const MAX_RECENT_TRADES = 20;
 
 const formatPrice = (value: number) => {
   return value.toLocaleString(undefined, {
@@ -43,20 +45,33 @@ const formatTime = (timestamp: number) => {
 };
 
 export default function RecentTrades() {
-  const { selectedCoin } = useTickerStore();
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const [trades, setTrades] = useState<TradeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const pendingTradesRef = useRef<TradeItem[]>([]);
 
   useEffect(() => {
     if (!selectedCoin) return;
 
     let isActive = true;
-
-    setTrades([]);
-    setIsLoading(true);
+    const resetFrame = window.requestAnimationFrame(() => {
+      setTrades([]);
+      setIsLoading(true);
+      pendingTradesRef.current = [];
+    });
 
     const stream = `${selectedCoin.toLowerCase()}@trade`;
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+    const flushInterval = window.setInterval(() => {
+      if (!isActive) return;
+      if (pendingTradesRef.current.length === 0) return;
+
+      setTrades((prev) =>
+        [...pendingTradesRef.current, ...prev].slice(0, MAX_RECENT_TRADES)
+      );
+      pendingTradesRef.current = [];
+      setIsLoading(false);
+    }, 2000);
 
     ws.onmessage = (event) => {
       try {
@@ -79,8 +94,10 @@ export default function RecentTrades() {
           return;
         }
 
-        setTrades((prev) => [nextTrade, ...prev].slice(0, 40));
-        setIsLoading(false);
+        pendingTradesRef.current = [nextTrade, ...pendingTradesRef.current].slice(
+          0,
+          MAX_RECENT_TRADES
+        );
       } catch (error) {
         console.error("바이낸스 체결 데이터 파싱 실패:", error);
       }
@@ -93,6 +110,9 @@ export default function RecentTrades() {
 
     return () => {
       isActive = false;
+      window.cancelAnimationFrame(resetFrame);
+      window.clearInterval(flushInterval);
+      pendingTradesRef.current = [];
       ws.close();
     };
   }, [selectedCoin]);

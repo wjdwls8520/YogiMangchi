@@ -31,6 +31,7 @@ interface TickerStore {
   // 🌟 실시간 데이터 통 (심볼을 키값으로 가짐)
   tickers: Record<string, RealtimeData>;
   updateTicker: (symbol: string, data: Partial<RealtimeData>) => void;
+  updateTickerBatch: (updates: Record<string, Partial<RealtimeData>>) => void;
 }
 
 // 4. 스토어 생성!
@@ -48,5 +49,25 @@ export const useTickerStore = create<TickerStore>((set) => ({
       // 기존 데이터 유지하면서 들어온 새 데이터만 덮어씌움
       [symbol]: { ...state.tickers[symbol], ...data } 
     }
-  }))
+  })),
+
+  updateTickerBatch: (updates) =>
+    set((state) => {
+      const symbols = Object.keys(updates);
+
+      if (symbols.length === 0) {
+        return state;
+      }
+
+      const nextTickers = { ...state.tickers };
+
+      for (const symbol of symbols) {
+        nextTickers[symbol] = {
+          ...state.tickers[symbol],
+          ...updates[symbol],
+        };
+      }
+
+      return { tickers: nextTickers };
+    }),
 }));

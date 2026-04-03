@@ -36,9 +36,16 @@ public record ContestSeasonDetailDto(
         LocalDateTime updatedAt,
 
         @Schema(description = "대회 시즌 상태")
-        ContestSeasonStatusResponseDto status
+        ContestSeasonStatusResponseDto status,
+
+        @Schema(description = "현재 로그인한 사용자의 대회 신청 여부", example = "true")
+        Boolean appliedByMe
 ) {
     public static ContestSeasonDetailDto from(ContestSeason contestSeason) {
+        return from(contestSeason, false);
+    }
+
+    public static ContestSeasonDetailDto from(ContestSeason contestSeason, Boolean appliedByMe) {
         return new ContestSeasonDetailDto(
                 contestSeason.getId(),
                 contestSeason.getTitle(),
@@ -49,7 +56,8 @@ public record ContestSeasonDetailDto(
                 contestSeason.getContestEndAt(),
                 contestSeason.getCreatedAt(),
                 contestSeason.getUpdatedAt(),
-                ContestSeasonStatusResponseDto.from(contestSeason.getStatus())
+                ContestSeasonStatusResponseDto.from(contestSeason.getStatus()),
+                appliedByMe
         );
     }
 }

@@ -34,7 +34,7 @@ public class ContestController {
 
     @Operation(
             summary = "대회 시즌 상태 목록 조회",
-            description = "대회 조회 화면이나 상태 셀렉트 박스에서 사용할 대회 시즌 상태 코드와 라벨 목록을 조회합니다."
+            description = "대회 조회 화면이나 상태 셀렉트 박스에서 사용할 대회 시즌 상태 코드와 라벨 목록을 조회합니다. [ 셀렉박스용 ]"
     )
     @GetMapping("/seasons/statuses")
     public ResponseEntity<List<ContestSeasonStatusResponseDto>> getContestSeasonStatuses() {
@@ -49,12 +49,14 @@ public class ContestController {
     )
     @GetMapping("/seasons/recruiting")
     public ResponseEntity<CursorResponseDto<ContestSeasonDetailDto>> getRecruitingContestSeasons(
+            // 현재 로그인한 회원 ID 를 인증 정보에서 꺼낸다.
+            @AuthenticationPrincipal Long loginMemberId,
             // 커서 기반 조회 조건을 쿼리 파라미터로 받는다.
             @Valid @ParameterObject @ModelAttribute ContestSeasonSearchDto request
     ) {
         // 모집중인 대회 시즌 목록을 커서 방식으로 조회한다.
         CursorResponseDto<ContestSeasonDetailDto> recruitingContestSeasons =
-                contestService.getRecruitingContestSeasons(request);
+                contestService.getRecruitingContestSeasons(loginMemberId, request);
 
         // 조회한 목록을 그대로 200 OK 로 반환한다.
         return ResponseEntity.ok(recruitingContestSeasons);
