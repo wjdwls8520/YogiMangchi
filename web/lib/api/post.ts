@@ -26,6 +26,7 @@ export const getPosts = async ({ cursorId, size }: { cursorId?: number; size?: n
 
     const query = params.toString();
     const result = await fetchClient(`community/posts${query ? `?${query}` : ''}`);
+
     return result;
 }
 

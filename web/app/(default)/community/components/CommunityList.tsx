@@ -28,7 +28,7 @@ export default function CommunityList({ posts }: Props) {
 
     // 무한 스크롤, 이전 게시글 불러오기
     const fetchPosts = useCallback(async () => {
-        if (!hasMore || isLoading) return;
+        if (!hasMore || isLoading || !cursorId) return;
 
         try {
             setIsLoading(true);
@@ -42,7 +42,7 @@ export default function CommunityList({ posts }: Props) {
         } finally {
             setIsLoading(false);
         }
-    }, [hasMore, isLoading, cursorId, appendPosts, setHasMore, setCursorId]);
+    }, [hasMore, isLoading, cursorId]);
 
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
