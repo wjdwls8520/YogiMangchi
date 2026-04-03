@@ -4,13 +4,16 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.contest.dto.query.ContestApplicantQueryDto;
+import com.yogimangchi.domain.contest.dto.query.MyContestPendingApplicationQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
+import com.yogimangchi.domain.contest.dto.request.ContestCursorSearchDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 import static com.yogimangchi.domain.contest.entity.QContestApplicant.contestApplicant;
+import static com.yogimangchi.domain.contest.entity.QContestSeason.contestSeason;
 import static com.yogimangchi.domain.member.entity.QMember.member;
 
 @Repository
@@ -41,8 +44,41 @@ public class ContestApplicantRepositoryImpl implements ContestApplicantRepositor
                 .fetch();
     }
 
+    @Override
+    public List<MyContestPendingApplicationQueryDto> searchPendingContestApplications(Long memberId, ContestCursorSearchDto request) {
+        return queryFactory
+                .select(Projections.constructor(
+                        MyContestPendingApplicationQueryDto.class,
+                        contestApplicant.id,
+                        contestApplicant.createdAt,
+                        contestSeason.id,
+                        contestSeason.title,
+                        contestSeason.description,
+                        contestSeason.recruitmentStartAt,
+                        contestSeason.recruitmentEndAt,
+                        contestSeason.contestStartAt,
+                        contestSeason.contestEndAt,
+                        contestSeason.createdAt,
+                        contestSeason.updatedAt,
+                        contestSeason.status
+                ))
+                .from(contestApplicant)
+                .join(contestApplicant.contestSeason, contestSeason)
+                .where(
+                        memberIdEq(memberId),
+                        cursorIdLt(request.cursorId())
+                )
+                .orderBy(contestApplicant.id.desc())
+                .limit(request.getOrDefaultSize() + 1L)
+                .fetch();
+    }
+
     private BooleanExpression seasonIdEq(Long seasonId) {
         return contestApplicant.contestSeason.id.eq(seasonId);
+    }
+
+    private BooleanExpression memberIdEq(Long memberId) {
+        return contestApplicant.member.id.eq(memberId);
     }
 
     private BooleanExpression cursorIdLt(Long cursorId) {
