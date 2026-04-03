@@ -5,7 +5,6 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.contest.dto.query.ContestApplicantQueryDto;
 import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
-import com.yogimangchi.domain.contest.enums.ContestApplicantStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -29,16 +28,13 @@ public class ContestApplicantRepositoryImpl implements ContestApplicantRepositor
                         member.id,
                         member.nickname,
                         member.profileImgUrl,
-                        contestApplicant.createdAt,
-                        contestApplicant.updatedAt,
-                        contestApplicant.status
+                        contestApplicant.createdAt
                 ))
                 .from(contestApplicant)
                 .join(contestApplicant.member, member)
                 .where(
                         seasonIdEq(seasonId),
-                        cursorIdLt(request.cursorId()),
-                        statusEq(request.status())
+                        cursorIdLt(request.cursorId())
                 )
                 .orderBy(contestApplicant.id.desc())
                 .limit(request.getOrDefaultSize() + 1L)
@@ -51,9 +47,5 @@ public class ContestApplicantRepositoryImpl implements ContestApplicantRepositor
 
     private BooleanExpression cursorIdLt(Long cursorId) {
         return cursorId != null ? contestApplicant.id.lt(cursorId) : null;
-    }
-
-    private BooleanExpression statusEq(ContestApplicantStatus status) {
-        return status != null ? contestApplicant.status.eq(status) : null;
     }
 }

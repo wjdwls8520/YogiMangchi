@@ -12,7 +12,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-// 회원이 특정 대회 시즌에 참가 신청한 내역과 신청 상태를 담는 엔티티
+// 회원이 특정 대회 시즌에 참가 신청한 대기 내역을 담는 엔티티
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -43,7 +43,7 @@ public class ContestApplicant {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    @Comment("신청 상태 (PENDING: 승인대기, APPROVED: 승인완료, REJECTED: 반려)")
+    @Comment("신청 상태 (현재는 PENDING 대기 신청서만 저장)")
     private ContestApplicantStatus status;
 
     @CreationTimestamp
@@ -62,17 +62,5 @@ public class ContestApplicant {
         contestApplicant.member = member;
         contestApplicant.status = ContestApplicantStatus.PENDING;
         return contestApplicant;
-    }
-
-    public void approve() {
-        this.status = ContestApplicantStatus.APPROVED;
-    }
-
-    public void reject() {
-        this.status = ContestApplicantStatus.REJECTED;
-    }
-
-    public void updateStatus(ContestApplicantStatus status) {
-        this.status = status;
     }
 }

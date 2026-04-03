@@ -20,5 +20,5 @@ public interface ContestApplicantRepository extends JpaRepository<ContestApplica
         where contestApplicant.member.id = :memberId
           and contestApplicant.contestSeason.id in :seasonIds
     """)
-    List<Long> findAppliedSeasonIds(@Param("memberId") Long memberId, @Param("seasonIds") List<Long> seasonIds);
+    List<Long> findPendingSeasonIds(@Param("memberId") Long memberId, @Param("seasonIds") List<Long> seasonIds);
 }

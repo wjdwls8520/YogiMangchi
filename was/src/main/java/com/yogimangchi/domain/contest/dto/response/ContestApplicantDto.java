@@ -18,14 +18,8 @@ public record ContestApplicantDto(
         @Schema(description = "신청 회원 프로필 이미지 URL", example = "https://example.com/profile.png", nullable = true)
         String profileImgUrl,
 
-        @Schema(description = "대회 신청 생성 일시")
-        LocalDateTime createdAt,
-
-        @Schema(description = "대회 신청 수정 일시")
-        LocalDateTime updatedAt,
-
-        @Schema(description = "대회 신청 상태")
-        ContestApplicantStatusResponseDto status
+        @Schema(description = "대회 참가 신청 일시")
+        LocalDateTime appliedAt
 ) {
     public static ContestApplicantDto from(ContestApplicant contestApplicant) {
         return new ContestApplicantDto(
@@ -33,9 +27,7 @@ public record ContestApplicantDto(
                 contestApplicant.getMember().getId(),
                 contestApplicant.getMember().getNickname(),
                 contestApplicant.getMember().getProfileImgUrl(),
-                contestApplicant.getCreatedAt(),
-                contestApplicant.getUpdatedAt(),
-                ContestApplicantStatusResponseDto.from(contestApplicant.getStatus())
+                contestApplicant.getCreatedAt()
         );
     }
 }
