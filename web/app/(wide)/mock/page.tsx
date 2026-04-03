@@ -2,13 +2,13 @@
 
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
 
-import CoinList from "@/components/trade/CoinList";
+import MockCoinList from "@/components/mock/MockCoinList";
 import CoinHeader from "@/components/trade/CoinHeader";
 import MainCandleChart from "@/components/trade/CoinChart";
 import RecentTrades from "@/components/trade/RecentTrades";
 import OrderBook from "@/components/trade/OrderBook";
-import OrderForm from "@/components/trade/OrderForm";
-import UserOrderHistory from "@/components/trade/UserOrderHistory";
+import MockOrderForm from "@/components/mock/MockOrderForm";
+import MockUserOrderHistory from "@/components/mock/MockUserOrderHistory";
 import MockNoticeBar from "@/components/mock/MockNoticeBar";
 
 export default function TradingPage() {
@@ -20,7 +20,7 @@ export default function TradingPage() {
       <div className="flex flex-col lg:flex-row gap-3 items-start">
         {/* 왼쪽영역 */}
         <div className="w-full lg:w-[390px] shrink-0 lg:sticky lg:top-24.5 lg:h-[calc(100vh-32px)]">
-          <CoinList mode="mock"/>
+          <MockCoinList />
         </div>
 
         {/* 오른쪽영역 */}
@@ -34,10 +34,10 @@ export default function TradingPage() {
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch lg:h-[520px]">
             <RecentTrades />
             <OrderBook />
-            <OrderForm mode="mock" />
+            <MockOrderForm />
           </section>
 
-          <UserOrderHistory mode="mock"/>
+          <MockUserOrderHistory />
         </main>
 
       </div>

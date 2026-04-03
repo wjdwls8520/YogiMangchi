@@ -7,23 +7,67 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useMockWalletStore } from "@/stores/useMockWalletStore";
 
 type OrderType = "limit" | "market" | "auto";
 type OrderTab = "buy" | "sell";
+type OrderMode = "mock" | "trade";
+type OrderResult = {
+  success: boolean;
+  status?: string;
+  message?: string;
+};
+type OrderHolding = {
+  symbol: string;
+  quantity: number;
+  availableQuantity?: number;
+};
+type MarketOrderSubmitParams = {
+  memberId: number;
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity?: number;
+  totalAmount?: number;
+};
+type LimitOrderSubmitParams = {
+  memberId: number;
+  symbol: string;
+  side: "BUY" | "SELL";
+  price: number;
+  quantity: number;
+};
 
-type OrderFormProps = {
-  mode?: "mock" | "trade";
+export type OrderFormProps = {
+  mode?: OrderMode;
+  isParticipated?: boolean;
+  isLoadingPortfolio?: boolean;
+  usdtBalance?: number;
+  holdings?: OrderHolding[];
+  onSubmitMarketOrder?: (
+    params: MarketOrderSubmitParams
+  ) => Promise<OrderResult>;
+  onSubmitLimitOrder?: (
+    params: LimitOrderSubmitParams
+  ) => Promise<OrderResult>;
 };
 
 type OrderFormBodyProps = {
-  mode: "mock" | "trade";
+  mode: OrderMode;
   orderTab: OrderTab;
   orderType: OrderType;
   onChangeOrderType: (nextType: OrderType) => void;
   selectedCoin: string;
   baseName: string;
   currentPrice: number;
+  isParticipated: boolean;
+  isLoadingPortfolio: boolean;
+  usdtBalance: number;
+  holdings: OrderHolding[];
+  onSubmitMarketOrder: (
+    params: MarketOrderSubmitParams
+  ) => Promise<OrderResult>;
+  onSubmitLimitOrder: (
+    params: LimitOrderSubmitParams
+  ) => Promise<OrderResult>;
 };
 
 const MARKET_FEE_RATE = 0.0005;
@@ -68,17 +112,15 @@ function OrderFormBody({
   selectedCoin,
   baseName,
   currentPrice,
+  isParticipated,
+  isLoadingPortfolio,
+  usdtBalance,
+  holdings,
+  onSubmitMarketOrder,
+  onSubmitLimitOrder,
 }: OrderFormBodyProps) {
   const router = useRouter();
   const { isLogin, user } = useAuthStore();
-  const {
-    isParticipated,
-    isLoadingPortfolio,
-    executeMarketOrder,
-    executeLimitOrder,
-    holdings,
-    usdtBalance,
-  } = useMockWalletStore();
 
   const [orderPrice, setOrderPrice] = useState(
     orderType === "limit" ? toInputValue(currentPrice, 2) : ""
@@ -87,8 +129,9 @@ function OrderFormBody({
   const [orderAmount, setOrderAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const selectedHolding = holdings.find((item) => item.symbol === selectedCoin);
   const availableHolding =
-    holdings.find((item) => item.symbol === selectedCoin)?.quantity ?? 0;
+    selectedHolding?.availableQuantity ?? selectedHolding?.quantity ?? 0;
 
   const isMarketOrder = orderType === "market";
   const isMarketBuy = isMarketOrder && orderTab === "buy";
@@ -260,19 +303,19 @@ function OrderFormBody({
       const side = orderTab === "buy" ? "BUY" : "SELL";
       const result = isMarketOrder
         ? side === "BUY"
-          ? await executeMarketOrder({
+          ? await onSubmitMarketOrder({
               memberId: user.memberId,
               symbol: selectedCoin,
               side,
               totalAmount: numericAmount,
             })
-          : await executeMarketOrder({
+          : await onSubmitMarketOrder({
               memberId: user.memberId,
               symbol: selectedCoin,
               side,
               quantity: numericQty,
             })
-        : await executeLimitOrder({
+        : await onSubmitLimitOrder({
             memberId: user.memberId,
             symbol: selectedCoin,
             side,
@@ -497,7 +540,24 @@ function OrderFormBody({
   );
 }
 
-export default function OrderForm({ mode = "trade" }: OrderFormProps) {
+const defaultOrderResult: OrderResult = {
+  success: false,
+  status: "failed",
+  message: "실전 주문 API는 아직 연결 전입니다.",
+};
+
+const defaultSubmitMarketOrder = async () => defaultOrderResult;
+const defaultSubmitLimitOrder = async () => defaultOrderResult;
+
+export default function OrderForm({
+  mode = "trade",
+  isParticipated = false,
+  isLoadingPortfolio = false,
+  usdtBalance = 0,
+  holdings = [],
+  onSubmitMarketOrder = defaultSubmitMarketOrder,
+  onSubmitLimitOrder = defaultSubmitLimitOrder,
+}: OrderFormProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
@@ -546,6 +606,12 @@ export default function OrderForm({ mode = "trade" }: OrderFormProps) {
         selectedCoin={selectedCoin}
         baseName={baseName}
         currentPrice={realtime.price}
+        isParticipated={isParticipated}
+        isLoadingPortfolio={isLoadingPortfolio}
+        usdtBalance={usdtBalance}
+        holdings={holdings}
+        onSubmitMarketOrder={onSubmitMarketOrder}
+        onSubmitLimitOrder={onSubmitLimitOrder}
       />
     </div>
   );
