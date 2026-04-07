@@ -60,14 +60,14 @@ export const useBinanceWebSocket = () => {
 
       updateTickerBatch(nextUpdates);
       pendingUpdatesRef.current = {};
-    }, 500);
+    }, 1000);
 
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       const ticker = payload.data;
       if (!ticker || !ticker.s) return;
 
-      // 실시간 수신은 그대로 두고, store 반영만 0.5초 단위로 묶는다.
+      // 실시간 수신은 그대로 두고, store 반영만 1초 단위로 묶는다.
       pendingUpdatesRef.current[ticker.s] = {
         price: parseFloat(ticker.c),         // 현재가
         changeRate: parseFloat(ticker.P),    // 변동률

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, Star  } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { getMarketLabel, type MarketType } from "@/lib/utils/market";
+import type { RealtimeData } from "@/stores/useTickerStore";
 
 type SortKey = "displayNameKr" | "price" | "change" | "volume";
 type CoinTab = "all" | "have" | "favorite";
@@ -24,12 +25,17 @@ export default function CoinList({
   isParticipated = false,
 }: CoinListProps) {
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
-  const tickers = useTickerStore((state) => state.tickers);
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const setSelectedCoin = useTickerStore((state) => state.setSelectedCoin);
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const setSelectedMarketType = useTickerStore(
     (state) => state.setSelectedMarketType
+  );
+  const latestTickersRef = useRef<Record<string, RealtimeData>>(
+    useTickerStore.getState().tickers
+  );
+  const [renderTickers, setRenderTickers] = useState<Record<string, RealtimeData>>(
+    latestTickersRef.current
   );
 
   const [coinTab, setCoinTab] = useState<CoinTab>("all");
@@ -51,10 +57,28 @@ export default function CoinList({
     setSelectedMarketType(availableMarketTypes[0] ?? "spot");
   }, [availableMarketTypes, selectedMarketType, setSelectedMarketType]);
 
+  useEffect(() => {
+    // ticker store 변경을 바로 렌더하지 않고 2초 단위로만 화면에 반영합니다.
+    const unsubscribe = useTickerStore.subscribe((state) => {
+      latestTickersRef.current = state.tickers;
+    });
+
+    const flushInterval = window.setInterval(() => {
+      setRenderTickers((prev) =>
+        prev === latestTickersRef.current ? prev : latestTickersRef.current
+      );
+    }, 2000);
+
+    return () => {
+      unsubscribe();
+      window.clearInterval(flushInterval);
+    };
+  }, []);
+
   const holdingSymbolSet = new Set(holdingSymbols);
 
   let processedCoins = coinMetaList.map((coin) => {
-    const realtime = tickers[coin.symbol];
+    const realtime = renderTickers[coin.symbol];
 
     return {
       ...coin,
