@@ -1,18 +1,16 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
-import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
-import com.yogimangchi.domain.contest.dto.request.ContestApplicantRejectDto;
-import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
-import com.yogimangchi.domain.contest.dto.response.ContestApplicantDto;
-import com.yogimangchi.domain.contest.dto.response.ContestParticipantDto;
-import com.yogimangchi.domain.contest.dto.response.ContestRejectedApplicantDto;
-import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestCreateDto;
+import com.yogimangchi.domain.contest.application.dto.request.ContestApplicantRejectDto;
+import com.yogimangchi.domain.contest.application.dto.request.ContestApplicantSearchDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonStatusUpdateDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonUpdateDto;
+import com.yogimangchi.domain.contest.application.dto.response.ContestApplicantDto;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipantDto;
+import com.yogimangchi.domain.contest.application.dto.response.ContestRejectedApplicantDto;
+import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
-import com.yogimangchi.domain.futures.service.FuturesService;
-import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -64,7 +62,7 @@ public class AdminContestController {
 
     @Operation(
             summary = "대회 시즌 상태 수정",
-            description = "대회 시즌의 상태값만 수정합니다. 테스트나 운영 중 상태 전환이 필요할 때 사용합니다."
+            description = "대회 시즌의 공개 여부와 취소 여부만 수정합니다."
     )
     @PatchMapping("/seasons/{seasonId}/status")
     public ResponseEntity<ContestSeasonDetailDto> updateContestSeasonStatus(
@@ -98,7 +96,7 @@ public class AdminContestController {
 
     @Operation(
             summary = "대회 신청 승인",
-            description = "특정 대회 시즌의 신청 대기자를 승인하고, 신청서는 제거한 뒤 대회 참가자 정보로 이동시킵니다. 모집중이거나 진행중인 시즌에서만 승인할 수 있습니다."
+            description = "특정 대회 시즌의 신청 대기자를 승인하고, 신청서는 제거한 뒤 대회 참가자 정보로 이동시킵니다. 현재 시각이 참가 신청 기간에 포함되고, 공개 상태이며, 취소되지 않은 시즌에서만 승인할 수 있습니다."
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/approve")
     public ResponseEntity<Void> approveContestApplicant(
@@ -116,7 +114,7 @@ public class AdminContestController {
 
     @Operation(
             summary = "대회 신청 반려",
-            description = "특정 대회 시즌의 신청 대기자를 반려하고, 신청서는 제거한 뒤 반려 사유와 함께 반려 이력으로 보관합니다. 모집중이거나 진행중인 시즌에서만 반려할 수 있습니다."
+            description = "특정 대회 시즌의 신청 대기자를 반려하고, 신청서는 제거한 뒤 반려 사유와 함께 반려 이력으로 보관합니다. 현재 시각이 참가 신청 기간에 포함되고, 공개 상태이며, 취소되지 않은 시즌에서만 반려할 수 있습니다."
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/reject")
     public ResponseEntity<Void> rejectContestApplicant(

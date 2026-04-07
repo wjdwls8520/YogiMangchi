@@ -1,32 +1,30 @@
 package com.yogimangchi.domain.contest.service;
 
-import com.yogimangchi.domain.contest.dto.query.ContestSeasonQueryDto;
-import com.yogimangchi.domain.contest.dto.query.ContestApplicantQueryDto;
-import com.yogimangchi.domain.contest.dto.query.ContestParticipantQueryDto;
-import com.yogimangchi.domain.contest.dto.query.ContestRejectedApplicantQueryDto;
-import com.yogimangchi.domain.contest.dto.request.ContestApplicantRejectDto;
-import com.yogimangchi.domain.contest.dto.request.ContestApplicantSearchDto;
-import com.yogimangchi.domain.contest.dto.request.ContestCreateDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonStatusUpdateDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonUpdateDto;
-import com.yogimangchi.domain.contest.dto.response.ContestApplicantDto;
-import com.yogimangchi.domain.contest.dto.response.ContestParticipantDto;
-import com.yogimangchi.domain.contest.dto.response.ContestRejectedApplicantDto;
-import com.yogimangchi.domain.contest.entity.ContestApplicant;
-import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
-import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
-import com.yogimangchi.domain.contest.entity.ContestParticipant;
-import com.yogimangchi.domain.contest.entity.ContestRejectedApplicant;
-import com.yogimangchi.domain.contest.entity.ContestSeason;
-import com.yogimangchi.domain.contest.repository.AdminContestSeasonRepository;
-import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
-import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
-import com.yogimangchi.domain.contest.repository.ContestRejectedApplicantRepository;
-import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
-import com.yogimangchi.domain.contest.validator.ContestSeasonValidator;
+import com.yogimangchi.domain.contest.season.dto.query.ContestSeasonQueryDto;
+import com.yogimangchi.domain.contest.application.dto.query.ContestApplicantQueryDto;
+import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipantQueryDto;
+import com.yogimangchi.domain.contest.application.dto.query.ContestRejectedApplicantQueryDto;
+import com.yogimangchi.domain.contest.application.dto.request.ContestApplicantRejectDto;
+import com.yogimangchi.domain.contest.application.dto.request.ContestApplicantSearchDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestCreateDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonStatusUpdateDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonUpdateDto;
+import com.yogimangchi.domain.contest.application.dto.response.ContestApplicantDto;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipantDto;
+import com.yogimangchi.domain.contest.application.dto.response.ContestRejectedApplicantDto;
+import com.yogimangchi.domain.contest.application.entity.ContestApplicant;
+import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.participant.entity.ContestParticipant;
+import com.yogimangchi.domain.contest.application.entity.ContestRejectedApplicant;
+import com.yogimangchi.domain.contest.season.entity.ContestSeason;
+import com.yogimangchi.domain.contest.season.repository.AdminContestSeasonRepository;
+import com.yogimangchi.domain.contest.application.repository.ContestApplicantRepository;
+import com.yogimangchi.domain.contest.participant.repository.ContestParticipantRepository;
+import com.yogimangchi.domain.contest.application.repository.ContestRejectedApplicantRepository;
+import com.yogimangchi.domain.contest.application.validator.ContestApplicationValidator;
+import com.yogimangchi.domain.contest.season.validator.ContestSeasonValidator;
 import com.yogimangchi.domain.futures.service.FuturesService;
-import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +32,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -90,7 +89,7 @@ public class AdminContestService {
         ContestSeason contestSeason = adminContestRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
-        contestSeason.updateStatus(request.status());
+        contestSeason.updateStatus(request.isPublic(), request.isCancel());
 
         return ContestSeasonDetailDto.from(contestSeason);
 
@@ -140,7 +139,6 @@ public class AdminContestService {
         ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonIdForUpdate(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
-        // 현재 시즌이 참가 승인 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
         contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
 
         // 이미 참가자로 등록된 회원이면 중복 승인하지 않는다.
@@ -165,7 +163,7 @@ public class AdminContestService {
         contestApplicantRepository.delete(contestApplicant);
 
         // 참가자 신청이 승낙되면 대회용 선물지갑을 생성한다.
-        futuresService.createContestFuturesAsset(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
+        // futuresService.createContestFuturesAsset(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
     }
 
     @Transactional
@@ -183,7 +181,6 @@ public class AdminContestService {
         ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonIdForUpdate(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
-        // 현재 시즌이 신청 처리 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
         contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
 
         // 반려 사유와 함께 반려 이력으로 저장한다.
@@ -277,6 +274,7 @@ public class AdminContestService {
     @Transactional(readOnly = true)
     public CursorResponseDto<ContestSeasonDetailDto> getContestSeasons(ContestSeasonSearchDto request) {
         List<ContestSeasonQueryDto> seasons = adminContestRepository.searchContestSeasons(request);
+        LocalDateTime now = LocalDateTime.now();
 
         int limitSize = request.getOrDefaultSize();
         boolean hasNext = seasons.size() > limitSize;
@@ -291,19 +289,7 @@ public class AdminContestService {
         }
 
         List<ContestSeasonDetailDto> content = seasons.stream()
-            .map(season -> new ContestSeasonDetailDto(
-                    season.id(),
-                    season.title(),
-                    season.description(),
-                    season.recruitmentStartAt(),
-                    season.recruitmentEndAt(),
-                    season.contestStartAt(),
-                    season.contestEndAt(),
-                    season.createdAt(),
-                    season.updatedAt(),
-                    ContestSeasonStatusResponseDto.from(season.status()),
-                    false
-            ))
+            .map(season -> ContestSeasonDetailDto.from(season, false, now))
             .toList();
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);

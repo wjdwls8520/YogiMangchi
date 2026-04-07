@@ -49,7 +49,7 @@ public class ContestException extends RuntimeException {
         return new ContestException(
                 HttpStatus.CONFLICT,
                 "CONTEST_SEASON_NOT_APPLICABLE_STATUS",
-                "현재 대회 상태에서는 참가 신청을 할 수 없습니다."
+                "공개 중이 아니거나 취소된 대회 시즌에는 참가 신청을 할 수 없습니다."
         );
     }
 
@@ -57,7 +57,7 @@ public class ContestException extends RuntimeException {
         return new ContestException(
                 HttpStatus.CONFLICT,
                 "CONTEST_SEASON_NOT_APPROVABLE_STATUS",
-                "현재 대회 상태에서는 신청 승인 처리를 할 수 없습니다."
+                "공개 중이 아니거나 취소된 대회 시즌에는 신청 승인 처리를 할 수 없습니다."
         );
     }
 

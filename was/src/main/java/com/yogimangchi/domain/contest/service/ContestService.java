@@ -1,23 +1,23 @@
 package com.yogimangchi.domain.contest.service;
 
-import com.yogimangchi.domain.contest.dto.query.ContestParticipationSeasonQueryDto;
-import com.yogimangchi.domain.contest.dto.request.ContestSeasonSearchDto;
-import com.yogimangchi.domain.contest.dto.request.ContestCursorSearchDto;
-import com.yogimangchi.domain.contest.dto.response.ContestParticipationSeasonDto;
-import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
-import com.yogimangchi.domain.contest.dto.response.MyContestPendingApplicationDto;
-import com.yogimangchi.domain.contest.dto.response.MyContestLatestRejectedApplicationDto;
-import com.yogimangchi.domain.contest.dto.response.ContestSeasonStatusResponseDto;
-import com.yogimangchi.domain.contest.dto.query.MyContestPendingApplicationQueryDto;
-import com.yogimangchi.domain.contest.dto.query.MyContestLatestRejectedApplicationQueryDto;
-import com.yogimangchi.domain.contest.entity.ContestApplicant;
-import com.yogimangchi.domain.contest.entity.ContestSeason;
-import com.yogimangchi.domain.contest.enums.ContestSeasonStatus;
-import com.yogimangchi.domain.contest.repository.ContestApplicantRepository;
-import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
-import com.yogimangchi.domain.contest.repository.ContestRejectedApplicantRepository;
-import com.yogimangchi.domain.contest.repository.ContestSeasonRepository;
-import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
+import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipationSeasonQueryDto;
+import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
+import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipationSeasonDto;
+import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.application.dto.response.MyContestPendingApplicationDto;
+import com.yogimangchi.domain.contest.application.dto.response.MyContestLatestRejectedApplicationDto;
+import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonStatusResponseDto;
+import com.yogimangchi.domain.contest.application.dto.query.MyContestPendingApplicationQueryDto;
+import com.yogimangchi.domain.contest.application.dto.query.MyContestLatestRejectedApplicationQueryDto;
+import com.yogimangchi.domain.contest.application.entity.ContestApplicant;
+import com.yogimangchi.domain.contest.season.entity.ContestSeason;
+import com.yogimangchi.domain.contest.season.enums.ContestSeasonDisplayStatus;
+import com.yogimangchi.domain.contest.application.repository.ContestApplicantRepository;
+import com.yogimangchi.domain.contest.participant.repository.ContestParticipantRepository;
+import com.yogimangchi.domain.contest.application.repository.ContestRejectedApplicantRepository;
+import com.yogimangchi.domain.contest.season.repository.ContestSeasonRepository;
+import com.yogimangchi.domain.contest.application.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
@@ -27,6 +27,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,27 +45,24 @@ public class ContestService {
 
     @Transactional(readOnly = true)
     public List<ContestSeasonStatusResponseDto> getContestSeasonStatuses() {
-        return List.of(ContestSeasonStatus.values()).stream()
+        return List.of(ContestSeasonDisplayStatus.values()).stream()
                 .map(ContestSeasonStatusResponseDto::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public MyContestLatestRejectedApplicationDto getMyLatestRejectedContestApplication(Long loginMemberId) {
-        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
+        LocalDateTime now = LocalDateTime.now();
 
-        // 가장 최근 반려 이력 1건을 시즌/관리자 정보와 함께 조회한다.
         MyContestLatestRejectedApplicationQueryDto latestRejectedApplication =
                 contestRejectedApplicantRepository.findLatestRejectedApplication(member.getId());
 
-        // 반려 이력이 없으면 null 을 반환해 컨트롤러에서 204 로 응답한다.
         if (latestRejectedApplication == null) {
             return null;
         }
 
-        // 조회한 반려 이력을 응답 DTO 로 변환해 반환한다.
-        return latestRejectedApplication.toResponseDto();
+        return latestRejectedApplication.toResponseDto(now);
     }
 
     @Transactional(readOnly = true)
@@ -72,39 +70,32 @@ public class ContestService {
             Long loginMemberId,
             ContestCursorSearchDto request
     ) {
-        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
+        LocalDateTime now = LocalDateTime.now();
 
-        // 아직 승인/반려되지 않은 내 신청 건을 신청 ID 기준 커서 방식으로 조회한다.
         List<MyContestPendingApplicationQueryDto> pendingApplications =
                 contestApplicantRepository.searchPendingContestApplications(member.getId(), request);
 
         int limitSize = request.getOrDefaultSize();
 
-        // 더 이상 내려줄 신청 건이 없으면 빈 커서 응답을 반환한다.
         if (pendingApplications.isEmpty()) {
             return new CursorResponseDto<>(List.of(), null, false);
         }
 
-        // 요청 개수보다 많이 조회됐으면 다음 페이지가 있다는 뜻이다.
         boolean hasNext = pendingApplications.size() > limitSize;
 
-        // 다음 페이지 판단용으로 더 가져온 한 건은 응답에서 제거한다.
         if (hasNext) {
             pendingApplications = new ArrayList<>(pendingApplications.subList(0, limitSize));
         }
 
-        // 조회 결과를 응답 DTO 목록으로 변환한다.
         List<MyContestPendingApplicationDto> content = pendingApplications.stream()
-                .map(MyContestPendingApplicationQueryDto::toResponseDto)
+                .map(application -> application.toResponseDto(now))
                 .toList();
 
-        // 다음 요청에 사용할 커서는 마지막 신청 ID 로 정한다.
         Long nextCursorId = hasNext
                 ? pendingApplications.get(pendingApplications.size() - 1).applicantId()
                 : null;
 
-        // content, nextCursorId, hasNext 를 커서 응답으로 묶어 반환한다.
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
@@ -113,14 +104,13 @@ public class ContestService {
             Long loginMemberId,
             ContestCursorSearchDto request
     ) {
-        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
+        LocalDateTime now = LocalDateTime.now();
 
-        // 내가 현재 참가 중인 대회만 참가자 ID 기준 커서 방식으로 조회한다.
         List<ContestParticipationSeasonQueryDto> participationSeasons =
-                contestParticipantRepository.searchParticipatingContestSeasons(member.getId(), request);
+                contestParticipantRepository.searchParticipatingContestSeasons(member.getId(), request, now);
 
-        return toContestParticipationCursorResponse(participationSeasons, request.getOrDefaultSize());
+        return toContestParticipationCursorResponse(participationSeasons, request.getOrDefaultSize(), now);
     }
 
     @Transactional(readOnly = true)
@@ -128,128 +118,104 @@ public class ContestService {
             Long memberId,
             ContestCursorSearchDto request
     ) {
-        // 조회 대상 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getFindMember(memberId);
+        LocalDateTime now = LocalDateTime.now();
 
-        // 특정 회원의 참가중 + 참가 완료 대회를 참가자 ID 기준 커서 방식으로 조회한다.
         List<ContestParticipationSeasonQueryDto> participationSeasons =
-                contestParticipantRepository.searchContestParticipationSeasons(member.getId(), request);
+                contestParticipantRepository.searchContestParticipationSeasons(member.getId(), request, now);
 
-        return toContestParticipationCursorResponse(participationSeasons, request.getOrDefaultSize());
+        return toContestParticipationCursorResponse(participationSeasons, request.getOrDefaultSize(), now);
     }
 
     @Transactional(readOnly = true)
     public CursorResponseDto<ContestSeasonDetailDto> getApplicableContestSeasons(Long loginMemberId, ContestSeasonSearchDto request) {
-        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
+        LocalDateTime now = LocalDateTime.now();
 
-        // 요청 size 를 기본값/최댓값 규칙에 맞게 정리한다.
         int limitSize = request.getOrDefaultSize();
 
-        // 참가 신청 가능한 시즌만 커서 방식으로 size + 1 개까지 조회한다.
-        List<ContestSeason> contestSeasons = contestSeasonRepository.searchApplicableContestSeasons(request);
+        List<ContestSeason> contestSeasons = contestSeasonRepository.searchApplicableContestSeasons(request, now);
 
-        // 더 이상 내려줄 시즌이 없으면 빈 커서 응답을 반환한다.
         if (contestSeasons.isEmpty()) {
             return new CursorResponseDto<>(List.of(), null, false);
         }
 
-        // 요청 개수보다 많이 조회됐으면 다음 페이지가 있다는 뜻이다.
         boolean hasNext = contestSeasons.size() > limitSize;
 
-        // 다음 페이지 판단용으로 더 가져온 한 건은 응답에서 제거한다.
         if (hasNext) {
             contestSeasons = new ArrayList<>(contestSeasons.subList(0, limitSize));
         }
 
-        // 조회된 시즌 ID 목록으로 내가 아직 대기 중인 신청 시즌을 한 번에 조회한다.
         List<Long> seasonIds = contestSeasons.stream()
                 .map(ContestSeason::getId)
                 .toList();
         List<Long> pendingSeasonIds = contestApplicantRepository.findPendingSeasonIds(member.getId(), seasonIds);
 
-        // 이미 참가 승인된 시즌도 함께 조회해 모집중 목록에서 바로 표시한다.
         List<Long> participatingSeasonIds = contestParticipantRepository.findParticipatingSeasonIds(member.getId(), seasonIds);
 
-        // 엔티티 목록을 응답 DTO 목록으로 변환한다.
         List<ContestSeasonDetailDto> content = contestSeasons.stream()
                 .map(contestSeason -> ContestSeasonDetailDto.from(
                         contestSeason,
                         pendingSeasonIds.contains(contestSeason.getId())
-                                || participatingSeasonIds.contains(contestSeason.getId())
+                                || participatingSeasonIds.contains(contestSeason.getId()),
+                        now
                 ))
                 .toList();
 
-        // 다음 요청에 사용할 커서는 마지막 시즌 ID 로 정한다.
         Long nextCursorId = hasNext && !contestSeasons.isEmpty()
                 ? contestSeasons.get(contestSeasons.size() - 1).getId()
                 : null;
 
-        // content, nextCursorId, hasNext 를 커서 응답으로 묶어 반환한다.
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
     @Transactional
     public void applyContestSeason(Long loginMemberId, Long seasonId) {
-        // 로그인한 회원이 실제로 존재하는지 먼저 확인한다.
         Member member = memberReader.getAuthenticated(loginMemberId);
 
-        // 신청 대상 대회 시즌이 존재하는지 확인한다.
         ContestSeason contestSeason = contestSeasonRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
-        // 현재 시즌이 참가 신청 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
         contestApplicationValidator.validateApplicableContestSeason(contestSeason);
 
-        // 같은 회원이 같은 시즌에 이미 신청했는지 먼저 확인한다.
         if (contestApplicantRepository.existsByMemberAndContestSeason(member, contestSeason)) {
             throw ContestException.duplicateApplication();
         }
 
-        // 같은 회원이 이미 승인된 참가자인지도 확인한다.
         if (contestParticipantRepository.existsByMemberAndContestSeason(member, contestSeason)) {
             throw ContestException.alreadyParticipating();
         }
 
-        // 반려 이력은 보관만 하고 재신청은 허용하므로 별도 차단하지 않는다.
-
         try {
-            // 검증을 통과하면 대회 신청 내역을 저장한다.
             contestApplicantRepository.save(ContestApplicant.create(contestSeason, member));
         } catch (DataIntegrityViolationException e) {
-            // 동시 요청으로 유니크 제약이 걸려도 중복 신청 예외로 통일한다.
             throw ContestException.duplicateApplication();
         }
     }
 
     private CursorResponseDto<ContestParticipationSeasonDto> toContestParticipationCursorResponse(
             List<ContestParticipationSeasonQueryDto> participationSeasons,
-            int limitSize
+            int limitSize,
+            LocalDateTime now
     ) {
-        // 더 이상 내려줄 참가 대회가 없으면 빈 커서 응답을 반환한다.
         if (participationSeasons.isEmpty()) {
             return new CursorResponseDto<>(List.of(), null, false);
         }
 
-        // 요청 개수보다 많이 조회됐으면 다음 페이지가 있다는 뜻이다.
         boolean hasNext = participationSeasons.size() > limitSize;
 
-        // 다음 페이지 판단용으로 더 가져온 한 건은 응답에서 제거한다.
         if (hasNext) {
             participationSeasons = new ArrayList<>(participationSeasons.subList(0, limitSize));
         }
 
-        // 조회 결과를 응답 DTO 목록으로 변환한다.
         List<ContestParticipationSeasonDto> content = participationSeasons.stream()
-                .map(ContestParticipationSeasonQueryDto::toResponseDto)
+                .map(participationSeason -> participationSeason.toResponseDto(now))
                 .toList();
 
-        // 다음 요청에 사용할 커서는 마지막 참가자 ID 로 정한다.
         Long nextCursorId = hasNext
                 ? participationSeasons.get(participationSeasons.size() - 1).participantId()
                 : null;
 
-        // content, nextCursorId, hasNext 를 커서 응답으로 묶어 반환한다.
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 }
