@@ -25,7 +25,12 @@ public class NotificationController {
     )
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@AuthenticationPrincipal Long memberId) {
-        // 로그인 회원 알림 구독 채널 연결 진입점
+        // 로그인 회원 검증 로직
+        if (memberId == null) {
+            throw new SecurityException("로그인이 필요합니다.");
+        }
+
+        // 로그인 회원 알림 구독 채널 연결 진입 로직
         return notificationSseService.subscribe(memberId);
     }
 }
