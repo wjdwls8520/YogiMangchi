@@ -155,6 +155,18 @@ export default function MockUserOrderHistory() {
             return;
           }
 
+          // 메시지 인코딩이 깨져도 실제 지갑 상태를 다시 확인해서
+          // 미참여 사용자라면 에러 대신 빈 상태로 처리한다.
+          if (ownerMemberId !== null) {
+            const walletResult = await loadMockWallet(ownerMemberId, true);
+
+            if (walletResult.status === "not_participating") {
+              setRows([]);
+              setErrorMessage("");
+              return;
+            }
+          }
+
           throw new Error(message || "주문/거래내역을 불러오지 못했습니다.");
         }
 
@@ -212,6 +224,8 @@ export default function MockUserOrderHistory() {
     hasLoadedPortfolio,
     isParticipated,
     refreshKey,
+    ownerMemberId,
+    loadMockWallet,
   ]);
 
   const handleCancelOrder = async (orderId: number) => {
