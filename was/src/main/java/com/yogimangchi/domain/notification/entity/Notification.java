@@ -30,7 +30,7 @@ public class Notification {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_member_id")
-    @Schema(description = "알림을 보낸 회원, 시스템 알림인 경우 null")
+    @Schema(description = "알림 발생 주체 회원, 시스템 알림인 경우 null")
     private Member actor;
 
     @Enumerated(EnumType.STRING)
@@ -59,12 +59,14 @@ public class Notification {
     @Schema(description = "알림 생성 시각")
     private LocalDateTime createdAt;
 
+    // 알림 종류별 추가 데이터 저장 필드
     @Column(name = "payload_json", columnDefinition = "text")
     @Schema(description = "도메인별 추가 데이터를 담는 JSON 문자열")
     private String payloadJson;
 
     public static Notification create(Member receiver, Member actor, NotificationType type,
                                       String message, String link, String payloadJson) {
+        // 공통 알림 엔티티 생성 로직
         Notification notification = new Notification();
         notification.receiver = receiver;
         notification.actor = actor;
@@ -78,6 +80,7 @@ public class Notification {
     }
 
     public void markAsRead(LocalDateTime readAt) {
+        // 읽음 상태 반영 로직
         this.isRead = true;
         this.readAt = readAt;
     }
