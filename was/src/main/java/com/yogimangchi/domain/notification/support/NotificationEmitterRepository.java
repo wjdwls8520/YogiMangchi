@@ -3,7 +3,6 @@ package com.yogimangchi.domain.notification.support;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,27 +19,21 @@ public class NotificationEmitterRepository {
     }
 
     public void remove(Long memberId, String emitterId) {
-        Map<String, SseEmitter> emitters = emittersByMemberId.get(memberId);
-
-        if (emitters == null) {
-            return;
-        }
-
-        emitters.remove(emitterId);
-
-        if (emitters.isEmpty()) {
-            emittersByMemberId.remove(memberId);
-        }
+        // emitter 제거와 비어 있는 회원 맵 정리를 원자적으로 처리하는 로직
+        emittersByMemberId.computeIfPresent(memberId, (key, emitters) -> {
+            emitters.remove(emitterId);
+            return emitters.isEmpty() ? null : emitters;
+        });
     }
 
-    public List<SseEmitter> findAllByMemberId(Long memberId) {
-        // 체결 / 취소 알림 발생 시 회원의 모든 emitter 조히
+    public Map<String, SseEmitter> findAllByMemberId(Long memberId) {
+        // 회원 알림 발행 시 전체 연결 조회 로직
         Map<String, SseEmitter> emitters = emittersByMemberId.get(memberId);
 
         if (emitters == null) {
-            return List.of();
+            return Map.of();
         }
 
-        return List.copyOf(emitters.values());
+        return Map.copyOf(emitters);
     }
 }

@@ -1,5 +1,8 @@
 package com.yogimangchi.domain.notification.dto.response;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.notification.entity.Notification;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -29,19 +32,27 @@ public record NotificationResponseDto(
         @Schema(description = "알림 생성 시각")
         LocalDateTime createdAt,
 
-        @Schema(description = "도메인별 추가 데이터를 담는 JSON 문자열")
-        String payloadJson
+        @Schema(description = "도메인별 추가 데이터를 담는 payload 객체")
+        JsonNode payload
 ) {
-    public static NotificationResponseDto from(Notification notification) {
-        return new NotificationResponseDto(
-                notification.getId(),
-                notification.getActor() == null ? null : notification.getActor().getId(),
-                notification.getType(),
-                notification.getMessage(),
-                notification.getLink(),
-                notification.isRead(),
-                notification.getCreatedAt(),
-                notification.getPayloadJson()
-        );
+    public static NotificationResponseDto from(Notification notification, ObjectMapper objectMapper) {
+        try {
+            JsonNode payload = notification.getPayloadJson() == null
+                    ? objectMapper.nullNode()
+                    : objectMapper.readTree(notification.getPayloadJson());
+
+            return new NotificationResponseDto(
+                    notification.getId(),
+                    notification.getActor() == null ? null : notification.getActor().getId(),
+                    notification.getType(),
+                    notification.getMessage(),
+                    notification.getLink(),
+                    notification.isRead(),
+                    notification.getCreatedAt(),
+                    payload
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("알림 payload 파싱에 실패했습니다.", exception);
+        }
     }
 }
