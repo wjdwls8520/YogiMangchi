@@ -183,7 +183,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
           and p.deleteYn = 'N'
           and r.parentReply is null
           and (:cursorId is null or r.id < :cursorId)
-        order by r.id asc
+        order by r.id desc
     """)
     List<ReplyDetailDto> findAllParentReplysByCursor(@Param("postId") Long postId, @Param("cursorId") Long cursorId, Pageable pageable);
 
@@ -210,8 +210,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         where p.id = :postId
           and p.deleteYn = 'N'
           and rp.id = :parentId
-          and (:cursorId is null or r.id > :cursorId)
-        order by r.id asc
+          and (:cursorId is null or r.id < :cursorId)
+        order by r.id desc
     """)
     List<ReplyDetailDto> findAllChildrenReplysByCursor(@Param("postId") Long postId, @Param("parentId") Long parentId, @Param("cursorId") Long cursorId, Pageable pageable);
 
@@ -236,8 +236,8 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         join r.member m
         join r.post p
         where p.deleteYn = 'N' AND r.deleteYn = 'N' AND m.id = :authorMemberId
-          and (:cursorId is null or r.id > :cursorId)
-        order by r.id asc
+          and (:cursorId is null or r.id < :cursorId)
+        order by r.id desc
     """)
     List<ReplyDetailDto> getReplysByAuthorByCursor(@Param("authorMemberId") Long authorMemberId, @Param("cursorId") Long cursorId, Pageable pageable);
 
