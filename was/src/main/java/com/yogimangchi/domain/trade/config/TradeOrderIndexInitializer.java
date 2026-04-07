@@ -9,8 +9,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+// 지정가 주문 체결 조회 인덱스 초기화 컴포넌트
 public class TradeOrderIndexInitializer {
 
+    // partial index
     // 매수 지정가 미체결 주문 매칭 성능 보강용 인덱스 정의
     private static final String CREATE_LIMIT_BUY_OPEN_MATCH_INDEX = """
             CREATE INDEX IF NOT EXISTS idx_trade_order_limit_buy_open_match

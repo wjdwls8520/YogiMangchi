@@ -7,14 +7,24 @@ import org.springframework.stereotype.Component;
 
 /**
  * 대회 참가 신청 정책 검증기
- * 대회 시즌이 참가 신청 가능한 상태인지 검증합니다.
+ * 대회 시즌이 참가 신청 또는 참가 승인 가능한 상태인지 검증합니다.
  */
 @Component
 public class ContestApplicationValidator {
 
-    public void validateRecruitingContestSeason(ContestSeason contestSeason) {
-        if (contestSeason.getStatus() != ContestSeasonStatus.RECRUITING) {
-            throw ContestException.contestSeasonNotRecruiting();
+    public void validateApplicableContestSeason(ContestSeason contestSeason) {
+        if (!isApplicableStatus(contestSeason.getStatus())) {
+            throw ContestException.contestSeasonNotApplicable();
         }
+    }
+
+    public void validateApprovableContestSeason(ContestSeason contestSeason) {
+        if (!isApplicableStatus(contestSeason.getStatus())) {
+            throw ContestException.contestSeasonNotApprovable();
+        }
+    }
+
+    private boolean isApplicableStatus(ContestSeasonStatus status) {
+        return status == ContestSeasonStatus.RECRUITING || status == ContestSeasonStatus.LIVE;
     }
 }

@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { create } from "zustand";
+import type { MarketType } from "@/lib/utils/market";
 
 // 1. 백엔드에서 주는 코인 기본 정보 타입
 export interface CoinMeta {
@@ -20,6 +21,9 @@ export interface RealtimeData {
 
 // 3. 저수지의 전체 설계도
 interface TickerStore {
+  selectedMarketType: MarketType;
+  setSelectedMarketType: (marketType: MarketType) => void;
+
   // 🌟 주인공 코인 (선택된 코인)
   selectedCoin: string;
   setSelectedCoin: (symbol: string) => void;
@@ -32,15 +36,29 @@ interface TickerStore {
   tickers: Record<string, RealtimeData>;
   updateTicker: (symbol: string, data: Partial<RealtimeData>) => void;
   updateTickerBatch: (updates: Record<string, Partial<RealtimeData>>) => void;
+  clearTickers: () => void;
 }
 
 // 4. 스토어 생성!
 export const useTickerStore = create<TickerStore>((set) => ({
+  selectedMarketType: "spot",
+  setSelectedMarketType: (marketType) => set({ selectedMarketType: marketType }),
+
   selectedCoin: "BTCUSDT", // 처음 접속 시 비트코인을 기본으로 띄움
   setSelectedCoin: (symbol) => set({ selectedCoin: symbol }),
 
   coinMetaList: [],
-  setCoinMetaList: (list) => set({ coinMetaList: list }),
+  setCoinMetaList: (list) =>
+    set((state) => {
+      const hasSelectedCoin = list.some((coin) => coin.symbol === state.selectedCoin);
+
+      return {
+        coinMetaList: list,
+        selectedCoin: hasSelectedCoin
+          ? state.selectedCoin
+          : (list[0]?.symbol ?? state.selectedCoin),
+      };
+    }),
 
   tickers: {},
   updateTicker: (symbol, data) => set((state) => ({
@@ -70,4 +88,5 @@ export const useTickerStore = create<TickerStore>((set) => ({
 
       return { tickers: nextTickers };
     }),
+  clearTickers: () => set({ tickers: {} }),
 }));

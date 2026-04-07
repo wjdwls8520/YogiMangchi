@@ -18,7 +18,7 @@ export default function TradingPage() {
       <div className="flex flex-col lg:flex-row gap-3 items-start">
         {/* 왼쪽영역 */}
         <div className="w-full lg:w-[390px] shrink-0 lg:sticky lg:top-24.5 lg:h-[calc(100vh-32px)]">
-          <CoinList />
+          <CoinList availableMarketTypes={["spot", "futures"]} />
         </div>
 
         {/* 오른쪽영역 */}

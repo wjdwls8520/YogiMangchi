@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState } from "react";
 import { 
@@ -6,6 +7,10 @@ import {
   LineSeries, AreaSeries, BarSeries, BaselineSeries, PriceScaleMode, createSeriesMarkers
 } from "lightweight-charts";
 import { useTickerStore } from "@/stores/useTickerStore";
+import {
+  getBinanceKlineApiUrl,
+  getBinanceWsBaseUrl,
+} from "@/lib/utils/market";
 
 const timeframeOptions = [
   { label: "1분", value: "1m" },
@@ -23,7 +28,9 @@ const chartTypeOptions = [
 ];
 
 export default function CoinChart() {
-  const { selectedCoin, coinMetaList } = useTickerStore();
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const coinMetaList = useTickerStore((state) => state.coinMetaList);
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const meta = coinMetaList.find(c => c.symbol === selectedCoin) || { 
     displayNameKr: selectedCoin, 
     symbol: selectedCoin 
@@ -151,7 +158,7 @@ export default function CoinChart() {
           tooltipRef.current.style.left = param.point.x + 15 + 'px';
           tooltipRef.current.style.top = param.point.y + 15 + 'px';
         }
-      } catch (e) {} 
+      } catch {} 
     });
 
     const handleResize = () => { 
@@ -197,7 +204,15 @@ export default function CoinChart() {
 
       try {
         // endTime 파라미터로 가장 오래된 시간의 "이전" 1000개를 달라고 요청합니다.
-        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${selectedCoin}&interval=${timeframe}&endTime=${oldestTime - 1}&limit=1000`);
+        const res = await fetch(
+          getBinanceKlineApiUrl({
+            marketType: selectedMarketType,
+            symbol: selectedCoin,
+            timeframe,
+            endTime: oldestTime - 1,
+            limit: 1000,
+          })
+        );
         const rawData = await res.json();
 
         if (rawData.length === 0) {
@@ -236,7 +251,14 @@ export default function CoinChart() {
 
 
     // 처음 접속 시 최초 1000개 로딩
-    fetch(`https://api.binance.com/api/v3/klines?symbol=${selectedCoin}&interval=${timeframe}&limit=1000`)
+    fetch(
+      getBinanceKlineApiUrl({
+        marketType: selectedMarketType,
+        symbol: selectedCoin,
+        timeframe,
+        limit: 1000,
+      })
+    )
       .then((res) => res.json())
       .then((data) => {
         if (!isFetching) return;
@@ -251,7 +273,10 @@ export default function CoinChart() {
         
         setDataTick(prev => prev + 1);
 
-        wsRef.current = new WebSocket(`wss://stream.binance.com:9443/ws/${selectedCoin.toLowerCase()}@kline_${timeframe}`);
+        const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
+        wsRef.current = new WebSocket(
+          `${wsBaseUrl}/ws/${selectedCoin.toLowerCase()}@kline_${timeframe}`
+        );
         wsRef.current.onmessage = (event) => {
           if (!chartRef.current) return;
 
@@ -289,12 +314,12 @@ export default function CoinChart() {
               for (let i = currentCandles.length - 20; i < currentCandles.length; i++) { sum += currentCandles[i].close; }
               seriesRef.current.ma20.update({ time, value: sum / 20 });
             }
-          } catch (err) {}
+          } catch {}
         };
       });
 
     return () => { isFetching = false; };
-  }, [timeframe, selectedCoin]);
+  }, [timeframe, selectedCoin, selectedMarketType]);
 
   // 3. UI 업데이트 훅
   useEffect(() => {
@@ -320,7 +345,7 @@ export default function CoinChart() {
       if (showMarkers) { markersRef.current[chartType].setMarkers(generateDummyMarkers(candles)); }
 
       if (priceLineRef.current) {
-        try { priceLineRef.current.series.removePriceLine(priceLineRef.current.line); } catch (e) {}
+        try { priceLineRef.current.series.removePriceLine(priceLineRef.current.line); } catch {}
         priceLineRef.current = null;
       }
 
@@ -334,7 +359,7 @@ export default function CoinChart() {
       }
 
       chartRef.current.priceScale('right').applyOptions({ mode: isPercent ? PriceScaleMode.Percentage : PriceScaleMode.Normal });
-    } catch (e) {}
+    } catch {}
   }, [chartType, showMA, showMarkers, isPercent, showPriceLine, dataTick]); 
 
   // 4. 테마 변경
@@ -348,7 +373,7 @@ export default function CoinChart() {
       layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
       grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
     };
-    try { chartRef.current.applyOptions(isDark ? darkTheme : lightTheme); } catch(e) {}
+    try { chartRef.current.applyOptions(isDark ? darkTheme : lightTheme); } catch {}
   }, [isDark]);
 
   return (

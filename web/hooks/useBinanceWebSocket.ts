@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import { useTickerStore } from '@/stores/useTickerStore';
+import { useEffect, useRef } from "react";
+import { useTickerStore } from "@/stores/useTickerStore";
+import {
+  getBinanceWsBaseUrl,
+  getMarketSymbolsApiUrl,
+} from "@/lib/utils/market";
 
 export const useBinanceWebSocket = () => {
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const setCoinMetaList = useTickerStore((state) => state.setCoinMetaList);
   const updateTickerBatch = useTickerStore((state) => state.updateTickerBatch);
+  const clearTickers = useTickerStore((state) => state.clearTickers);
   const pendingUpdatesRef = useRef<Record<string, {
     price: number;
     changeRate: number;
@@ -15,11 +21,13 @@ export const useBinanceWebSocket = () => {
     lowPrice: number;
   }>>({});
 
-  // 1️⃣ 최초 1회: 백엔드에서 30개 코인 목록 가져오기
+  // 시장 타입이 바뀌면 해당 목록으로 다시 불러옵니다.
   useEffect(() => {
     const fetchCoinList = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/v1/market/spot/symbols", {
+        clearTickers();
+
+        const response = await fetch(getMarketSymbolsApiUrl(selectedMarketType), {
           credentials: "include",
         });
         if (!response.ok) throw new Error("API 에러");
@@ -33,16 +41,16 @@ export const useBinanceWebSocket = () => {
       }
     };
 
-    // 목록이 비어있을 때만 가져옵니다.
-    if (coinMetaList.length === 0) fetchCoinList();
-  }, [coinMetaList.length, setCoinMetaList]);
+    void fetchCoinList();
+  }, [clearTickers, selectedMarketType, setCoinMetaList]);
 
-  // 2️⃣ 목록이 들어오면: 바이낸스 실시간 웹소켓 연결
+  // 목록이 들어오면 해당 시장 타입에 맞는 바이낸스 웹소켓에 연결합니다.
   useEffect(() => {
     if (coinMetaList.length === 0) return;
 
     const streams = coinMetaList.map((c) => `${c.symbol.toLowerCase()}@ticker`).join("/");
-    const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+    const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
+    const ws = new WebSocket(`${wsBaseUrl}/stream?streams=${streams}`);
     const flushInterval = window.setInterval(() => {
       const nextUpdates = pendingUpdatesRef.current;
 
@@ -74,5 +82,5 @@ export const useBinanceWebSocket = () => {
       pendingUpdatesRef.current = {};
       ws.close();
     };
-  }, [coinMetaList, updateTickerBatch]);
+  }, [coinMetaList, selectedMarketType, updateTickerBatch]);
 };

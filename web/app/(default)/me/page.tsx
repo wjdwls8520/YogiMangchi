@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
+import {
+  getLikedPosts,
+  getLikedReplies,
+  getMemberPosts,
+  getMemberReplies,
+} from "@/lib/api/me-community";
+import { formatTime } from "@/lib/utils/date";
+import type { Post, Reply } from "@/app/(default)/community/types/post";
 
 import {
   PieChart,
@@ -18,6 +26,7 @@ import Button from "@/components/ui/Button";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
+type CommunityTab = "posts" | "replies" | "likedPosts" | "likedReplies";
 
 type MemberRole = "USER" | "VERIFIED_USER" | "ADMIN";
 type MemberProfile = {
@@ -58,6 +67,15 @@ type MockPortfolio = {
   totalProfit: number;
   totalRoi: number;
   holdings: MockHolding[];
+};
+
+type LikedPost = {
+  id: number;
+  title: string;
+  content: string;
+  likeCount: number;
+  replyCount: number;
+  createdAt: string;
 };
 
 const CHART_COLORS = [
@@ -156,12 +174,25 @@ export default function MePage() {
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
+  const [communityTab, setCommunityTab] = useState<CommunityTab>("posts");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [isLoadingMock, setIsLoadingMock] = useState(false);
   const [mockErrorMessage, setMockErrorMessage] = useState("");
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
+  const [communityPosts, setCommunityPosts] = useState<Post[]>([]);
+  const [communityReplies, setCommunityReplies] = useState<Reply[]>([]);
+  const [likedPosts, setLikedPosts] = useState<LikedPost[]>([]);
+  const [likedReplies, setLikedReplies] = useState<Reply[]>([]);
+  const [isLoadingCommunityPosts, setIsLoadingCommunityPosts] = useState(false);
+  const [isLoadingCommunityReplies, setIsLoadingCommunityReplies] = useState(false);
+  const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
+  const [isLoadingLikedReplies, setIsLoadingLikedReplies] = useState(false);
+  const [communityPostsErrorMessage, setCommunityPostsErrorMessage] = useState("");
+  const [communityRepliesErrorMessage, setCommunityRepliesErrorMessage] = useState("");
+  const [likedPostsErrorMessage, setLikedPostsErrorMessage] = useState("");
+  const [likedRepliesErrorMessage, setLikedRepliesErrorMessage] = useState("");
 
   const logout = useAuthStore((state) => state.logout);
 
@@ -283,6 +314,166 @@ export default function MePage() {
 
     void loadMockData();
   }, [isMounted, logout, memberProfile, portfolioTab, router]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile) return;
+    if (mainTab !== "community" || communityTab !== "posts") return;
+
+    let isActive = true;
+
+    const loadCommunityPosts = async () => {
+      setIsLoadingCommunityPosts(true);
+      setCommunityPostsErrorMessage("");
+
+      try {
+        const response = await getMemberPosts(memberProfile.memberId, { size: 5 });
+        const nextPosts =
+          response && Array.isArray(response.content) ? (response.content as Post[]) : [];
+
+        if (!isActive) return;
+
+        setCommunityPosts(nextPosts);
+      } catch (error) {
+        console.error("failed to load member community posts:", error);
+
+        if (!isActive) return;
+
+        setCommunityPosts([]);
+        setCommunityPostsErrorMessage("작성한 게시글을 불러오지 못했습니다.");
+      } finally {
+        if (isActive) {
+          setIsLoadingCommunityPosts(false);
+        }
+      }
+    };
+
+    void loadCommunityPosts();
+
+    return () => {
+      isActive = false;
+    };
+  }, [communityTab, isMounted, mainTab, memberProfile]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile) return;
+    if (mainTab !== "community" || communityTab !== "replies") return;
+
+    let isActive = true;
+
+    const loadCommunityReplies = async () => {
+      setIsLoadingCommunityReplies(true);
+      setCommunityRepliesErrorMessage("");
+
+      try {
+        const response = await getMemberReplies(memberProfile.memberId, { size: 5 });
+        const nextReplies =
+          response && Array.isArray(response.content) ? (response.content as Reply[]) : [];
+
+        if (!isActive) return;
+
+        setCommunityReplies(nextReplies);
+      } catch (error) {
+        console.error("failed to load member community replies:", error);
+
+        if (!isActive) return;
+
+        setCommunityReplies([]);
+        setCommunityRepliesErrorMessage("작성한 댓글을 불러오지 못했습니다.");
+      } finally {
+        if (isActive) {
+          setIsLoadingCommunityReplies(false);
+        }
+      }
+    };
+
+    void loadCommunityReplies();
+
+    return () => {
+      isActive = false;
+    };
+  }, [communityTab, isMounted, mainTab, memberProfile]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile) return;
+    if (mainTab !== "community" || communityTab !== "likedPosts") return;
+
+    let isActive = true;
+
+    const loadLikedPosts = async () => {
+      setIsLoadingLikedPosts(true);
+      setLikedPostsErrorMessage("");
+
+      try {
+        const response = await getLikedPosts({ size: 5 });
+        const nextPosts =
+          response && Array.isArray(response.content)
+            ? (response.content as LikedPost[])
+            : [];
+
+        if (!isActive) return;
+
+        setLikedPosts(nextPosts);
+      } catch (error) {
+        console.error("failed to load liked posts:", error);
+
+        if (!isActive) return;
+
+        setLikedPosts([]);
+        setLikedPostsErrorMessage("좋아요한 게시글을 불러오지 못했습니다.");
+      } finally {
+        if (isActive) {
+          setIsLoadingLikedPosts(false);
+        }
+      }
+    };
+
+    void loadLikedPosts();
+
+    return () => {
+      isActive = false;
+    };
+  }, [communityTab, isMounted, mainTab, memberProfile]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile) return;
+    if (mainTab !== "community" || communityTab !== "likedReplies") return;
+
+    let isActive = true;
+
+    const loadLikedReplies = async () => {
+      setIsLoadingLikedReplies(true);
+      setLikedRepliesErrorMessage("");
+
+      try {
+        const response = await getLikedReplies({ size: 5 });
+        const nextReplies =
+          response && Array.isArray(response.content)
+            ? (response.content as Reply[])
+            : [];
+
+        if (!isActive) return;
+
+        setLikedReplies(nextReplies);
+      } catch (error) {
+        console.error("failed to load liked replies:", error);
+
+        if (!isActive) return;
+
+        setLikedReplies([]);
+        setLikedRepliesErrorMessage("좋아요한 댓글을 불러오지 못했습니다.");
+      } finally {
+        if (isActive) {
+          setIsLoadingLikedReplies(false);
+        }
+      }
+    };
+
+    void loadLikedReplies();
+
+    return () => {
+      isActive = false;
+    };
+  }, [communityTab, isMounted, mainTab, memberProfile]);
 
   const handleMoveEdit = () => {
     router.push("/me/settings");
@@ -701,11 +892,78 @@ export default function MePage() {
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in duration-300">
+              
               <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-black text-gray-900 mb-8">
-                  커뮤니티 활동
-                </h3>
-                <EmptyState text="표시할 커뮤니티 활동 내역이 없습니다." />
+                <Tabs
+                  tabs={[
+                    { label: "내 게시글", value: "posts" },
+                    { label: "내 댓글", value: "replies" },
+                    { label: "좋아요한 게시글", value: "likedPosts" },
+                    { label: "좋아요한 댓글", value: "likedReplies" },
+                  ]}
+                  activeTab={communityTab}
+                  onChange={(value) => setCommunityTab(value as CommunityTab)}
+                />
+
+                <div className="mt-8">
+                  {communityTab === "posts" ? (
+                    isLoadingCommunityPosts ? (
+                      <EmptyState text="작성한 게시글을 불러오는 중입니다." />
+                    ) : communityPostsErrorMessage ? (
+                      <EmptyState text={communityPostsErrorMessage} />
+                    ) : communityPosts.length > 0 ? (
+                      <div className="space-y-4">
+                        {communityPosts.map((post) => (
+                          <MyPostRow key={post.id} post={post} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text="작성한 게시글이 없습니다." />
+                    )
+                  ) : communityTab === "replies" ? (
+                    isLoadingCommunityReplies ? (
+                      <EmptyState text="작성한 댓글을 불러오는 중입니다." />
+                    ) : communityRepliesErrorMessage ? (
+                      <EmptyState text={communityRepliesErrorMessage} />
+                    ) : communityReplies.length > 0 ? (
+                      <div className="space-y-4">
+                        {communityReplies.map((reply) => (
+                          <MyReplyRow key={reply.id} reply={reply} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text="작성한 댓글이 없습니다." />
+                    )
+                  ) : communityTab === "likedPosts" ? (
+                    isLoadingLikedPosts ? (
+                      <EmptyState text="좋아요한 게시글을 불러오는 중입니다." />
+                    ) : likedPostsErrorMessage ? (
+                      <EmptyState text={likedPostsErrorMessage} />
+                    ) : likedPosts.length > 0 ? (
+                      <div className="space-y-4">
+                        {likedPosts.map((post) => (
+                          <LikedPostRow key={post.id} post={post} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text="좋아요한 게시글이 없습니다." />
+                    )
+                  ) : (
+                    isLoadingLikedReplies ? (
+                      <EmptyState text="좋아요한 댓글을 불러오는 중입니다." />
+                    ) : likedRepliesErrorMessage ? (
+                      <EmptyState text={likedRepliesErrorMessage} />
+                    ) : likedReplies.length > 0 ? (
+                      <div className="space-y-4">
+                        {likedReplies.map((reply) => (
+                          <MyReplyRow key={reply.id} reply={reply} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text="좋아요한 댓글이 없습니다." />
+                    )
+                  )}
+                </div>
               </section>
             </div>
           )}
@@ -793,6 +1051,93 @@ function HoldingRow({ item }: { item: MockHolding }) {
         />
       </div>
     </div>
+  );
+}
+
+function MyPostRow({ post }: { post: Post }) {
+  return (
+    <Link
+      href={`/community/latest/${post.id}`}
+      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-base font-black text-gray-900">
+            {post.title}
+          </h4>
+          <p className="mt-2 line-clamp-2 text-sm text-gray-500">
+            {post.content}
+          </p>
+        </div>
+
+        <span className="shrink-0 text-xs font-bold text-gray-400">
+          {formatTime(post.createdAt)}
+        </span>
+      </div>
+
+      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
+        <span>좋아요 {post.likeCount}</span>
+        <span>댓글 {post.replyCount}</span>
+      </div>
+    </Link>
+  );
+}
+
+function MyReplyRow({ reply }: { reply: Reply }) {
+  return (
+    <Link
+      href={`/community/latest/${reply.postId}`}
+      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-black text-gray-900">
+            {reply.targetNickname ? `${reply.targetNickname}님에게 남긴 댓글` : "작성한 댓글"}
+          </h4>
+          <p className="mt-2 line-clamp-3 text-sm text-gray-500">
+            {reply.content}
+          </p>
+        </div>
+
+        <span className="shrink-0 text-xs font-bold text-gray-400">
+          {formatTime(reply.createdAt)}
+        </span>
+      </div>
+
+      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
+        <span>좋아요 {reply.likeCount}</span>
+        <span>답글 {reply.replyCount}</span>
+      </div>
+    </Link>
+  );
+}
+
+function LikedPostRow({ post }: { post: LikedPost }) {
+  return (
+    <Link
+      href={`/community/latest/${post.id}`}
+      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-base font-black text-gray-900">
+            {post.title}
+          </h4>
+          <p className="mt-2 line-clamp-2 text-sm text-gray-500">
+            {post.content}
+          </p>
+        </div>
+
+        <span className="shrink-0 text-xs font-bold text-gray-400">
+          {formatTime(post.createdAt)}
+        </span>
+      </div>
+
+      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
+        <span>좋아요 {post.likeCount}</span>
+        <span>댓글 {post.replyCount}</span>
+      </div>
+    </Link>
   );
 }
 

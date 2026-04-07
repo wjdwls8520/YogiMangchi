@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface ContestSeasonRepositoryCustom {
 
-    // 모집중인 시즌을 커서 기반으로 조회한다.
-    List<ContestSeason> searchRecruitingContestSeasons(ContestSeasonSearchDto request);
+    // 참가 신청 가능한 시즌(RECRUITING, LIVE)을 커서 기반으로 조회한다.
+    List<ContestSeason> searchApplicableContestSeasons(ContestSeasonSearchDto request);
 }

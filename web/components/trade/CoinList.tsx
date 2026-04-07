@@ -1,26 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { HiOutlineSearch } from "react-icons/hi";
-import { HiOutlineStar, HiStar } from "react-icons/hi2";
+import { useEffect, useState } from "react";
+import { Search, Star  } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import { useTickerStore } from "@/stores/useTickerStore";
-import { useMockWalletStore } from "@/stores/useMockWalletStore";
+import { getMarketLabel, type MarketType } from "@/lib/utils/market";
 
 type SortKey = "displayNameKr" | "price" | "change" | "volume";
-type CoinTab = "krw" | "have" | "favorite";
+type CoinTab = "all" | "have" | "favorite";
 
 type CoinListProps = {
-  // mock 페이지에서는 mock, trading 페이지에서는 trade
   mode?: "mock" | "trade";
+  availableMarketTypes?: MarketType[];
+  holdingSymbols?: string[];
+  isParticipated?: boolean;
 };
 
-export default function CoinList({ mode = "trade" }: CoinListProps) {
-  const { coinMetaList, tickers, selectedCoin, setSelectedCoin } = useTickerStore();
-  const { holdings, isParticipated } = useMockWalletStore();
+export default function CoinList({
+  mode = "trade",
+  availableMarketTypes = ["spot"],
+  holdingSymbols = [],
+  isParticipated = false,
+}: CoinListProps) {
+  const coinMetaList = useTickerStore((state) => state.coinMetaList);
+  const tickers = useTickerStore((state) => state.tickers);
+  const selectedCoin = useTickerStore((state) => state.selectedCoin);
+  const setSelectedCoin = useTickerStore((state) => state.setSelectedCoin);
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
+  const setSelectedMarketType = useTickerStore(
+    (state) => state.setSelectedMarketType
+  );
 
-  const [coinTab, setCoinTab] = useState<CoinTab>("krw");
+  const [coinTab, setCoinTab] = useState<CoinTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{
@@ -31,11 +43,16 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
     direction: null,
   });
 
-  // mock 데모 페이지일 때만 보유 심볼을 사용
-  const holdingSymbols = mode === "mock" ? holdings.map((item) => item.symbol) : [];
+  useEffect(() => {
+    if (availableMarketTypes.includes(selectedMarketType)) {
+      return;
+    }
+
+    setSelectedMarketType(availableMarketTypes[0] ?? "spot");
+  }, [availableMarketTypes, selectedMarketType, setSelectedMarketType]);
+
   const holdingSymbolSet = new Set(holdingSymbols);
 
-  // 1. 코인 기본정보 + 실시간 정보 합치기
   let processedCoins = coinMetaList.map((coin) => {
     const realtime = tickers[coin.symbol];
 
@@ -47,7 +64,6 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
     };
   });
 
-  // 2. 탭 필터
   if (coinTab === "favorite") {
     processedCoins = processedCoins.filter((coin) => favorites.includes(coin.symbol));
   }
@@ -56,7 +72,6 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
     processedCoins = processedCoins.filter((coin) => holdingSymbolSet.has(coin.symbol));
   }
 
-  // 3. 검색 필터
   if (searchQuery.trim() !== "") {
     const q = searchQuery.toLowerCase();
 
@@ -64,10 +79,9 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
       (coin) =>
         coin.displayNameKr.toLowerCase().includes(q) ||
         coin.baseAsset.toLowerCase().includes(q)
-    );
+      );
   }
 
-  // 4. 정렬
   if (sortConfig.key) {
     processedCoins = [...processedCoins].sort((a, b) => {
       const valueA = a[sortConfig.key!];
@@ -128,6 +142,18 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
   return (
     <aside className="w-full h-200 bg-white border border-gray-200 flex flex-col shrink-0 overflow-hidden rounded-xl">
       <div className="p-4 border-b border-gray-200">
+        <div className="mb-4">
+          <Tabs
+            activeTab={selectedMarketType}
+            onChange={(value) => setSelectedMarketType(value as MarketType)}
+            fullWidth={true}
+            tabs={availableMarketTypes.map((marketType) => ({
+              label: getMarketLabel(marketType),
+              value: marketType,
+            }))}
+          />
+        </div>
+
         <div className="relative mb-4">
           <Input
             value={searchQuery}
@@ -135,7 +161,7 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
             placeholder="자산명, 심볼 검색"
             className="pl-9"
           />
-          <HiOutlineSearch className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
         </div>
 
         <Tabs
@@ -143,7 +169,7 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
           onChange={(value) => setCoinTab(value as CoinTab)}
           fullWidth={true}
           tabs={[
-            { label: "원화", value: "krw" },
+            { label: "전체", value: "all" },
             { label: "보유", value: "have" },
             { label: "관심", value: "favorite" },
           ]}
@@ -233,9 +259,12 @@ export default function CoinList({ mode = "trade" }: CoinListProps) {
                       className="p-1 active:scale-90 transition-transform"
                     >
                       {isFavorite ? (
-                        <HiStar className="size-4 text-yellow-400 drop-shadow-sm" />
+                        <Star
+                        color="#e4f500"
+                        fill="#f1ff29"
+                        className="size-5"/>
                       ) : (
-                        <HiOutlineStar className="size-4 text-gray-300 hover:text-yellow-200" />
+                        <Star className="size-5 text-gray-300 hover:text-yellow-200" />
                       )}
                     </button>
 

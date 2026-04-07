@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+// 바이낸스 시세 수신 및 매칭 전달 서비스
 public class BinanceChartApiService {
 
     private static final Duration INITIAL_RETRY_DELAY = Duration.ofSeconds(3);
