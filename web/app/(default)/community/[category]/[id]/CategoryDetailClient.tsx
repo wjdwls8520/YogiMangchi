@@ -1,0 +1,35 @@
+
+
+"use client";
+
+import { useState } from "react";
+import CommentContainer from "../../components/comment/CommentContainer";
+import CommunityItem from "../../components/CommunityItem";
+import { Post, Reply } from "../../types/post";
+
+
+interface Props {
+  post: Post;
+  initialComments: Reply[];
+  nextCursorId: number;
+
+}
+
+export default function CategoryDetailClient({
+  post,
+  initialComments,
+  nextCursorId,
+}: Props) {
+
+
+  return (
+    <>
+      <CommunityItem post={post} variant="detail" />
+      <CommentContainer
+        post={post}
+        comments={initialComments}
+        nextCursorId={nextCursorId}
+      />
+    </>
+  );
+}

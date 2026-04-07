@@ -7,7 +7,9 @@ export async function serverFetchClient(
   const isFormData = options.body instanceof FormData;
 
   const cookieStore = await cookies();
-  const cookieHeader = cookieStore.toString();
+  const cookieHeader = cookieStore.getAll()
+      .map((c) => `${c.name}=${c.value}`)
+      .join("; "); // "token=abc; session=xyz" 형식
 
   const res = await fetch(`http://localhost:8080/api/v1/${url}`, {
     ...options,

@@ -19,21 +19,24 @@ import BubbleButton from "./ui/BubbleButton";
 import { Share2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useWithAuth } from "@/hooks/useWithAuth";
+import { useActionMenuUIStore } from "@/stores/useActionMenuUIStore";
 
 interface Props {
   post: Post;
   variant: "list" | "detail";
   replys?: Reply[];
-  openActionMenu?: number | null;
-  setActionMenu?: React.Dispatch<React.SetStateAction<number | null>>;
 
 }
 
-export default function CommunityItem({ post, variant, openActionMenu, setActionMenu }: Props) {
+export default function CommunityItem({ post, variant }: Props) {
 
     const params = useParams();
     const category = params.category;    
     const router = useRouter();
+
+    // 로그인 여부 확인
+    const withAuth = useWithAuth();
 
     // post 상태 관리
     const postFromStore = usePostStore((state) => state.postsMap.get(post.id));
@@ -43,7 +46,11 @@ export default function CommunityItem({ post, variant, openActionMenu, setAction
 
     // modal 상태 관리
     const WriteModalOpen = useModalStore((state) => state.openWrite);
-    const ReportModalOpen = useModalStore((state) => state.openReport)
+    const ReportModalOpen = useModalStore((state) => state.openReport);
+
+    // actionMenu 상태 관리
+    const openActionMenu = useActionMenuUIStore((state) => state.openActionMenu);
+    const setActionMenu = useActionMenuUIStore((state) => state.setActionMenu);
 
     // 리스트 아이템 UI 상태 관리
     const textRef = useRef<HTMLDivElement>(null);
@@ -59,8 +66,9 @@ export default function CommunityItem({ post, variant, openActionMenu, setAction
     const isSlide = (currentPost?.files?.length ?? 0) > 2;
 
     const toggleActionMenu = (e: React.MouseEvent) => {
+        e.stopPropagation();
         e.preventDefault();
-        setActionMenu?.(prev => prev === post.id ? null : post.id);
+        setActionMenu(openActionMenu === post.id ? null : post.id);
     }
 
     const openUpdateModal = async (e: React.MouseEvent) => {
@@ -79,36 +87,39 @@ export default function CommunityItem({ post, variant, openActionMenu, setAction
 
     const openReportModal = async (e: React.MouseEvent) => {
         e.preventDefault();
-
-        ReportModalOpen(currentPost.id);
+        
+        withAuth(() => ReportModalOpen(currentPost.id))();
     }
 
-    const handleLike = async (e: React.MouseEvent) => {
+    const handleLike = (e: React.MouseEvent) => {
         e.preventDefault();
 
         if (!currentPost) return;
 
-        if (currentPost.likedByMe) {
+        withAuth(async() => {
+            if (currentPost.likedByMe) {
+                replacePost({
+                ...currentPost,
+                likedByMe: false,
+                likeCount: currentPost.likeCount - 1,
+                });
+                await deleteLike(currentPost.id);
+                return;
+            }
+
             replacePost({
-            ...currentPost,
-            likedByMe: false,
-            likeCount: currentPost.likeCount - 1,
+                ...currentPost,
+                likedByMe: true,
+                likeCount: currentPost.likeCount + 1,
             });
-            await deleteLike(currentPost.id);
-            return;
-        }
 
-        replacePost({
-            ...currentPost,
-            likedByMe: true,
-            likeCount: currentPost.likeCount + 1,
-        });
+            try {
+                await putLike(currentPost.id);
+            } catch {
+                replacePost(currentPost);
+            }
+        })();
 
-        try {
-            await putLike(currentPost.id);
-        } catch {
-            replacePost(currentPost);
-        }
     };
 
     useEffect(() => {
@@ -118,6 +129,20 @@ export default function CommunityItem({ post, variant, openActionMenu, setAction
         setIsOverflow(el.scrollHeight > el.clientHeight);
     }, []);
 
+    // actionMenu 밖 클릭 시 닫기
+    useEffect(() => {
+    const handleClickOutside = () => {
+        setActionMenu(null);
+    };
+
+    if (openActionMenu !== null) {
+        document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+        document.removeEventListener("click", handleClickOutside);
+    };
+    }, [openActionMenu]);
 
     return(
         <>

@@ -13,6 +13,7 @@ interface ModalState {
   reportModal: {
     isOpen: boolean;
     targetId: number; // postId or commentId
+    replyId?: number;
   };
 
   // 글쓰기, 수정 열기, 닫기
@@ -20,7 +21,7 @@ interface ModalState {
   closeWrite: () => void;
 
   // 신고 열기, 닫기
-  openReport: (targetId: number) => void;
+  openReport: (targetId: number, replyId?: number) => void;
   closeReport: () => void;
 }
 
@@ -35,6 +36,7 @@ export const useModalStore = create<ModalState>((set) => ({
   reportModal: {
     isOpen: false,
     targetId: 0,
+    replyId: undefined,
   },
 
   // 글쓰기
@@ -57,11 +59,12 @@ export const useModalStore = create<ModalState>((set) => ({
     }),
 
   // 신고
-  openReport: (targetId) =>
+  openReport: (targetId, replyId) =>
     set({
       reportModal: {
         isOpen: true,
         targetId,
+        replyId
       },
     }),
 

@@ -2,59 +2,138 @@
 import UserAvatar from "@/components/user/UserAvatar";
 import { cn } from "@/lib/utils/cs";
 import { formatTime } from "@/lib/utils/date";
-import { Reply } from "../../types/post";
-import { deleteReply, getReplys, putReplyLike } from "@/lib/api/post";
+import { Post, Reply } from "../../types/post";
+import { deleteReply, deleteReplyLike, getReplys, putReplyLike } from "@/lib/api/post";
 import LikeButton from "../ui/LikeButton";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CommentForm from "./CommentForm";
-import { usePostStore } from "@/stores/usePostStore";
 import { useCommentStore } from "@/stores/useCommentStore";
 import BubbleButton from "../ui/BubbleButton";
-import { X } from "lucide-react";
+import { Pen, X } from "lucide-react";
+import { usePostStore } from "@/stores/usePostStore";
+import { useWithAuth } from "@/hooks/useWithAuth";
+import ActionMenuButton from "../ui/ActionMenuButton";
+import ActionMenu from "../ui/ActionMenu";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useModalStore } from "@/stores/useModalStore";
+import { useActionMenuUIStore } from "@/stores/useActionMenuUIStore";
 
 
 interface Props {
-  comment: Reply;
-  openCommentId: number | null;
-  setOpenCommentId: React.Dispatch<React.SetStateAction<number | null>>;
+    post: Post;
+    rootComment: Reply;
+    openCommentId: number | null;
+    setOpenCommentId: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
-export default function CommentItem({ comment, openCommentId, setOpenCommentId }: Props) {
+export default function CommentItem({ 
+    post, 
+    rootComment, 
+    openCommentId, 
+    setOpenCommentId, 
+ }: Props) {
 
-    const commentUpdate = useCommentStore((state) => state.updateComment);
+    const { user } = useAuthStore();
 
+    const comments = useCommentStore((state) => state.commentsMap.get(post.id)) || []; 
+    const addComments = useCommentStore((state) => state.addComments);
+    const replaceComment = useCommentStore((state) => state.replaceComment);
+    const currentComment = comments.find((c) => c.id === rootComment.id) ?? rootComment;
+
+    // 대댓글 배열
+    const childComments = comments.filter(
+        (c) => c.parentReplyId === rootComment.id
+    );
+
+    const postUpdate = usePostStore((state) => state.replacePost);
+
+    const ReportModalOpen = useModalStore((state) => state.openReport)
+
+    // actionMenu 상태 관리
+    const openActionMenu = useActionMenuUIStore((state) => state.openActionMenu);
+    const setActionMenu = useActionMenuUIStore((state) => state.setActionMenu);
+    const isOpen = openActionMenu === currentComment.id;
+    
     const [cursorId, setCursorid] = useState(undefined);
 
-    const [recomments, setRecomments] = useState<Reply[]>([]);
+    // 댓글 수정 상태 관리
+    const [isEdit, setIsEdit] = useState(false);
+    const [editId, setEditId] = useState(null);
 
-    const handleLike = async () => {
-        await putReplyLike(comment.postId, comment.id);
+    const withAuth = useWithAuth();
+
+    const handleLike = async (e:React.MouseEvent) => {
+        e.preventDefault();
+
+        withAuth(async() => {
+            if (currentComment.likedByMe) {
+                replaceComment(post.id, {
+                    ...currentComment,
+                    likedByMe: false,
+                    likeCount: currentComment.likeCount - 1,
+                });
+
+                await deleteReplyLike(post.id, currentComment.id);
+                return;
+            }
+
+            replaceComment(post.id, {
+                ...currentComment,
+                likedByMe: true,
+                likeCount: currentComment.likeCount + 1,
+            });
+
+            try {
+                await putReplyLike(currentComment.postId, currentComment.id);
+            } catch {
+                replaceComment(post.id, currentComment);
+            }
+        })();
+
+        
     }
-    
+
+    const toggleActionMenu = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setActionMenu(openActionMenu === currentComment.id ? null : currentComment.id);
+    }
+
     const handleDelete = async () => {
         const updated = {
-            ...comment,
+            ...currentComment,
             deleteYn: "Y",
             nickname: "알 수 없음",
             content: "삭제된 댓글입니다.",
             updatedAt: new Date().toISOString(),
         };
 
-        commentUpdate(comment.postId, updated);
+        replaceComment(currentComment.postId, updated);
+        postUpdate({...post, replyCount: post.replyCount - 1});
         try {
-            await deleteReply(comment.postId, comment.id);
+            await deleteReply(currentComment.postId, currentComment.id);
         } catch(e) {
             console.log(e)
-             commentUpdate(comment.postId, comment);
+             replaceComment(currentComment.postId, currentComment);
         }
     }
 
-    const openComments = async () => {
-        console.log(comment)
-        if(comment.replyCount === 0) return;
+    const handleEdit = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsEdit(true);
+    }
 
-        const result = await getReplys({postId: comment.postId, parentId: comment.id, cursorId});
-        setRecomments(result.content);
+    const openReportModal = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        
+        withAuth(() => ReportModalOpen( post.id, currentComment.id))();
+    }
+
+    const openComments = async () => {
+        if(currentComment.replyCount === 0) return;
+
+        const result = await getReplys({postId: currentComment.postId, parentId: currentComment.id, cursorId});
+        addComments(post.id, result.content);
     }
 
     const handleForm = (commentId: number) => {
@@ -68,98 +147,141 @@ export default function CommentItem({ comment, openCommentId, setOpenCommentId }
         });
     };
 
+    // actionMenu 밖 클릭 시 닫기
+    useEffect(() => {
+    const handleClickOutside = () => {
+        setActionMenu(null);
+    };
+
+    if (openActionMenu !== null) {
+        document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+        document.removeEventListener("click", handleClickOutside);
+    };
+    }, [openActionMenu]);
+
 
     return(
         <>
+        { 
+            isEdit ? 
+             <div className={cn("relative mt-3", currentComment.parentReplyId && "pl-6 ml-5 border-l-3 border-gray-200")}>
+                <CommentForm 
+                    post={post}
+                    currentComment={currentComment}
+                    isEdit={isEdit}
+                    setIsEdit={setIsEdit}
+                        />
+            </div>
+
+            :
+
             <li 
-            id={`${comment.parentReplyId || comment.id}-${comment.id || comment.memberId}`}
+            id={`${currentComment.parentReplyId || currentComment.id}-${currentComment.id || currentComment.memberId}`}
             className={
                     cn(`flex gap-2 mt-3 pb-2 border-t border-gray-200 pt-5`, 
-                        comment.parentReplyId && 'border-t-0 border-l-3 pt-3 pl-6 ml-5 mb-6 border-gray-200')
+                        currentComment.parentReplyId && 'border-t-0 border-l-3 pt-3 pl-6 ml-5 mb-6 border-gray-200')
             }>
                 <UserAvatar 
-                    profileImg={comment.profileImgUrl} 
-                    classes={`${ comment.targetMemberId ? 'w-[36px] h-[36px]' : 'w-[30px] h-[30px]' }`} 
+                    profileImg={currentComment.profileImgUrl} 
+                    classes={`${ currentComment.targetMemberId ? 'w-[36px] h-[36px]' : 'w-[30px] h-[30px]' }`} 
                 />
 
-                <div className="flex-1">
-                    <div className="flex gap-2 items-center">
-                        <p className="font-bold">{comment.nickname}</p>
+                <div className="flex-1 relative">
+                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                        <p className="font-bold">{currentComment.nickname}</p>
                         <p className="text-gray-400 text-sm">
                         {
-                            comment.createdAt !== comment.updatedAt ? (
+                            currentComment.createdAt !== currentComment.updatedAt ? (
                                 <>
-                                {formatTime(comment.updatedAt)} <span> | 수정됨</span>
+                                {formatTime(currentComment.updatedAt)} <span> | 수정됨</span>
                                 </>
                             ) : (
-                                formatTime(comment.createdAt)
+                                formatTime(currentComment.createdAt)
                             )
                         }
                         </p>
                         {
-                            comment.deleteYn !== 'Y' &&
-                            <button type="button" className=" ml-auto" onClick={handleDelete}>
-                                <X strokeWidth={1.5} size={19} className="text-gray-400" />
-                            </button>   
+                            currentComment.deleteYn !== 'Y' && 
+                            <div className="relative">
+                            <ActionMenuButton toggleMenu={toggleActionMenu} />
+                                {
+                                    isOpen &&
+                                    <ActionMenu 
+                                        isOwner={currentComment.memberId === user?.memberId} 
+                                        reportedByMe={currentComment.reportedByMe}
+                                        onDelete={handleDelete} 
+                                        onEdit={handleEdit}
+                                        onReport={openReportModal}
+                                    />
+                                }
+                            </div>
                         }
                     
                     </div>                
                     <pre className="pt-1">
                         {
-                            comment.targetNickname && 
+                            currentComment.targetNickname && 
                             (<button type="button" className="text-blue-500 font-bold"
                                 onClick={() =>
                                     handleScroll(
-                                        `${comment.parentReplyId || comment.id}-${comment.id || comment.memberId}`
+                                        `${currentComment.parentReplyId || currentComment.id}-${currentComment.id || currentComment.memberId}`
                                     )
                                 }
                             >
-                            {comment.targetNickname}
+                            {`${currentComment.targetNickname} `} 
                             </button>)
                         }
-                        {comment.content}
+                        {currentComment.content}
                     </pre>
                     <ul className="flex gap-4 mt-3 text-gray-400 text-sm">
                         <li>
                             <LikeButton 
-                                likeCount={comment.likeCount} 
-                                liked={comment.likedByMe} 
-                                onLike={comment.deleteYn === 'N' ? handleLike : undefined} 
+                                likeCount={currentComment.likeCount} 
+                                liked={currentComment.likedByMe} 
+                                onLike={currentComment.deleteYn === 'N' ? handleLike : undefined} 
                             />
                         </li>  
                         <li>
                             <BubbleButton openComments={openComments}>
-                                {comment.replyCount}
+                                {currentComment.replyCount}
                             </BubbleButton>                            
                         </li>                               
-                        {comment.deleteYn !== 'Y' &&
+                        {currentComment.deleteYn !== 'Y' && <>
                         <li>
-                            <button type="button" className="font-semibold" onClick={() => handleForm(comment.id)}>답글 달기</button>
+                            <button type="button" className="font-semibold" onClick={() => handleForm(currentComment.id)}>답글 달기</button>
                         </li>
+                        </>
                         }       
                     </ul>  
                 </div>
 
             </li>     
+        }
 
-            { recomments.map((comment) => 
-                <CommentItem key={comment.id} 
-                comment={comment} 
-                openCommentId={openCommentId} 
-                setOpenCommentId={setOpenCommentId} 
-                />) 
-            }    
+
 
             {
-                (openCommentId === comment.id) &&
+                (openCommentId === currentComment.id) &&
                 <div className="relative mt-3">
                     <CommentForm 
-                        postId={comment.postId} 
-                        parentId={comment.parentReplyId || comment.id} 
-                        targetId={comment.id || comment.memberId}
+                        post={post}
+                        currentComment={currentComment}
                             />
                 </div>
             }   
+            { childComments.map((comment) => 
+                <CommentItem key={comment.id} 
+                    post={post}
+                    rootComment={comment} 
+                    openCommentId={openCommentId} 
+                    setOpenCommentId={setOpenCommentId} 
+                />) 
+            }    
+
+
             
         </>
     )

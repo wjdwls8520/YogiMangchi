@@ -6,9 +6,9 @@ interface CommentState {
 
   setComments: (postId: number, comments: Reply[]) => void;
 
-  addComment: (postId: number, comment: Reply) => void;
+  addComments: (postId: number, comment: Reply[]) => void;
 
-  updateComment: (postId: number, comment: Reply) => void;
+  replaceComment: (postId: number, comment: Reply) => void;
 
   removeComment: (postId: number, commentId: number) => void;
 }
@@ -23,15 +23,24 @@ export const useCommentStore = create<CommentState>((set) => ({
       return { commentsMap: newMap };
     }),
 
-  addComment: (postId, comment) =>
+  addComments: (postId, newComments) =>
     set((state) => {
       const prev = state.commentsMap.get(postId) || [];
-      const newMap = new Map(state.commentsMap);
-      newMap.set(postId, [comment, ...prev]);
-      return { commentsMap: newMap };
+      console.log(prev)
+      const mergedMap = new Map(
+        [...prev, ...newComments].map((c) => [c.id, c])
+      );
+      console.log(newComments)
+      
+      return {
+        commentsMap: new Map(state.commentsMap).set(
+          postId,
+          Array.from(mergedMap.values())
+        ),
+      };
     }),
 
-  updateComment: (postId, updated) =>
+  replaceComment: (postId, updated) =>
     set((state) => {
       const prev = state.commentsMap.get(postId) || [];
       const newMap = new Map(state.commentsMap);

@@ -39,7 +39,7 @@ const ranker: Ranker[] = [
 ];
 
 
-export default function CommunityLayout({
+export default async function CommunityLayout({
   children,
 }: {
   children: React.ReactNode;

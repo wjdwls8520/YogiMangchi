@@ -20,5 +20,5 @@ export const getPostServer = async (postId: number) => {
 export const getReplysServer = async (postId: number) => {
     const result = await serverFetchClient(`community/posts/${postId}/replys`);
     
-    return result.content;
+    return result;
 }
