@@ -25,6 +25,8 @@ import com.yogimangchi.domain.contest.repository.ContestParticipantRepository;
 import com.yogimangchi.domain.contest.repository.ContestRejectedApplicantRepository;
 import com.yogimangchi.domain.contest.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.contest.validator.ContestSeasonValidator;
+import com.yogimangchi.domain.futures.service.FuturesService;
+import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,8 @@ public class AdminContestService {
     private final ContestRejectedApplicantRepository contestRejectedApplicantRepository;
     private final ContestApplicationValidator contestApplicationValidator;
     private final ContestSeasonValidator contestSeasonValidator;
+
+    private final FuturesService futuresService;
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
@@ -132,8 +136,8 @@ public class AdminContestService {
         adminContestRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
-        // 현재 시즌에 남아 있는 신청 대기자를 찾는다.
-        ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonId(applicantId, seasonId)
+        // 현재 시즌에 남아 있는 신청 대기자를 비관적 락으로 잡고 순차 처리한다.
+        ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonIdForUpdate(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
         // 현재 시즌이 참가 승인 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.
@@ -147,10 +151,11 @@ public class AdminContestService {
             throw ContestException.alreadyParticipating();
         }
 
+        ContestParticipant savedContestParticipant;
         try {
             // 신청 대기자를 실제 참가자 정보로 저장한다.
             ContestParticipant contestParticipant = ContestParticipant.create(contestApplicant, adminId);
-            contestParticipantRepository.saveAndFlush(contestParticipant);
+            savedContestParticipant = contestParticipantRepository.save(contestParticipant);
         } catch (DataIntegrityViolationException e) {
             // 동시 승인 요청으로 유니크 제약이 걸리더라도 참가중 예외로 통일한다.
             throw ContestException.alreadyParticipating();
@@ -158,6 +163,9 @@ public class AdminContestService {
 
         // 참가자 저장이 끝났으면 대기 신청서는 제거한다.
         contestApplicantRepository.delete(contestApplicant);
+
+        // 참가자 신청이 승낙되면 대회용 선물지갑을 생성한다.
+        futuresService.createContestFuturesAsset(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
     }
 
     @Transactional
@@ -171,8 +179,8 @@ public class AdminContestService {
         adminContestRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
-        // 현재 시즌에 남아 있는 신청 대기자를 찾는다.
-        ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonId(applicantId, seasonId)
+        // 현재 시즌에 남아 있는 신청 대기자를 비관적 락으로 잡고 순차 처리한다.
+        ContestApplicant contestApplicant = contestApplicantRepository.findByIdAndContestSeasonIdForUpdate(applicantId, seasonId)
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
         // 현재 시즌이 신청 처리 가능한 상태(RECRUITING 또는 LIVE)인지 검증한다.

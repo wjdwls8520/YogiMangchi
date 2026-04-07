@@ -215,7 +215,7 @@ public class ContestService {
 
         try {
             // 검증을 통과하면 대회 신청 내역을 저장한다.
-            contestApplicantRepository.saveAndFlush(ContestApplicant.create(contestSeason, member));
+            contestApplicantRepository.save(ContestApplicant.create(contestSeason, member));
         } catch (DataIntegrityViolationException e) {
             // 동시 요청으로 유니크 제약이 걸려도 중복 신청 예외로 통일한다.
             throw ContestException.duplicateApplication();

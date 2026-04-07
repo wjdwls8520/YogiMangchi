@@ -11,6 +11,8 @@ import com.yogimangchi.domain.contest.dto.response.ContestParticipantDto;
 import com.yogimangchi.domain.contest.dto.response.ContestRejectedApplicantDto;
 import com.yogimangchi.domain.contest.dto.response.ContestSeasonDetailDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
+import com.yogimangchi.domain.futures.service.FuturesService;
+import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -100,9 +102,7 @@ public class AdminContestController {
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/approve")
     public ResponseEntity<Void> approveContestApplicant(
-            // 현재 로그인한 관리자 회원 ID 를 인증 정보에서 꺼낸다.
             @AuthenticationPrincipal Long adminId,
-            // 신청 대기자가 속한 대회 시즌 ID 를 path 에서 받는다.
             @PathVariable("seasonId") Long seasonId,
             // 승인할 신청서 ID 를 path 에서 받는다.
             @PathVariable("applicantId") Long applicantId
@@ -120,9 +120,7 @@ public class AdminContestController {
     )
     @PostMapping("/seasons/{seasonId}/applicants/{applicantId}/reject")
     public ResponseEntity<Void> rejectContestApplicant(
-            // 현재 로그인한 관리자 회원 ID 를 인증 정보에서 꺼낸다.
             @AuthenticationPrincipal Long adminId,
-            // 신청 대기자가 속한 대회 시즌 ID 를 path 에서 받는다.
             @PathVariable("seasonId") Long seasonId,
             // 반려할 신청서 ID 를 path 에서 받는다.
             @PathVariable("applicantId") Long applicantId,
