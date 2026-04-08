@@ -50,6 +50,7 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
             true,
             r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case
                 when tm.deleteYn = 'Y' then '탈퇴한 유저'
@@ -84,6 +85,7 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
             rr.id,
             r.id, r.content, r.likeCount, false, r.reportCount, true, r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
             r.createdAt, r.updatedAt, m.id,

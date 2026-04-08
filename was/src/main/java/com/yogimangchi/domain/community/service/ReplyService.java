@@ -90,6 +90,7 @@ public class ReplyService {
                 reportedReplyIds.contains(reply.id()),
                 reply.replyCount(),
                 reply.parentReplyId(),
+                reply.targetReplyId(),
                 reply.targetMemberId(),
                 reply.targetNickname(),
                 reply.createdAt(),
@@ -138,6 +139,7 @@ public class ReplyService {
                 reportedReplyIds.contains(reply.id()),
                 reply.replyCount(),
                 reply.parentReplyId(),
+                reply.targetReplyId(),
                 reply.targetMemberId(),
                 reply.targetNickname(),
                 reply.createdAt(),
@@ -189,6 +191,7 @@ public class ReplyService {
         Reply saveReply = replyRepository.save(reply);
 
         Long parentId = saveReply.getParentReply() == null ? null : saveReply.getParentReply().getId();
+        Long targetReplyId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getId();
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
         String targetNickname = saveReply.getTargetReply() == null
                 ? null
@@ -209,6 +212,7 @@ public class ReplyService {
                 false,
                 saveReply.getReplyCount(),
                 parentId,
+                targetReplyId,
                 targetMemberId,
                 targetNickname,
                 saveReply.getCreatedAt(),
@@ -255,6 +259,7 @@ public class ReplyService {
         Reply updatedReply = reply.update(content1);
 
         Long parentId = updatedReply.getParentReply() == null ? null : updatedReply.getParentReply().getId();
+        Long targetReplyId = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getId();
         Long targetMemberId = updatedReply.getTargetReply() == null ? null : updatedReply.getTargetReply().getMember().getId();
         String targetNickname = updatedReply.getTargetReply() == null
                 ? null
@@ -269,6 +274,7 @@ public class ReplyService {
                 isReplyReportedByMember(loginMemberId, replyId),
                 updatedReply.getReplyCount(),
                 parentId,
+                targetReplyId,
                 targetMemberId,
                 targetNickname,
                 updatedReply.getCreatedAt(),

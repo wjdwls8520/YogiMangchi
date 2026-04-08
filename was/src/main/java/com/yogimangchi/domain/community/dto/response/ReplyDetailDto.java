@@ -29,6 +29,9 @@ public record ReplyDetailDto(
     @Schema(description = "부모댓글 id", example = "1")
     Long parentReplyId,
 
+    @Schema(description = "답글 타겟 댓글의 id", example = "1")
+    Long targetReplyId,
+
     @Schema(description = "답글 타겟 멤버의 id", example = "1")
     Long targetMemberId,
 

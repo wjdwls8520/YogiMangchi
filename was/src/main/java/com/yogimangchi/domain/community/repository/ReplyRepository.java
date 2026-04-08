@@ -29,6 +29,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             null,
             null,
             null,
+            null,
             r.createdAt,
             r.updatedAt,
             m.id,
@@ -64,6 +65,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             false,
             r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case
                 when tm.deleteYn = 'Y' then '탈퇴한 유저'
@@ -108,6 +110,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             false,
             r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case
                 when tm.deleteYn = 'Y' then '탈퇴한 유저'
@@ -169,7 +172,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.id,
             case when r.deleteYn = 'Y' then '삭제된 댓글입니다.' else r.content end,
             r.likeCount, false, r.reportCount, false, r.replyCount,
-            null, null, null,
+            null, null, null, null,
             r.createdAt, r.updatedAt, m.id,
             case when m.deleteYn = 'Y' then '탈퇴한 유저' when r.deleteYn = 'Y' then '알 수 없음' else m.nickname end,
             case when m.deleteYn = 'Y' then m.profileImgUrl when r.deleteYn = 'Y' then '/images/profile/widthdrawn_profile.png' else m.profileImgUrl end,
@@ -193,6 +196,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             case when r.deleteYn = 'Y' then '삭제된 댓글입니다.' else r.content end,
             r.likeCount, false, r.reportCount, false, r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
             r.createdAt, r.updatedAt, m.id,
@@ -221,6 +225,7 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
             r.content,
             r.likeCount, false, r.reportCount, false, r.replyCount,
             rp.id,
+            tr.id,
             tm.id,
             case when tm.deleteYn = 'Y' then '탈퇴한 유저' when tr.deleteYn = 'Y' then '알 수 없음' else tm.nickname end,
             r.createdAt, r.updatedAt, m.id,
