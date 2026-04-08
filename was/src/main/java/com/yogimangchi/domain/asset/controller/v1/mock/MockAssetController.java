@@ -1,11 +1,13 @@
 package com.yogimangchi.domain.asset.controller.v1.mock;
 
+import com.yogimangchi.domain.asset.dto.response.MockAssetStatusResponseDto;
 import com.yogimangchi.domain.asset.dto.response.PortfolioResponseDto;
 import com.yogimangchi.domain.asset.service.mock.MockAssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,16 @@ import org.springframework.web.bind.annotation.*;
 public class MockAssetController {
 
     private final MockAssetService mockAssetService;
+
+    @Operation(summary = "모의투자 참여 상태 조회", description = "로그인 여부와 활성화된 모의투자 지갑 존재 여부만 조회합니다.")
+    @GetMapping("/status")
+    public ResponseEntity<MockAssetStatusResponseDto> getStatus(Authentication authentication) {
+        Long memberId = authentication != null && authentication.getPrincipal() instanceof Long
+                ? (Long) authentication.getPrincipal()
+                : null;
+
+        return ResponseEntity.ok(mockAssetService.getMockAssetStatus(memberId));
+    }
 
     @Operation(summary = "모의투자 1만달러 지급 (새 지갑 생성)", description = "모의투자에 참가하여 새로운 지갑과 초기 자금을 발급받습니다.")
     @PostMapping("/participate")

@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.asset.service.mock;
 
 import com.yogimangchi.domain.asset.dto.response.HoldingResponseDto;
+import com.yogimangchi.domain.asset.dto.response.MockAssetStatusResponseDto;
 import com.yogimangchi.domain.asset.dto.response.PortfolioResponseDto;
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
@@ -76,6 +77,19 @@ public class MockAssetService {
         activeWallet.expireWallet();
         
         log.info("[모의투자 포기] memberId={}, walletId={}", memberId, activeWallet.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public MockAssetStatusResponseDto getMockAssetStatus(Long memberId) {
+        if (memberId == null) {
+            return new MockAssetStatusResponseDto(false, false);
+        }
+
+        boolean isParticipated = assetRepository
+                .findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE")
+                .isPresent();
+
+        return new MockAssetStatusResponseDto(true, isParticipated);
     }
 
     @Transactional(readOnly = true)
