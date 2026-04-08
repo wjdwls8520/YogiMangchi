@@ -108,7 +108,7 @@ public class SignupService {
 
     private Member saveMemberOrThrowDuplicateNickname(Member member) {
         try {
-            return memberRepository.saveAndFlush(member);
+            return memberRepository.save(member);
         } catch (DataIntegrityViolationException e) {
             throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
         }
@@ -116,7 +116,7 @@ public class SignupService {
 
     private void saveOAuthAccountOrThrowDuplicate(OAuthAccount oAuthAccount) {
         try {
-            oAuthAccountRepository.saveAndFlush(oAuthAccount);
+            oAuthAccountRepository.save(oAuthAccount);
         } catch (DataIntegrityViolationException e) {
             throw new IllegalArgumentException("이미 가입된 소셜 계정입니다.");
         }

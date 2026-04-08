@@ -18,6 +18,7 @@ public record ReplyQueryDto(
         Boolean reportedByMe,
         Long replyCount,
         Long parentReplyId,
+        Long targetReplyId,
         Long targetMemberId,
         String targetNickname,
         LocalDateTime createdAt,
@@ -30,6 +31,6 @@ public record ReplyQueryDto(
 ) {
     public ReplyDetailDto toReplyDetailDto() {
         return new ReplyDetailDto(id, content, likeCount, likedByMe, reportCount, reportedByMe, replyCount,
-                parentReplyId, targetMemberId, targetNickname, createdAt, updatedAt, memberId, nickname, profileImgUrl, postId, deleteYn);
+                parentReplyId, targetReplyId, targetMemberId, targetNickname, createdAt, updatedAt, memberId, nickname, profileImgUrl, postId, deleteYn);
     }
 }

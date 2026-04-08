@@ -9,6 +9,7 @@ import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import com.yogimangchi.domain.trade.constant.TradeFeePolicy;
 import com.yogimangchi.domain.trade.dto.query.TradeHistoryQueryDto;
 import com.yogimangchi.domain.trade.dto.request.MarketOrderRequestDto;
@@ -40,6 +41,7 @@ public class TradeHistoryService {
     private final OrderRepository orderRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
     private final MarketSymbolRepository marketSymbolRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public void executeMarketOrder(Long memberId, MarketOrderRequestDto request) {
@@ -151,6 +153,8 @@ public class TradeHistoryService {
                 fee,
                 history.getExecutedAt()
         );
+        // 시장가 체결 완료 후 알림 생성 및 실시간 전송 로직
+        notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
 
         log.info("[매수 완료] 유저: {}, 코인: {}, 총지출: {}, 체결원금: {}, 수수료: {}, 체결수량: {}",
                 wallet.getMember().getId(), request.symbol(), orderAmount, executedAmount, fee, quantityToBuy);
@@ -206,6 +210,8 @@ public class TradeHistoryService {
                 fee,
                 history.getExecutedAt()
         );
+        // 시장가 체결 완료 후 알림 생성 및 실시간 전송 로직
+        notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
 
         log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 체결원금: {}, 수수료: {}, 실수령액: {}",
                 wallet.getMember().getId(), request.symbol(), sellQuantity, executedAmount, fee, settlementAmount);

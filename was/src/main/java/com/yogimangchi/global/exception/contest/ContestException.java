@@ -33,7 +33,7 @@ public class ContestException extends RuntimeException {
         return new ContestException(
                 HttpStatus.CONFLICT,
                 "CONTEST_SEASON_NOT_APPLICABLE",
-                "대회 신청 기간이 아닙니다."
+                "대회 참가 신청 가능 기간이 아닙니다."
         );
     }
 
@@ -41,7 +41,31 @@ public class ContestException extends RuntimeException {
         return new ContestException(
                 HttpStatus.CONFLICT,
                 "CONTEST_SEASON_NOT_APPROVABLE",
-                "현재 대회가 참가가능 상태가 아닙니다."
+                "대회 신청 승인 가능 기간이 아닙니다."
+        );
+    }
+
+    public static ContestException contestSeasonNotApplicableStatus() {
+        return new ContestException(
+                HttpStatus.CONFLICT,
+                "CONTEST_SEASON_NOT_APPLICABLE_STATUS",
+                "공개 중이 아니거나 취소된 대회 시즌에는 참가 신청을 할 수 없습니다."
+        );
+    }
+
+    public static ContestException contestSeasonNotApprovableStatus() {
+        return new ContestException(
+                HttpStatus.CONFLICT,
+                "CONTEST_SEASON_NOT_APPROVABLE_STATUS",
+                "공개 중이 아니거나 취소된 대회 시즌에는 신청 승인 처리를 할 수 없습니다."
+        );
+    }
+
+    public static ContestException invalidContestSeasonPeriod(String message) {
+        return new ContestException(
+                HttpStatus.BAD_REQUEST,
+                "CONTEST_SEASON_INVALID_PERIOD",
+                message
         );
     }
 

@@ -1,9 +1,9 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
-import com.yogimangchi.domain.contest.dto.request.ContestCursorSearchDto;
-import com.yogimangchi.domain.contest.dto.response.ContestParticipationSeasonDto;
-import com.yogimangchi.domain.contest.dto.response.MyContestPendingApplicationDto;
-import com.yogimangchi.domain.contest.dto.response.MyContestLatestRejectedApplicationDto;
+import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipationSeasonDto;
+import com.yogimangchi.domain.contest.application.dto.response.MyContestPendingApplicationDto;
+import com.yogimangchi.domain.contest.application.dto.response.MyContestLatestRejectedApplicationDto;
 import com.yogimangchi.domain.contest.service.ContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;

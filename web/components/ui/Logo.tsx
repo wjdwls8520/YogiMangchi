@@ -17,6 +17,7 @@ export default function Logo({ className = "" }: LogoProps) {
         src="/logo.png"
         alt="요기망치 로고"
         fill
+        sizes="136px"
         priority
         className="dark:hidden"
       />
@@ -24,6 +25,7 @@ export default function Logo({ className = "" }: LogoProps) {
         src="/logo_dark.png"
         alt="요기망치 로고 다크 모드"
         fill
+        sizes="136px"
         priority
         className="hidden dark:block"
       />
