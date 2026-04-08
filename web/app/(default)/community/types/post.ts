@@ -39,6 +39,7 @@ export interface Reply {
     nickname: string;
     createdAt: string;
     content: string;
+    targetReplyId: number | null;
     replyCount: number;
     reportedByMe: boolean;
     parentReplyId: number | null;

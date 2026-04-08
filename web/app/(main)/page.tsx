@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import ContestFloatingButton from "@/components/contest/ContestFloatingButton";
+import SimpleChart from "./component/SimpleChart";
 
 export default function MainPage() {
+
   return (
     <div className="min-h-screen bg-white">
       
@@ -31,6 +33,21 @@ export default function MainPage() {
           </Link>
         </div>
       </section>
+
+      <section className="mt-10 pt-10">
+        <h2 className="font-bold text-2xl">시장 지표</h2>
+        <div className="mt-6">
+          <SimpleChart />
+        </div>
+      </section>
+
+      <section className="mt-10 pt-10">
+        <h2 className="font-bold text-2xl">오늘의 인기 코인</h2>
+      </section>
+
+      <section className="mt-10 pt-10">
+        <h2 className="font-bold text-2xl">대한민국 Big 4</h2>
+      </section>      
       <ContestFloatingButton />
     </div>
   );

@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import CommentForm from "./CommentForm";
 import { useCommentStore } from "@/stores/useCommentStore";
 import BubbleButton from "../ui/BubbleButton";
-import { Pen, X } from "lucide-react";
 import { usePostStore } from "@/stores/usePostStore";
 import { useWithAuth } from "@/hooks/useWithAuth";
 import ActionMenuButton from "../ui/ActionMenuButton";
@@ -36,9 +35,11 @@ export default function CommentItem({
     const { user } = useAuthStore();
 
     const comments = useCommentStore((state) => state.commentsMap.get(post.id)) || []; 
-    const addComments = useCommentStore((state) => state.addComments);
+    const moreComments = useCommentStore((state) => state.moreComments);
     const replaceComment = useCommentStore((state) => state.replaceComment);
     const currentComment = comments.find((c) => c.id === rootComment.id) ?? rootComment;
+
+    const [highlightId, setHighlightId] = useState<number | null>(null);
 
     // 대댓글 배열
     const childComments = comments.filter(
@@ -59,6 +60,15 @@ export default function CommentItem({
     // 댓글 수정 상태 관리
     const [isEdit, setIsEdit] = useState(false);
     const [editId, setEditId] = useState(null);
+
+    // 대댓글, 대대댓글 구분
+    const hasParent = currentComment.parentReplyId != null;
+    const hasTarget = currentComment.targetMemberId != null;
+
+    const isRootComment = !hasParent;
+    const isReply = hasParent && !hasTarget;
+    const isNestedReply = hasParent && hasTarget;
+
 
     const withAuth = useWithAuth();
 
@@ -133,18 +143,26 @@ export default function CommentItem({
         if(currentComment.replyCount === 0) return;
 
         const result = await getReplys({postId: currentComment.postId, parentId: currentComment.id, cursorId});
-        addComments(post.id, result.content);
+        moreComments(post.id, result.content);
     }
 
     const handleForm = (commentId: number) => {
         setOpenCommentId(prev => prev === commentId ? null : commentId);
     }
 
-    const handleScroll = (commentId: string) => {
-        console.log('scroll')
-        document.getElementById(commentId)?.scrollIntoView({
+    const handleScroll = (commentId: number | null) => {
+        const el = document.getElementById(`comment-${commentId}`);
+        if (!el) return;
+
+        el.scrollIntoView({
             behavior: "smooth",
         });
+        console.log(commentId)
+        setHighlightId(commentId);
+
+        setTimeout(() => {
+            setHighlightId(null);
+        }, 1500);        
     };
 
     // actionMenu 밖 클릭 시 닫기
@@ -179,10 +197,12 @@ export default function CommentItem({
             :
 
             <li 
-            id={`${currentComment.parentReplyId || currentComment.id}-${currentComment.id || currentComment.memberId}`}
+            id={`comment-${currentComment.id}`}
             className={
-                    cn(`flex gap-2 mt-3 pb-2 border-t border-gray-200 pt-5`, 
-                        currentComment.parentReplyId && 'border-t-0 border-l-3 pt-3 pl-6 ml-5 mb-6 border-gray-200')
+                    cn("flex gap-2 mt-3 pb-2 border-t border-gray-200 pt-5", 
+                        currentComment.parentReplyId && "border-t-0 border-l-3 pt-3 pl-6 ml-5 mb-6 border-gray-200",
+                        highlightId === currentComment.id && "bg-gray-100 transition-colors duration-500"
+                    )
             }>
                 <UserAvatar 
                     profileImg={currentComment.profileImgUrl} 
@@ -223,13 +243,9 @@ export default function CommentItem({
                     </div>                
                     <pre className="pt-1">
                         {
-                            currentComment.targetNickname && 
+                            isNestedReply && 
                             (<button type="button" className="text-blue-500 font-bold"
-                                onClick={() =>
-                                    handleScroll(
-                                        `${currentComment.parentReplyId || currentComment.id}-${currentComment.id || currentComment.memberId}`
-                                    )
-                                }
+                                onClick={() => handleScroll(currentComment.targetReplyId)}
                             >
                             {`${currentComment.targetNickname} `} 
                             </button>)
@@ -244,11 +260,15 @@ export default function CommentItem({
                                 onLike={currentComment.deleteYn === 'N' ? handleLike : undefined} 
                             />
                         </li>  
-                        <li>
+                    {
+                        isRootComment &&
+                       <li>
                             <BubbleButton openComments={openComments}>
                                 {currentComment.replyCount}
                             </BubbleButton>                            
-                        </li>                               
+                        </li>                         
+                    }
+                               
                         {currentComment.deleteYn !== 'Y' && <>
                         <li>
                             <button type="button" className="font-semibold" onClick={() => handleForm(currentComment.id)}>답글 달기</button>

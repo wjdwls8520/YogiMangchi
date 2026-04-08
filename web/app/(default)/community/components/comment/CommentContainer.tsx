@@ -17,7 +17,7 @@ interface Props {
 export default function CommentContainer ({ post, comments, nextCursorId }: Props) {
 
     const setComments = useCommentStore((state) => state.setComments); // comments 전역 state에 저장
-    const addComments = useCommentStore((state) => state.addComments); // 댓글 더보기 시 state에 추가
+    const moreComments = useCommentStore((state) => state.moreComments); // 댓글 더보기 시 state에 추가
 
     // 최신 comments, 댓글, 대댓글, 대대댓글
     const commentMap = useCommentStore(state => state.commentsMap);
@@ -39,8 +39,8 @@ export default function CommentContainer ({ post, comments, nextCursorId }: Prop
         console.log(currentCursorId)
         const result = await getReplys({postId: post.id, cursorId: currentCursorId});
         setCurrentCursorId(result.nextCursorId);
-        console.log(result.content)
-        addComments(post.id, result.content);
+        console.log(result)
+        moreComments(post.id, result.content);
 
     }
 
@@ -55,8 +55,11 @@ export default function CommentContainer ({ post, comments, nextCursorId }: Prop
 
     return (
         <>
-            <h3 className="mt-8 font-semibold text-lg">답글 {currentPost.replyCount}개</h3>
-            <ul className=" border-b border-gray-200 pb-3">
+            <h3 className="mt-8 border-b border-gray-200 pb-3 font-semibold text-lg">답글 {currentPost.replyCount}개</h3>
+            <div className="relative mt-4">
+                <CommentForm post={currentPost} />
+            </div>
+            <ul className="">
                 {rootComments.map((comment) => <CommentItem 
                                                             key={`${comment.postId}${comment.id}`}
                                                             post={currentPost}
@@ -70,9 +73,6 @@ export default function CommentContainer ({ post, comments, nextCursorId }: Prop
                 currentCursorId && 
                 <button type="button" className="text-center p-3 w-full text-sm text-gray-400" onClick={moreReply}>답글 더보기 +</button>
             }
-            <div className="relative mt-8">
-                <CommentForm post={currentPost} />
-            </div>
         </>
     )
 }

@@ -1,8 +1,5 @@
-
-
 "use client";
 
-import { useState } from "react";
 import CommentContainer from "../../components/comment/CommentContainer";
 import CommunityItem from "../../components/CommunityItem";
 import { Post, Reply } from "../../types/post";

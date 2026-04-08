@@ -5,7 +5,7 @@ import { useWithAuth } from "@/hooks/useWithAuth";
 import { createReply, putReply } from "@/lib/api/post";
 import { useCommentStore } from "@/stores/useCommentStore";
 import { usePostStore } from "@/stores/usePostStore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Post, Reply } from "../../types/post";
 
 interface Props {
@@ -27,7 +27,7 @@ export default function CommentForm({ post, currentComment, isEdit, setIsEdit }:
     });
     const withAuth = useWithAuth();
     
-    const { replaceComment, addComments } = useCommentStore();
+    const { replaceComment, addComment } = useCommentStore();
     const { replacePost } = usePostStore();
 
     const handleSubmit = (e: React.SubmitEvent) => {
@@ -38,7 +38,7 @@ export default function CommentForm({ post, currentComment, isEdit, setIsEdit }:
                 if(isEdit && currentComment) {
                     updateComment(currentComment);
                 } else {
-                    addComment();
+                    submitComment();
                 }
             } catch(e) {
                 console.log(e)
@@ -60,14 +60,31 @@ export default function CommentForm({ post, currentComment, isEdit, setIsEdit }:
         setIsEdit?.(false);
     };
 
-    const addComment = async () => {
-        const body = {
-            content: text,
-            parentId: currentComment ? (currentComment.parentReplyId ?? currentComment.id) : null,
-            targetId: currentComment ? currentComment.parentReplyId : null,
-        };                    
+    const submitComment = async () => {
+        let body;   
+
+        if(currentComment?.parentReplyId) { // 대대댓글일 때
+            body = {
+                content: text,
+                parentId: currentComment.parentReplyId,
+                targetId: currentComment.id,
+            };  
+        } else if(currentComment) { // 대댓글일 때
+            body = {
+                content: text,
+                parentId: currentComment.id,
+                targetId: null,
+            };  
+        } else { // 일반 댓글일 때
+                body = {
+                content: text,
+                parentId: null,
+                targetId: null,
+            };          
+        }
+           
         const result = await createReply(post.id, body);
-        addComments(post.id, [result]);
+        addComment(post.id, result);
         replacePost({
             ...post,
             replyCount: post.replyCount + 1,
