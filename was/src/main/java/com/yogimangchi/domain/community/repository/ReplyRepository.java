@@ -194,7 +194,11 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
             r.id,
             case when r.deleteYn = 'Y' then '삭제된 댓글입니다.' else r.content end,
-            r.likeCount, false, r.reportCount, false, r.replyCount,
+            r.likeCount,
+            false,
+            r.reportCount,
+            false,
+            r.replyCount,
             rp.id,
             tr.id,
             tm.id,
