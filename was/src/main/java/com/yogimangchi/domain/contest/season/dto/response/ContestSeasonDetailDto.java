@@ -38,6 +38,12 @@ public record ContestSeasonDetailDto(
         @Schema(description = "대회 [시즌 수정] 일시")
         LocalDateTime updatedAt,
 
+        @Schema(description = "대회 공개 여부", example = "false")
+        Boolean isPublic,
+
+        @Schema(description = "대회 취소 여부", example = "false")
+        Boolean isCancel,
+
         @Schema(description = "현재 모집중 여부", example = "true")
         Boolean isRecruiting,
 
@@ -71,6 +77,8 @@ public record ContestSeasonDetailDto(
                 contestSeason.getContestEndAt(),
                 contestSeason.getCreatedAt(),
                 contestSeason.getUpdatedAt(),
+                contestSeason.isPublic(),
+                contestSeason.isCancel(),
                 displayInfo.isRecruiting(),
                 displayInfo.isLive(),
                 displayInfo.displayStatus(),
@@ -99,6 +107,8 @@ public record ContestSeasonDetailDto(
                 contestSeason.contestEndAt(),
                 contestSeason.createdAt(),
                 contestSeason.updatedAt(),
+                contestSeason.isPublic(),
+                contestSeason.isCancel(),
                 displayInfo.isRecruiting(),
                 displayInfo.isLive(),
                 displayInfo.displayStatus(),
