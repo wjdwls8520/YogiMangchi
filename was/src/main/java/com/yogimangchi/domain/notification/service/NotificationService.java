@@ -10,6 +10,7 @@ import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
+import com.yogimangchi.domain.notification.dto.response.NotificationUnreadCountResponseDto;
 import com.yogimangchi.domain.notification.entity.Notification;
 import com.yogimangchi.domain.notification.enums.NotificationScope;
 import com.yogimangchi.domain.notification.enums.NotificationType;
@@ -40,6 +41,18 @@ public class NotificationService {
     private final MarketSymbolRepository marketSymbolRepository;
     private final MemberRepository memberRepository;
     private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public NotificationUnreadCountResponseDto getUnreadCount(Long memberId) {
+        // 로그인 회원 검증 로직
+        if (memberId == null) {
+            throw new SecurityException("로그인이 필요합니다.");
+        }
+
+        // 읽지 않은 알림 개수 조회 로직
+        long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(memberId);
+        return NotificationUnreadCountResponseDto.from(unreadCount);
+    }
 
     @Transactional(readOnly = true)
     public CursorResponseDto<NotificationResponseDto> getNotifications(Long memberId, NotificationSearchConditionDto condition) {
