@@ -3,7 +3,17 @@ package com.yogimangchi.domain.notification.entity;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +40,7 @@ public class Notification {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_member_id")
-    @Schema(description = "알림 발생 주체 회원, 시스템 알림인 경우 null")
+    @Schema(description = "알림 발생 주체 회원, 시스템 알림이면 null")
     private Member actor;
 
     @Enumerated(EnumType.STRING)
@@ -39,11 +49,11 @@ public class Notification {
     private NotificationType type;
 
     @Column(nullable = false, length = 500)
-    @Schema(description = "화면에 바로 표시할 알림 문구", example = "비트코인 지정가 매수 주문이 체결되었습니다.")
+    @Schema(description = "화면에 바로 표시할 알림 문구", example = "(모의투자) 비트코인 시장가 매수 주문이 체결되었습니다.")
     private String message;
 
     @Column(length = 1000)
-    @Schema(description = "알림 클릭 시 이동할 경로", example = "/trade/orders/14")
+    @Schema(description = "알림 클릭 시 이동 경로", example = "/trade/orders/14")
     private String link;
 
     @Column(name = "is_read", nullable = false)
@@ -51,7 +61,7 @@ public class Notification {
     private boolean isRead;
 
     @Column(name = "read_at")
-    @Schema(description = "알림 읽은 시각")
+    @Schema(description = "알림 읽음 시각")
     private LocalDateTime readAt;
 
     @CreationTimestamp
@@ -80,6 +90,11 @@ public class Notification {
     }
 
     public void markAsRead(LocalDateTime readAt) {
+        // 중복 읽음 처리 방어 로직
+        if (this.isRead) {
+            return;
+        }
+
         // 읽음 상태 반영 로직
         this.isRead = true;
         this.readAt = readAt;
