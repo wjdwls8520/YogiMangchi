@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record OrderCompletedNotificationPayload(
         Long orderId,
         AssetType assetType,
+        String assetTypeDisplayName,
         String symbol,
         String displayNameKr,
         String orderType,
