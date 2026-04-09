@@ -10,7 +10,7 @@ import NavMenu from "./NavMenu";
 import Dim from "./Dim";
 
 import Logo from "./ui/Logo";
-import { Moon, Sun, TextAlignJustify, UserRound, Wallet, X } from "lucide-react";
+import { Bell, Moon, Sun, TextAlignJustify, UserRound, Wallet, X } from "lucide-react";
 
 
 export default function Header() {
@@ -64,7 +64,27 @@ export default function Header() {
                     }
                 </button>
 
+
                 <div className="h-6 w-[1px] bg-gray-200 dark:bg-zinc-700 mx-2" />
+
+                    <div className="relative">
+                        <button 
+                            type="button" 
+                            onClick={() => {}}
+                            className="flex justify-center items-center rounded-full bg-gray-200 w-[33px] h-[33px]"
+                        >
+                            <Bell size={20} />
+                            <span className="absolute -right-1 -top-1 z-10 rounded-2xl w-4 h-4 bg-red-500 text-white text-xs ">3</span>
+                        </button>
+                        <div className="drop_down absolute right-0 top-full z-10 bg-white shadow-2xl border border-gray-200 rounded-2xl max-h-[500] w-[300px] p-2 box-border">
+                            <ul>
+                                <li></li>
+                            </ul>
+                        </div>
+                    </div>
+
+
+
 
                 {isLogin && (
                     <Link 
@@ -75,7 +95,7 @@ export default function Header() {
                         <span>자산</span>
                     </Link>
                 )}
-
+                
                 <Link href={isLogin ? "/me" : "/login"}>
                     {
                         isLogin ? (
