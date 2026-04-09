@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.notification.controller.v1;
 
+import com.yogimangchi.domain.notification.dto.request.NotificationReadRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationUnreadCountResponseDto;
@@ -9,17 +10,23 @@ import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/notifications")
@@ -53,6 +60,34 @@ public class NotificationController {
     public ResponseEntity<NotificationUnreadCountResponseDto> getUnreadCount(@AuthenticationPrincipal Long memberId) {
         // 로그인 회원 읽지 않은 알림 개수 조회 진입 로직
         return ResponseEntity.ok(notificationService.getUnreadCount(memberId));
+    }
+
+    @Operation(
+            summary = "알림 단건 읽음 처리",
+            description = "알림 한 건을 읽음 처리합니다. 알림 클릭 후 링크 이동 전에 사용할 수 있습니다."
+    )
+    @PutMapping("/{notificationId}/read")
+    public ResponseEntity<Void> markAsRead(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable @Positive(message = "notificationId는 0보다 커야 합니다.") Long notificationId
+    ) {
+        // 알림 단건 읽음 처리 진입 로직
+        notificationService.markAsRead(memberId, notificationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "알림 다건 읽음 처리",
+            description = "현재 화면에 노출된 알림 ID 묶음을 읽음 처리합니다. 오늘 탭이나 전체 탭의 무한 스크롤 구간 읽음 처리에 사용할 수 있습니다."
+    )
+    @PutMapping("/read")
+    public ResponseEntity<Void> markAllAsRead(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody NotificationReadRequestDto request
+    ) {
+        // 알림 다건 읽음 처리 진입 로직
+        notificationService.markAllAsRead(memberId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(

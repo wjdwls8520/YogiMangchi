@@ -8,6 +8,7 @@ import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.request.NotificationReadRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationUnreadCountResponseDto;
@@ -22,14 +23,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -41,6 +47,7 @@ public class NotificationService {
     private final MarketSymbolRepository marketSymbolRepository;
     private final MemberRepository memberRepository;
     private final ObjectMapper objectMapper;
+    private final PlatformTransactionManager transactionManager;
 
     @Transactional(readOnly = true)
     public NotificationUnreadCountResponseDto getUnreadCount(Long memberId) {
@@ -54,6 +61,47 @@ public class NotificationService {
         return NotificationUnreadCountResponseDto.from(unreadCount);
     }
 
+    @Transactional
+    public void markAsRead(Long memberId, Long notificationId) {
+        // 로그인 회원 검증 로직
+        if (memberId == null) {
+            throw new SecurityException("로그인이 필요합니다.");
+        }
+
+        // 본인 알림 단건 조회 로직
+        Notification notification = notificationRepository.findByIdAndReceiverId(notificationId, memberId)
+                .orElseThrow(() -> new IllegalArgumentException("읽음 처리할 알림을 찾을 수 없습니다."));
+
+        // 알림 단건 읽음 처리 로직
+        notification.markAsRead(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void markAllAsRead(Long memberId, NotificationReadRequestDto request) {
+        // 로그인 회원 검증 로직
+        if (memberId == null) {
+            throw new SecurityException("로그인이 필요합니다.");
+        }
+
+        // 중복 요청 ID 제거 로직
+        Set<Long> notificationIds = new LinkedHashSet<>(request.notificationIds());
+
+        // 본인 알림 다건 조회 로직
+        List<Notification> notifications = notificationRepository.findAllByIdInAndReceiverId(
+                List.copyOf(notificationIds),
+                memberId
+        );
+
+        if (notifications.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime readAt = LocalDateTime.now();
+
+        // 현재 화면에 노출된 알림 다건 읽음 처리 로직
+        notifications.forEach(notification -> notification.markAsRead(readAt));
+    }
+
     @Transactional(readOnly = true)
     public CursorResponseDto<NotificationResponseDto> getNotifications(Long memberId, NotificationSearchConditionDto condition) {
         // 로그인 회원 검증 로직
@@ -64,25 +112,32 @@ public class NotificationService {
         int limitSize = condition.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
         NotificationScope scope = condition.scope() == null ? NotificationScope.ALL : condition.scope();
-        LocalDateTime startDateTime = null;
-        LocalDateTime endDateTime = null;
+        List<Notification> notifications;
 
         if (scope == NotificationScope.TODAY) {
-            // 오늘 탭 조회 범위 계산 로직
+            // 오늘 탭 날짜 범위 계산 로직
             LocalDate today = LocalDate.now();
-            startDateTime = today.atStartOfDay();
-            endDateTime = today.plusDays(1).atStartOfDay();
-        }
+            LocalDateTime startDateTime = today.atStartOfDay();
+            LocalDateTime endDateTime = today.plusDays(1).atStartOfDay();
 
-        // 회원 기준 커서/읽음/범위 조건 알림 목록 조회 로직
-        List<Notification> notifications = notificationRepository.findAllByReceiverIdWithCursor(
-                memberId,
-                condition.cursorId(),
-                condition.read(),
-                startDateTime,
-                endDateTime,
-                pageable
-        );
+            // 오늘 알림 목록 조회 로직
+            notifications = notificationRepository.findAllTodayByReceiverIdWithCursor(
+                    memberId,
+                    condition.cursorId(),
+                    condition.read(),
+                    startDateTime,
+                    endDateTime,
+                    pageable
+            );
+        } else {
+            // 전체 알림 목록 조회 로직
+            notifications = notificationRepository.findAllByReceiverIdWithCursor(
+                    memberId,
+                    condition.cursorId(),
+                    condition.read(),
+                    pageable
+            );
+        }
 
         if (notifications.isEmpty()) {
             return new CursorResponseDto<>(List.of(), null, false);
@@ -118,6 +173,10 @@ public class NotificationService {
         BigDecimal executedAmount = order.getExecutedAmount();
         BigDecimal totalFee = order.getTotalFee();
         LocalDateTime executedAt = order.getExecutedAt();
+
+        // 주문 체결 알림 후처리 예약 로직
+        log.info("주문 체결 알림 예약. receiverId={}, orderId={}, assetType={}, symbol={}",
+                receiverId, orderId, assetType, symbol);
 
         Runnable notificationTask = () -> {
             try {
@@ -158,6 +217,9 @@ public class NotificationService {
     private void saveAndSendOrderCompleted(Long receiverId, AssetType assetType, Long orderId, String symbol,
                                            String orderType, String side, BigDecimal price, BigDecimal quantity,
                                            BigDecimal executedAmount, BigDecimal totalFee, LocalDateTime executedAt) {
+        // 알림 수신 회원 재조회 시작 로그
+        log.info("주문 체결 알림 처리 시작. receiverId={}, orderId={}", receiverId, orderId);
+
         // 알림 수신 회원 재조회 로직
         Member notificationReceiver = memberRepository.findActiveById(receiverId)
                 .orElse(null);
@@ -167,10 +229,17 @@ public class NotificationService {
             return;
         }
 
+        // 코인 한글명 조회 시작 로그
+        log.info("주문 체결 알림 수신 회원 확인 완료. receiverId={}, orderId={}", receiverId, orderId);
+
         // 코인 한글명 조회 및 기본값 대체 로직
         String displayNameKr = marketSymbolRepository.findById(symbol)
                 .map(MarketSymbol::getDisplayNameKr)
                 .orElse(symbol);
+
+        // 코인 한글명 조회 완료 로그
+        log.info("주문 체결 알림 심볼 정보 확인 완료. orderId={}, symbol={}, displayNameKr={}",
+                orderId, symbol, displayNameKr);
 
         // 지갑 타입 한글명 변환 로직
         String assetTypeDisplayName = switch (assetType) {
@@ -198,6 +267,10 @@ public class NotificationService {
                 executedAt
         );
 
+        // payload 직렬화 직전 로그
+        log.info("주문 체결 알림 payload 생성 완료. orderId={}, assetTypeDisplayName={}",
+                orderId, assetTypeDisplayName);
+
         // 주문 체결 알림 저장 및 실시간 전송 로직
         saveAndSend(
                 Notification.create(
@@ -212,10 +285,31 @@ public class NotificationService {
     }
 
     private void saveAndSend(Notification notification) {
-        Notification savedNotification = notificationRepository.save(notification);
+        // 알림 저장 시작 로그
+        log.info("알림 저장 시작. receiverId={}, type={}, message={}",
+                notification.getReceiver().getId(), notification.getType(), notification.getMessage());
+
+        // afterCommit 이후 새 트랜잭션 분리 저장 로직
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        NotificationResponseDto response = transactionTemplate.execute(status -> {
+            Notification savedNotification = notificationRepository.saveAndFlush(notification);
+
+            // 알림 저장 완료 로그
+            log.info("알림 저장 완료. notificationId={}, receiverId={}",
+                    savedNotification.getId(), savedNotification.getReceiver().getId());
+
+            return NotificationResponseDto.from(savedNotification, objectMapper);
+        });
+
+        if (response == null) {
+            throw new IllegalStateException("알림 저장 결과를 생성할 수 없습니다.");
+        }
+
         notificationSseService.sendNotification(
-                savedNotification.getReceiver().getId(),
-                NotificationResponseDto.from(savedNotification, objectMapper)
+                notification.getReceiver().getId(),
+                response
         );
     }
 
