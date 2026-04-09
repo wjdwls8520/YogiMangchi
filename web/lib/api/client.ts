@@ -1,6 +1,11 @@
+// 공통 API 클라이언트에서 객체 body도 바로 받을 수 있도록 확장한 옵션 타입
+type FetchClientOptions = Omit<RequestInit, "body"> & {
+  body?: BodyInit | object | null;
+};
+
 export async function fetchClient(
   url: string,
-  options: RequestInit = {}
+  options: FetchClientOptions = {}
 ) {
   const isFormData = options.body instanceof FormData;
 
@@ -9,6 +14,12 @@ export async function fetchClient(
     typeof options.body === "object" &&
     !isFormData;
 
+  // plain object body는 fetch에 바로 넣지 못하므로 JSON 문자열로 변환
+  const requestBody =
+    isObject && options.body
+      ? JSON.stringify(options.body)
+      : (options.body as BodyInit | null | undefined);
+
   const res = await fetch(`http://localhost:8080/api/v1/${url}`, {
     ...options,
     credentials: "include",
@@ -16,9 +27,7 @@ export async function fetchClient(
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
-    body: isObject
-      ? JSON.stringify(options.body) // object -> JSON으로 자동 변환
-      : options.body,
+    body: requestBody,
   });
 
   if (!res.ok) {

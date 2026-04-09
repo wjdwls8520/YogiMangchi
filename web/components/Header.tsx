@@ -10,7 +10,16 @@ import NavMenu from "./NavMenu";
 import Dim from "./Dim";
 
 import Logo from "./ui/Logo";
-import { Bell, Moon, Sun, TextAlignJustify, UserRound, Wallet, X } from "lucide-react";
+import {
+  Bell,
+  Moon,
+  Settings,
+  Sun,
+  TextAlignJustify,
+  UserRound,
+  Wallet,
+  X,
+} from "lucide-react";
 
 
 export default function Header() {
@@ -85,6 +94,16 @@ export default function Header() {
 
 
 
+
+                {user?.role === "ADMIN" && (
+                    <Link
+                        href="/admin"
+                        className="hidden sm:flex items-center gap-1.5 py-1.5 px-4 rounded-full bg-white-50 dark:bg-blue-900/20 text-gray-600 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-all font-bold text-sm border border-gray-300 dark:border-blue-800/50 hover:border-gray-500"
+                    >
+                        <Settings strokeWidth={2} size={16} />
+                        <span>Admin</span>
+                    </Link>
+                )}
 
                 {isLogin && (
                     <Link 

@@ -129,6 +129,52 @@ const extractNumber = (value: unknown) => {
   return null;
 };
 
+// boolean 또는 문자열 boolean 값을 안전하게 boolean으로 바꾼다
+const extractBoolean = (value: unknown) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "true") {
+      return true;
+    }
+
+    if (value.toLowerCase() === "false") {
+      return false;
+    }
+  }
+
+  return null;
+};
+
+// 모의투자 상태 응답에서 로그인 여부와 참여 여부를 꺼낸다
+const extractMockStatus = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const nested =
+    record.data && typeof record.data === "object"
+      ? (record.data as Record<string, unknown>)
+      : null;
+
+  const isLogin = extractBoolean(record.isLogin ?? nested?.isLogin);
+  const isParticipated = extractBoolean(
+    record.isParticipated ?? nested?.isParticipated
+  );
+
+  if (isLogin === null || isParticipated === null) {
+    return null;
+  }
+
+  return {
+    isLogin,
+    isParticipated,
+  };
+};
+
 // 응답 구조가 조금 달라도 사용 가능한 현금 값을 우선 추출한다
 const extractUsdtBalance = (payload: unknown) => {
   if (!payload || typeof payload !== "object") {
@@ -281,7 +327,7 @@ export const useMockWalletStore = create<MockWalletState>()(
           return getInitialState(memberId);
         }),
 
-      // 모의투자 포트폴리오를 조회하고 store 상태를 최신값으로 맞춘다
+      // 모의투자 상태를 먼저 확인하고, 참여 중일 때만 포트폴리오를 조회한다
       loadMockWallet: async (memberId, force = false) => {
         const currentState = get();
 
@@ -307,6 +353,71 @@ export const useMockWalletStore = create<MockWalletState>()(
         }));
 
         try {
+          const statusResponse = await fetch(`${MOCK_ASSET_API_BASE}/status`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+
+          const statusPayload = await parseJson(statusResponse);
+          const mockStatus = extractMockStatus(statusPayload);
+
+          if (statusResponse.ok && mockStatus) {
+            if (!mockStatus.isLogin) {
+              set((state) => ({
+                ...state,
+                ownerMemberId: memberId,
+                isLoadingPortfolio: false,
+                hasLoadedPortfolio: true,
+              }));
+
+              return {
+                success: false,
+                status: "login_required",
+              };
+            }
+
+            if (!mockStatus.isParticipated) {
+              set({
+                ...getInitialState(memberId),
+                hasLoadedPortfolio: true,
+                historyVersion: get().historyVersion,
+              });
+
+              return {
+                success: false,
+                status: "not_participating",
+              };
+            }
+          } else if (!statusResponse.ok) {
+            const message = extractMessage(statusPayload);
+            const status = getFailureStatus(
+              statusResponse.status,
+              message,
+              "portfolio"
+            );
+
+            set((state) => ({
+              ...state,
+              ownerMemberId: memberId,
+              isLoadingPortfolio: false,
+              hasLoadedPortfolio: true,
+            }));
+
+            if (status === "failed") {
+              console.warn(
+                "Failed to load mock wallet status:",
+                message || statusResponse.statusText
+              );
+            }
+
+            return {
+              success: false,
+              status,
+              message,
+            };
+          }
+
           const response = await fetch(`${MOCK_ASSET_API_BASE}/portfolio`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
