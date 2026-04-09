@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
+    long countByReceiverIdAndIsReadFalse(Long receiverId);
+
     @EntityGraph(attributePaths = "actor")
     @Query("""
         select n
