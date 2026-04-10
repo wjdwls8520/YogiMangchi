@@ -1,5 +1,6 @@
 package com.yogimangchi.global.exception;
 
+import com.yogimangchi.global.exception.asset.AssetException;
 import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -91,4 +92,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(e.getStatus())
                 .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
     }
+
+    // 지갑관련 에러처리
+    @ExceptionHandler(AssetException.class)
+    public ResponseEntity<ErrorResponse> handleWalletException(AssetException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
+    }
+
 }

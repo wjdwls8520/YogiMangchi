@@ -2,6 +2,8 @@ package com.yogimangchi.domain.asset.repository;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.contest.season.entity.ContestSeason;
+import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -32,4 +34,6 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
     @Query("SELECT a FROM Assets a WHERE a.id = :assetId")
     Optional<Assets> findByIdForUpdate(@Param("assetId") Long assetId);
 
+    // 해당 시즌에 해당 멤버 지갑이 있는지 확인
+    boolean existsByMemberAndTypeAndContestSeason(Member participant, AssetType assetType, ContestSeason targetSeason);
 }

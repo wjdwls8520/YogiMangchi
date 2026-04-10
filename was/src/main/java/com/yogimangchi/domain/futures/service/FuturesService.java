@@ -4,37 +4,46 @@ import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.contest.season.entity.ContestSeason;
-import com.yogimangchi.domain.contest.season.repository.ContestSeasonRepository;
 import com.yogimangchi.domain.member.entity.Member;
-import com.yogimangchi.global.exception.contest.ContestException;
+import com.yogimangchi.global.exception.asset.AssetException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class FuturesService {
 
     private final AssetRepository assetRepository;
-    private final ContestSeasonRepository contestSeasonRepository;
 
     @Transactional
-    public void createContestFuturesAsset(Long adminId, ContestSeason targetSeason, Member member) {
+    public void createNewContestFuturesWallet(Long adminId, ContestSeason targetSeason, Member participant) {
+
+        // 1. 먼저 지갑이 이미 존재하는지 확인
+        if (assetRepository.existsByMemberAndTypeAndContestSeason(participant, AssetType.CONTEST, targetSeason)) {
+            throw AssetException.walletAlreadyExists();
+        }
 
         // 초기 자금 1만 요기달러
         BigDecimal initialMoney = new BigDecimal("10000");
 
-        Assets saveWallet = Assets.createNewWallet(
-                member,
+        Assets saveWallet = Assets.createNewContestFuturesWallet(
+                participant,
                 AssetType.CONTEST,
                 initialMoney,
                 0,
-                targetSeason.getContestEndAt()
+                targetSeason.getContestEndAt(),
+                targetSeason
         );
-        assetRepository.save(saveWallet);
 
+        // 대회 선물 지갑을 생성 할 때는 비즈니스 의미가 분명하여 도메인에서 예외처리함.
+        try {
+            assetRepository.saveAndFlush(saveWallet);
+        } catch (DataIntegrityViolationException e) {
+            throw AssetException.walletAlreadyExists();
+        }
     }
 }

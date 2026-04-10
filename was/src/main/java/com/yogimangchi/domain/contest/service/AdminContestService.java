@@ -163,7 +163,7 @@ public class AdminContestService {
         contestApplicantRepository.delete(contestApplicant);
 
         // 참가자 신청이 승낙되면 대회용 선물지갑을 생성한다.
-        // futuresService.createContestFuturesAsset(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
+        futuresService.createNewContestFuturesWallet(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
     }
 
     @Transactional

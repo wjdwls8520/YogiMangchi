@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.asset.entity;
 
 import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.contest.season.entity.ContestSeason;
 import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -56,6 +57,11 @@ public class Assets {
     @Comment("콘텐츠 만료 일시")
     private LocalDateTime expiredAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contest_season_id")
+    @Comment("대회 지갑 일 때, 해당 시즌의 Id")
+    private ContestSeason contestSeason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -65,7 +71,7 @@ public class Assets {
     private LocalDateTime updatedAt;
 
     @Builder
-    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, BigDecimal lockedMoney, String status,  int retryCount, LocalDateTime expiredAt) {
+    protected Assets(Member member, AssetType type, BigDecimal seedMoney, BigDecimal currentMoney, BigDecimal lockedMoney, String status,  int retryCount, LocalDateTime expiredAt, ContestSeason contestSeason) {
         this.member = member;
         this.type = type;
         this.seedMoney = seedMoney;
@@ -74,6 +80,7 @@ public class Assets {
         this.status = status;
         this.retryCount = retryCount;
         this.expiredAt = expiredAt;
+        this.contestSeason = contestSeason;
     }
 
     // 새로운 지갑 발급 로직
@@ -87,8 +94,35 @@ public class Assets {
                 .status("ACTIVE")
                 .retryCount(retryCount)
                 .expiredAt(expiredAt)
+                .contestSeason(null)
                 .build();
     }
+
+    // 새로운 선물 지갑 발급 로직
+    public static Assets createNewContestFuturesWallet(Member member, AssetType type, BigDecimal initialMoney, int retryCount, LocalDateTime expiredAt, ContestSeason contestSeason) {
+        return Assets.builder()
+                .member(member)
+                .type(type)
+                .seedMoney(initialMoney)
+                .currentMoney(initialMoney) // 초기 자금 그대로 반영
+                .lockedMoney(BigDecimal.ZERO) // 잠금 현금 0원 초기화
+                .status("ACTIVE")
+                .retryCount(retryCount) // 선물에서는 몇번째 대회참가인지 확인하는 용도가 될 수 있을 것 같아서 사용.
+                .expiredAt(expiredAt)
+                .contestSeason(contestSeason)
+                .build();
+    }
+
+
+
+
+
+
+
+
+
+
+    // ******** 지갑 관련 계산식 ***********
 
     // 입금 잔액 반영
     public void addMoney(BigDecimal amount) {
