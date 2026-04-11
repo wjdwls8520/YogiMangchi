@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.notification.entity;
 
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
@@ -44,6 +45,11 @@ public class Notification {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
+    @Schema(description = "알림 탭 분리를 위한 카테고리", example = "MOCK")
+    private NotificationCategory category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
     @Schema(description = "알림 타입")
     private NotificationType type;
 
@@ -72,11 +78,12 @@ public class Notification {
     @Schema(description = "화면 렌더링에 필요한 JSON payload")
     private String payloadJson;
 
-    public static Notification create(Member receiver, Member actor, NotificationType type,
+    public static Notification create(Member receiver, Member actor, NotificationCategory category, NotificationType type,
                                       String message, String link, String payloadJson) {
         Notification notification = new Notification();
         notification.receiver = receiver;
         notification.actor = actor;
+        notification.category = category;
         notification.type = type;
         notification.message = message;
         notification.link = link;

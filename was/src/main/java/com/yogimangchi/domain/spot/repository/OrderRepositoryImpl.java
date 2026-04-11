@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -122,7 +123,10 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
         return queryFactory
                 .select(order.id)
                 .from(order)
+                .join(order.assets, assets)
                 .where(
+                        activeAssetStatus(),
+                        notExpiredAsset(),
                         symbolEq(symbol),
                         limitOrderType(),
                         buySide(),
@@ -140,7 +144,10 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
         return queryFactory
                 .select(order.id)
                 .from(order)
+                .join(order.assets, assets)
                 .where(
+                        activeAssetStatus(),
+                        notExpiredAsset(),
                         symbolEq(symbol),
                         limitOrderType(),
                         sellSide(),
@@ -158,7 +165,10 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
         Integer exists = queryFactory
                 .selectOne()
                 .from(order)
+                .join(order.assets, assets)
                 .where(
+                        activeAssetStatus(),
+                        notExpiredAsset(),
                         symbolEq(symbol),
                         limitOrderType(),
                         openStatus()
@@ -175,7 +185,10 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                 .select(order.symbol)
                 .distinct()
                 .from(order)
+                .join(order.assets, assets)
                 .where(
+                        activeAssetStatus(),
+                        notExpiredAsset(),
                         limitOrderType(),
                         openStatus()
                 )
@@ -224,6 +237,14 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     // 미체결 주문 화면 노출 대상 상태 조건
     private BooleanExpression openStatus() {
         return order.status.in(OrderStatus.PENDING, OrderStatus.PARTIALLY_FILLED);
+    }
+
+    private BooleanExpression activeAssetStatus() {
+        return assets.status.eq("ACTIVE");
+    }
+
+    private BooleanExpression notExpiredAsset() {
+        return assets.expiredAt.goe(LocalDateTime.now());
     }
 
     // 최저가 범위 돌파 기준 매수 체결 조건

@@ -8,17 +8,20 @@ import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
-import com.yogimangchi.domain.notification.dto.request.NotificationReadRequestDto;
+import com.yogimangchi.domain.notification.dto.request.NotificationIdsRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationStatusResponseDto;
 import com.yogimangchi.domain.notification.entity.Notification;
 import com.yogimangchi.domain.notification.entity.NotificationState;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import com.yogimangchi.domain.notification.repository.NotificationRepository;
 import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.domain.spot.entity.Order;
+import com.yogimangchi.global.exception.notification.NotificationException;
+import com.yogimangchi.global.support.MemberReader;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,23 +51,23 @@ public class NotificationService {
     private final NotificationStateRepository notificationStateRepository;
     private final ObjectMapper objectMapper;
     private final PlatformTransactionManager transactionManager;
+    private final MemberReader memberReader;
 
     @Transactional(readOnly = true)
     public CursorResponseDto<NotificationResponseDto> getNotifications(
             Long memberId,
             NotificationSearchConditionDto condition
     ) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
+        memberReader.getAuthenticated(memberId);
 
-        // 다음 페이지 존재 여부를 확인하기 위해 size + 1건을 조회한다.
+        // 다음 페이지 존재 여부까지 함께 판단하기 위해 size + 1개를 조회한다.
         int limitSize = condition.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
         List<Notification> notifications = notificationRepository.findAllByReceiverIdWithCursor(
                 memberId,
                 condition.cursorId(),
+                condition.category(),
                 condition.read(),
                 pageable
         );
@@ -87,21 +90,17 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationStatusResponseDto getStatus(Long memberId) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
+        memberReader.getAuthenticated(memberId);
 
-        // 벨 아이콘용 마지막 확인 기준 ID를 회원 상태 테이블에서 조회한다.
+        // 벨 아이콘의 마지막 확인 기준은 NotificationState에서 관리한다.
         Long lastCheckedNotificationId = notificationStateRepository.findByMemberId(memberId)
                 .map(NotificationState::getLastCheckedNotificationId)
                 .orElse(null);
 
-        // 마지막 확인 기준 이후 새 알림 수를 계산한다.
         long newCount = lastCheckedNotificationId == null
                 ? notificationRepository.countByReceiverId(memberId)
                 : notificationRepository.countByReceiverIdAndIdGreaterThan(memberId, lastCheckedNotificationId);
 
-        // 읽지 않은 알림 수를 별도로 계산한다.
         long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(memberId);
 
         return NotificationStatusResponseDto.of(newCount, unreadCount);
@@ -109,67 +108,88 @@ public class NotificationService {
 
     @Transactional
     public void checkNotifications(Long memberId) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
+        Member member = memberReader.getAuthenticated(memberId);
 
-        // 회원이 보유한 가장 최신 알림 ID를 확인 기준으로 사용한다.
+        // 현재 회원이 가진 가장 최신 알림 ID를 확인 기준으로 사용한다.
         Long latestNotificationId = notificationRepository.findLatestNotificationIdByReceiverId(memberId);
         if (latestNotificationId == null) {
             return;
         }
 
-        // 상태 row가 이미 있으면 최신 알림 ID만 갱신한다.
+        // 상태 row가 이미 있으면 더 큰 값으로만 갱신한다.
         int updated = notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
         if (updated > 0) {
             return;
         }
 
-        Member member = memberRepository.findActiveById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않거나 탈퇴한 회원입니다."));
-
         NotificationState notificationState = NotificationState.create(member);
         notificationState.checkLatest(latestNotificationId);
 
         try {
-            // 상태 row가 없을 때만 새로 생성한다.
+            // 상태 row가 없는 첫 확인 시점에만 새로 생성한다.
             notificationStateRepository.saveAndFlush(notificationState);
         } catch (DataIntegrityViolationException exception) {
-            // 동시 insert 충돌 시 이미 생성된 row를 기준으로 다시 갱신한다.
+            // 동시에 생성된 경우에는 더 큰 값 갱신만 한 번 더 시도한다.
             notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
         }
     }
 
     @Transactional
     public void markAsRead(Long memberId, Long notificationId) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
+        memberReader.getAuthenticated(memberId);
 
         Notification notification = notificationRepository.findByIdAndReceiverId(notificationId, memberId)
-                .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
+                .orElseThrow(NotificationException::notificationNotFound);
 
         notification.markAsRead(LocalDateTime.now());
     }
 
     @Transactional
-    public void markAllAsRead(Long memberId, NotificationReadRequestDto request) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
-
-        List<Notification> notifications = notificationRepository.findAllByIdInAndReceiverId(
-                request.notificationIds(),
-                memberId
-        );
+    public void markAllAsRead(Long memberId, NotificationIdsRequestDto request) {
+        memberReader.getAuthenticated(memberId);
 
         LocalDateTime readAt = LocalDateTime.now();
-        notifications.forEach(notification -> notification.markAsRead(readAt));
+        notificationRepository.markAllAsReadByIdsAndReceiverId(
+                request.notificationIds(),
+                memberId,
+                readAt
+        );
+    }
+
+    @Transactional
+    public void markReadAll(Long memberId) {
+        memberReader.getAuthenticated(memberId);
+
+        notificationRepository.markAllAsReadByReceiverId(memberId, LocalDateTime.now());
+    }
+
+    @Transactional
+    public void deleteReadNotifications(Long memberId) {
+        memberReader.getAuthenticated(memberId);
+
+        notificationRepository.deleteAllReadByReceiverId(memberId);
+    }
+
+    @Transactional
+    public void deleteNotification(Long memberId, Long notificationId) {
+        memberReader.getAuthenticated(memberId);
+
+        int deletedCount = notificationRepository.deleteByIdAndReceiverId(notificationId, memberId);
+        if (deletedCount == 0) {
+            throw NotificationException.notificationNotFound();
+        }
+    }
+
+    @Transactional
+    public void deleteNotifications(Long memberId, NotificationIdsRequestDto request) {
+        memberReader.getAuthenticated(memberId);
+
+        notificationRepository.deleteAllByIdsAndReceiverId(request.notificationIds(), memberId);
     }
 
     public void notifyOrderCompleted(Member receiver, AssetType assetType, Order order) {
         if (receiver == null || receiver.getId() == null || order == null || order.getId() == null) {
-            log.warn("주문 체결 알림 생성을 생략했습니다. receiver={}, order={}", receiver, order);
+            log.warn("주문 체결 알림 생성을 건너뜁니다. receiver={}, order={}", receiver, order);
             return;
         }
 
@@ -254,6 +274,7 @@ public class NotificationService {
                 orderId, symbol, displayNameKr);
 
         String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
+        NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
         String orderTypeName = "MARKET".equalsIgnoreCase(orderType) ? "시장가" : "지정가";
         String sideName = "BUY".equalsIgnoreCase(side) ? "매수" : "매도";
 
@@ -279,6 +300,7 @@ public class NotificationService {
                 Notification.create(
                         notificationReceiver,
                         null,
+                        notificationCategory,
                         NotificationType.ORDER_COMPLETED,
                         assetTypeDisplayName + " " + displayNameKr + " " + orderTypeName + " " + sideName + " 주문이 체결되었습니다.",
                         "/spot/mock/orders/" + orderId,
@@ -306,7 +328,7 @@ public class NotificationService {
         });
 
         if (response == null) {
-            throw new IllegalStateException("알림 저장 결과를 생성할 수 없습니다.");
+            throw NotificationException.notificationResponseCreationFailed();
         }
 
         notificationSseService.sendNotification(receiverId, response);
@@ -316,17 +338,26 @@ public class NotificationService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("알림 payload 직렬화에 실패했습니다.", exception);
+            throw NotificationException.notificationPayloadSerializationFailed(exception);
         }
     }
 
     private String resolveAssetTypeDisplayName(AssetType assetType) {
-        // 알림 문구와 payload 표시에 사용할 지갑 타입 표시명
+        // 알림 문구와 payload에서 함께 사용할 지갑 표시명이다.
         return switch (assetType) {
             case MOCK -> "(모의투자)";
-            case TRADE_SPOT -> "(트레이드-현물)";
-            case TRADE_FUTURE -> "(트레이드-선물)";
+            case TRADE_SPOT -> "(트레이딩-현물)";
+            case TRADE_FUTURE -> "(트레이딩-선물)";
             case CONTEST -> "(대회)";
+        };
+    }
+
+    private NotificationCategory resolveNotificationCategory(AssetType assetType) {
+        // 지갑 유형을 알림 탭 카테고리로 매핑한다.
+        return switch (assetType) {
+            case MOCK -> NotificationCategory.MOCK;
+            case TRADE_SPOT, TRADE_FUTURE -> NotificationCategory.TRADE;
+            case CONTEST -> NotificationCategory.CONTEST;
         };
     }
 }

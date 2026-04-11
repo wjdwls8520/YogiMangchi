@@ -11,6 +11,7 @@ import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.asset.service.PortfolioCalculationService;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.domain.spot.service.SpotOrderService;
 import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class MockAssetService {
     private final HoldingRepository holdingRepository;
     private final PortfolioCalculationService portfolioCalculationService;
     private final MemberReader memberReader;
+    private final SpotOrderService spotOrderService;
 
     @Transactional
     public void participateMock(Long memberId) {
@@ -68,6 +70,8 @@ public class MockAssetService {
         // 활성화된 MOCK 지갑 찾기
         Assets activeWallet = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE")
                 .orElseThrow(() -> new IllegalArgumentException("현재 진행 중인 모의투자 지갑이 없습니다."));
+
+        spotOrderService.cancelOpenLimitOrdersByAsset(activeWallet);
 
         // 남아있는 보유 코인 모두 삭제 처리 (모의투자는 과거 이력을 남기지 않음)
         List<Holding> holdings = holdingRepository.findAllByAssets(activeWallet);

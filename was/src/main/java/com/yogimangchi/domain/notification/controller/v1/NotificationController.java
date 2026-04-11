@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.notification.controller.v1;
 
-import com.yogimangchi.domain.notification.dto.request.NotificationReadRequestDto;
+import com.yogimangchi.domain.notification.dto.request.NotificationIdsRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationStatusResponseDto;
@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +39,7 @@ public class NotificationController {
 
     @Operation(
             summary = "알림 목록 조회",
-            description = "알림을 최신순으로 조회합니다. cursorId로 무한 스크롤을 구현할 수 있고, read 조건으로 읽음 여부를 필터링할 수 있습니다."
+            description = "알림을 최신순으로 조회합니다. cursorId로 무한 스크롤을 구현할 수 있고, category와 read 조건으로 탭/읽음 여부를 함께 필터링할 수 있습니다."
     )
     @GetMapping
     public ResponseEntity<CursorResponseDto<NotificationResponseDto>> getNotifications(
@@ -50,7 +51,7 @@ public class NotificationController {
 
     @Operation(
             summary = "알림 상태 조회",
-            description = "새 알림 개수와 읽지 않은 알림 개수, 상태 존재 여부를 조회합니다."
+            description = "새 알림 개수와 읽지 않은 알림 개수, 각 상태 존재 여부를 조회합니다."
     )
     @GetMapping("/status")
     public ResponseEntity<NotificationStatusResponseDto> getStatus(
@@ -72,7 +73,7 @@ public class NotificationController {
     }
 
     @Operation(
-            summary = "단건 읽음 처리",
+            summary = "알림 단건 읽음 처리",
             description = "로그인한 회원의 알림 한 건을 읽음 처리합니다."
     )
     @PutMapping("/{notificationId}/read")
@@ -85,28 +86,74 @@ public class NotificationController {
     }
 
     @Operation(
-            summary = "다건 읽음 처리",
-            description = "로그인한 회원의 알림 여러 건을 읽음 처리합니다."
+            summary = "알림 다건 읽음 처리",
+            description = "로그인한 회원이 선택한 알림 여러 건을 읽음 처리합니다."
     )
     @PutMapping("/read")
-    public ResponseEntity<Void> markAllAsRead(
+    public ResponseEntity<Void> markSelectedAsRead(
             @AuthenticationPrincipal Long memberId,
-            @Valid @RequestBody NotificationReadRequestDto request
+            @Valid @RequestBody NotificationIdsRequestDto request
     ) {
         notificationService.markAllAsRead(memberId, request);
         return ResponseEntity.ok().build();
     }
 
     @Operation(
+            summary = "알림 전체 읽음 처리",
+            description = "로그인한 회원의 읽지 않은 알림 전체를 읽음 처리합니다."
+    )
+    @PutMapping("/read-all")
+    public ResponseEntity<Void> markReadAll(
+            @AuthenticationPrincipal Long memberId
+    ) {
+        notificationService.markReadAll(memberId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "읽은 알림 전체 삭제",
+            description = "로그인한 회원의 읽음 처리된 알림 전체를 하드 딜리트합니다."
+    )
+    @DeleteMapping("/read")
+    public ResponseEntity<Void> deleteReadNotifications(
+            @AuthenticationPrincipal Long memberId
+    ) {
+        notificationService.deleteReadNotifications(memberId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "알림 단건 삭제",
+            description = "로그인한 회원의 알림 한 건을 하드 딜리트합니다."
+    )
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Void> deleteNotification(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable @Positive(message = "notificationId는 0보다 커야 합니다.") Long notificationId
+    ) {
+        notificationService.deleteNotification(memberId, notificationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "알림 다건 삭제",
+            description = "로그인한 회원이 선택한 알림 여러 건을 하드 딜리트합니다."
+    )
+    @DeleteMapping
+    public ResponseEntity<Void> deleteNotifications(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody NotificationIdsRequestDto request
+    ) {
+        notificationService.deleteNotifications(memberId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "알림 SSE 구독",
-            description = "로그인한 회원이 실시간 알림을 받기 위한 SSE 연결을 생성합니다."
+            description = "로그인한 회원이 실시간 알림을 받을 수 있도록 SSE 연결을 생성합니다."
     )
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@AuthenticationPrincipal Long memberId) {
-        if (memberId == null) {
-            throw new SecurityException("로그인이 필요합니다.");
-        }
-
         return notificationSseService.subscribe(memberId);
     }
 }

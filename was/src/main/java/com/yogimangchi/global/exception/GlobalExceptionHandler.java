@@ -2,6 +2,7 @@ package com.yogimangchi.global.exception;
 
 import com.yogimangchi.global.exception.asset.AssetException;
 import com.yogimangchi.global.exception.contest.ContestException;
+import com.yogimangchi.global.exception.notification.NotificationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -96,6 +97,13 @@ public class GlobalExceptionHandler {
     // 지갑관련 에러처리
     @ExceptionHandler(AssetException.class)
     public ResponseEntity<ErrorResponse> handleWalletException(AssetException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
+    }
+
+    // 알림 도메인 예외는 상태 코드와 에러 코드를 그대로 응답에 담는다.
+    @ExceptionHandler(NotificationException.class)
+    public ResponseEntity<ErrorResponse> handleNotificationException(NotificationException e) {
         return ResponseEntity.status(e.getStatus())
                 .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
     }

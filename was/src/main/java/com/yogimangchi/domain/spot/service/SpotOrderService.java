@@ -22,6 +22,9 @@ import com.yogimangchi.domain.spot.repository.TradeHistoryRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -154,6 +157,37 @@ public class SpotOrderService {
 
         order.cancelOrder(LocalDateTime.now());
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        limitOrderScheduler.refreshSchedule();
+    }
+
+    @Transactional
+    public void cancelOpenLimitOrdersByAsset(Assets wallet) {
+        List<Order> openOrders = orderRepository.findOpenLimitOrdersByAssetIdForUpdate(
+                wallet.getId(),
+                List.of(OrderStatus.PENDING, OrderStatus.PARTIALLY_FILLED)
+        );
+
+        if (openOrders.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime canceledAt = LocalDateTime.now();
+        Set<String> affectedSymbols = new HashSet<>();
+
+        for (Order order : openOrders) {
+            if ("BUY".equals(order.getSide())) {
+                releaseLockedMoney(order);
+            } else {
+                releaseLockedQuantity(order);
+            }
+
+            order.cancelOrder(canceledAt);
+            affectedSymbols.add(order.getSymbol());
+        }
+
+        for (String symbol : affectedSymbols) {
+            limitOrderSignalRegistry.syncOpenSymbol(symbol, orderRepository.existsOpenLimitOrderBySymbol(symbol));
+        }
         limitOrderScheduler.refreshSchedule();
     }
 
