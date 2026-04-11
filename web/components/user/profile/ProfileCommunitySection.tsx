@@ -27,6 +27,8 @@ interface ProfileCommunitySectionProps {
   likedRepliesErrorMessage?: string;
   reportsErrorMessage?: string;
   isOwnProfile?: boolean;
+  onCancelReport?: (report: ProfileReportItem) => void;
+  cancellingReportKey?: string | null;
 }
 
 export function ProfileEmptyState({ text }: { text: string }) {
@@ -52,6 +54,8 @@ export default function ProfileCommunitySection({
   likedRepliesErrorMessage = "",
   reportsErrorMessage = "",
   isOwnProfile = false,
+  onCancelReport,
+  cancellingReportKey = null,
 }: ProfileCommunitySectionProps) {
   const tabs = isOwnProfile
     ? [
@@ -150,6 +154,8 @@ export default function ProfileCommunitySection({
                 <ProfileReportRow
                   key={`${report.type}-${report.id}`}
                   report={report}
+                  onCancelReport={onCancelReport}
+                  isCancelling={cancellingReportKey === `${report.type}-${report.id}`}
                 />
               ))}
             </div>
@@ -253,47 +259,67 @@ function ProfileLikedPostRow({ post }: { post: LikedPost }) {
   );
 }
 
-function ProfileReportRow({ report }: { report: ProfileReportItem }) {
+function ProfileReportRow({
+  report,
+  onCancelReport,
+  isCancelling = false,
+}: {
+  report: ProfileReportItem;
+  onCancelReport?: (report: ProfileReportItem) => void;
+  isCancelling?: boolean;
+}) {
   return (
-    <Link
-      href={`/community/latest/${report.postId}`}
-      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="mb-3 flex items-center gap-2">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${
-                report.type === "post"
-                  ? "bg-blue-50 text-blue-600"
-                  : "bg-orange-50 text-orange-600"
-              }`}
-            >
-              {report.type === "post" ? "신고한 게시글" : "신고한 댓글"}
-            </span>
-            <span className="truncate text-xs font-bold text-red-500">
-              신고 사유: {report.reportReasonLabel}
-            </span>
+    <div className="rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md">
+      <Link href={`/community/latest/${report.postId}`} className="block">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="mb-3 flex items-center gap-2">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${
+                  report.type === "post"
+                    ? "bg-blue-50 text-blue-600"
+                    : "bg-orange-50 text-orange-600"
+                }`}
+              >
+                {report.type === "post" ? "신고한 게시글" : "신고한 댓글"}
+              </span>
+              <span className="truncate text-xs font-bold text-red-500">
+                신고 사유: {report.reportReasonLabel}
+              </span>
+            </div>
+
+            <h4 className="truncate text-base font-black text-gray-900">
+              {report.title}
+            </h4>
+            <p className="mt-2 line-clamp-3 text-sm text-gray-500">
+              {report.content}
+            </p>
           </div>
 
-          <h4 className="truncate text-base font-black text-gray-900">
-            {report.title}
-          </h4>
-          <p className="mt-2 line-clamp-3 text-sm text-gray-500">
-            {report.content}
-          </p>
+          <span className="shrink-0 text-xs font-bold text-gray-400">
+            {formatTime(report.createdAt)}
+          </span>
+        </div>
+      </Link>
+
+      <div className="mt-5 flex flex-col gap-3 border-t border-gray-50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 text-xs font-bold text-gray-400">
+          <span>좋아요 {report.likeCount}</span>
+          <span>댓글 {report.replyCount}</span>
+          <span>신고 {report.reportCount}</span>
         </div>
 
-        <span className="shrink-0 text-xs font-bold text-gray-400">
-          {formatTime(report.createdAt)}
-        </span>
+        {onCancelReport ? (
+          <button
+            type="button"
+            onClick={() => onCancelReport(report)}
+            disabled={isCancelling}
+            className="inline-flex w-fit items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-black text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300"
+          >
+            {isCancelling ? "취소 중..." : "신고 취소"}
+          </button>
+        ) : null}
       </div>
-
-      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
-        <span>좋아요 {report.likeCount}</span>
-        <span>댓글 {report.replyCount}</span>
-        <span>신고 {report.reportCount}</span>
-      </div>
-    </Link>
+    </div>
   );
 }
