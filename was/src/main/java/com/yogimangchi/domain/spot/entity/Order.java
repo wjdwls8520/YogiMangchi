@@ -65,7 +65,7 @@ public class Order {
     @Comment("주문 수량")
     private BigDecimal orderQuantity;
 
-    @Column(name = "order_amount", precision = 19, scale = 4)
+    @Column(name = "order_amount", precision = 19, scale = 8)
     @Comment("주문 금액")
     private BigDecimal orderAmount;
 
