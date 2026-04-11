@@ -56,6 +56,7 @@ public class Notification {
     @Schema(description = "알림 클릭 시 이동 경로", example = "/trade/orders/14")
     private String link;
 
+    // 읽음 상태는 알림 단위로 관리
     @Column(name = "is_read", nullable = false)
     @Schema(description = "알림 읽음 여부", example = "false")
     private boolean isRead;

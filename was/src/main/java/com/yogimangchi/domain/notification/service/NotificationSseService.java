@@ -77,7 +77,8 @@ public class NotificationSseService {
                                 .name("NOTIFICATION_CREATED")
                                 .data(notification)
                 );
-            } catch (IOException exception) {
+            } catch (IOException | IllegalStateException exception) {
+                // 끊긴 연결이나 이미 종료된 emitter는 제거하고 다음 연결 전송을 이어가는 로직
                 log.warn("알림 SSE 전송 중 연결 제거. memberId={}, emitterId={}", memberId, entry.getKey(), exception);
                 notificationEmitterRepository.remove(memberId, entry.getKey());
             }
