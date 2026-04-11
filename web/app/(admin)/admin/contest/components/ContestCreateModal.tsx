@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
 import Button from "@/components/ui/Button";
+import BaseModal from "@/components/ui/BaseModal";
 import Input from "@/components/ui/Input";
 import { createContestSeason } from "@/lib/api/admin-contest";
 import type { ContestSeason } from "@/lib/api/contest";
@@ -77,6 +77,7 @@ export default function ContestCreateModal({
   onClose,
   onCreated,
 }: ContestCreateModalProps) {
+  const formId = "contest-create-form";
   const [form, setForm] = useState<ContestCreateForm>(
     getDefaultContestCreateForm
   );
@@ -122,11 +123,6 @@ export default function ContestCreateModal({
       return;
     }
 
-    if (new Date(form.recruitmentEndAt) > new Date(form.contestStartAt)) {
-      alert("대회 시작일은 모집 종료일 이후여야 합니다.");
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -163,29 +159,21 @@ export default function ContestCreateModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        className="absolute inset-0"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      <div className="relative w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
-          <div>
-            <h2 className="text-2xl font-black text-gray-900">대회 생성</h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
+    <BaseModal
+      title="대회 생성"
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="white" onClick={onClose}>
+            취소
+          </Button>
+          <Button type="submit" form={formId} disabled={isSubmitting}>
+            {isSubmitting ? "생성 중..." : "대회 생성"}
+          </Button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-8 px-8 py-8">
+      }
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-8">
           <section className="space-y-5">
             <div className="grid gap-5">
               <label className="space-y-2">
@@ -304,17 +292,7 @@ export default function ContestCreateModal({
               </div>
             </div>
           </section>
-
-          <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
-            <Button type="button" variant="white" onClick={onClose}>
-              취소
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "생성 중..." : "대회 생성"}
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
+    </BaseModal>
   );
 }
