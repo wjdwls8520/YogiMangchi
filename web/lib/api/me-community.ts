@@ -98,3 +98,17 @@ export const getReportedReplies = async ({
   return fetchClient(`me/reports/replys${query}`);
 };
 
+// 내가 신고한 게시글 신고 취소
+export const cancelReportedPost = async (postId: number) => {
+  return fetchClient(`community/posts/${postId}/reports`, {
+    method: "DELETE",
+  });
+};
+
+// 내가 신고한 댓글/대댓글 신고 취소
+export const cancelReportedReply = async (postId: number, replyId: number) => {
+  return fetchClient(`community/posts/${postId}/replys/${replyId}/reports`, {
+    method: "DELETE",
+  });
+};
+

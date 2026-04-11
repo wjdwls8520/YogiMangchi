@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import {
+  cancelReportedPost,
+  cancelReportedReply,
   getLikedPosts,
   getLikedReplies,
   getMemberPosts,
@@ -174,6 +176,7 @@ export default function MePage() {
   const [likedPostsErrorMessage, setLikedPostsErrorMessage] = useState("");
   const [likedRepliesErrorMessage, setLikedRepliesErrorMessage] = useState("");
   const [reportsErrorMessage, setReportsErrorMessage] = useState("");
+  const [cancellingReportKey, setCancellingReportKey] = useState<string | null>(null);
 
   const logout = useAuthStore((state) => state.logout);
 
@@ -621,6 +624,34 @@ export default function MePage() {
     }
   };
 
+  const handleCancelReport = async (report: ProfileReportItem) => {
+    const reportKey = `${report.type}-${report.id}`;
+
+    if (cancellingReportKey) return;
+
+    const confirmed = window.confirm("신고를 취소하시겠습니까?");
+    if (!confirmed) return;
+
+    setCancellingReportKey(reportKey);
+
+    try {
+      if (report.type === "post") {
+        await cancelReportedPost(report.postId);
+        setReportedPosts((prev) => prev.filter((item) => item.id !== report.id));
+      } else {
+        await cancelReportedReply(report.postId, report.id);
+        setReportedReplies((prev) => prev.filter((item) => item.id !== report.id));
+      }
+
+      alert("신고가 취소되었습니다.");
+    } catch (error) {
+      console.error("failed to cancel report:", error);
+      alert("신고 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setCancellingReportKey(null);
+    }
+  };
+
   const handleLogout = async () => {
     if (isLoggingOut) return;
 
@@ -1048,6 +1079,8 @@ export default function MePage() {
                 likedRepliesErrorMessage={likedRepliesErrorMessage}
                 reportsErrorMessage={reportsErrorMessage}
                 isOwnProfile={true}
+                onCancelReport={(report) => void handleCancelReport(report)}
+                cancellingReportKey={cancellingReportKey}
               />
             </div>
           )}
