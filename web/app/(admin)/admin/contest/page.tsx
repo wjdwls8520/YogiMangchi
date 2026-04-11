@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import { ChevronDown } from "lucide-react";
 import {
   inferContestIsCanceled,
   inferContestIsPublic,
@@ -15,10 +16,13 @@ import {
   updateContestSeasonStatus,
 } from "@/lib/api/admin-contest";
 import ContestCreateModal from "./components/ContestCreateModal";
+import ContestEditModal from "./components/ContestEditModal";
 
 type SortKey = "updatedAt";
+const ADMIN_CONTEST_PAGE_SIZE = 5;
 
 type ContestSeasonRow = {
+  season: ContestSeason;
   id: number;
   title: string;
   progressBadges: ("모집중" | "라이브 진행중")[];
@@ -35,6 +39,7 @@ type ContestSeasonRow = {
 // 시즌 목록 화면에서 쓰기 좋게 응답 DTO를 테이블 행 형태로 정리합니다.
 const toContestSeasonRow = (season: ContestSeason): ContestSeasonRow => {
   return {
+    season,
     id: season.id,
     title: season.title,
     progressBadges: [
@@ -146,10 +151,14 @@ const ToggleSwitch = ({
 // 시즌 생성, 상태 토글, 상세 페이지 진입을 한 화면에서 관리합니다.
 export default function AdminContestPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingSeason, setEditingSeason] = useState<ContestSeason | null>(null);
   const [rows, setRows] = useState<ContestSeasonRow[]>([]);
   const [isLoadingRows, setIsLoadingRows] = useState(true);
+  const [isLoadingMoreRows, setIsLoadingMoreRows] = useState(false);
   const [rowsError, setRowsError] = useState<string | null>(null);
   const [updatingRowKey, setUpdatingRowKey] = useState<string | null>(null);
+  const [hasNextRows, setHasNextRows] = useState(false);
+  const [nextRowsCursorId, setNextRowsCursorId] = useState<number | null>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
@@ -172,38 +181,75 @@ export default function AdminContestPage() {
     return sortableRows;
   }, [rows, sortConfig]);
 
-  const loadContestSeasonRows = useCallback(async () => {
-    setIsLoadingRows(true);
-    setRowsError(null);
-
-    try {
-      const response = await getAdminContestSeasons({ size: 10 });
-      setRows((response.content ?? []).map(toContestSeasonRow));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-
-      if (message.includes("401")) {
-        setRows([]);
-        setRowsError("로그인이 필요한 관리자 기능입니다.");
-        return;
+  const loadContestSeasonRows = useCallback(
+    async ({
+      reset = false,
+      cursorId,
+    }: {
+      reset?: boolean;
+      cursorId?: number;
+    } = {}) => {
+      if (reset) {
+        setIsLoadingRows(true);
+        setRowsError(null);
+      } else {
+        setIsLoadingMoreRows(true);
       }
 
-      if (message.includes("403")) {
-        setRows([]);
-        setRowsError("관리자 권한이 없어 대회 목록을 조회할 수 없습니다.");
-        return;
-      }
+      try {
+        const response = await getAdminContestSeasons({
+          cursorId: reset ? undefined : cursorId,
+          size: ADMIN_CONTEST_PAGE_SIZE,
+        });
+        const nextRows = (response.content ?? []).map(toContestSeasonRow);
 
-      console.error("대회 목록 조회 실패:", error);
-      setRows([]);
-      setRowsError("대회 목록을 불러오지 못했습니다.");
-    } finally {
-      setIsLoadingRows(false);
-    }
-  }, []);
+        setRows((prev) => (reset ? nextRows : [...prev, ...nextRows]));
+        setHasNextRows(response.hasNext === true);
+        setNextRowsCursorId(response.nextCursorId ?? null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+
+        if (message.includes("401")) {
+          if (reset) {
+            setRows([]);
+            setRowsError("로그인이 필요한 관리자 기능입니다.");
+          } else {
+            alert("로그인이 필요한 관리자 기능입니다.");
+          }
+          return;
+        }
+
+        if (message.includes("403")) {
+          if (reset) {
+            setRows([]);
+            setRowsError("관리자 권한이 없어 대회 목록을 조회할 수 없습니다.");
+          } else {
+            alert("관리자 권한이 없어 대회 목록을 더 불러올 수 없습니다.");
+          }
+          return;
+        }
+
+        console.error("대회 목록 조회 실패:", error);
+
+        if (reset) {
+          setRows([]);
+          setRowsError("대회 목록을 불러오지 못했습니다.");
+        } else {
+          alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        }
+      } finally {
+        if (reset) {
+          setIsLoadingRows(false);
+        } else {
+          setIsLoadingMoreRows(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    void loadContestSeasonRows();
+    void loadContestSeasonRows({ reset: true });
   }, [loadContestSeasonRows]);
 
   const requestSort = (key: "updatedAt") => {
@@ -231,7 +277,7 @@ export default function AdminContestPage() {
   };
 
   const handleCreatedSeason = () => {
-    void loadContestSeasonRows();
+    void loadContestSeasonRows({ reset: true });
   };
 
   const recruitingCount = rows.filter((row) =>
@@ -374,7 +420,7 @@ export default function AdminContestPage() {
                     onClick={() => requestSort("updatedAt")}
                     className="inline-flex items-center gap-1"
                   >
-                    수정일
+                    수정일시
                     <span className="text-[11px] text-gray-400">
                       {sortMark("updatedAt")}
                     </span>
@@ -486,12 +532,13 @@ export default function AdminContestPage() {
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex justify-center">
-                        <Link
-                          href={`/admin/contest/${row.id}`}
+                        <button
+                          type="button"
+                          onClick={() => setEditingSeason(row.season)}
                           className="inline-flex h-9 min-w-[60px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-xs font-bold text-gray-700 transition-all hover:border-gray-400 hover:bg-gray-50"
                         >
                           수정
-                        </Link>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -509,12 +556,58 @@ export default function AdminContestPage() {
             </tbody>
           </table>
         </div>
+
+        {!isLoadingRows && !rowsError && hasNextRows ? (
+          <div className="mt-4 flex justify-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="white"
+              onClick={() =>
+                void loadContestSeasonRows({
+                  cursorId: nextRowsCursorId ?? undefined,
+                })
+              }
+              disabled={isLoadingMoreRows}
+            >
+              {isLoadingMoreRows ? (
+                "대회 목록 불러오는 중..."
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  대회 5개 더보기
+                  <ChevronDown size={16} />
+                </span>
+              )}
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       {isCreateModalOpen ? (
         <ContestCreateModal
           onClose={() => setIsCreateModalOpen(false)}
           onCreated={handleCreatedSeason}
+        />
+      ) : null}
+
+      {editingSeason ? (
+        <ContestEditModal
+          season={editingSeason}
+          onClose={() => setEditingSeason(null)}
+          onUpdated={(updatedSeason) => {
+            setRows((prev) =>
+              prev.map((row) =>
+                row.id === updatedSeason.id
+                  ? {
+                      ...toContestSeasonRow(updatedSeason),
+                      isPublic: inferContestIsPublic(updatedSeason),
+                      isCancel: inferContestIsCanceled(updatedSeason),
+                    }
+                  : row
+              )
+            );
+            setEditingSeason(updatedSeason);
+          }}
         />
       ) : null}
     </div>

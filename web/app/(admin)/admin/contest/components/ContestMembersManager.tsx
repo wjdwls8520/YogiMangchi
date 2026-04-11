@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
 import {
   approveContestApplicant,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/api/admin-contest";
 
 export type ContestMembersTab = "applicants" | "participants" | "rejected";
+const MEMBERS_PAGE_SIZE = 5;
 
 type ContestMembersManagerProps = {
   seasonId: number;
@@ -90,8 +92,21 @@ export default function ContestMembersManager({
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<number[]>([]);
   const [bulkRejectReason, setBulkRejectReason] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [applicantsNextCursorId, setApplicantsNextCursorId] = useState<
+    number | null
+  >(null);
+  const [participantsNextCursorId, setParticipantsNextCursorId] = useState<
+    number | null
+  >(null);
+  const [rejectedNextCursorId, setRejectedNextCursorId] = useState<number | null>(
+    null
+  );
+  const [hasNextApplicants, setHasNextApplicants] = useState(false);
+  const [hasNextParticipants, setHasNextParticipants] = useState(false);
+  const [hasNextRejected, setHasNextRejected] = useState(false);
 
   // 신청자/참가자/반려 이력을 한 번에 불러와 탭 전환 시 즉시 보여줍니다.
   const loadMemberLists = useCallback(async () => {
@@ -101,14 +116,20 @@ export default function ContestMembersManager({
     try {
       const [applicantsResponse, participantsResponse, rejectedResponse] =
         await Promise.all([
-          getContestApplicants(seasonId, { size: 10 }),
-          getContestParticipants(seasonId, { size: 10 }),
-          getRejectedContestApplicants(seasonId, { size: 10 }),
+          getContestApplicants(seasonId, { size: MEMBERS_PAGE_SIZE }),
+          getContestParticipants(seasonId, { size: MEMBERS_PAGE_SIZE }),
+          getRejectedContestApplicants(seasonId, { size: MEMBERS_PAGE_SIZE }),
         ]);
 
       setApplicants(applicantsResponse.content ?? []);
       setParticipants(participantsResponse.content ?? []);
       setRejectedApplicants(rejectedResponse.content ?? []);
+      setApplicantsNextCursorId(applicantsResponse.nextCursorId ?? null);
+      setParticipantsNextCursorId(participantsResponse.nextCursorId ?? null);
+      setRejectedNextCursorId(rejectedResponse.nextCursorId ?? null);
+      setHasNextApplicants(applicantsResponse.hasNext === true);
+      setHasNextParticipants(participantsResponse.hasNext === true);
+      setHasNextRejected(rejectedResponse.hasNext === true);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
@@ -152,6 +173,12 @@ export default function ContestMembersManager({
 
   const columnCount =
     activeTab === "rejected" ? 6 : activeTab === "participants" ? 5 : 5;
+  const canLoadMore =
+    activeTab === "applicants"
+      ? hasNextApplicants
+      : activeTab === "participants"
+        ? hasNextParticipants
+        : hasNextRejected;
 
   const toggleApplicantSelection = (applicantId: number) => {
     setSelectedApplicantIds((prev) =>
@@ -304,6 +331,73 @@ export default function ContestMembersManager({
     }
 
     await runReject([applicantId], rejectReason.trim());
+  };
+
+  const handleLoadMore = async () => {
+    const cursorId =
+      activeTab === "applicants"
+        ? applicantsNextCursorId
+        : activeTab === "participants"
+          ? participantsNextCursorId
+          : rejectedNextCursorId;
+
+    if (cursorId == null) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+
+    try {
+      if (activeTab === "applicants") {
+        const response = await getContestApplicants(seasonId, {
+          cursorId,
+          size: MEMBERS_PAGE_SIZE,
+        });
+
+        setApplicants((prev) => [...prev, ...(response.content ?? [])]);
+        setApplicantsNextCursorId(response.nextCursorId ?? null);
+        setHasNextApplicants(response.hasNext === true);
+        return;
+      }
+
+      if (activeTab === "participants") {
+        const response = await getContestParticipants(seasonId, {
+          cursorId,
+          size: MEMBERS_PAGE_SIZE,
+        });
+
+        setParticipants((prev) => [...prev, ...(response.content ?? [])]);
+        setParticipantsNextCursorId(response.nextCursorId ?? null);
+        setHasNextParticipants(response.hasNext === true);
+        return;
+      }
+
+      const response = await getRejectedContestApplicants(seasonId, {
+        cursorId,
+        size: MEMBERS_PAGE_SIZE,
+      });
+
+      setRejectedApplicants((prev) => [...prev, ...(response.content ?? [])]);
+      setRejectedNextCursorId(response.nextCursorId ?? null);
+      setHasNextRejected(response.hasNext === true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+
+      if (message.includes("401")) {
+        alert("로그인이 필요한 관리자 기능입니다.");
+        return;
+      }
+
+      if (message.includes("403")) {
+        alert("관리자 권한이 없어 참가자 정보를 더 불러올 수 없습니다.");
+        return;
+      }
+
+      console.error("대회 참가자 목록 추가 조회 실패:", error);
+      alert("참가자 정보를 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   return (
@@ -628,6 +722,27 @@ export default function ContestMembersManager({
           </tbody>
         </table>
       </div>
+
+      {!isLoading && !loadError && canLoadMore ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            size="sm"
+            variant="white"
+            onClick={() => void handleLoadMore()}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? (
+              "목록 불러오는 중..."
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                목록 5개 더보기
+                <ChevronDown size={16} />
+              </span>
+            )}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -40,7 +40,11 @@ export default function Tabs({
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
             className={`
               relative pb-3 transition-all duration-200
-              ${fullWidth ? "flex-1 text-center" : "w-28 text-centermr-6 last:mr-0"}
+              ${
+                fullWidth
+                  ? "flex-1 text-center"
+                  : "mr-6 min-w-[112px] whitespace-nowrap text-center last:mr-0"
+              }
               ${isActive 
                 ? `font-black border-b-[3px] ${currentTabColor}`
                 : "font-bold text-gray-400 border-b-[3px] border-transparent hover:text-gray-600"
