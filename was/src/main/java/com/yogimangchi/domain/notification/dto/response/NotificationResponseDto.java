@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.notification.entity.Notification;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -15,6 +16,9 @@ public record NotificationResponseDto(
 
         @Schema(description = "알림 발생 주체 회원 ID, 시스템 알림인 경우 null", example = "12")
         Long actorMemberId,
+
+        @Schema(description = "알림 카테고리", example = "MOCK")
+        NotificationCategory category,
 
         @Schema(description = "알림 타입")
         NotificationType type,
@@ -43,6 +47,7 @@ public record NotificationResponseDto(
             return new NotificationResponseDto(
                     notification.getId(),
                     notification.getActor() == null ? null : notification.getActor().getId(),
+                    notification.getCategory(),
                     notification.getType(),
                     notification.getMessage(),
                     notification.getLink(),

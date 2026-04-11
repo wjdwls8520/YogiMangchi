@@ -1,7 +1,9 @@
 package com.yogimangchi.domain.spot.repository;
 
 import com.yogimangchi.domain.spot.entity.Order;
+import com.yogimangchi.domain.spot.enums.OrderStatus;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -33,4 +35,19 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReposi
             WHERE o.id = :orderId
             """)
     Optional<Order> findByIdForExecution(@Param("orderId") Long orderId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT o
+            FROM Order o
+            JOIN FETCH o.assets a
+            WHERE a.id = :assetId
+              AND o.orderType = 'LIMIT'
+              AND o.status IN :statuses
+            ORDER BY o.id ASC
+            """)
+    List<Order> findOpenLimitOrdersByAssetIdForUpdate(
+            @Param("assetId") Long assetId,
+            @Param("statuses") List<OrderStatus> statuses
+    );
 }

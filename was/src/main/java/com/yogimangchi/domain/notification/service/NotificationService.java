@@ -14,6 +14,7 @@ import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationStatusResponseDto;
 import com.yogimangchi.domain.notification.entity.Notification;
 import com.yogimangchi.domain.notification.entity.NotificationState;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import com.yogimangchi.domain.notification.repository.NotificationRepository;
 import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
@@ -66,6 +67,7 @@ public class NotificationService {
         List<Notification> notifications = notificationRepository.findAllByReceiverIdWithCursor(
                 memberId,
                 condition.cursorId(),
+                condition.category(),
                 condition.read(),
                 pageable
         );
@@ -272,6 +274,7 @@ public class NotificationService {
                 orderId, symbol, displayNameKr);
 
         String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
+        NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
         String orderTypeName = "MARKET".equalsIgnoreCase(orderType) ? "시장가" : "지정가";
         String sideName = "BUY".equalsIgnoreCase(side) ? "매수" : "매도";
 
@@ -297,6 +300,7 @@ public class NotificationService {
                 Notification.create(
                         notificationReceiver,
                         null,
+                        notificationCategory,
                         NotificationType.ORDER_COMPLETED,
                         assetTypeDisplayName + " " + displayNameKr + " " + orderTypeName + " " + sideName + " 주문이 체결되었습니다.",
                         "/spot/mock/orders/" + orderId,
@@ -345,6 +349,15 @@ public class NotificationService {
             case TRADE_SPOT -> "(트레이딩-현물)";
             case TRADE_FUTURE -> "(트레이딩-선물)";
             case CONTEST -> "(대회)";
+        };
+    }
+
+    private NotificationCategory resolveNotificationCategory(AssetType assetType) {
+        // 지갑 유형을 알림 탭 카테고리로 매핑한다.
+        return switch (assetType) {
+            case MOCK -> NotificationCategory.MOCK;
+            case TRADE_SPOT, TRADE_FUTURE -> NotificationCategory.TRADE;
+            case CONTEST -> NotificationCategory.CONTEST;
         };
     }
 }

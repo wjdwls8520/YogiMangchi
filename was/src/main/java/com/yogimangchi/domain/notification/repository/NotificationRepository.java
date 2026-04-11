@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.notification.repository;
 
 import com.yogimangchi.domain.notification.entity.Notification;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -65,11 +66,13 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
         from Notification n
         where n.receiver.id = :receiverId
           and (:cursorId is null or n.id < :cursorId)
+          and (:category is null or n.category = :category)
           and (:read is null or n.isRead = :read)
         order by n.id desc
     """)
     List<Notification> findAllByReceiverIdWithCursor(@Param("receiverId") Long receiverId,
                                                      @Param("cursorId") Long cursorId,
+                                                     @Param("category") NotificationCategory category,
                                                      @Param("read") Boolean read,
                                                      Pageable pageable);
 

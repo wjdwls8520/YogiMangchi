@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.notification.dto.request;
 
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
@@ -23,6 +24,13 @@ public record NotificationSearchConditionDto(
                 defaultValue = "10"
         )
         Integer size,
+
+        @Schema(
+                description = "알림 카테고리 필터입니다. 탭별 목록이 필요할 때 사용합니다.",
+                example = "MOCK",
+                nullable = true
+        )
+        NotificationCategory category,
 
         @Schema(
                 description = "읽음 여부 필터입니다. true면 읽은 알림만, false면 읽지 않은 알림만 조회합니다.",

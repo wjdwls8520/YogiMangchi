@@ -39,7 +39,7 @@ public class NotificationController {
 
     @Operation(
             summary = "알림 목록 조회",
-            description = "알림을 최신순으로 조회합니다. cursorId로 무한 스크롤을 구현할 수 있고, read 조건으로 읽음 여부를 필터링할 수 있습니다."
+            description = "알림을 최신순으로 조회합니다. cursorId로 무한 스크롤을 구현할 수 있고, category와 read 조건으로 탭/읽음 여부를 함께 필터링할 수 있습니다."
     )
     @GetMapping
     public ResponseEntity<CursorResponseDto<NotificationResponseDto>> getNotifications(
