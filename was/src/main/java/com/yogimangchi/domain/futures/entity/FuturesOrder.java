@@ -112,14 +112,21 @@ public class FuturesOrder {
 
     // *** 메서드팩토리 ***
     public static FuturesOrder create(
-            Assets assets, String symbol, PositionSide positionSide, PositionAction positionAction, BigDecimal quantity
+            Assets assets, String symbol, PositionSide positionSide, PositionAction positionAction, BigDecimal orderPrice, BigDecimal quantity, BigDecimal orderMargin, BigDecimal notionalAmount, BigDecimal totalFee
     ) {
         FuturesOrder futuresOrder = new FuturesOrder();
         futuresOrder.assets = assets;
         futuresOrder.symbol = symbol;
         futuresOrder.positionSide = positionSide;
         futuresOrder.positionAction = positionAction;
-        futuresOrder.orderPrice = quantity;
+
+        futuresOrder.orderPrice = orderPrice;
+        futuresOrder.orderQuantity = quantity;
+
+        futuresOrder.orderMargin = orderMargin;
+        futuresOrder.notionalAmount = notionalAmount;
+        futuresOrder.totalFee = totalFee;
+
         return futuresOrder;
     }
 
