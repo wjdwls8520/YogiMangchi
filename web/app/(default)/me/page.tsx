@@ -4,20 +4,33 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import {
+  cancelReportedPost,
+  cancelReportedReply,
   getLikedPosts,
   getLikedReplies,
   getMemberPosts,
   getMemberReplies,
+  getReportedPosts,
+  getReportedReplies,
 } from "@/lib/api/me-community";
 import type { Post, Reply } from "@/app/(default)/community/types/post";
 import ProfileSidebar from "@/components/user/profile/ProfileSidebar";
 import ProfileCommunitySection, {
   ProfileEmptyState,
 } from "@/components/user/profile/ProfileCommunitySection";
+import FollowMembersModal from "@/components/user/profile/FollowMembersModal";
 import type {
   LikedPost,
   MyMemberProfile,
+  ProfileReportItem,
+  ReportedPost,
+  ReportedReply,
 } from "@/components/user/profile/types";
+import {
+  getMemberFollowers,
+  getMemberFollowings,
+  type FollowMember,
+} from "@/lib/api/member";
 
 import {
   PieChart,
@@ -32,7 +45,8 @@ import Button from "@/components/ui/Button";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
-type CommunityTab = "posts" | "replies" | "likedPosts" | "likedReplies";
+type CommunityTab = "posts" | "replies" | "likedPosts" | "likedReplies" | "reports";
+type FollowListType = "followers" | "followings";
 
 type MockHolding = {
   symbol: string;
@@ -69,6 +83,8 @@ const CHART_COLORS = [
   "#E97A31",
   "#00A6A6",
 ];
+
+const FOLLOW_MEMBERS_PAGE_SIZE = 5;
 
 const formatNumber = (value?: number | null) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -148,18 +164,30 @@ export default function MePage() {
   const [communityReplies, setCommunityReplies] = useState<Reply[]>([]);
   const [likedPosts, setLikedPosts] = useState<LikedPost[]>([]);
   const [likedReplies, setLikedReplies] = useState<Reply[]>([]);
+  const [reportedPosts, setReportedPosts] = useState<ReportedPost[]>([]);
+  const [reportedReplies, setReportedReplies] = useState<ReportedReply[]>([]);
   const [isLoadingCommunityPosts, setIsLoadingCommunityPosts] = useState(false);
   const [isLoadingCommunityReplies, setIsLoadingCommunityReplies] = useState(false);
   const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
   const [isLoadingLikedReplies, setIsLoadingLikedReplies] = useState(false);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
   const [communityPostsErrorMessage, setCommunityPostsErrorMessage] = useState("");
   const [communityRepliesErrorMessage, setCommunityRepliesErrorMessage] = useState("");
   const [likedPostsErrorMessage, setLikedPostsErrorMessage] = useState("");
   const [likedRepliesErrorMessage, setLikedRepliesErrorMessage] = useState("");
+  const [reportsErrorMessage, setReportsErrorMessage] = useState("");
+  const [cancellingReportKey, setCancellingReportKey] = useState<string | null>(null);
 
   const logout = useAuthStore((state) => state.logout);
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [followListType, setFollowListType] = useState<FollowListType | null>(null);
+  const [followMembers, setFollowMembers] = useState<FollowMember[]>([]);
+  const [isLoadingFollowMembers, setIsLoadingFollowMembers] = useState(false);
+  const [isLoadingMoreFollowMembers, setIsLoadingMoreFollowMembers] = useState(false);
+  const [followMembersErrorMessage, setFollowMembersErrorMessage] = useState("");
+  const [nextFollowMembersCursorId, setNextFollowMembersCursorId] = useState<number | null>(null);
+  const [hasNextFollowMembers, setHasNextFollowMembers] = useState(false);
 
 
   useEffect(() => {
@@ -318,6 +346,55 @@ export default function MePage() {
   }, [communityTab, isMounted, mainTab, memberProfile]);
 
   useEffect(() => {
+    if (!isMounted || !memberProfile || !followListType) return;
+
+    let isActive = true;
+
+    const loadFollowMembers = async () => {
+      setIsLoadingFollowMembers(true);
+      setFollowMembersErrorMessage("");
+
+      try {
+        const response =
+          followListType === "followers"
+            ? await getMemberFollowers(memberProfile.memberId, {
+                size: FOLLOW_MEMBERS_PAGE_SIZE,
+              })
+            : await getMemberFollowings(memberProfile.memberId, {
+                size: FOLLOW_MEMBERS_PAGE_SIZE,
+              });
+
+        if (!isActive) return;
+
+        setFollowMembers(
+          response && Array.isArray(response.content) ? response.content : []
+        );
+        setNextFollowMembersCursorId(response.nextCursorId ?? null);
+        setHasNextFollowMembers(response.hasNext === true);
+      } catch (error) {
+        console.error("failed to load follow members:", error);
+
+        if (!isActive) return;
+
+        setFollowMembers([]);
+        setFollowMembersErrorMessage("목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        setNextFollowMembersCursorId(null);
+        setHasNextFollowMembers(false);
+      } finally {
+        if (isActive) {
+          setIsLoadingFollowMembers(false);
+        }
+      }
+    };
+
+    void loadFollowMembers();
+
+    return () => {
+      isActive = false;
+    };
+  }, [followListType, isMounted, memberProfile]);
+
+  useEffect(() => {
     if (!isMounted || !memberProfile) return;
     if (mainTab !== "community" || communityTab !== "replies") return;
 
@@ -438,8 +515,141 @@ export default function MePage() {
     };
   }, [communityTab, isMounted, mainTab, memberProfile]);
 
+  useEffect(() => {
+    if (!isMounted || !memberProfile) return;
+    if (mainTab !== "community" || communityTab !== "reports") return;
+
+    let isActive = true;
+
+    const loadReports = async () => {
+      setIsLoadingReports(true);
+      setReportsErrorMessage("");
+
+      try {
+        const [reportedPostsResponse, reportedRepliesResponse] = await Promise.all([
+          getReportedPosts({ size: 5 }),
+          getReportedReplies({ size: 5 }),
+        ]);
+
+        if (!isActive) return;
+
+        setReportedPosts(
+          reportedPostsResponse && Array.isArray(reportedPostsResponse.content)
+            ? (reportedPostsResponse.content as ReportedPost[])
+            : []
+        );
+        setReportedReplies(
+          reportedRepliesResponse && Array.isArray(reportedRepliesResponse.content)
+            ? (reportedRepliesResponse.content as ReportedReply[])
+            : []
+        );
+      } catch (error) {
+        console.error("failed to load reports:", error);
+
+        if (!isActive) return;
+
+        setReportedPosts([]);
+        setReportedReplies([]);
+        setReportsErrorMessage("신고내역을 불러오지 못했습니다.");
+      } finally {
+        if (isActive) {
+          setIsLoadingReports(false);
+        }
+      }
+    };
+
+    void loadReports();
+
+    return () => {
+      isActive = false;
+    };
+  }, [communityTab, isMounted, mainTab, memberProfile]);
+
   const handleMoveEdit = () => {
     router.push("/me/settings");
+  };
+
+  const handleOpenFollowers = () => {
+    setFollowListType("followers");
+  };
+
+  const handleOpenFollowings = () => {
+    setFollowListType("followings");
+  };
+
+  const handleCloseFollowMembersModal = () => {
+    setFollowListType(null);
+    setFollowMembers([]);
+    setFollowMembersErrorMessage("");
+    setNextFollowMembersCursorId(null);
+    setHasNextFollowMembers(false);
+    setIsLoadingMoreFollowMembers(false);
+  };
+
+  const handleLoadMoreFollowMembers = async () => {
+    if (
+      !memberProfile ||
+      !followListType ||
+      nextFollowMembersCursorId == null ||
+      isLoadingMoreFollowMembers
+    ) {
+      return;
+    }
+
+    setIsLoadingMoreFollowMembers(true);
+
+    try {
+      const response =
+        followListType === "followers"
+          ? await getMemberFollowers(memberProfile.memberId, {
+              cursorId: nextFollowMembersCursorId,
+              size: FOLLOW_MEMBERS_PAGE_SIZE,
+            })
+          : await getMemberFollowings(memberProfile.memberId, {
+              cursorId: nextFollowMembersCursorId,
+              size: FOLLOW_MEMBERS_PAGE_SIZE,
+            });
+
+      setFollowMembers((prev) => [
+        ...prev,
+        ...(response && Array.isArray(response.content) ? response.content : []),
+      ]);
+      setNextFollowMembersCursorId(response.nextCursorId ?? null);
+      setHasNextFollowMembers(response.hasNext === true);
+    } catch (error) {
+      console.error("failed to load more follow members:", error);
+      alert("목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsLoadingMoreFollowMembers(false);
+    }
+  };
+
+  const handleCancelReport = async (report: ProfileReportItem) => {
+    const reportKey = `${report.type}-${report.id}`;
+
+    if (cancellingReportKey) return;
+
+    const confirmed = window.confirm("신고를 취소하시겠습니까?");
+    if (!confirmed) return;
+
+    setCancellingReportKey(reportKey);
+
+    try {
+      if (report.type === "post") {
+        await cancelReportedPost(report.postId);
+        setReportedPosts((prev) => prev.filter((item) => item.id !== report.id));
+      } else {
+        await cancelReportedReply(report.postId, report.id);
+        setReportedReplies((prev) => prev.filter((item) => item.id !== report.id));
+      }
+
+      alert("신고가 취소되었습니다.");
+    } catch (error) {
+      console.error("failed to cancel report:", error);
+      alert("신고 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setCancellingReportKey(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -541,6 +751,41 @@ export default function MePage() {
     return holdingsData.filter((item) => item.value > 0);
   }, [portfolioTab, mockPortfolio]);
 
+  const reportItems = useMemo<ProfileReportItem[]>(() => {
+    const normalizedReportedPosts = reportedPosts.map((post) => ({
+      type: "post" as const,
+      id: post.id,
+      postId: post.id,
+      title: post.title,
+      content: post.content,
+      createdAt: post.createdAt,
+      likeCount: post.likeCount,
+      replyCount: post.replyCount,
+      reportCount: post.reportCount,
+      reportReasonLabel: post.reportReason.label,
+    }));
+
+    const normalizedReportedReplies = reportedReplies.map((reply) => ({
+      type: "reply" as const,
+      id: reply.id,
+      postId: reply.postId,
+      title: reply.targetNickname
+        ? `${reply.targetNickname}님에게 남긴 댓글`
+        : "신고한 댓글",
+      content: reply.content,
+      createdAt: reply.createdAt,
+      likeCount: reply.likeCount,
+      replyCount: reply.replyCount,
+      reportCount: reply.reportCount,
+      reportReasonLabel: reply.reportReason.label,
+    }));
+
+    return [...normalizedReportedPosts, ...normalizedReportedReplies].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [reportedPosts, reportedReplies]);
+
   if (!isMounted) return null;
 
   if (isLoadingProfile) {
@@ -590,6 +835,8 @@ export default function MePage() {
         <aside className="w-full lg:w-[400px] lg:sticky lg:top-24 space-y-6">
           <ProfileSidebar
             profile={memberProfile}
+            onClickFollowers={handleOpenFollowers}
+            onClickFollowings={handleOpenFollowings}
             actionArea={
               <>
                 <div className="grid grid-cols-2 gap-2 w-full">
@@ -820,20 +1067,36 @@ export default function MePage() {
                 replies={communityReplies}
                 likedPosts={likedPosts}
                 likedReplies={likedReplies}
+                reports={reportItems}
                 isLoadingPosts={isLoadingCommunityPosts}
                 isLoadingReplies={isLoadingCommunityReplies}
                 isLoadingLikedPosts={isLoadingLikedPosts}
                 isLoadingLikedReplies={isLoadingLikedReplies}
+                isLoadingReports={isLoadingReports}
                 postsErrorMessage={communityPostsErrorMessage}
                 repliesErrorMessage={communityRepliesErrorMessage}
                 likedPostsErrorMessage={likedPostsErrorMessage}
                 likedRepliesErrorMessage={likedRepliesErrorMessage}
+                reportsErrorMessage={reportsErrorMessage}
                 isOwnProfile={true}
+                onCancelReport={(report) => void handleCancelReport(report)}
+                cancellingReportKey={cancellingReportKey}
               />
             </div>
           )}
         </main>
       </div>
+
+      <FollowMembersModal
+        type={followListType}
+        members={followMembers}
+        isLoading={isLoadingFollowMembers}
+        isLoadingMore={isLoadingMoreFollowMembers}
+        errorMessage={followMembersErrorMessage}
+        hasNext={hasNextFollowMembers}
+        onClose={handleCloseFollowMembersModal}
+        onLoadMore={() => void handleLoadMoreFollowMembers()}
+      />
     </div>
   );
 }

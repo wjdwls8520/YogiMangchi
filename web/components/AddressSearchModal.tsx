@@ -1,6 +1,7 @@
 "use client";
 
-import DaumPostcode from "react-daum-postcode";
+import { useCallback, useEffect, useRef } from "react";
+import { useKakaoPostcodePopup } from "react-daum-postcode";
 
 interface AddressSearchModalProps {
   isOpen: boolean;
@@ -9,11 +10,21 @@ interface AddressSearchModalProps {
   onComplete: (zipcode: string, address: string) => void; 
 }
 
-export default function AddressSearchModal({ isOpen, onClose, onComplete }: AddressSearchModalProps) {
-  if (!isOpen) return null;
+type AddressSearchResult = {
+  zonecode: string;
+  address: string;
+  addressType: string;
+  bname: string;
+  buildingName: string;
+};
 
-  // 다음 우편번호 API에서 주소를 선택했을 때 실행되는 함수
-  const handleComplete = (data: any) => {
+let isAddressSearchWindowOpening = false;
+
+export default function AddressSearchModal({ isOpen, onClose, onComplete }: AddressSearchModalProps) {
+  const openPostcodePopup = useKakaoPostcodePopup();
+  const hasOpenedRef = useRef(false);
+
+  const handleComplete = useCallback((data: AddressSearchResult) => {
     let fullAddress = data.address; // 기본 주소
     let extraAddress = ""; // 참고 항목 (동, 건물명 등)
 
@@ -28,32 +39,35 @@ export default function AddressSearchModal({ isOpen, onClose, onComplete }: Addr
 
     // 부모 컴포넌트로 우편번호(zonecode)와 완성된 주소 전달
     onComplete(data.zonecode, fullAddress);
-    
-    // 모달 닫기
-    onClose();
-  };
+  }, [onComplete]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800">
-        
-        {/* 모달 헤더 */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">주소 검색</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-            닫기
-          </button>
-        </div>
+  useEffect(() => {
+    if (!isOpen || hasOpenedRef.current || isAddressSearchWindowOpening) {
+      return;
+    }
 
-        {/* 다음 우편번호 컴포넌트 */}
-        <div className="h-[400px] w-full">
-          <DaumPostcode 
-            onComplete={handleComplete} 
-            style={{ width: "100%", height: "100%" }} 
-          />
-        </div>
+    hasOpenedRef.current = true;
+    isAddressSearchWindowOpening = true;
 
-      </div>
-    </div>
-  );
+    const openPopup = async () => {
+      try {
+        onClose();
+
+        await openPostcodePopup({
+          onComplete: handleComplete,
+          popupTitle: "주소 검색",
+          autoClose: true,
+        });
+      } catch (error) {
+        console.error("주소 검색 창 열기 실패:", error);
+        alert("주소 검색 창을 열지 못했습니다. 브라우저 팝업 차단 설정을 확인해 주세요.");
+      } finally {
+        isAddressSearchWindowOpening = false;
+      }
+    };
+
+    void openPopup();
+  }, [handleComplete, isOpen, onClose, openPostcodePopup]);
+
+  return null;
 }

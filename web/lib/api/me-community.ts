@@ -16,6 +16,9 @@ export type LikedReplyParams = CursorParams & {
   parentId?: number;
 };
 
+export type ReportedPostParams = PostSearchParams;
+export type ReportedReplyParams = LikedReplyParams;
+
 const buildQueryString = (paramsObject: Record<string, string | number | undefined>) => {
   const params = new URLSearchParams();
 
@@ -71,5 +74,41 @@ export const getLikedReplies = async ({
   const query = buildQueryString({ cursorId, parentId, size });
 
   return fetchClient(`me/community/liked-replys${query}`);
+};
+
+// 내가 신고한 게시글 목록 조회
+export const getReportedPosts = async ({
+  cursorId,
+  keyword,
+  size,
+}: ReportedPostParams = {}) => {
+  const query = buildQueryString({ cursorId, keyword, size });
+
+  return fetchClient(`me/reports/posts${query}`);
+};
+
+// 내가 신고한 댓글/대댓글 목록 조회
+export const getReportedReplies = async ({
+  cursorId,
+  parentId,
+  size,
+}: ReportedReplyParams = {}) => {
+  const query = buildQueryString({ cursorId, parentId, size });
+
+  return fetchClient(`me/reports/replys${query}`);
+};
+
+// 내가 신고한 게시글 신고 취소
+export const cancelReportedPost = async (postId: number) => {
+  return fetchClient(`community/posts/${postId}/reports`, {
+    method: "DELETE",
+  });
+};
+
+// 내가 신고한 댓글/대댓글 신고 취소
+export const cancelReportedReply = async (postId: number, replyId: number) => {
+  return fetchClient(`community/posts/${postId}/replys/${replyId}/reports`, {
+    method: "DELETE",
+  });
 };
 
