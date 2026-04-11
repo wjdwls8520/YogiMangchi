@@ -61,6 +61,7 @@ public class MarketSymbol {
     protected MarketSymbol(String symbol, String baseAsset, String quoteAsset, String displayNameEn, String displayNameKr, boolean isActive) {
         this.symbol = symbol;
         this.marketType = marketType;
+        // this.marketType = MarketType.SPOT;
         this.baseAsset = baseAsset;
         this.quoteAsset = quoteAsset;
         this.displayNameEn = displayNameEn;

@@ -21,6 +21,22 @@ public class AssetException extends RuntimeException {
         );
     }
 
+    public static AssetException tradableContestFuturesWalletNotFound() {
+        return new AssetException(
+                HttpStatus.NOT_FOUND,
+                "TRADABLE_CONTEST_FUTURES_WALLET_NOT_FOUND",
+                "거래 가능한 대회 선물 지갑이 없습니다."
+        );
+    }
+
+    public static AssetException tradableRealFuturesWalletNotFound() {
+        return new AssetException(
+                HttpStatus.NOT_FOUND,
+                "TRADABLE_REAL_FUTURES_WALLET_NOT_FOUND",
+                "거래 가능한 본투자 선물 지갑이 없습니다."
+        );
+    }
+
     public HttpStatus getStatus() {
         return status;
     }

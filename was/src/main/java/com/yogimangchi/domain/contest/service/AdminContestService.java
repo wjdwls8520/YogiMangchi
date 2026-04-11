@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.contest.service;
 
+import com.yogimangchi.domain.asset.service.futures.FuturesAssetService;
 import com.yogimangchi.domain.contest.season.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.application.dto.query.ContestApplicantQueryDto;
 import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipantQueryDto;
@@ -24,7 +25,6 @@ import com.yogimangchi.domain.contest.participant.repository.ContestParticipantR
 import com.yogimangchi.domain.contest.application.repository.ContestRejectedApplicantRepository;
 import com.yogimangchi.domain.contest.application.validator.ContestApplicationValidator;
 import com.yogimangchi.domain.contest.season.validator.ContestSeasonValidator;
-import com.yogimangchi.domain.futures.service.FuturesService;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,7 @@ public class AdminContestService {
     private final ContestApplicationValidator contestApplicationValidator;
     private final ContestSeasonValidator contestSeasonValidator;
 
-    private final FuturesService futuresService;
+    private final FuturesAssetService futuresAssetsService;
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
@@ -163,7 +163,7 @@ public class AdminContestService {
         contestApplicantRepository.delete(contestApplicant);
 
         // 참가자 신청이 승낙되면 대회용 선물지갑을 생성한다.
-        futuresService.createNewContestFuturesWallet(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
+        futuresAssetsService.createNewContestFuturesWallet(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
     }
 
     @Transactional

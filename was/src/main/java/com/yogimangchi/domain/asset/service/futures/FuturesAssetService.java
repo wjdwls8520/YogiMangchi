@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.futures.service;
+package com.yogimangchi.domain.asset.service.futures;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
@@ -15,10 +15,11 @@ import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
-public class FuturesService {
+public class FuturesAssetService {
 
     private final AssetRepository assetRepository;
 
+    // 대회 전용 선물 지갑 생성 메서드.
     @Transactional
     public void createNewContestFuturesWallet(Long adminId, ContestSeason targetSeason, Member participant) {
 
@@ -30,6 +31,7 @@ public class FuturesService {
         // 초기 자금 1만 요기달러
         BigDecimal initialMoney = new BigDecimal("10000");
 
+        // 지갑 객체 생성
         Assets saveWallet = Assets.createNewContestFuturesWallet(
                 participant,
                 AssetType.CONTEST,
@@ -45,5 +47,9 @@ public class FuturesService {
         } catch (DataIntegrityViolationException e) {
             throw AssetException.walletAlreadyExists();
         }
+
+
+        // [ 알람 ] 대회 참여를 알리는 알람.
+
     }
 }
