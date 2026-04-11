@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import {
@@ -10,8 +9,15 @@ import {
   getMemberPosts,
   getMemberReplies,
 } from "@/lib/api/me-community";
-import { formatTime } from "@/lib/utils/date";
 import type { Post, Reply } from "@/app/(default)/community/types/post";
+import ProfileSidebar from "@/components/user/profile/ProfileSidebar";
+import ProfileCommunitySection, {
+  ProfileEmptyState,
+} from "@/components/user/profile/ProfileCommunitySection";
+import type {
+  LikedPost,
+  MyMemberProfile,
+} from "@/components/user/profile/types";
 
 import {
   PieChart,
@@ -27,21 +33,6 @@ import Button from "@/components/ui/Button";
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
 type CommunityTab = "posts" | "replies" | "likedPosts" | "likedReplies";
-
-type MemberRole = "USER" | "VERIFIED_USER" | "ADMIN";
-type MemberProfile = {
-  memberId: number;
-  provider: string;
-  nickname: string;
-  profileImgUrl: string | null;
-  profileMsg: string | null;
-  bestCount: number;
-  followerCount: number;
-  followingCount: number;
-  term_agree: boolean;
-  private_agree: boolean;
-  role: MemberRole;
-};
 
 type MockHolding = {
   symbol: string;
@@ -69,15 +60,6 @@ type MockPortfolio = {
   holdings: MockHolding[];
 };
 
-type LikedPost = {
-  id: number;
-  title: string;
-  content: string;
-  likeCount: number;
-  replyCount: number;
-  createdAt: string;
-};
-
 const CHART_COLORS = [
   "#0058FF",
   "#9CB34E",
@@ -87,25 +69,6 @@ const CHART_COLORS = [
   "#E97A31",
   "#00A6A6",
 ];
-
-const getRoleLabel = (role?: "USER" | "VERIFIED_USER" | "ADMIN") => {
-  if (role === "VERIFIED_USER") return "인증회원";
-  if (role === "ADMIN") return "관리자";
-  return "일반회원";
-};
-
-const getRoleBadgeClassName = (role?: "USER" | "VERIFIED_USER" | "ADMIN") => {
-  if (role === "VERIFIED_USER") {
-    return "bg-blue-50 text-blue-600";
-  }
-
-  if (role === "ADMIN") {
-    return "bg-orange-50 text-orange-600";
-  }
-
-  return "bg-gray-100 text-gray-600";
-};
-
 
 const formatNumber = (value?: number | null) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -171,7 +134,7 @@ export default function MePage() {
   const [isMounted, setIsMounted] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileErrorMessage, setProfileErrorMessage] = useState("");
-  const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
+  const [memberProfile, setMemberProfile] = useState<MyMemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
   const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
   const [communityTab, setCommunityTab] = useState<CommunityTab>("posts");
@@ -231,8 +194,8 @@ export default function MePage() {
 
         const data = await getJson(response);
         const nextProfile = isRecord(data) && isRecord(data.data)
-          ? (data.data as MemberProfile)
-          : (data as MemberProfile | null);
+          ? (data.data as MyMemberProfile)
+          : (data as MyMemberProfile | null);
 
         if (isActive && nextProfile) {
           setMemberProfile(nextProfile);
@@ -625,86 +588,44 @@ export default function MePage() {
     <div>
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         <aside className="w-full lg:w-[400px] lg:sticky lg:top-24 space-y-6">
-          <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-            <div className="flex flex-col items-center">
-              <div className="relative h-24 w-24 mb-3 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 overflow-hidden text-gray-400">
-                <img
-                  src={memberProfile.profileImgUrl || "/user_default.png"}
-                  alt="profile"
-                  className="h-full w-full object-cover"
-                  onError={(event) => {
-                    event.currentTarget.src = "/user_default.png";
-                  }}
-                  />
-              </div>
+          <ProfileSidebar
+            profile={memberProfile}
+            actionArea={
+              <>
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Button
+                    variant="white"
+                    size="sm"
+                    fullWidth={true}
+                    onClick={handleMoveEdit}
+                  >
+                    회원정보 수정
+                  </Button>
 
-              <span
-                className={`inline-flex rounded-full mb-2 px-3 py-1 text-xs font-bold ${getRoleBadgeClassName(user.role)}`}
-              >
-                {getRoleLabel(user.role)}
-              </span>
-
-              <h2 className="text-2xl font-black text-gray-900">
-                {memberProfile.nickname}
-              </h2>
-
-              <p className="text-sm text-gray-400 mt-1 font-medium text-center">
-                {user.profileMsg || "소개글이 없습니다."}
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 w-full mt-6">
-                <Button
-                  variant="white"
-                  size="sm"
-                  fullWidth={true}
-                  onClick={handleMoveEdit}
-                >
-                  회원정보 수정
-                </Button>
-
-                <Button
-                  variant="gray"
-                  size="sm"
-                  fullWidth={true}
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                >
-                  {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
-                </Button>
-              </div>
-
-              {isGeneralUser ? (
-                <Button variant="white" fullWidth={true} className="mt-2" onClick={() => router.push("/verify")}>
-                  회원 인증하기
-                </Button>
-              ) : null}
-
-              <div className="grid grid-cols-3 w-full mt-3 pt-6 border-t border-gray-50">
-                <div className="text-center">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                    Followers
-                  </p>
-                  <p className="text-lg font-black">{user.followerCount}</p>
+                  <Button
+                    variant="gray"
+                    size="sm"
+                    fullWidth={true}
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                  >
+                    {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                  </Button>
                 </div>
 
-                <div className="text-center border-l border-gray-50">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                    Following
-                  </p>
-                  <p className="text-lg font-black">{user.followingCount}</p>
-                </div>
-
-                <div className="text-center border-l border-gray-50">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                    Mangchi
-                  </p>
-                  <p className="text-lg font-black text-orange-500">
-                    {user.bestCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
+                {isGeneralUser ? (
+                  <Button
+                    variant="white"
+                    fullWidth={true}
+                    className="mt-2"
+                    onClick={() => router.push("/verify")}
+                  >
+                    회원 인증하기
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
 
           <section className="rounded-[32px] bg-[#0058FF] p-8 text-white shadow-xl shadow-blue-100">
             <div className="flex justify-between items-center mb-6">
@@ -885,86 +806,30 @@ export default function MePage() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState text="보유 중인 모의투자 자산이 없습니다." />
+                    <ProfileEmptyState text="보유 중인 모의투자 자산이 없습니다." />
                   )}
                 </div>
               </section>
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
-              <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-                <Tabs
-                  tabs={[
-                    { label: "내 게시글", value: "posts" },
-                    { label: "내 댓글", value: "replies" },
-                    { label: "좋아요한 게시글", value: "likedPosts" },
-                    { label: "좋아요한 댓글", value: "likedReplies" },
-                  ]}
-                  activeTab={communityTab}
-                  onChange={(value) => setCommunityTab(value as CommunityTab)}
-                />
-
-                <div className="mt-8">
-                  {communityTab === "posts" ? (
-                    isLoadingCommunityPosts ? (
-                      <EmptyState text="작성한 게시글을 불러오는 중입니다." />
-                    ) : communityPostsErrorMessage ? (
-                      <EmptyState text={communityPostsErrorMessage} />
-                    ) : communityPosts.length > 0 ? (
-                      <div className="space-y-4">
-                        {communityPosts.map((post) => (
-                          <MyPostRow key={post.id} post={post} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="작성한 게시글이 없습니다." />
-                    )
-                  ) : communityTab === "replies" ? (
-                    isLoadingCommunityReplies ? (
-                      <EmptyState text="작성한 댓글을 불러오는 중입니다." />
-                    ) : communityRepliesErrorMessage ? (
-                      <EmptyState text={communityRepliesErrorMessage} />
-                    ) : communityReplies.length > 0 ? (
-                      <div className="space-y-4">
-                        {communityReplies.map((reply) => (
-                          <MyReplyRow key={reply.id} reply={reply} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="작성한 댓글이 없습니다." />
-                    )
-                  ) : communityTab === "likedPosts" ? (
-                    isLoadingLikedPosts ? (
-                      <EmptyState text="좋아요한 게시글을 불러오는 중입니다." />
-                    ) : likedPostsErrorMessage ? (
-                      <EmptyState text={likedPostsErrorMessage} />
-                    ) : likedPosts.length > 0 ? (
-                      <div className="space-y-4">
-                        {likedPosts.map((post) => (
-                          <LikedPostRow key={post.id} post={post} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="좋아요한 게시글이 없습니다." />
-                    )
-                  ) : (
-                    isLoadingLikedReplies ? (
-                      <EmptyState text="좋아요한 댓글을 불러오는 중입니다." />
-                    ) : likedRepliesErrorMessage ? (
-                      <EmptyState text={likedRepliesErrorMessage} />
-                    ) : likedReplies.length > 0 ? (
-                      <div className="space-y-4">
-                        {likedReplies.map((reply) => (
-                          <MyReplyRow key={reply.id} reply={reply} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState text="좋아요한 댓글이 없습니다." />
-                    )
-                  )}
-                </div>
-              </section>
+              <ProfileCommunitySection
+                communityTab={communityTab}
+                onChange={(value) => setCommunityTab(value as CommunityTab)}
+                posts={communityPosts}
+                replies={communityReplies}
+                likedPosts={likedPosts}
+                likedReplies={likedReplies}
+                isLoadingPosts={isLoadingCommunityPosts}
+                isLoadingReplies={isLoadingCommunityReplies}
+                isLoadingLikedPosts={isLoadingLikedPosts}
+                isLoadingLikedReplies={isLoadingLikedReplies}
+                postsErrorMessage={communityPostsErrorMessage}
+                repliesErrorMessage={communityRepliesErrorMessage}
+                likedPostsErrorMessage={likedPostsErrorMessage}
+                likedRepliesErrorMessage={likedRepliesErrorMessage}
+                isOwnProfile={true}
+              />
             </div>
           )}
         </main>
@@ -990,10 +855,6 @@ function AssetMiniInfo({
       <p className="text-sm font-black">{value}</p>
     </div>
   );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <div className="py-32 text-center text-gray-300 font-bold">{text}</div>;
 }
 
 function HoldingRow({ item }: { item: MockHolding }) {
@@ -1051,93 +912,6 @@ function HoldingRow({ item }: { item: MockHolding }) {
         />
       </div>
     </div>
-  );
-}
-
-function MyPostRow({ post }: { post: Post }) {
-  return (
-    <Link
-      href={`/community/latest/${post.id}`}
-      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h4 className="truncate text-base font-black text-gray-900">
-            {post.title}
-          </h4>
-          <p className="mt-2 line-clamp-2 text-sm text-gray-500">
-            {post.content}
-          </p>
-        </div>
-
-        <span className="shrink-0 text-xs font-bold text-gray-400">
-          {formatTime(post.createdAt)}
-        </span>
-      </div>
-
-      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
-        <span>좋아요 {post.likeCount}</span>
-        <span>댓글 {post.replyCount}</span>
-      </div>
-    </Link>
-  );
-}
-
-function MyReplyRow({ reply }: { reply: Reply }) {
-  return (
-    <Link
-      href={`/community/latest/${reply.postId}`}
-      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-black text-gray-900">
-            {reply.targetNickname ? `${reply.targetNickname}님에게 남긴 댓글` : "작성한 댓글"}
-          </h4>
-          <p className="mt-2 line-clamp-3 text-sm text-gray-500">
-            {reply.content}
-          </p>
-        </div>
-
-        <span className="shrink-0 text-xs font-bold text-gray-400">
-          {formatTime(reply.createdAt)}
-        </span>
-      </div>
-
-      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
-        <span>좋아요 {reply.likeCount}</span>
-        <span>답글 {reply.replyCount}</span>
-      </div>
-    </Link>
-  );
-}
-
-function LikedPostRow({ post }: { post: LikedPost }) {
-  return (
-    <Link
-      href={`/community/latest/${post.id}`}
-      className="block rounded-[24px] border border-gray-100 bg-white p-6 transition-all hover:border-blue-100 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h4 className="truncate text-base font-black text-gray-900">
-            {post.title}
-          </h4>
-          <p className="mt-2 line-clamp-2 text-sm text-gray-500">
-            {post.content}
-          </p>
-        </div>
-
-        <span className="shrink-0 text-xs font-bold text-gray-400">
-          {formatTime(post.createdAt)}
-        </span>
-      </div>
-
-      <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-4 text-xs font-bold text-gray-400">
-        <span>좋아요 {post.likeCount}</span>
-        <span>댓글 {post.replyCount}</span>
-      </div>
-    </Link>
   );
 }
 

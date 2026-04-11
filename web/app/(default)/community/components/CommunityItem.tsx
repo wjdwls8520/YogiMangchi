@@ -147,12 +147,20 @@ export default function CommunityItem({ post, variant }: Props) {
     return(
         <>
             <div className="border border-gray-200 rounded-2xl p-8">
-                <header className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                    <UserAvatar profileImg={currentPost.profileImg} />
-                    <div className="">
-                        <p className="font-semibold">{currentPost.nickname}</p>
-                        <small className="text-gray-500">{formatTime(currentPost.createdAt)}</small>
-                    </div>
+                <header className="grid grid-cols-[1fr_auto] items-center gap-3">
+                    <Link
+                        href={`/member/${currentPost.memberId}`}
+                        className="grid min-w-0 grid-cols-[auto_1fr] items-center gap-3 rounded-xl px-1 py-1 transition-colors hover:bg-gray-50"
+                        aria-label={`${currentPost.nickname} 프로필로 이동`}
+                    >
+                        <UserAvatar profileImg={currentPost.profileImg} />
+                        <div className="min-w-0">
+                            <p className="truncate font-semibold transition-colors hover:text-blue-600 hover:underline">
+                                {currentPost.nickname}
+                            </p>
+                            <small className="text-gray-500">{formatTime(currentPost.createdAt)}</small>
+                        </div>
+                    </Link>
                     <div className="relative">
                         <ActionMenuButton toggleMenu={e => toggleActionMenu(e)} />
                         {
