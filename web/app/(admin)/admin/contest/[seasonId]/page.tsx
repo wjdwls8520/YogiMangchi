@@ -274,7 +274,7 @@ export default function AdminContestDetailPage() {
 
               {/* 상태 스위치 패널 */}
               <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">시즌 활성 제어</h2>
+                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">대회 상태 변경</h2>
                 <div className="flex flex-wrap items-center gap-8">
                   <label className="flex cursor-pointer items-center gap-3 group">
                     <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">시즌 공개 여부</span>
@@ -363,8 +363,7 @@ export default function AdminContestDetailPage() {
           <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div className="bg-gray-50/50 border-b border-gray-200 px-6 pt-6">
               <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-lg font-bold text-gray-900">멤버 관리 시스템</h2>
-                <span className="text-xs text-gray-400 font-medium">| 신청 승인 및 참가자 목록 조회</span>
+                <h2 className="text-lg font-bold text-gray-900">멤버 관리</h2>
               </div>
               <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                 {memberTabs.map((tab) => {

@@ -280,7 +280,7 @@ export default function ContestEditModal({
               취소
             </Button>
             <Button type="submit" disabled={isSubmitting || !hasChanged}>
-              {isSubmitting ? "수정 중..." : "대회 정보 저장"}
+              {isSubmitting ? "수정 중..." : "수정 완료"}
             </Button>
           </div>
         </form>

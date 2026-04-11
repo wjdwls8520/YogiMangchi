@@ -23,6 +23,11 @@ const menuList: menuType[] = [
         id: 'trading'
     },
     {
+        href: '/contest',
+        name: '대회',
+        id: 'contest'
+    },
+    {
         href: '/community/all',
         name: '커뮤니티',
         id: 'community'
