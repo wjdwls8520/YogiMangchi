@@ -16,6 +16,7 @@ import ActionMenu from "../ui/ActionMenu";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useModalStore } from "@/stores/useModalStore";
 import { useActionMenuUIStore } from "@/stores/useActionMenuUIStore";
+import Link from "next/link";
 
 
 interface Props {
@@ -204,14 +205,36 @@ export default function CommentItem({
                         highlightId === currentComment.id && "bg-gray-100 transition-colors duration-500"
                     )
             }>
-                <UserAvatar 
-                    profileImg={currentComment.profileImgUrl} 
-                    classes={`${ currentComment.targetMemberId ? 'w-[36px] h-[36px]' : 'w-[30px] h-[30px]' }`} 
-                />
+                {currentComment.deleteYn !== "Y" ? (
+                    <Link
+                        href={`/member/${currentComment.memberId}`}
+                        className="shrink-0 rounded-full transition-opacity hover:opacity-80"
+                        aria-label={`${currentComment.nickname} 프로필로 이동`}
+                    >
+                        <UserAvatar 
+                            profileImg={currentComment.profileImgUrl} 
+                            classes={`${ currentComment.targetMemberId ? 'w-[36px] h-[36px]' : 'w-[30px] h-[30px]' }`} 
+                        />
+                    </Link>
+                ) : (
+                    <UserAvatar 
+                        profileImg={currentComment.profileImgUrl} 
+                        classes={`${ currentComment.targetMemberId ? 'w-[36px] h-[36px]' : 'w-[30px] h-[30px]' }`} 
+                    />
+                )}
 
                 <div className="flex-1 relative">
                     <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                        <p className="font-bold">{currentComment.nickname}</p>
+                        {currentComment.deleteYn !== "Y" ? (
+                            <Link
+                                href={`/member/${currentComment.memberId}`}
+                                className="min-w-0 rounded-md px-1 py-0.5 font-bold transition-colors hover:bg-gray-50 hover:text-blue-600 hover:underline"
+                            >
+                                <span className="block truncate">{currentComment.nickname}</span>
+                            </Link>
+                        ) : (
+                            <p className="font-bold">{currentComment.nickname}</p>
+                        )}
                         <p className="text-gray-400 text-sm">
                         {
                             currentComment.createdAt !== currentComment.updatedAt ? (
