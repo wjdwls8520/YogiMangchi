@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Button from "../ui/Button";
+import BaseModal from "../ui/BaseModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useRouter } from "next/navigation";
 import {
@@ -195,23 +196,17 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
 
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* 배경 (Dim) */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
-      {/* 모달 콘텐츠 */}
-      <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-zinc-900 p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
-        <button onClick={onClose} className="absolute right-6 top-6 text-gray-400 hover:text-zinc-900 dark:hover:text-white">
-          <X className="w-8 h-8" />
-        </button>
+    <BaseModal
+      title="대회 정보"
+      onClose={onClose}
+    >
+      <div className="mb-6">
+        <span className="inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          모집중 대회 목록
+        </span>
+      </div>
 
-        <div className="mb-6">
-          <span className="inline-block px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold mb-3">
-            모집중 대회 목록
-          </span>
-        </div>
-
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-2 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+      <div className="space-y-4 pr-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
           {isLoadingSeason ? (
             <div className="rounded-xl bg-gray-50 p-4 text-xs font-bold text-gray-400 dark:bg-zinc-800">
               모집중인 대회 정보를 불러오는 중입니다.
@@ -312,8 +307,7 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
               ) : null}
             </>
           )}
-        </div>
       </div>
-    </div>
+    </BaseModal>
   );
 }

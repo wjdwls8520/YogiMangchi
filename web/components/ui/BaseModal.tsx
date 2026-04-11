@@ -8,8 +8,6 @@ type BaseModalProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  maxWidthClassName?: string;
-  bodyClassName?: string;
 };
 
 let openedModalCount = 0;
@@ -21,8 +19,6 @@ export default function BaseModal({
   onClose,
   children,
   footer,
-  maxWidthClassName = "max-w-2xl",
-  bodyClassName = "px-8 py-8",
 }: BaseModalProps) {
   useEffect(() => {
     openedModalCount += 1;
@@ -54,32 +50,40 @@ export default function BaseModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/60 p-4 py-6 backdrop-blur-sm sm:items-center sm:py-10">
+    <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm">
       {/* 바깥 영역 클릭 시 모달 닫기 */}
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
-      <div
-        className={`relative my-auto flex max-h-[calc(100vh-3rem)] w-full flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:max-h-[calc(100vh-5rem)] ${maxWidthClassName}`}
-      >
-        <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
-          <h2 className="text-2xl font-black text-gray-900">{title}</h2>
+      <div className="relative flex h-full items-center justify-center p-4 py-6 sm:p-8 sm:py-10">
+        <div
+          className="relative flex min-h-[320px] max-h-[calc(100dvh-3rem)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-zinc-900 sm:min-h-[360px] sm:max-h-[calc(100dvh-5rem)]"
+        >
+          <div className="shrink-0 flex items-center justify-between border-b border-gray-200 px-8 py-6 dark:border-zinc-700">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+              {title}
+            </h2>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-          >
-            <X className="h-6 w-6" />
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-zinc-800 dark:hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* 헤더/푸터는 고정하고, 본문 영역만 스크롤되도록 둡니다. */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-8">
+            {children}
+          </div>
+
+          {footer ? (
+            // 액션 버튼이 필요한 모달만 footer를 내려줍니다.
+            <div className="shrink-0 border-t border-gray-200 px-8 py-6 dark:border-zinc-700">
+              {footer}
+            </div>
+          ) : null}
         </div>
-
-        {/* 화면이 작은 경우에도 본문만 내부 스크롤되도록 처리 */}
-        <div className={`flex-1 overflow-y-auto ${bodyClassName}`}>{children}</div>
-
-        {footer ? (
-          // 액션 버튼이 필요한 모달만 footer를 내려줍니다.
-          <div className="border-t border-gray-200 px-8 py-6">{footer}</div>
-        ) : null}
       </div>
     </div>
   );
