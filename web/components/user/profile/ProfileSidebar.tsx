@@ -18,6 +18,50 @@ interface ProfileSidebarProps {
   profile: ProfileSidebarUser;
   actionArea?: ReactNode;
   relationArea?: ReactNode;
+  onClickFollowers?: () => void;
+  onClickFollowings?: () => void;
+}
+
+function StatTag({
+  label,
+  value,
+  isClickable = false,
+  onClick,
+  hasLeftBorder = false,
+}: {
+  label: string;
+  value: number;
+  isClickable?: boolean;
+  onClick?: () => void;
+  hasLeftBorder?: boolean;
+}) {
+  const className = `${hasLeftBorder ? "border-l border-gray-50 " : ""}text-center`;
+
+  if (isClickable && onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${className} rounded-2xl px-2 py-1 transition-colors hover:bg-gray-50`}
+      >
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+          {label}
+        </p>
+        <p className="text-lg font-black transition-colors hover:text-[#0058FF]">
+          {value}
+        </p>
+      </button>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+        {label}
+      </p>
+      <p className="text-lg font-black">{value}</p>
+    </div>
+  );
 }
 
 const getRoleLabel = (role?: MemberRole) => {
@@ -43,6 +87,8 @@ export default function ProfileSidebar({
   profile,
   actionArea,
   relationArea,
+  onClickFollowers,
+  onClickFollowings,
 }: ProfileSidebarProps) {
   const roleLabel = "role" in profile ? getRoleLabel(profile.role) : "";
   const hasRole = Boolean(roleLabel);
@@ -80,29 +126,30 @@ export default function ProfileSidebar({
         {relationArea ? <div className="mt-3 w-full">{relationArea}</div> : null}
         {actionArea ? <div className="mt-6 w-full">{actionArea}</div> : null}
 
-        <div className="grid grid-cols-3 w-full mt-6 pt-6 border-t border-gray-50">
-          <div className="text-center">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-              Followers
-            </p>
-            <p className="text-lg font-black">{profile.followerCount}</p>
-          </div>
+        <div className="grid grid-cols-2 w-full mt-6 pt-6 border-t border-gray-50">
+          <StatTag
+            label="Followers"
+            value={profile.followerCount}
+            isClickable={Boolean(onClickFollowers)}
+            onClick={onClickFollowers}
+          />
 
-          <div className="text-center border-l border-gray-50">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-              Following
-            </p>
-            <p className="text-lg font-black">{profile.followingCount}</p>
-          </div>
+          <StatTag
+            label="Following"
+            value={profile.followingCount}
+            isClickable={Boolean(onClickFollowings)}
+            onClick={onClickFollowings}
+            hasLeftBorder
+          />
 
-          <div className="text-center border-l border-gray-50">
+          {/* <div className="text-center border-l border-gray-50">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
               Mangchi
             </p>
             <p className="text-lg font-black text-orange-500">
               {profile.bestCount}
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </section>
