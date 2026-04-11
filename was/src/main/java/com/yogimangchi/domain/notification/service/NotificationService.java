@@ -17,13 +17,17 @@ import com.yogimangchi.domain.notification.entity.NotificationState;
 import com.yogimangchi.domain.notification.enums.NotificationType;
 import com.yogimangchi.domain.notification.repository.NotificationRepository;
 import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
-import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
-import com.yogimangchi.domain.trade.entity.Order;
+import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
+import com.yogimangchi.domain.spot.entity.Order;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -31,11 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -51,13 +50,15 @@ public class NotificationService {
     private final PlatformTransactionManager transactionManager;
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<NotificationResponseDto> getNotifications(Long memberId,
-                                                                       NotificationSearchConditionDto condition) {
+    public CursorResponseDto<NotificationResponseDto> getNotifications(
+            Long memberId,
+            NotificationSearchConditionDto condition
+    ) {
         if (memberId == null) {
             throw new SecurityException("로그인이 필요합니다.");
         }
 
-        // 다음 페이지 존재 여부 확인을 위해 size + 1 개를 조회하는 로직
+        // 다음 페이지 존재 여부를 확인하기 위해 size + 1건을 조회한다.
         int limitSize = condition.getOrDefaultSize();
         Pageable pageable = PageRequest.ofSize(limitSize + 1);
 
@@ -90,17 +91,17 @@ public class NotificationService {
             throw new SecurityException("로그인이 필요합니다.");
         }
 
-        // 벨 아이콘용 새 알림 기준점을 회원 상태 테이블에서 읽어오는 로직
+        // 벨 아이콘용 마지막 확인 기준 ID를 회원 상태 테이블에서 조회한다.
         Long lastCheckedNotificationId = notificationStateRepository.findByMemberId(memberId)
                 .map(NotificationState::getLastCheckedNotificationId)
                 .orElse(null);
 
-        // 마지막 확인 전이면 전체 알림 수, 이후에는 마지막 확인 이후 알림 수만 새 알림으로 계산
+        // 마지막 확인 기준 이후 새 알림 수를 계산한다.
         long newCount = lastCheckedNotificationId == null
                 ? notificationRepository.countByReceiverId(memberId)
                 : notificationRepository.countByReceiverIdAndIdGreaterThan(memberId, lastCheckedNotificationId);
 
-        // 읽음 상태는 Notification 엔티티 기준으로 별도 계산
+        // 읽지 않은 알림 수를 별도로 계산한다.
         long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(memberId);
 
         return NotificationStatusResponseDto.of(newCount, unreadCount);
@@ -112,13 +113,13 @@ public class NotificationService {
             throw new SecurityException("로그인이 필요합니다.");
         }
 
-        // 현재 회원이 가진 가장 최신 알림 ID를 확인 기준점으로 사용할 로직
+        // 회원이 보유한 가장 최신 알림 ID를 확인 기준으로 사용한다.
         Long latestNotificationId = notificationRepository.findLatestNotificationIdByReceiverId(memberId);
         if (latestNotificationId == null) {
             return;
         }
 
-        // 상태 row가 이미 있으면 더 큰 최신 알림 ID만 반영하는 원자적 갱신 로직
+        // 상태 row가 이미 있으면 최신 알림 ID만 갱신한다.
         int updated = notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
         if (updated > 0) {
             return;
@@ -131,10 +132,10 @@ public class NotificationService {
         notificationState.checkLatest(latestNotificationId);
 
         try {
-            // 상태 row가 없을 때만 새로 생성하는 로직
+            // 상태 row가 없을 때만 새로 생성한다.
             notificationStateRepository.saveAndFlush(notificationState);
         } catch (DataIntegrityViolationException exception) {
-            // 동시 insert 경합 시 이미 생성된 row를 더 큰 값 기준으로 다시 갱신하는 보정 로직
+            // 동시 insert 충돌 시 이미 생성된 row를 기준으로 다시 갱신한다.
             notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
         }
     }
@@ -145,7 +146,6 @@ public class NotificationService {
             throw new SecurityException("로그인이 필요합니다.");
         }
 
-        // 현재 회원이 가진 알림 한 건만 읽음 처리 대상으로 조회하는 로직
         Notification notification = notificationRepository.findByIdAndReceiverId(notificationId, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
 
@@ -158,7 +158,6 @@ public class NotificationService {
             throw new SecurityException("로그인이 필요합니다.");
         }
 
-        // 현재 회원이 가진 알림만 골라 읽음 처리하는 다건 읽음 로직
         List<Notification> notifications = notificationRepository.findAllByIdInAndReceiverId(
                 request.notificationIds(),
                 memberId
@@ -170,7 +169,7 @@ public class NotificationService {
 
     public void notifyOrderCompleted(Member receiver, AssetType assetType, Order order) {
         if (receiver == null || receiver.getId() == null || order == null || order.getId() == null) {
-            log.warn("주문 체결 알림 생성이 생략되었습니다. receiver={}, order={}", receiver, order);
+            log.warn("주문 체결 알림 생성을 생략했습니다. receiver={}, order={}", receiver, order);
             return;
         }
 
@@ -205,7 +204,7 @@ public class NotificationService {
                         executedAt
                 );
             } catch (Exception exception) {
-                log.error("주문 체결 알림 처리 중 예외 발생. receiverId={}, orderId={}",
+                log.error("주문 체결 알림 처리 중 예외가 발생했습니다. receiverId={}, orderId={}",
                         receiverId, orderId, exception);
             }
         };
@@ -224,17 +223,19 @@ public class NotificationService {
         notificationTask.run();
     }
 
-    private void saveAndSendOrderCompleted(Long receiverId,
-                                           AssetType assetType,
-                                           Long orderId,
-                                           String symbol,
-                                           String orderType,
-                                           String side,
-                                           BigDecimal price,
-                                           BigDecimal quantity,
-                                           BigDecimal executedAmount,
-                                           BigDecimal totalFee,
-                                           LocalDateTime executedAt) {
+    private void saveAndSendOrderCompleted(
+            Long receiverId,
+            AssetType assetType,
+            Long orderId,
+            String symbol,
+            String orderType,
+            String side,
+            BigDecimal price,
+            BigDecimal quantity,
+            BigDecimal executedAmount,
+            BigDecimal totalFee,
+            LocalDateTime executedAt
+    ) {
         Member notificationReceiver = memberRepository.findActiveById(receiverId)
                 .orElse(null);
 
@@ -280,7 +281,7 @@ public class NotificationService {
                         null,
                         NotificationType.ORDER_COMPLETED,
                         assetTypeDisplayName + " " + displayNameKr + " " + orderTypeName + " " + sideName + " 주문이 체결되었습니다.",
-                        "/trade/orders/" + orderId,
+                        "/spot/mock/orders/" + orderId,
                         serializePayload(payload)
                 )
         );
@@ -291,7 +292,7 @@ public class NotificationService {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-        // 주문 트랜잭션과 분리된 새 트랜잭션에서 알림을 저장하는 로직
+        // 주문 트랜잭션과 분리된 새 트랜잭션에서 알림을 저장한다.
         NotificationResponseDto response = transactionTemplate.execute(status -> {
             log.info("알림 저장 시작. receiverId={}, type={}, message={}",
                     receiverId, notification.getType(), notification.getMessage());
@@ -320,11 +321,11 @@ public class NotificationService {
     }
 
     private String resolveAssetTypeDisplayName(AssetType assetType) {
-        // 알림 문구와 payload 표시에 사용할 지갑 타입 한글명 변환 로직
+        // 알림 문구와 payload 표시에 사용할 지갑 타입 표시명
         return switch (assetType) {
             case MOCK -> "(모의투자)";
-            case TRADE_SPOT -> "(트레이딩-현물)";
-            case TRADE_FUTURE -> "(트레이딩-선물)";
+            case TRADE_SPOT -> "(트레이드-현물)";
+            case TRADE_FUTURE -> "(트레이드-선물)";
             case CONTEST -> "(대회)";
         };
     }
