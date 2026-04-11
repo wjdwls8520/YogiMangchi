@@ -126,11 +126,11 @@ export default function MockUserOrderHistory() {
         let url = "";
 
         if (historyTab === "unfilled") {
-          url = `http://localhost:8080/api/v1/trade/orders/open?${params.toString()}`;
+          url = `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`;
         } else {
           params.set("status", "COMPLETED");
           params.set("size", "20");
-          url = `http://localhost:8080/api/v1/trade/orders?${params.toString()}`;
+          url = `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`;
         }
 
         const response = await fetch(url, {
@@ -239,7 +239,7 @@ export default function MockUserOrderHistory() {
       setCancelingOrderId(orderId);
       setErrorMessage("");
 
-      await cancelOrder(orderId);
+      await cancelOrder(orderId, "MOCK");
 
       if (ownerMemberId !== null) {
         await loadMockWallet(ownerMemberId, true);

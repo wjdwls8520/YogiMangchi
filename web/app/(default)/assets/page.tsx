@@ -576,7 +576,7 @@ export default function AssetsPage() {
 
       try {
         const openOrdersResponse = await fetch(
-          "http://localhost:8080/api/v1/trade/orders/open?assetType=MOCK",
+          "http://localhost:8080/api/v1/spot/mock/orders/open?assetType=MOCK",
           {
             method: "GET",
             credentials: "include",
@@ -634,7 +634,7 @@ export default function AssetsPage() {
 
       try {
         const response = await fetch(
-          `http://localhost:8080/api/v1/trade/orders?${query}`,
+          `http://localhost:8080/api/v1/spot/mock/orders?${query}`,
           {
             method: "GET",
             credentials: "include",
@@ -700,7 +700,7 @@ export default function AssetsPage() {
 
       try {
         const response = await fetch(
-          `http://localhost:8080/api/v1/trade/histories?${query}`,
+          `http://localhost:8080/api/v1/spot/mock/histories?${query}`,
           {
             method: "GET",
             credentials: "include",
@@ -788,7 +788,7 @@ export default function AssetsPage() {
               });
 
               const response = await fetch(
-                `http://localhost:8080/api/v1/trade/orders?${query}`,
+                `http://localhost:8080/api/v1/spot/mock/orders?${query}`,
                 {
                   method: "GET",
                   credentials: "include",
@@ -841,7 +841,7 @@ export default function AssetsPage() {
               });
 
               const response = await fetch(
-                `http://localhost:8080/api/v1/trade/histories?${query}`,
+                `http://localhost:8080/api/v1/spot/mock/histories?${query}`,
                 {
                   method: "GET",
                   credentials: "include",

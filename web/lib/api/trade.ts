@@ -123,11 +123,34 @@ const getSuccessMessage = (payload: unknown) => {
   return extractApiMessage(payload) || "OK";
 };
 
+// 모의투자 주문/조회는 별도 spot/mock 경로를 사용하고, 나머지는 기존 trade 경로를 사용한다.
+const getTradeApiPath = (
+  assetType: AssetType,
+  type: "market" | "limit" | "orders" | "openOrders" | "histories" | "cancel",
+  orderId?: number
+) => {
+  if (assetType === "MOCK") {
+    if (type === "market") return "spot/mock/order/market";
+    if (type === "limit") return "spot/mock/order/limit";
+    if (type === "orders") return "spot/mock/orders";
+    if (type === "openOrders") return "spot/mock/orders/open";
+    if (type === "histories") return "spot/mock/histories";
+    return `spot/mock/orders/${orderId}/cancel`;
+  }
+
+  if (type === "market") return "trade/order/market";
+  if (type === "limit") return "trade/order/limit";
+  if (type === "orders") return "trade/orders";
+  if (type === "openOrders") return "trade/orders/open";
+  if (type === "histories") return "trade/histories";
+  return `trade/orders/${orderId}/cancel`;
+};
+
 // 시장가 주문 실행
 export async function placeMarketOrder(
   params: MarketOrderParams
 ): Promise<string> {
-  const payload = await fetchClient("trade/order/market", {
+  const payload = await fetchClient(getTradeApiPath(params.assetType, "market"), {
     method: "POST",
     body: params as unknown as BodyInit,
   });
@@ -139,7 +162,7 @@ export async function placeMarketOrder(
 export async function placeLimitOrder(
   params: LimitOrderParams
 ): Promise<string> {
-  const payload = await fetchClient("trade/order/limit", {
+  const payload = await fetchClient(getTradeApiPath(params.assetType, "limit"), {
     method: "POST",
     body: params as unknown as BodyInit,
   });
@@ -152,7 +175,7 @@ export async function fetchOrders(
   filters: TradeListFilters
 ): Promise<CursorResponse<OrderItem>> {
   const payload = await fetchClient(
-    `trade/orders?${buildTradeQueryParams(filters)}`
+    `${getTradeApiPath(filters.assetType, "orders")}?${buildTradeQueryParams(filters)}`
   );
 
   return parseCursorResponse<OrderItem>(payload);
@@ -163,7 +186,7 @@ export async function fetchOpenOrders(
   filters: Omit<TradeListFilters, "status" | "startDate" | "endDate">
 ): Promise<OrderItem[]> {
   const payload = await fetchClient(
-    `trade/orders/open?${buildTradeQueryParams(filters)}`
+    `${getTradeApiPath(filters.assetType, "openOrders")}?${buildTradeQueryParams(filters)}`
   );
 
   return parseArrayResponse<OrderItem>(payload);
@@ -174,15 +197,18 @@ export async function fetchTradeHistories(
   filters: TradeListFilters
 ): Promise<CursorResponse<TradeHistoryItem>> {
   const payload = await fetchClient(
-    `trade/histories?${buildTradeQueryParams(filters)}`
+    `${getTradeApiPath(filters.assetType, "histories")}?${buildTradeQueryParams(filters)}`
   );
 
   return parseCursorResponse<TradeHistoryItem>(payload);
 }
 
 // 주문 취소
-export async function cancelOrder(orderId: number): Promise<string> {
-  const payload = await fetchClient(`trade/orders/${orderId}/cancel`, {
+export async function cancelOrder(
+  orderId: number,
+  assetType: AssetType = "MOCK"
+): Promise<string> {
+  const payload = await fetchClient(getTradeApiPath(assetType, "cancel", orderId), {
     method: "PUT",
   });
 
