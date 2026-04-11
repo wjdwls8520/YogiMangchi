@@ -7,7 +7,7 @@ import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
-import com.yogimangchi.domain.trade.dto.response.CursorResponseDto;
+import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

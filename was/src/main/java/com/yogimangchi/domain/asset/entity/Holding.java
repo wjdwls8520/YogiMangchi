@@ -1,6 +1,17 @@
 package com.yogimangchi.domain.asset.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -8,9 +19,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -23,13 +31,14 @@ import java.time.LocalDateTime;
 )
 @Comment("사용자의 지갑별 보유 코인 상세 내역")
 public class Holding {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id", nullable = false)
-    @Comment("소속된 지갑 ID")
+    @Comment("소속 지갑 ID")
     private Assets assets;
 
     @Column(nullable = false, length = 20)
@@ -37,15 +46,15 @@ public class Holding {
     private String symbol;
 
     @Column(nullable = false, precision = 19, scale = 8)
-    @Comment("현재 보유 (가용 가능한) 수량 (소수점 8자리)")
+    @Comment("현재 보유 가능한 수량")
     private BigDecimal quantity;
 
     @Column(name = "locked_quantity", nullable = false, precision = 19, scale = 8)
-    @Comment("지정가 매도 대기 중인 묶인(잠긴) 수량")
+    @Comment("지정가 매도 대기 중인 잠금 수량")
     private BigDecimal lockedQuantity;
 
     @Column(name = "average_buy_price", nullable = false, precision = 19, scale = 8)
-    @Comment("매수 평균 단가 (원화/달러 기준)")
+    @Comment("평균 매수가")
     private BigDecimal averageBuyPrice;
 
     @CreationTimestamp
@@ -57,7 +66,7 @@ public class Holding {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Holding(Assets assets, String symbol, BigDecimal quantity, BigDecimal lockedQuantity, BigDecimal averageBuyPrice){
+    public Holding(Assets assets, String symbol, BigDecimal quantity, BigDecimal lockedQuantity, BigDecimal averageBuyPrice) {
         this.assets = assets;
         this.symbol = symbol;
         this.quantity = quantity;
@@ -65,7 +74,7 @@ public class Holding {
         this.averageBuyPrice = averageBuyPrice;
     }
 
-    // 보유 수량 및 평균 매수가 갱신
+    // 보유 수량과 평균 매수가 갱신
     public void updateHolding(BigDecimal newQuantity, BigDecimal newAverageBuyPrice) {
         this.quantity = newQuantity;
         this.averageBuyPrice = newAverageBuyPrice;
@@ -88,19 +97,19 @@ public class Holding {
         validatePositiveQuantity(quantityToUnlock, "해제할 수량");
 
         if (this.lockedQuantity.compareTo(quantityToUnlock) < 0) {
-            throw new IllegalArgumentException("잠긴 수량보다 더 많이 해제할 수 없습니다.");
+            throw new IllegalArgumentException("잠긴 수량보다 많이 해제할 수 없습니다.");
         }
 
         this.lockedQuantity = this.lockedQuantity.subtract(quantityToUnlock);
         this.quantity = this.quantity.add(quantityToUnlock);
     }
 
-    // 주문 체결 시 예약 수량 소진
+    // 주문 체결 시 예약 수량 차감
     public void consumeLockedQuantity(BigDecimal quantityToConsume) {
-        validatePositiveQuantity(quantityToConsume, "소진할 수량");
+        validatePositiveQuantity(quantityToConsume, "차감할 수량");
 
         if (this.lockedQuantity.compareTo(quantityToConsume) < 0) {
-            throw new IllegalArgumentException("잠긴 수량보다 더 많이 소진할 수 없습니다.");
+            throw new IllegalArgumentException("잠긴 수량보다 많이 차감할 수 없습니다.");
         }
 
         this.lockedQuantity = this.lockedQuantity.subtract(quantityToConsume);
@@ -112,14 +121,14 @@ public class Holding {
                 .assets(assets)
                 .symbol(symbol)
                 .quantity(quantity)
-                .lockedQuantity(BigDecimal.ZERO) // 잠금 수량 0 초기화
-                .averageBuyPrice(buyPrice) // 첫 매수 단가 기준 평균가 설정
+                .lockedQuantity(BigDecimal.ZERO)
+                .averageBuyPrice(buyPrice)
                 .build();
     }
 
     private void validatePositiveQuantity(BigDecimal quantity, String label) {
         if (quantity == null) {
-            throw new IllegalArgumentException(label + "이(가) 없습니다.");
+            throw new IllegalArgumentException(label + " 값이 없습니다.");
         }
         if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException(label + "은(는) 0보다 커야 합니다.");

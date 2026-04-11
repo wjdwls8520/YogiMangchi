@@ -14,12 +14,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -53,10 +52,9 @@ public class Notification {
     private String message;
 
     @Column(length = 1000)
-    @Schema(description = "알림 클릭 시 이동 경로", example = "/trade/orders/14")
+    @Schema(description = "알림 클릭 시 이동 경로", example = "/spot/mock/orders/14")
     private String link;
 
-    // 읽음 상태는 알림 단위로 관리
     @Column(name = "is_read", nullable = false)
     @Schema(description = "알림 읽음 여부", example = "false")
     private boolean isRead;
@@ -70,14 +68,12 @@ public class Notification {
     @Schema(description = "알림 생성 시각")
     private LocalDateTime createdAt;
 
-    // 알림 종류별 추가 데이터 저장 필드
     @Column(name = "payload_json", columnDefinition = "text")
-    @Schema(description = "도메인별 추가 데이터를 담는 JSON 문자열")
+    @Schema(description = "화면 렌더링에 필요한 JSON payload")
     private String payloadJson;
 
     public static Notification create(Member receiver, Member actor, NotificationType type,
                                       String message, String link, String payloadJson) {
-        // 공통 알림 엔티티 생성 로직
         Notification notification = new Notification();
         notification.receiver = receiver;
         notification.actor = actor;
@@ -91,12 +87,10 @@ public class Notification {
     }
 
     public void markAsRead(LocalDateTime readAt) {
-        // 중복 읽음 처리 방어 로직
         if (this.isRead) {
             return;
         }
 
-        // 읽음 상태 반영 로직
         this.isRead = true;
         this.readAt = readAt;
     }

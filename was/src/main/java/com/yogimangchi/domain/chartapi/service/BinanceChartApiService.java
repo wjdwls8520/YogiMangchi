@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.chartapi.dto.BinanceTickerStreamMessage;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
-import com.yogimangchi.domain.trade.matching.LimitOrderMatchCoordinator;
+import com.yogimangchi.domain.spot.matching.LimitOrderMatchCoordinator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
