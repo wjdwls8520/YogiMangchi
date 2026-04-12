@@ -1,9 +1,7 @@
 package com.yogimangchi.domain.report.repository;
 
-import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
 import com.yogimangchi.domain.report.dto.query.MyReportedReplyQueryDto;
 import com.yogimangchi.domain.report.entity.ReplyReport;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -40,43 +38,6 @@ public interface ReplyReportRepository extends JpaRepository<ReplyReport, Long> 
     """)
     int deleteByMemberIdAndReplyId(@Param("memberId") Long memberId, @Param("replyId") Long replyId);
 
-    @Query("""
-        select new com.yogimangchi.domain.community.dto.response.ReplyDetailDto(
-            r.id,
-            r.content,
-            r.likeCount,
-            false,
-            r.reportCount,
-            true,
-            r.replyCount,
-            rp.id,
-            tr.id,
-            tm.id,
-            case
-                when tm.deleteYn = 'Y' then '탈퇴한 유저'
-                when tr.deleteYn = 'Y' then '알 수 없음'
-                else tm.nickname
-            end,
-            r.createdAt,
-            r.updatedAt,
-            m.id,
-            case when m.deleteYn = 'Y' then '탈퇴한 유저' else m.nickname end,
-            m.profileImgUrl,
-            p.id,
-            r.deleteYn
-        )
-        from ReplyReport rr
-        join rr.reply r
-        left join r.parentReply rp
-        left join r.targetReply tr
-        left join tr.member tm
-        join r.member m
-        join r.post p
-        where rr.member.id = :loginMemberId
-          and p.deleteYn = 'N'
-          and r.deleteYn = 'N'
-    """)
-    Page<ReplyDetailDto> getReportedReplys(@Param("loginMemberId") Long loginMemberId, Pageable pageable);
 
     // ── 커서 기반 페이징 메서드 (no-offset) ──
 

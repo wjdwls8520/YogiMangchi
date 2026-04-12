@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-public record FuturesMarketOrderRequestDto(
+public record FuturesLimitOrderRequestDto(
 
         @Schema(description = "거래할 선물 종목 심볼", example = "BTCUSDT")
         @NotBlank
@@ -23,9 +23,15 @@ public record FuturesMarketOrderRequestDto(
         @NotNull
         PositionAction positionAction,
 
+        @Schema(description = "지정가 주문 가격", example = "54000.12")
+        @NotNull
+        @DecimalMin(value = "0.00000001")
+        BigDecimal orderPrice,
+
         @Schema(description = "주문 수량", example = "0.01")
         @NotNull
-        @DecimalMin(value = "0.00000001") //그보다 작은 값은 거절, 자동 반올림 없음, 소수점 자리수 제한 기능도 아님
+        @DecimalMin(value = "0.00000001")
         BigDecimal orderQuantity
 ) {
 }
+

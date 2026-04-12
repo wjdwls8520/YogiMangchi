@@ -1,23 +1,21 @@
 package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
-import com.yogimangchi.domain.asset.enums.AssetType;
-import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderRequestDto;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
-import com.yogimangchi.global.exception.asset.AssetException;
+import com.yogimangchi.domain.futures.support.FuturesWalletReader;
+import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 
 @Service
 @RequiredArgsConstructor
 public class FuturesOrderService {
 
-    private final AssetRepository assetRepository;
+    private final MemberReader memberReader;
+    private final FuturesWalletReader futuresWalletReader;
 
     private final FuturesOrderRepository futuresOrderRepository;
 
@@ -27,33 +25,18 @@ public class FuturesOrderService {
         Assets wallet;
 
         if (contestSeasonId == null) {
-            wallet = findRealFuturesWallet(memberId);
+            // 본 투자 선물 주문 로직
+            wallet = futuresWalletReader.getTradableRealWallet(memberId);
+
+           // FuturesOrder.create(wallet, request.symbol(), request.positionSide(), request.positionAction(), request.orderQuantity());
         } else {
-            wallet = findContestFuturesWallet(memberId, contestSeasonId);
+            // 대회 선물 주문 로직
+            wallet = futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
         }
 
-        // TODO: 조회한 지갑 기준으로 공통 선물 시장가 주문 로직을 이어서 구현한다.
+
+
     }
 
-    // 본투자 선물은 활성화된 개인 선물 지갑만 조회한다.
-    private Assets findRealFuturesWallet(Long memberId) {
-        return assetRepository.findByMember_IdAndTypeAndStatusForUpdate(
-                        memberId,
-                        AssetType.TRADE_FUTURE,
-                        "ACTIVE"
-                )
-                .orElseThrow(AssetException::tradableRealFuturesWalletNotFound);
-    }
-
-    // 대회 선물은 시즌 ID와 현재 거래 가능 상태까지 함께 검증한 지갑만 허용한다.
-    private Assets findContestFuturesWallet(Long memberId, Long contestSeasonId) {
-        return assetRepository.findTradableContestWalletForUpdate(
-                        memberId,
-                        AssetType.CONTEST,
-                        "ACTIVE",
-                        contestSeasonId,
-                        LocalDateTime.now()
-                )
-                .orElseThrow(AssetException::tradableContestFuturesWalletNotFound);
-    }
+    // TODO: 조회한 지갑 기준으로 공통 선물 시장가 주문 로직을 이어서 구현한다.
 }
