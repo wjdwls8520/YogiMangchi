@@ -3,6 +3,7 @@ package com.yogimangchi.domain.notification.support;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,5 +36,17 @@ public class NotificationEmitterRepository {
         }
 
         return Map.copyOf(emitters);
+    }
+
+    public Map<Long, Map<String, SseEmitter>> findAll() {
+        Map<Long, Map<String, SseEmitter>> copiedEmitters = new HashMap<>();
+        emittersByMemberId.forEach((memberId, emitters) ->
+                copiedEmitters.put(memberId, Map.copyOf(emitters))
+        );
+        return Map.copyOf(copiedEmitters);
+    }
+
+    public void clear() {
+        emittersByMemberId.clear();
     }
 }

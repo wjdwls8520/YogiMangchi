@@ -2,14 +2,7 @@ package com.yogimangchi.domain.notification.entity;
 
 import com.yogimangchi.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,13 +18,12 @@ import java.time.LocalDateTime;
 public class NotificationState {
 
     @Id
-    @Column(name = "member_id")
-    @Schema(description = "알림 상태를 소유한 회원 ID", example = "1")
-    private Long memberId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Schema(description = "알림 상태 ID", example = "1")
+    private Long id;
 
-    @MapsId
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false, unique = true)
     @Schema(description = "알림 상태를 소유한 회원")
     private Member member;
 
@@ -49,7 +41,6 @@ public class NotificationState {
         // 회원별 알림 상태 생성 로직
         NotificationState notificationState = new NotificationState();
         notificationState.member = member;
-        notificationState.memberId = member.getId();
         notificationState.lastCheckedNotificationId = null;
         return notificationState;
     }

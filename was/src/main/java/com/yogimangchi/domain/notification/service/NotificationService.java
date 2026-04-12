@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -108,7 +107,7 @@ public class NotificationService {
 
     @Transactional
     public void checkNotifications(Long memberId) {
-        Member member = memberReader.getAuthenticated(memberId);
+        memberReader.getAuthenticated(memberId);
 
         // 현재 회원이 가진 가장 최신 알림 ID를 확인 기준으로 사용한다.
         Long latestNotificationId = notificationRepository.findLatestNotificationIdByReceiverId(memberId);
@@ -116,22 +115,8 @@ public class NotificationService {
             return;
         }
 
-        // 상태 row가 이미 있으면 더 큰 값으로만 갱신한다.
-        int updated = notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
-        if (updated > 0) {
-            return;
-        }
-
-        NotificationState notificationState = NotificationState.create(member);
-        notificationState.checkLatest(latestNotificationId);
-
-        try {
-            // 상태 row가 없는 첫 확인 시점에만 새로 생성한다.
-            notificationStateRepository.saveAndFlush(notificationState);
-        } catch (DataIntegrityViolationException exception) {
-            // 동시에 생성된 경우에는 더 큰 값 갱신만 한 번 더 시도한다.
-            notificationStateRepository.updateLastCheckedNotificationIdIfGreater(memberId, latestNotificationId);
-        }
+        // member_id 유니크 제약을 기준으로 동시에 check가 들어와도 한 번에 처리한다.
+        notificationStateRepository.upsertLastCheckedNotificationId(memberId, latestNotificationId);
     }
 
     @Transactional

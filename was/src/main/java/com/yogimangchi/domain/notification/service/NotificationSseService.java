@@ -4,6 +4,7 @@ import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
 import com.yogimangchi.domain.notification.support.NotificationEmitterRepository;
 import com.yogimangchi.global.exception.notification.NotificationException;
 import com.yogimangchi.global.support.MemberReader;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -31,10 +32,17 @@ public class NotificationSseService {
 
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
         notificationEmitterRepository.save(memberId, emitterId, emitter);
+        log.info("알림 SSE 구독 시작. memberId={}, emitterId={}", memberId, emitterId);
 
         // 브라우저 연결 종료 시점마다 저장소의 emitter를 정리한다.
-        emitter.onCompletion(() -> notificationEmitterRepository.remove(memberId, emitterId));
-        emitter.onTimeout(() -> notificationEmitterRepository.remove(memberId, emitterId));
+        emitter.onCompletion(() -> {
+            log.info("알림 SSE 구독 완료. memberId={}, emitterId={}", memberId, emitterId);
+            notificationEmitterRepository.remove(memberId, emitterId);
+        });
+        emitter.onTimeout(() -> {
+            log.info("알림 SSE 구독 시간 초과. memberId={}, emitterId={}", memberId, emitterId);
+            notificationEmitterRepository.remove(memberId, emitterId);
+        });
         emitter.onError(exception -> {
             log.warn("알림 SSE 연결 오류. memberId={}, emitterId={}", memberId, emitterId, exception);
             notificationEmitterRepository.remove(memberId, emitterId);
@@ -79,5 +87,28 @@ public class NotificationSseService {
                 notificationEmitterRepository.remove(memberId, entry.getKey());
             }
         }
+    }
+
+    @PreDestroy
+    public void closeAllEmitters() {
+        Map<Long, Map<String, SseEmitter>> emittersByMemberId = notificationEmitterRepository.findAll();
+        int emitterCount = emittersByMemberId.values().stream()
+                .mapToInt(Map::size)
+                .sum();
+
+        log.info("서버 종료로 알림 SSE 연결 정리를 시작합니다. emitterCount={}", emitterCount);
+
+        emittersByMemberId.forEach((memberId, emitters) ->
+                emitters.forEach((emitterId, emitter) -> {
+                    try {
+                        emitter.complete();
+                    } catch (IllegalStateException exception) {
+                        log.debug("이미 종료된 알림 SSE 연결입니다. memberId={}, emitterId={}", memberId, emitterId);
+                    }
+                })
+        );
+
+        notificationEmitterRepository.clear();
+        log.info("서버 종료로 알림 SSE 연결 정리를 완료했습니다. emitterCount={}", emitterCount);
     }
 }
