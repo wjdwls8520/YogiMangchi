@@ -53,14 +53,6 @@ public class Notification {
     @Schema(description = "알림 타입")
     private NotificationType type;
 
-    @Column(nullable = false, length = 500)
-    @Schema(description = "화면에 바로 표시할 알림 문구", example = "(모의투자) 비트코인 시장가 매수 주문이 체결되었습니다.")
-    private String message;
-
-    @Column(length = 1000)
-    @Schema(description = "알림 클릭 시 이동 경로", example = "/spot/mock/orders/14")
-    private String link;
-
     @Column(name = "is_read", nullable = false)
     @Schema(description = "알림 읽음 여부", example = "false")
     private boolean isRead;
@@ -75,18 +67,16 @@ public class Notification {
     private LocalDateTime createdAt;
 
     @Column(name = "payload_json", columnDefinition = "text")
-    @Schema(description = "화면 렌더링에 필요한 JSON payload")
+    @Schema(description = "프론트가 메시지와 이동 경로를 조립할 때 사용하는 JSON payload")
     private String payloadJson;
 
     public static Notification create(Member receiver, Member actor, NotificationCategory category, NotificationType type,
-                                      String message, String link, String payloadJson) {
+                                      String payloadJson) {
         Notification notification = new Notification();
         notification.receiver = receiver;
         notification.actor = actor;
         notification.category = category;
         notification.type = type;
-        notification.message = message;
-        notification.link = link;
         notification.payloadJson = payloadJson;
         notification.isRead = false;
         notification.readAt = null;

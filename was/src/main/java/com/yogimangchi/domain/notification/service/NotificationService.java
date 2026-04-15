@@ -260,8 +260,6 @@ public class NotificationService {
 
         String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
         NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
-        String orderTypeName = "MARKET".equalsIgnoreCase(orderType) ? "시장가" : "지정가";
-        String sideName = "BUY".equalsIgnoreCase(side) ? "매수" : "매도";
 
         OrderCompletedNotificationPayload payload = new OrderCompletedNotificationPayload(
                 orderId,
@@ -287,8 +285,6 @@ public class NotificationService {
                         null,
                         notificationCategory,
                         NotificationType.ORDER_COMPLETED,
-                        assetTypeDisplayName + " " + displayNameKr + " " + orderTypeName + " " + sideName + " 주문이 체결되었습니다.",
-                        "/spot/mock/orders/" + orderId,
                         serializePayload(payload)
                 )
         );
@@ -301,8 +297,8 @@ public class NotificationService {
 
         // 주문 트랜잭션과 분리된 새 트랜잭션에서 알림을 저장한다.
         NotificationResponseDto response = transactionTemplate.execute(status -> {
-            log.info("알림 저장 시작. receiverId={}, type={}, message={}",
-                    receiverId, notification.getType(), notification.getMessage());
+            log.info("알림 저장 시작. receiverId={}, category={}, type={}",
+                    receiverId, notification.getCategory(), notification.getType());
 
             Notification savedNotification = notificationRepository.saveAndFlush(notification);
 
@@ -328,7 +324,7 @@ public class NotificationService {
     }
 
     private String resolveAssetTypeDisplayName(AssetType assetType) {
-        // 알림 문구와 payload에서 함께 사용할 지갑 표시명이다.
+        // 프론트가 알림 문구를 조립할 때 사용할 지갑 표시명이다.
         return switch (assetType) {
             case MOCK -> "(모의투자)";
             case TRADE_SPOT -> "(트레이딩-현물)";

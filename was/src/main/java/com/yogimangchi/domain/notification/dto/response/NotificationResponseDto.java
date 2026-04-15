@@ -23,12 +23,6 @@ public record NotificationResponseDto(
         @Schema(description = "알림 타입")
         NotificationType type,
 
-        @Schema(description = "화면에 표시할 알림 문구", example = "비트코인 지정가 매수 주문이 체결되었습니다.")
-        String message,
-
-        @Schema(description = "알림 클릭 시 이동할 경로", example = "/spot/mock/orders/14")
-        String link,
-
         @Schema(description = "읽음 여부", example = "false")
         boolean isRead,
 
@@ -49,8 +43,6 @@ public record NotificationResponseDto(
                     notification.getActor() == null ? null : notification.getActor().getId(),
                     notification.getCategory(),
                     notification.getType(),
-                    notification.getMessage(),
-                    notification.getLink(),
                     notification.isRead(),
                     notification.getCreatedAt(),
                     payload
