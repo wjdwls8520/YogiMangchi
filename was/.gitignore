@@ -37,4 +37,4 @@ out/
 .vscode/
 
 # === support ===
-.CLAUDE.md
+CLAUDE.md
