@@ -1240,7 +1240,7 @@ export default function AssetsPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <section className="lg:col-span-4 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8 text-white shadow-xl shadow-gray-200/50 dark:shadow-none relative overflow-hidden">
+        <section className="lg:col-span-4 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl"></div>
           
           <div className="flex justify-between items-center mb-8 relative z-10">
@@ -1286,7 +1286,7 @@ export default function AssetsPage() {
           </div>
         </section>
 
-        <section className="lg:col-span-8 rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
+        <section className="lg:col-span-8 rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
           {assetTab !== "mock" ? (
             <EmptyState text="아직 해당 자산 데이터는 준비 중입니다." />
           ) : isLoadingMock ? (
@@ -1357,7 +1357,7 @@ export default function AssetsPage() {
         </section>
       </div>
 
-      <section className="rounded-3xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
+      <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
         <div className="border-b border-gray-100 dark:border-gray-700 pt-6">
           <Tabs
             tabs={[
@@ -1431,7 +1431,7 @@ export default function AssetsPage() {
                   {isSymbolInputFocused &&
                   currentSymbolInput.trim() !== "" &&
                   currentSymbolSuggestions.length > 0 ? (
-                    <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                    <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-full overflow-hidden rounded-xl border border-gray-200 bg-white">
                       {currentSymbolSuggestions.map((market) => (
                         <button
                           key={market.symbol}

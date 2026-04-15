@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import AdminGuard from "./AdminGuard";
 import packageInfo from "@/package.json";
+import AdminHeader from "@/components/admin/AdminHeader";
 
 export const metadata = {
   title: "요기망치 어드민",
@@ -21,34 +22,22 @@ export default function StandardLayout({
     <div className="flex flex-col min-h-screen">
       <AdminGuard>
 
-      <header className="flex justify-between items-center mx-auto sticky top-0 left-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-zinc-900 py-5 px-8">
-          <Link href="/admin" aria-label="어드민 메인 페이지로 이동"><h1 className="text-xl font-bold">요기망치 어드민</h1></Link>
-          <nav>
-            <ul className="flex gap-8">
-              <li><Link href="/admin/contest">대회 관리</Link></li>
-              <li><Link href="/admin/community">커뮤니티 관리</Link></li>
-              <li><Link href="/admin/users">회원 관리</Link></li>
-            </ul>
-          </nav>
-          <ul>
-            <li><Link href="/">서비스로 가기</Link></li>
-          </ul>
-      </header>
-      
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20">
-          {children}
-      </main>
+          <AdminHeader />
+          
+          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20">
+              {children}
+          </main>
 
-      <footer className="mt-12 py-6 border-t border-gray-200 text-center">
-        <div className="flex flex-col items-center gap-1 text-xs text-gray-400">
-          <p>© 2026 YogiMangchi Admin.</p>
-          <div className="flex items-center gap-3">
-            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">v{packageInfo.version} / Build: {formattedDate}</span>
-            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-            <button className="hover:text-gray-600 transition-colors underline-offset-2 underline">개발팀 문의</button>
-          </div>
-        </div>
-      </footer>
+          <footer className="mt-12 py-6 border-t border-gray-200 text-center">
+            <div className="flex flex-col items-center gap-1 text-xs text-gray-400">
+              <p>© 2026 YogiMangchi Admin.</p>
+              <div className="flex items-center gap-3">
+                <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">v{packageInfo.version} / Build: {formattedDate}</span>
+                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                <button className="hover:text-gray-600 transition-colors underline-offset-2 underline">개발팀 문의</button>
+              </div>
+            </div>
+          </footer>
 
       </AdminGuard>
     </div>

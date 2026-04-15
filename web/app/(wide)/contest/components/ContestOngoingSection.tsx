@@ -80,21 +80,24 @@ export default function ContestOngoingSection({
     <section className="space-y-4">
       <div className="flex items-center justify-between px-1">
         <h2 className="flex items-center gap-2 text-xl font-black">
-          <span className="h-6 w-2 rounded-full bg-blue-600" />
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+          </span>
           진행 중인 대회
         </h2>
       </div>
 
       {isLoading ? (
-        <div className="rounded-[2.5rem] border border-gray-100 bg-white p-10 text-center text-sm font-bold text-gray-400 shadow-sm">
+        <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm font-bold text-gray-400">
           진행 중인 대회 정보를 불러오는 중입니다.
         </div>
       ) : contests.length === 0 ? (
-        <div className="rounded-[2.5rem] border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400 shadow-sm">
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400">
           현재 라이브 진행 중인 대회가 없습니다.
         </div>
       ) : (
-      <div className="grid grid-cols-1 gap-6 rounded-[2.5rem] border border-gray-100 bg-white p-6 shadow-sm lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 rounded-2xl border border-gray-100 bg-white p-6  lg:grid-cols-12">
         <div className="space-y-3 border-r border-gray-50 pr-6 lg:col-span-4">
           {contests.map((contest) => (
             <button
@@ -103,7 +106,7 @@ export default function ContestOngoingSection({
               onClick={() => onSelectContest(contest.id)}
               className={`w-full rounded-2xl p-5 text-left transition-all ${
                 selectedContestId === contest.id
-                  ? "translate-x-2 bg-gray-900 text-white shadow-xl"
+                  ? "translate-x-2 bg-gray-900 text-white"
                   : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
@@ -127,21 +130,21 @@ export default function ContestOngoingSection({
 
                 <button
                   type="button"
-                  className="rounded-2xl bg-blue-600 px-8 py-4 text-lg font-black text-white shadow-lg shadow-blue-200 transition-all hover:scale-105 hover:bg-blue-700"
+                  className="rounded-2xl bg-blue-600 px-8 py-4 text-lg font-black text-white transition-all hover:scale-105 hover:bg-blue-700"
                 >
                   투자 바로가기
                 </button>
               </div>
 
               <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
                   <p className="mb-1 text-xs font-bold uppercase text-gray-400">
                     {primaryLabel}
                   </p>
                   <p className="text-3xl font-black text-gray-900">{primaryValue}</p>
                 </div>
 
-                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
                   <p className="mb-1 text-xs font-bold uppercase text-gray-400">
                     {secondaryLabel}
                   </p>
@@ -150,7 +153,7 @@ export default function ContestOngoingSection({
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
                   <p className="mb-1 text-xs font-bold uppercase text-gray-400">
                     {tertiaryLabel}
                   </p>
