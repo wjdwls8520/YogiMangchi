@@ -8,6 +8,7 @@ export default function StandardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />

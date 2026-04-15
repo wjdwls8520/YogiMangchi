@@ -19,8 +19,6 @@ export default function CommunityList({ posts }: Props) {
     const [isLoading, setIsLoading] = useState(false);
     const observerRef = useRef<HTMLDivElement | null>(null); // 스크롤 위치 확인
 
-    const [openActionMenu, setActionMenu] = useState<number | null>(null); // 액션 메뉴 열려있는지 확인
-
     const hasMore = usePostStore((state) => state.hasMore);
     const setHasMore = usePostStore((state) => state.setHasMore);
     const cursorId = usePostStore((state) => state.cursorId);
@@ -67,8 +65,7 @@ export default function CommunityList({ posts }: Props) {
                             <CommunityItem 
                                 post={post} 
                                 variant="list" 
-                                openActionMenu={openActionMenu} 
-                                setActionMenu={setActionMenu} />
+                            />
                         </li>
                 )}
                 <div ref={observerRef} />

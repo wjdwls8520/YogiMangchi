@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
-import { cn } from "@/lib/utils/cs";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import NavMenu from "./NavMenu";
@@ -17,14 +16,18 @@ import {
   Menu,
   UserRound,
   Wallet,
-  X,
 } from "lucide-react";
+import MenuLayer from "./ui/MenuLayer";
 
 export default function Header() {
   const { isLogin, login, logout, user } = useAuthStore();
   const { isDarkMode, toggleDarkMode } = useUIStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isMenuMounted, setIsMenuMounted] = useState(false);
+
+  const [isAlarmOpen, setIsAlarmOpen] = useState(false);
+  const [isAlarmMounted, setIsAlarmMounted] = useState(false);
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -48,6 +51,7 @@ export default function Header() {
     checkAuth();
   }, [login, logout]);
 
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
@@ -57,13 +61,16 @@ export default function Header() {
   }, [isDarkMode]);
 
   useEffect(() => {
-    if (isMenuMounted) {
+    if (isMenuMounted || isAlarmMounted) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
     }
-    return () => { document.body.style.overflow = "unset"; };
-  }, [isMenuMounted]);
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMenuMounted, isAlarmMounted]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -93,9 +100,19 @@ export default function Header() {
     };
   }, [isMenuMounted, isOpen]);
 
+  useEffect(() => {
+    if (isAlarmOpen || !isAlarmMounted) return;
+
+    const timeout = setTimeout(() => {
+      setIsAlarmMounted(false);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [isAlarmOpen, isAlarmMounted]); 
+
   const openMobileMenu = () => {
     setIsMenuMounted(true);
-    window.requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       setIsOpen(true);
     });
   };
@@ -104,32 +121,23 @@ export default function Header() {
     setIsOpen(false);
   };
 
+  const openAlarm = () => {
+    setIsAlarmMounted(true);
+    requestAnimationFrame(() => {
+      setIsAlarmOpen(true);
+    });
+  };
+
+  const closeAlarm = () => {
+    setIsAlarmOpen(false);
+  };  
+
   const mobileMenuLayer =
     isMenuMounted && typeof document !== "undefined"
       ? createPortal(
           <>
             <Dim onClickDim={closeMobileMenu} isVisible={isOpen} />
-            <div
-              className={cn(
-                "fixed inset-y-0 right-0 z-[120] w-72 max-w-[85vw] border-l border-gray-100 bg-white shadow-2xl transition-all duration-300 ease-out dark:border-zinc-800 dark:bg-zinc-900 min-[1101px]:hidden",
-                isOpen ? "translate-x-0" : "translate-x-full"
-              )}
-            >
-              <div className="flex justify-end p-4">
-                <button
-                  type="button"
-                  className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-                  onClick={closeMobileMenu}
-                >
-                  <X strokeWidth={2} size={24} />
-                </button>
-              </div>
-              <div
-                className={cn(
-                  "px-5 py-2 transition-all duration-300 ease-out",
-                  isOpen ? "translate-x-0 opacity-100" : "translate-x-3 opacity-0"
-                )}
-              >
+            <MenuLayer isOpen={isOpen} close={() => setIsOpen(false)}>
                 <NavMenu
                   onClickItem={closeMobileMenu}
                   classes="flex-col gap-2"
@@ -161,12 +169,26 @@ export default function Header() {
                     ) : null}
                   </div>
                 </div>
-              </div>
-            </div>
+            </MenuLayer>
           </>,
           document.body
         )
       : null;
+
+const alarmLayer =
+  isAlarmMounted && typeof document !== "undefined"
+    ? createPortal(
+        <>
+          <Dim onClickDim={closeAlarm} isVisible={isAlarmOpen} /> 
+          <MenuLayer isOpen={isAlarmOpen} close={() => setIsAlarmOpen(false)}>
+            <div className="rounded-xl border border-1 p-3">
+
+            </div>
+          </MenuLayer>
+        </>,
+        document.body
+      )
+    : null;      
 
   return (
     <header
@@ -195,6 +217,7 @@ export default function Header() {
           <div className="relative">
             <button
               type="button"
+              onClick={openAlarm}
               className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center"
             >
               <Bell size={20} strokeWidth={2} />
@@ -252,6 +275,7 @@ export default function Header() {
         </div>
       </div>
       {mobileMenuLayer}
+      {alarmLayer}
     </header>
   );
 }
