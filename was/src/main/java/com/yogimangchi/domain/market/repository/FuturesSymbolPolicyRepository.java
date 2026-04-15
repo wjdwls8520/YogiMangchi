@@ -1,0 +1,14 @@
+package com.yogimangchi.domain.market.repository;
+
+import com.yogimangchi.domain.market.entity.FuturesSymbolPolicy;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
+
+public interface FuturesSymbolPolicyRepository extends JpaRepository<FuturesSymbolPolicy, String> {
+
+    @Query("SELECT f FROM FuturesSymbolPolicy f JOIN FETCH f.marketSymbol WHERE f.symbol = :symbol")
+    Optional<FuturesSymbolPolicy> findWithMarketSymbolBySymbol(@Param("symbol") String symbol);
+}
