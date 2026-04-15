@@ -164,7 +164,7 @@ export default function CoinList({
   };
 
   return (
-    <aside className="w-full h-200 bg-white border border-gray-200 flex flex-col shrink-0 overflow-hidden rounded-xl">
+    <aside className="w-full h-full min-h-0 bg-white border border-gray-200 flex flex-col shrink-0 overflow-hidden">
       <div className="p-4 border-b border-gray-200">
         <div className="mb-4">
           <Tabs

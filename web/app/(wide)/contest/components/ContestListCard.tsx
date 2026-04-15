@@ -127,7 +127,7 @@ export default function ContestListCard({
     isActionLoading || contest.actionDisabled === true || !onAction;
 
   return (
-    <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-4 flex items-start justify-between">
         <h4 className="min-w-0 flex-1 truncate pr-4 font-black text-gray-800">
           {contest.title}

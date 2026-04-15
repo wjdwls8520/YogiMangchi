@@ -153,8 +153,8 @@ export default function OrderBook() {
   }
 
   return (
-    <div className="h-[520px] lg:col-span-4 bg-white border border-gray-200 flex flex-col lg:h-full overflow-hidden">
-      <div className="grid grid-cols-2 p-3 border-b border-gray-200 font-black text-xs bg-gray-50/50">
+    <div className="h-[520px] md:col-span-1 lg:col-span-3 bg-white border border-gray-200 flex flex-col lg:h-full overflow-hidden">
+      <div className="grid grid-cols-2 p-4 pr-6 border-b border-gray-200 font-black text-xs bg-gray-50/50">
         <span>호가</span>
         <span className="text-right">수량</span>
       </div>
