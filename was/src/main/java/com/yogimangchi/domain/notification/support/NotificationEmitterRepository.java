@@ -19,12 +19,16 @@ public class NotificationEmitterRepository {
                 .put(emitterId, emitter);
     }
 
-    public void remove(Long memberId, String emitterId) {
+    public boolean remove(Long memberId, String emitterId) {
+        final boolean[] removed = {false};
+
         // emitter 제거와 비어 있는 회원 맵 정리를 원자적으로 처리하는 로직
         emittersByMemberId.computeIfPresent(memberId, (key, emitters) -> {
-            emitters.remove(emitterId);
+            removed[0] = emitters.remove(emitterId) != null;
             return emitters.isEmpty() ? null : emitters;
         });
+
+        return removed[0];
     }
 
     public Map<String, SseEmitter> findAllByMemberId(Long memberId) {
@@ -44,6 +48,17 @@ public class NotificationEmitterRepository {
                 copiedEmitters.put(memberId, Map.copyOf(emitters))
         );
         return Map.copyOf(copiedEmitters);
+    }
+
+    public int countByMemberId(Long memberId) {
+        Map<String, SseEmitter> emitters = emittersByMemberId.get(memberId);
+        return emitters == null ? 0 : emitters.size();
+    }
+
+    public int countAllEmitters() {
+        return emittersByMemberId.values().stream()
+                .mapToInt(Map::size)
+                .sum();
     }
 
     public void clear() {

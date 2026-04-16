@@ -18,6 +18,7 @@ spring:
       max-request-size: 55MB
 
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     #서버실행시 코인data.sql실행
@@ -31,6 +32,11 @@ spring:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 30        # 기본 10 → 30
+      minimum-idle: 10
+      connection-timeout: 10000      # 10초 (기본 30초)
+      leak-detection-threshold: 30000  # 30초 이상 점유 시 경고 로그
 
   data:
     redis:

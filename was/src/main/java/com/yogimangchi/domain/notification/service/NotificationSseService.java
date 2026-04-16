@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -19,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class NotificationSseService {
 
     private static final long DEFAULT_TIMEOUT = 60L * 60L * 1000L;
+    private static final long HEARTBEAT_INTERVAL = 30_000L;
 
     private final NotificationEmitterRepository notificationEmitterRepository;
     private final MemberReader memberReader;
@@ -32,20 +34,32 @@ public class NotificationSseService {
 
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
         notificationEmitterRepository.save(memberId, emitterId, emitter);
-        log.info("알림 SSE 구독 시작. memberId={}, emitterId={}", memberId, emitterId);
+        log.info("알림 SSE 구독 시작. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}",
+                memberId,
+                emitterId,
+                notificationEmitterRepository.countByMemberId(memberId),
+                notificationEmitterRepository.countAllEmitters());
 
         // 브라우저 연결 종료 시점마다 저장소의 emitter를 정리한다.
         emitter.onCompletion(() -> {
-            log.info("알림 SSE 구독 완료. memberId={}, emitterId={}", memberId, emitterId);
-            notificationEmitterRepository.remove(memberId, emitterId);
+            if (notificationEmitterRepository.remove(memberId, emitterId)) {
+                logEmitterState("알림 SSE 구독 완료", memberId, emitterId);
+            }
         });
         emitter.onTimeout(() -> {
-            log.info("알림 SSE 구독 시간 초과. memberId={}, emitterId={}", memberId, emitterId);
-            notificationEmitterRepository.remove(memberId, emitterId);
+            if (notificationEmitterRepository.remove(memberId, emitterId)) {
+                logEmitterState("알림 SSE 구독 시간 초과", memberId, emitterId);
+            }
         });
         emitter.onError(exception -> {
-            log.warn("알림 SSE 연결 오류. memberId={}, emitterId={}", memberId, emitterId, exception);
-            notificationEmitterRepository.remove(memberId, emitterId);
+            if (notificationEmitterRepository.remove(memberId, emitterId)) {
+                log.info("알림 SSE 연결 종료. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}, cause={}",
+                        memberId,
+                        emitterId,
+                        notificationEmitterRepository.countByMemberId(memberId),
+                        notificationEmitterRepository.countAllEmitters(),
+                        exception.getClass().getSimpleName());
+            }
         });
 
         try {
@@ -83,10 +97,52 @@ public class NotificationSseService {
                 );
             } catch (IOException | IllegalStateException exception) {
                 // 죽은 emitter 하나가 다른 연결 전송까지 막지 않도록 즉시 제거한다.
-                log.warn("알림 SSE 전송 중 연결 제거. memberId={}, emitterId={}", memberId, entry.getKey(), exception);
-                notificationEmitterRepository.remove(memberId, entry.getKey());
+                if (notificationEmitterRepository.remove(memberId, entry.getKey())) {
+                    log.info("알림 SSE 전송 중 연결 제거. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}, cause={}",
+                            memberId,
+                            entry.getKey(),
+                            notificationEmitterRepository.countByMemberId(memberId),
+                            notificationEmitterRepository.countAllEmitters(),
+                            exception.getClass().getSimpleName());
+                }
             }
         }
+    }
+
+    // 닫힌 브라우저, 로그아웃 등 구독해지를 감지하기 위한 30초 핑
+    @Scheduled(fixedDelay = HEARTBEAT_INTERVAL)
+    public void sendHeartbeat() {
+        Map<Long, Map<String, SseEmitter>> emittersByMemberId = notificationEmitterRepository.findAll();
+
+        if (emittersByMemberId.isEmpty()) {
+            return;
+        }
+
+        emittersByMemberId.forEach((memberId, emitters) ->
+                emitters.forEach((emitterId, emitter) -> {
+                    try {
+                        emitter.send(SseEmitter.event().comment("heartbeat"));
+                    } catch (IOException | IllegalStateException exception) {
+                        if (notificationEmitterRepository.remove(memberId, emitterId)) {
+                            log.info("알림 SSE heartbeat 연결 제거. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}, cause={}",
+                                    memberId,
+                                    emitterId,
+                                    notificationEmitterRepository.countByMemberId(memberId),
+                                    notificationEmitterRepository.countAllEmitters(),
+                                    exception.getClass().getSimpleName());
+                        }
+                    }
+                })
+        );
+    }
+
+    private void logEmitterState(String message, Long memberId, String emitterId) {
+        log.info("{}. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}",
+                message,
+                memberId,
+                emitterId,
+                notificationEmitterRepository.countByMemberId(memberId),
+                notificationEmitterRepository.countAllEmitters());
     }
 
     @PreDestroy
