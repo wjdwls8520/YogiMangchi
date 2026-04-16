@@ -4,10 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useMockWalletStore } from "@/stores/useMockWalletStore";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
+import { useRequireLogin } from "@/hooks/useWithAuth";
 
 type AuthUser = NonNullable<ReturnType<typeof useAuthStore.getState>["user"]>;
 
 export default function DemoNoticeBar() {
+  const { alert, confirm, toast } = useFeedback();
+  const moveToLogin = useRequireLogin({ redirectMode: "push" });
   const router = useRouter();
 
   const { isLogin, user, login, logout } = useAuthStore();
@@ -24,11 +28,6 @@ export default function DemoNoticeBar() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-
-  const moveToLogin = () => {
-    alert("모의투자를 시작하려면 로그인이 필요합니다.");
-    router.push("/login");
-  };
 
   const resolveAuthenticatedUser = useCallback(async (): Promise<AuthUser | null> => {
     if (isLogin && user) {
@@ -98,22 +97,31 @@ export default function DemoNoticeBar() {
       logout();
       syncWalletOwner(null);
       setIsSubmitting(false);
-      moveToLogin();
+      await moveToLogin();
       return;
     }
 
     const result = await participateMock(currentUser.memberId);
 
     if (result.success) {
-      alert("모의투자 계좌가 생성되고 10,000 USDT가 지급되었습니다.");
+      toast({
+        title: "모의투자 계좌가 생성되었습니다.",
+        description: "10,000 USDT가 지급되었습니다.",
+        tone: "success",
+      });
     } else if (result.status === "already_participated") {
-      alert("이미 진행 중인 모의투자 계좌를 불러왔습니다.");
+      toast({
+        title: "이미 진행 중인 모의투자 계좌를 불러왔습니다.",
+        tone: "info",
+      });
     } else if (result.status === "login_required") {
       logout();
       syncWalletOwner(null);
-      moveToLogin();
+      await moveToLogin();
     } else {
-      alert(result.message || "모의투자 계좌 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert(
+        result.message || "모의투자 계좌 생성에 실패했습니다. 잠시 후 다시 시도해 주세요."
+      );
     }
 
     setIsSubmitting(false);
@@ -124,9 +132,12 @@ export default function DemoNoticeBar() {
       return;
     }
 
-    const isConfirmed = confirm(
-      "모든 모의투자 내역을 정리하고 10,000 USDT로 다시 시작하시겠습니까?"
-    );
+    const isConfirmed = await confirm({
+      description:
+        "모든 모의투자 내역을 정리하고 10,000 USDT로 다시 시작하시겠습니까?",
+      confirmText: "초기화",
+      tone: "danger",
+    });
 
     if (!isConfirmed) {
       return;
@@ -140,20 +151,26 @@ export default function DemoNoticeBar() {
       logout();
       syncWalletOwner(null);
       setIsResetting(false);
-      moveToLogin();
+      await moveToLogin();
       return;
     }
 
     const result = await resetMockWallet(currentUser.memberId);
 
     if (result.success) {
-      alert("모의투자 계좌가 초기화되어 10,000 USDT로 다시 시작했습니다.");
+      toast({
+        title: "모의투자 계좌를 초기화했습니다.",
+        description: "10,000 USDT로 다시 시작합니다.",
+        tone: "success",
+      });
     } else if (result.status === "login_required") {
       logout();
       syncWalletOwner(null);
-      moveToLogin();
+      await moveToLogin();
     } else {
-      alert(result.message || "모의투자 초기화에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert(
+        result.message || "모의투자 초기화에 실패했습니다. 잠시 후 다시 시도해 주세요."
+      );
     }
 
     setIsResetting(false);

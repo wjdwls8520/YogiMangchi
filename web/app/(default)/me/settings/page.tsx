@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import AddressSearchModal from "@/components/AddressSearchModal";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { MemberInfo } from "@/types/member";
 
@@ -32,6 +33,7 @@ export default function MeSettingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const login = useAuthStore((state) => state.login);
+  const { alert, toast } = useFeedback();
 
   const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,7 +86,7 @@ export default function MeSettingPage() {
         setImageType(null);
       } catch (err) {
         console.error("멤버 정보 로드 실패:", err);
-        alert("로그인이 필요하거나 정보를 불러올 수 없습니다.");
+        await alert("로그인이 필요하거나 정보를 불러올 수 없습니다.");
         router.push("/login");
       } finally {
         setIsLoading(false);
@@ -92,19 +94,21 @@ export default function MeSettingPage() {
     };
 
     fetchMemberInfo();
-  }, [router]);
+  }, [alert, router]);
 
   const validateNickname = (name: string) => /^[가-힣a-zA-Z0-9]{2,12}$/.test(name);
 
   const handleCheckDuplication = async () => {
     if (nickname === originalNickname) {
-      alert("현재 사용 중인 닉네임입니다.");
+      await alert("현재 사용 중인 닉네임입니다.");
       setIsNicknameChecked(true);
       return;
     }
 
     if (!validateNickname(nickname)) {
-      alert("닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다.");
+      await alert(
+        "닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다."
+      );
       return;
     }
 
@@ -125,15 +129,15 @@ export default function MeSettingPage() {
       const data = await response.json();
 
       if (data.available === true || data === true) {
-        alert("사용 가능한 닉네임입니다!");
+        toast({ title: "사용 가능한 닉네임입니다!", tone: "success" });
         setIsNicknameChecked(true);
       } else {
-        alert("이미 사용 중인 닉네임입니다.");
+        await alert("이미 사용 중인 닉네임입니다.");
         setIsNicknameChecked(false);
       }
     } catch (error) {
       console.error("중복 체크 에러:", error);
-      alert("중복 확인 중 오류가 발생했습니다.");
+      await alert("중복 확인 중 오류가 발생했습니다.");
     }
   };
 
@@ -184,7 +188,7 @@ export default function MeSettingPage() {
     e.preventDefault();
 
     if (nickname !== originalNickname && !isNicknameChecked) {
-      alert("닉네임 중복 확인을 해주세요.");
+      await alert("닉네임 중복 확인을 해주세요.");
       return;
     }
 
@@ -215,7 +219,7 @@ export default function MeSettingPage() {
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
         console.error("서버 응답 에러:", errData);
-        alert(errData?.message || "정보 수정에 실패했습니다.");
+        await alert(errData?.message || "정보 수정에 실패했습니다.");
         return;
       }
 
@@ -226,6 +230,11 @@ export default function MeSettingPage() {
         setPreviewImg(updatedData.profileImgUrl || "");
         setUploadFile(null);
         setImageType(null);
+
+        const nextRole: MemberInfo["role"] =
+          updatedData.role === "ADMIN" || updatedData.role === "VERIFIED_USER"
+            ? updatedData.role
+            : "USER";
 
         const nextAuthUser: MemberInfo = {
           memberId: updatedData.memberId,
@@ -238,16 +247,17 @@ export default function MeSettingPage() {
           followingCount: updatedData.followingCount,
           term_agree: updatedData.term_agree,
           private_agree: updatedData.private_agree,
+          role: nextRole,
         };
 
         login(nextAuthUser);
       }
 
-      alert("정보가 성공적으로 수정되었습니다.");
+      toast({ title: "정보가 성공적으로 수정되었습니다.", tone: "success" });
       router.push("/profile");
     } catch (error) {
       console.error("수정 에러:", error);
-      alert("서버와 통신 중 에러가 발생했습니다.");
+      await alert("서버와 통신 중 에러가 발생했습니다.");
     }
   };
 

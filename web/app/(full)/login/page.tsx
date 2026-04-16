@@ -1,19 +1,22 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { KakaoIcon, GoogleIcon } from "@/components/icons";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const markAuthSyncNeeded = () => {
+    window.sessionStorage.setItem("needs-auth-sync", "1");
+  };
   
   const handleKakaoLogin = () => {
+    markAuthSyncNeeded();
     window.location.href = "http://localhost:8080/oauth2/authorization/kakao";
   };
 
   const handleGoogleLogin = () => {
+    markAuthSyncNeeded();
     window.location.href = "http://localhost:8080/oauth2/authorization/google";
   };
 

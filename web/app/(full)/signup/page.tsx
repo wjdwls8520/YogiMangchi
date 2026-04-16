@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import PolicyModal from "@/components/PolicyModal";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
@@ -12,10 +14,15 @@ export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? ""; // 백엔드에서 넘겨주는 소셜로그인 토큰
+  const { alert, toast } = useFeedback();
 
   const [nickname, setNickname] = useState("");
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [nicknameFeedback, setNicknameFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   //닉네임 중복체크(false 가입 불가)
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
@@ -24,6 +31,7 @@ export default function SignupPage() {
   // 닉네임 입력값이 변하면 다시 중복체크 하도록
   useEffect(() => {
     setIsNicknameChecked(false);
+    setNicknameFeedback(null);
   }, [nickname]);
 
   // 닉네임 유효성 검사 (백엔드 정규식과 동일)
@@ -35,7 +43,11 @@ export default function SignupPage() {
   // 닉네임 중복 확인 함수
   const handleCheckDuplication = async () => {
     if (!validateNickname(nickname)) {
-      alert("닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다.");
+      setIsNicknameChecked(false);
+      setNicknameFeedback({
+        tone: "error",
+        message: "닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다.",
+      });
       return;
     }
 
@@ -51,15 +63,22 @@ export default function SignupPage() {
       const data = await response.json();
       
       if (data.available === true || data === true) { 
-        alert("사용 가능한 닉네임입니다! 😊");
         setIsNicknameChecked(true);
+        setNicknameFeedback({
+          tone: "success",
+          message: "사용 가능한 닉네임입니다.",
+        });
       } else {
-        alert("이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.");
         setIsNicknameChecked(false);
+        setNicknameFeedback({
+          tone: "error",
+          message: "이미 사용 중인 닉네임입니다.",
+        });
       }
     } catch (error) {
       console.error("중복체크 에러:", error);
-      alert("중복 확인 중 오류가 발생했습니다.");
+      setNicknameFeedback(null);
+      await alert("중복 확인 중 오류가 발생했습니다.");
     }
   };
   
@@ -87,15 +106,16 @@ export default function SignupPage() {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
-        alert(errorBody?.message ?? "회원가입 실패");
+        await alert(errorBody?.message ?? "회원가입 실패");
         return;
       }
 
       console.log("온보딩 완료 데이터 전송 성공!");
+      toast({ title: "회원가입이 완료되었습니다.", tone: "success" });
       router.push("/signup/benefits"); // 가입 완료 후 메인 페이지로 이동
     } catch (error) {
       console.error("API 전송 에러:", error);
-      alert("서버와 통신하는 중 문제가 발생했습니다.");
+      await alert("서버와 통신하는 중 문제가 발생했습니다.");
     }
   };
 
@@ -139,9 +159,22 @@ export default function SignupPage() {
                 {isNicknameChecked ? "확인 완료" : "중복 확인"}
               </Button>
             </div>
-            {isNicknameChecked && (
-              <p className="mt-2 text-[12px] text-blue-600 font-bold">✓ 사용 가능한 닉네임입니다.</p>
-            )}
+            {nicknameFeedback ? (
+              <p
+                className={`mt-2 flex items-center gap-1.5 text-[12px] font-bold ${
+                  nicknameFeedback.tone === "success"
+                    ? "text-blue-600"
+                    : "text-red-500"
+                }`}
+              >
+                {nicknameFeedback.tone === "success" ? (
+                  <CheckCircle2 size={14} strokeWidth={2.4} />
+                ) : (
+                  <CircleAlert size={14} strokeWidth={2.4} />
+                )}
+                <span>{nicknameFeedback.message}</span>
+              </p>
+            ) : null}
           </div>
 
           {/* 2. 약관 동의 및 제출 버튼 영역 */}

@@ -3,9 +3,14 @@
 import { useMemo, useState } from "react";
 import Button from "@/components/ui/Button";
 import BaseModal from "@/components/ui/BaseModal";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import Input from "@/components/ui/Input";
 import { updateContestSeason } from "@/lib/api/admin-contest";
 import type { ContestSeason } from "@/lib/api/contest";
+import {
+  ADMIN_LOGIN_REQUIRED_MESSAGE,
+  getAdminForbiddenMessage,
+} from "@/lib/utils/adminFeedback";
 
 type ContestEditModalProps = {
   season: ContestSeason;
@@ -44,6 +49,7 @@ export default function ContestEditModal({
   onClose,
   onUpdated,
 }: ContestEditModalProps) {
+  const { alert, toast } = useFeedback();
   const formId = `contest-edit-form-${season.id}`;
   const [form, setForm] = useState<ContestEditForm>(() =>
     getInitialEditForm(season)
@@ -83,22 +89,22 @@ export default function ContestEditModal({
       !form.contestStartAt ||
       !form.contestEndAt
     ) {
-      alert("모든 항목을 입력해 주세요.");
+      await alert("모든 항목을 입력해 주세요.");
       return;
     }
 
     if (isDescriptionTooLong) {
-      alert(`대회 설명은 ${DESCRIPTION_MAX_LENGTH}자 이하로 입력해 주세요.`);
+      await alert(`대회 설명은 ${DESCRIPTION_MAX_LENGTH}자 이하로 입력해 주세요.`);
       return;
     }
 
     if (new Date(form.recruitmentStartAt) >= new Date(form.recruitmentEndAt)) {
-      alert("모집 종료일은 모집 시작일보다 뒤여야 합니다.");
+      await alert("모집 종료일은 모집 시작일보다 뒤여야 합니다.");
       return;
     }
 
     if (new Date(form.contestStartAt) >= new Date(form.contestEndAt)) {
-      alert("대회 종료일은 대회 시작일보다 뒤여야 합니다.");
+      await alert("대회 종료일은 대회 시작일보다 뒤여야 합니다.");
       return;
     }
 
@@ -115,23 +121,28 @@ export default function ContestEditModal({
       });
 
       onUpdated?.(updatedSeason);
-      alert("대회 정보가 수정되었습니다.");
+      toast({
+        title: "대회 정보가 수정되었습니다.",
+        tone: "success",
+      });
       onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 대회 정보를 수정할 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("대회 정보를 수정할 수 없습니다.")
+        );
         return;
       }
 
       console.error("대회 수정 실패:", error);
-      alert("대회 정보 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("대회 정보 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSubmitting(false);
     }

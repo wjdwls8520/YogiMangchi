@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 
 import type { Post, Reply } from "@/app/(default)/community/types/post";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import Button from "@/components/ui/Button";
 import ProfileSidebar from "@/components/user/profile/ProfileSidebar";
 import ProfileCommunitySection, {
@@ -24,6 +25,7 @@ export default function MemberProfilePage() {
   const memberId = Number(params.memberId);
   const isLogin = useAuthStore((state) => state.isLogin);
   const currentUser = useAuthStore((state) => state.user);
+  const { alert, toast } = useFeedback();
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileErrorMessage, setProfileErrorMessage] = useState("");
@@ -206,6 +208,12 @@ export default function MemberProfilePage() {
             }
           : prev
       );
+      toast({
+        title: memberProfile.followedByMe
+          ? "팔로우를 취소했습니다."
+          : "팔로우했습니다.",
+        tone: "success",
+      });
     } catch (error) {
       console.error("failed to toggle follow state:", error);
 
@@ -217,7 +225,7 @@ export default function MemberProfilePage() {
         return;
       }
 
-      alert("팔로우 상태를 변경하지 못했습니다. 잠시 후 다시 시도해주세요.");
+      await alert("팔로우 상태를 변경하지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsSubmittingFollow(false);
     }

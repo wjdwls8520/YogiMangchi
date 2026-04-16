@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useKakaoPostcodePopup } from "react-daum-postcode";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 
 interface AddressSearchModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ let isAddressSearchWindowOpening = false;
 export default function AddressSearchModal({ isOpen, onClose, onComplete }: AddressSearchModalProps) {
   const openPostcodePopup = useKakaoPostcodePopup();
   const hasOpenedRef = useRef(false);
+  const { alert } = useFeedback();
 
   const handleComplete = useCallback((data: AddressSearchResult) => {
     let fullAddress = data.address; // 기본 주소
@@ -60,14 +62,14 @@ export default function AddressSearchModal({ isOpen, onClose, onComplete }: Addr
         });
       } catch (error) {
         console.error("주소 검색 창 열기 실패:", error);
-        alert("주소 검색 창을 열지 못했습니다. 브라우저 팝업 차단 설정을 확인해 주세요.");
+        await alert("주소 검색 창을 열지 못했습니다. 브라우저 팝업 차단 설정을 확인해 주세요.");
       } finally {
         isAddressSearchWindowOpening = false;
       }
     };
 
     void openPopup();
-  }, [handleComplete, isOpen, onClose, openPostcodePopup]);
+  }, [alert, handleComplete, isOpen, onClose, openPostcodePopup]);
 
   return null;
 }

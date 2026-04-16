@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import AddressSearchModal from "@/components/AddressSearchModal";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
 
 export default function VerifyDetailPage() {
   const router = useRouter();
+  const { alert, toast } = useFeedback();
 
   // 폼 상태 관리
   const [name, setName] = useState("");
@@ -34,30 +36,46 @@ export default function VerifyDetailPage() {
   };
 
   // 인증번호 발송 로직
-  const handleSendCode = () => {
-    if (phone.length < 10) return alert("올바른 휴대폰 번호를 입력해주세요.");
+  const handleSendCode = async () => {
+    if (phone.length < 10) {
+      await alert("올바른 휴대폰 번호를 입력해주세요.");
+      return;
+    }
     // TODO: 실제 SMS 발송 API 연동
     setIsCodeSent(true);
-    alert("인증번호가 발송되었습니다. (테스트용: 아무 숫자나 입력하세요)");
+    toast({
+      title: "인증번호가 발송되었습니다.",
+      description: "테스트용이라 아무 숫자나 입력해도 됩니다.",
+      tone: "success",
+    });
   };
 
   // 인증번호 확인 로직
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     if (verifyCode.length === 0) return;
     // TODO: 실제 인증번호 확인 API 연동
     setIsVerified(true);
-    alert("인증이 완료되었습니다.");
+    toast({
+      title: "인증이 완료되었습니다.",
+      tone: "success",
+    });
   };
 
   // 폼 제출
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isVerified) return alert("휴대폰 본인인증을 완료해주세요.");
-    if (!name || !address || !detailAddress) return alert("모든 정보를 입력해주세요.");
+    if (!isVerified) {
+      await alert("휴대폰 본인인증을 완료해주세요.");
+      return;
+    }
+    if (!name || !address || !detailAddress) {
+      await alert("모든 정보를 입력해주세요.");
+      return;
+    }
 
     // TODO: 백엔드에 인증 회원 정보 저장 API 호출
     console.log("인증 회원 정보 제출:", { name, phone, address: `${address} ${detailAddress}` });
-    alert("인증 회원 업그레이드가 완료되었습니다!🎉");
+    await alert("인증 회원 업그레이드가 완료되었습니다!");
     router.push("/"); // 메인 홈으로 이동
   };
 

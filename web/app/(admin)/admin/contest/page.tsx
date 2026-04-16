@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { ChevronDown } from "lucide-react";
 import {
   inferContestIsCanceled,
@@ -17,6 +18,10 @@ import {
 } from "@/lib/api/admin-contest";
 import ContestCreateModal from "./components/ContestCreateModal";
 import ContestEditModal from "./components/ContestEditModal";
+import {
+  ADMIN_LOGIN_REQUIRED_MESSAGE,
+  getAdminForbiddenMessage,
+} from "@/lib/utils/adminFeedback";
 
 type SortKey = "updatedAt";
 const ADMIN_CONTEST_PAGE_SIZE = 5;
@@ -139,7 +144,7 @@ const ToggleSwitch = ({
       } ${disabled ? "cursor-not-allowed opacity-60" : "hover:opacity-90"}`}
     >
       <span
-        className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+        className={`absolute left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
           checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
@@ -150,6 +155,7 @@ const ToggleSwitch = ({
 // 관리자 대회 목록 페이지:
 // 시즌 생성, 상태 토글, 상세 페이지 진입을 한 화면에서 관리합니다.
 export default function AdminContestPage() {
+  const { alert, confirm, toast } = useFeedback();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSeason, setEditingSeason] = useState<ContestSeason | null>(null);
   const [rows, setRows] = useState<ContestSeasonRow[]>([]);
@@ -212,9 +218,9 @@ export default function AdminContestPage() {
         if (message.includes("401")) {
           if (reset) {
             setRows([]);
-            setRowsError("로그인이 필요한 관리자 기능입니다.");
+            setRowsError(ADMIN_LOGIN_REQUIRED_MESSAGE);
           } else {
-            alert("로그인이 필요한 관리자 기능입니다.");
+            await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
           }
           return;
         }
@@ -222,9 +228,13 @@ export default function AdminContestPage() {
         if (message.includes("403")) {
           if (reset) {
             setRows([]);
-            setRowsError("관리자 권한이 없어 대회 목록을 조회할 수 없습니다.");
+            setRowsError(
+              getAdminForbiddenMessage("대회 목록을 조회할 수 없습니다.")
+            );
           } else {
-            alert("관리자 권한이 없어 대회 목록을 더 불러올 수 없습니다.");
+            await alert(
+              getAdminForbiddenMessage("대회 목록을 더 불러올 수 없습니다.")
+            );
           }
           return;
         }
@@ -235,7 +245,7 @@ export default function AdminContestPage() {
           setRows([]);
           setRowsError("대회 목록을 불러오지 못했습니다.");
         } else {
-          alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          await alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         }
       } finally {
         if (reset) {
@@ -245,7 +255,7 @@ export default function AdminContestPage() {
         }
       }
     },
-    []
+    [alert]
   );
 
   useEffect(() => {
@@ -280,6 +290,26 @@ export default function AdminContestPage() {
     void loadContestSeasonRows({ reset: true });
   };
 
+  const handleUpdatedSeason = useCallback(
+    (updatedSeason: ContestSeason) => {
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === updatedSeason.id
+            ? {
+                ...toContestSeasonRow(updatedSeason),
+                isPublic: inferContestIsPublic(updatedSeason),
+                isCancel: inferContestIsCanceled(updatedSeason),
+              }
+            : row
+        )
+      );
+
+      // 수정 응답과 목록 응답의 필드 구성이 다를 수 있어 최신 목록으로 한 번 더 동기화합니다.
+      void loadContestSeasonRows({ reset: true });
+    },
+    [loadContestSeasonRows]
+  );
+
   const recruitingCount = rows.filter((row) =>
     row.progressBadges.includes("모집중")
   ).length;
@@ -302,7 +332,13 @@ export default function AdminContestPage() {
           ? "이 대회를 취소 상태로 변경할까요?"
           : "이 대회의 취소 상태를 해제할까요?";
 
-    if (!window.confirm(confirmMessage)) {
+    const shouldProceed = await confirm({
+      description: confirmMessage,
+      confirmText: "변경",
+      tone: field === "isCancel" && nextIsCancel ? "danger" : "default",
+    });
+
+    if (!shouldProceed) {
       return;
     }
 
@@ -324,21 +360,35 @@ export default function AdminContestPage() {
             : currentRow
         )
       );
+
+      toast({
+        title:
+          field === "isPublic"
+            ? nextIsPublic
+              ? "대회를 공개로 변경했습니다."
+              : "대회를 비공개로 변경했습니다."
+            : nextIsCancel
+              ? "대회를 취소 상태로 변경했습니다."
+              : "대회 취소 상태를 해제했습니다.",
+        tone: "success",
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 대회 상태를 변경할 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("대회 상태를 변경할 수 없습니다.")
+        );
         return;
       }
 
       console.error("대회 상태 변경 실패:", error);
-      alert("대회 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("대회 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setUpdatingRowKey(null);
     }
@@ -346,7 +396,7 @@ export default function AdminContestPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+      <section className="rounded-2xl border border-gray-200 bg-white p-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-black text-gray-900">대회 관리</h1>
@@ -532,13 +582,14 @@ export default function AdminContestPage() {
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex justify-center">
-                        <button
+                        <Button
                           type="button"
+                          variant="white"
+                          size="sm"
                           onClick={() => setEditingSeason(row.season)}
-                          className="inline-flex h-9 min-w-[60px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-xs font-bold text-gray-700 transition-all hover:border-gray-400 hover:bg-gray-50"
                         >
                           수정
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -594,20 +645,7 @@ export default function AdminContestPage() {
         <ContestEditModal
           season={editingSeason}
           onClose={() => setEditingSeason(null)}
-          onUpdated={(updatedSeason) => {
-            setRows((prev) =>
-              prev.map((row) =>
-                row.id === updatedSeason.id
-                  ? {
-                      ...toContestSeasonRow(updatedSeason),
-                      isPublic: inferContestIsPublic(updatedSeason),
-                      isCancel: inferContestIsCanceled(updatedSeason),
-                    }
-                  : row
-              )
-            );
-            setEditingSeason(updatedSeason);
-          }}
+          onUpdated={handleUpdatedSeason}
         />
       ) : null}
     </div>

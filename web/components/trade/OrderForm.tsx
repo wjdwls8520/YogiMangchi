@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Tabs from "@/components/ui/Tabs";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
+import { useRequireLogin } from "@/hooks/useWithAuth";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -121,6 +123,8 @@ function OrderFormBody({
 }: OrderFormBodyProps) {
   const router = useRouter();
   const { isLogin, user } = useAuthStore();
+  const { alert, toast } = useFeedback();
+  const requireLogin = useRequireLogin({ redirectMode: "push" });
 
   const [orderPrice, setOrderPrice] = useState(
     orderType === "limit" ? toInputValue(currentPrice, 2) : ""
@@ -195,104 +199,114 @@ function OrderFormBody({
   const handleSubmit = async () => {
     if (isMarketBuy) {
       if (!orderAmount.trim()) {
-        alert("주문금액을 입력하세요.");
+        await alert("주문금액을 입력하세요.");
         return;
       }
     } else if (isMarketSell) {
       if (!orderQty.trim()) {
-        alert("주문수량을 입력하세요.");
+        await alert("주문수량을 입력하세요.");
         return;
       }
     } else {
       if (!orderPrice.trim()) {
-        alert("주문가격을 입력하세요.");
+        await alert("주문가격을 입력하세요.");
         return;
       }
 
       if (!orderQty.trim()) {
-        alert("주문수량을 입력하세요.");
+        await alert("주문수량을 입력하세요.");
         return;
       }
     }
 
     if (mode !== "mock") {
-      alert("실전 주문 API는 아직 연결 전입니다.");
+      await alert("실전 주문 API는 아직 연결 전입니다.");
       return;
     }
 
     if (orderType !== "market") {
       if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-        alert("주문가격을 올바르게 입력해 주세요.");
+        await alert("주문가격을 올바르게 입력해 주세요.");
         return;
       }
 
       if (!Number.isFinite(numericQty) || numericQty <= 0) {
-        alert("주문수량을 올바르게 입력해 주세요.");
+        await alert("주문수량을 올바르게 입력해 주세요.");
         return;
       }
 
       if (expectedLimitAmount < MIN_ORDER_AMOUNT) {
-        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
         return;
       }
 
       if (orderTab === "buy" && expectedLimitAmount > usdtBalance) {
-        alert("주문 가능 금액이 부족합니다.");
+        await alert("주문 가능 금액이 부족합니다.");
         return;
       }
 
       if (orderTab === "sell" && numericQty > availableHolding) {
-        alert("보유 수량이 부족합니다.");
+        await alert("보유 수량이 부족합니다.");
         return;
       }
     }
 
-    if (!isLogin || !user) {
-      alert("로그인이 필요합니다.");
-      router.push("/login");
-      return;
+    let currentUser = user;
+
+    if (!isLogin || !currentUser) {
+      const isAuthenticated = await requireLogin();
+
+      if (!isAuthenticated) {
+        return;
+      }
+
+      currentUser = useAuthStore.getState().user;
+
+      if (!currentUser) {
+        return;
+      }
     }
 
     if (!isParticipated) {
-      alert("먼저 모의투자 계좌를 생성해 주세요.");
+      await alert("먼저 모의투자 계좌를 생성해 주세요.");
       return;
     }
 
     if (isMarketOrder && currentPrice <= 0) {
-      alert("현재가를 확인할 수 없어 주문할 수 없습니다.");
+      await alert("현재가를 확인할 수 없어 주문할 수 없습니다.");
       return;
     }
 
     if (isMarketBuy) {
       if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-        alert("주문 금액을 올바르게 입력해 주세요.");
+        await alert("주문 금액을 올바르게 입력해 주세요.");
         return;
       }
 
       if (numericAmount < MIN_ORDER_AMOUNT) {
-        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
         return;
       }
 
       if (numericAmount > usdtBalance) {
-        alert("주문 가능 금액이 부족합니다.");
+        await alert("주문 가능 금액이 부족합니다.");
         return;
       }
     }
 
     if (isMarketSell) {
       if (!Number.isFinite(numericQty) || numericQty <= 0) {
-        alert("주문수량을 올바르게 입력해 주세요.");
+        await alert("주문수량을 올바르게 입력해 주세요.");
         return;
       }
 
       if (expectedSellAmount < MIN_ORDER_AMOUNT) {
-        alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
         return;
       }
 
       if (numericQty > availableHolding) {
-        alert("보유 수량이 부족합니다.");
+        await alert("보유 수량이 부족합니다.");
         return;
       }
     }
@@ -304,19 +318,19 @@ function OrderFormBody({
       const result = isMarketOrder
         ? side === "BUY"
           ? await onSubmitMarketOrder({
-              memberId: user.memberId,
+              memberId: currentUser.memberId,
               symbol: selectedCoin,
               side,
               totalAmount: numericAmount,
             })
           : await onSubmitMarketOrder({
-              memberId: user.memberId,
+              memberId: currentUser.memberId,
               symbol: selectedCoin,
               side,
               quantity: numericQty,
             })
         : await onSubmitLimitOrder({
-            memberId: user.memberId,
+            memberId: currentUser.memberId,
             symbol: selectedCoin,
             side,
             price: numericPrice,
@@ -324,15 +338,16 @@ function OrderFormBody({
           });
 
       if (result.success) {
-        alert(
-          isMarketOrder
+        toast({
+          title: isMarketOrder
             ? orderTab === "buy"
               ? "시장가 매수가 완료되었습니다."
               : "시장가 매도가 완료되었습니다."
             : orderTab === "buy"
               ? "지정가 매수 주문이 등록되었습니다."
-              : "지정가 매도 주문이 등록되었습니다."
-        );
+              : "지정가 매도 주문이 등록되었습니다.",
+          tone: "success",
+        });
 
         setOrderAmount("");
         setOrderQty("");
@@ -344,17 +359,17 @@ function OrderFormBody({
       }
 
       if (result.status === "login_required") {
-        alert("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        await alert("로그인이 만료되었습니다. 다시 로그인해 주세요.");
         router.push("/login");
         return;
       }
 
       if (result.status === "not_participating") {
-        alert("모의투자 계좌를 먼저 생성해 주세요.");
+        await alert("모의투자 계좌를 먼저 생성해 주세요.");
         return;
       }
 
-      alert(result.message || "주문 처리에 실패했습니다.");
+      await alert(result.message || "주문 처리에 실패했습니다.");
     } finally {
       setIsSubmitting(false);
     }

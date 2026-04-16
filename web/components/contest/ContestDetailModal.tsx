@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Button from "../ui/Button";
 import BaseModal from "../ui/BaseModal";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useRouter } from "next/navigation";
+import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import {
   applyContestSeason,
   getRecruitingContestSeasons,
@@ -18,7 +19,11 @@ const RECRUITING_CONTEST_PAGE_SIZE = 5;
 export default function ContestDetailModal({ onClose }: { onClose: () => void }) {
     const isLogin = useAuthStore((state) => state.isLogin);
     const user = useAuthStore((state) => state.user);
-    const router = useRouter();
+    const { alert, toast } = useFeedback();
+    const requireVerifiedUser = useRequireVerifiedUser({
+        loginRedirectMode: "push",
+        verifyRedirectMode: "push",
+    });
     const [contestSeasons, setContestSeasons] = useState<ContestSeason[]>([]);
     const [isLoadingSeason, setIsLoadingSeason] = useState(true);
     const [isLoadingMoreSeason, setIsLoadingMoreSeason] = useState(false);
@@ -88,7 +93,7 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                         setContestSeasons([]);
                         setSeasonErrorMessage("대회 정보를 불러올 수 없습니다.");
                     } else {
-                        alert("대회 목록을 더 불러올 수 없습니다.");
+                        await alert("대회 목록을 더 불러올 수 없습니다.");
                     }
                     return;
                 }
@@ -99,7 +104,7 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                     setContestSeasons([]);
                     setSeasonErrorMessage("모집중인 대회 정보를 불러오지 못했습니다.");
                 } else {
-                    alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                    await alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
                 }
             } finally {
                 if (isActive) {
@@ -117,22 +122,16 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
         return () => {
             isActive = false;
         };
-    }, [canViewContest, isLogin, user]);
+    }, [alert, canViewContest, isLogin, user]);
 
     const handleApply = async (season: ContestSeason) => {
         if (isLoadingSeason) {
             return;
         }
 
-        if (!isLogin || !user) {
-            alert("로그인이 필요한 서비스입니다.");
-            router.push("/login");
-            return;
-        }
+        const canApplyContest = await requireVerifiedUser();
 
-        if (user.role === "USER") {
-            alert("본인인증이 필요한 서비스입니다.");
-            router.push("/verify");
+        if (!canApplyContest) {
             return;
         }
 
@@ -149,10 +148,10 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                   : item
               )
             );
-            alert("대회 신청이 완료되었습니다.");
+            toast({ title: "대회 신청이 완료되었습니다.", tone: "success" });
         } catch (error) {
             console.error("대회 신청 실패:", error);
-            alert("대회 신청에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            await alert("대회 신청에 실패했습니다. 잠시 후 다시 시도해주세요.");
         } finally {
             setApplyingSeasonId(null);
         }
@@ -182,12 +181,12 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
             const message = error instanceof Error ? error.message : "";
 
             if (message.includes("401") || message.includes("403")) {
-                alert("대회 목록을 더 불러올 수 없습니다.");
+                await alert("대회 목록을 더 불러올 수 없습니다.");
                 return;
             }
 
             console.error("대회 시즌 추가 조회 실패:", error);
-            alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            await alert("대회 목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         } finally {
             setIsLoadingMoreSeason(false);
         }

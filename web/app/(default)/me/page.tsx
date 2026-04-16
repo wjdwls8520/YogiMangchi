@@ -42,6 +42,7 @@ import {
 } from "recharts";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
@@ -146,6 +147,7 @@ const isNoMockWalletMessage = (message: string) => {
 
 export default function MePage() {
   const router = useRouter();
+  const { alert, confirm, toast } = useFeedback();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -618,7 +620,7 @@ export default function MePage() {
       setHasNextFollowMembers(response.hasNext === true);
     } catch (error) {
       console.error("failed to load more follow members:", error);
-      alert("목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("목록을 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsLoadingMoreFollowMembers(false);
     }
@@ -629,7 +631,7 @@ export default function MePage() {
 
     if (cancellingReportKey) return;
 
-    const confirmed = window.confirm("신고를 취소하시겠습니까?");
+    const confirmed = await confirm("신고를 취소하시겠습니까?");
     if (!confirmed) return;
 
     setCancellingReportKey(reportKey);
@@ -643,10 +645,13 @@ export default function MePage() {
         setReportedReplies((prev) => prev.filter((item) => item.id !== report.id));
       }
 
-      alert("신고가 취소되었습니다.");
+      toast({
+        title: "신고가 취소되었습니다.",
+        tone: "success",
+      });
     } catch (error) {
       console.error("failed to cancel report:", error);
-      alert("신고 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("신고 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setCancellingReportKey(null);
     }
@@ -655,7 +660,7 @@ export default function MePage() {
   const handleLogout = async () => {
     if (isLoggingOut) return;
 
-    const confirmed = window.confirm("로그아웃 하시겠습니까?");
+    const confirmed = await confirm("로그아웃 하시겠습니까?");
     if (!confirmed) return;
 
     setIsLoggingOut(true);
@@ -672,7 +677,10 @@ export default function MePage() {
       setMemberProfile(null);
       setMockPortfolio(null);
       setProfileErrorMessage("");
-      alert("로그아웃되었습니다.");
+      toast({
+        title: "로그아웃되었습니다.",
+        tone: "success",
+      });
       router.replace("/");
     }
   };
@@ -681,7 +689,11 @@ export default function MePage() {
   const handleWithdraw = async () => {
     if (isDeletingAccount) return;
 
-    const confirmed = window.confirm("정말 회원 탈퇴하시겠습니까?");
+    const confirmed = await confirm({
+      description: "정말 회원 탈퇴하시겠습니까?",
+      confirmText: "탈퇴",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setIsDeletingAccount(true);
@@ -697,7 +709,7 @@ export default function MePage() {
         setMemberProfile(null);
         setMockPortfolio(null);
         setProfileErrorMessage("");
-        alert("로그인 정보가 만료되었습니다.");
+        await alert("로그인 정보가 만료되었습니다.");
         router.replace("/login");
         return;
       }
@@ -710,11 +722,14 @@ export default function MePage() {
       setMemberProfile(null);
       setMockPortfolio(null);
       setProfileErrorMessage("");
-      alert("회원 탈퇴가 완료되었습니다.");
+      toast({
+        title: "회원 탈퇴가 완료되었습니다.",
+        tone: "success",
+      });
       router.replace("/");
     } catch (error) {
       console.error("failed to withdraw member:", error);
-      alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      await alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsDeletingAccount(false);
     }
