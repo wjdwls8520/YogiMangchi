@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Tabs, { type TabOption } from "@/components/ui/Tabs";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
+import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import {
   applyContestSeason,
   getContestParticipationSeasonsByMember,
@@ -314,7 +315,11 @@ const fetchContestPageData = async ({
 };
 
 export default function ContestMainPage() {
-  const router = useRouter();
+  const { alert, toast } = useFeedback();
+  const requireVerifiedUser = useRequireVerifiedUser({
+    loginRedirectMode: "push",
+    verifyRedirectMode: "push",
+  });
   const isLogin = useAuthStore((state) => state.isLogin);
   const user = useAuthStore((state) => state.user);
   const [bottomTab, setBottomTab] = useState<ContestListTab>("available");
@@ -430,41 +435,38 @@ export default function ContestMainPage() {
 
   const handleApplyContest = useCallback(
     async (contest: ContestListItem) => {
-      if (!isLogin || !user) {
-        alert("로그인이 필요한 서비스입니다.");
-        router.push("/login");
-        return;
-      }
+      const canApplyContest = await requireVerifiedUser();
 
-      if (user.role === "USER") {
-        alert("본인인증이 필요한 서비스입니다.");
-        router.push("/verify");
+      if (!canApplyContest) {
         return;
       }
 
       try {
         setIsApplyingContestId(contest.id);
         await applyContestSeason(contest.id);
-        alert("대회 신청이 완료되었습니다.");
+        toast({
+          title: "대회 신청이 완료되었습니다.",
+          tone: "success",
+        });
         await loadContestPageData();
       } catch (error) {
         if (isApiStatusError(error, [401, 403])) {
-          alert("인증회원만 대회에 참가할 수 있습니다.");
+          await alert("인증회원만 대회에 참가할 수 있습니다.");
           return;
         }
 
         if (isApiStatusError(error, [409])) {
-          alert("이미 신청했거나 신청이 불가능한 대회입니다.");
+          await alert("이미 신청했거나 신청이 불가능한 대회입니다.");
           await loadContestPageData();
           return;
         }
 
-        alert("대회 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        await alert("대회 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.");
       } finally {
         setIsApplyingContestId(null);
       }
     },
-    [isLogin, loadContestPageData, router, user]
+    [alert, loadContestPageData, requireVerifiedUser, toast]
   );
 
   return (
@@ -490,7 +492,7 @@ export default function ContestMainPage() {
         />
 
         {isLoadingPage ? (
-          <div className="rounded-[2rem] border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400">
             대회 목록을 불러오는 중입니다.
           </div>
         ) : activeTabContent.items.length > 0 ? (
@@ -508,7 +510,7 @@ export default function ContestMainPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-[2rem] border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-400">
             {activeTabContent.emptyMessage}
           </div>
         )}

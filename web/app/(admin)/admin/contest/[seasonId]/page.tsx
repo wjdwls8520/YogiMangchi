@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Button from "@/components/ui/Button";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import {
   inferContestIsCanceled,
   inferContestIsPublic,
@@ -19,6 +20,10 @@ import ContestMembersManager, {
   type ContestMembersTab,
 } from "../components/ContestMembersManager";
 import ContestEditModal from "../components/ContestEditModal";
+import {
+  ADMIN_LOGIN_REQUIRED_MESSAGE,
+  getAdminForbiddenMessage,
+} from "@/lib/utils/adminFeedback";
 
 // 멤버 관리 전용 탭 정의
 type MemberTab = "applicants" | "participants" | "rejected";
@@ -64,6 +69,7 @@ const memberTabs: { label: string; value: MemberTab }[] = [
 export default function AdminContestDetailPage() {
   const params = useParams<{ seasonId: string }>();
   const seasonId = Number(params.seasonId);
+  const { alert, confirm, toast } = useFeedback();
 
   const [season, setSeason] = useState<ContestSeason | null>(null);
   const [isLoadingSeason, setIsLoadingSeason] = useState(true);
@@ -134,8 +140,11 @@ export default function AdminContestDetailPage() {
       setSeason(response);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      if (message.includes("401")) setSeasonError("로그인이 필요한 관리자 기능입니다.");
-      else if (message.includes("403")) setSeasonError("관리자 권한이 없어 대회 상세를 조회할 수 없습니다.");
+      if (message.includes("401")) setSeasonError(ADMIN_LOGIN_REQUIRED_MESSAGE);
+      else if (message.includes("403"))
+        setSeasonError(
+          getAdminForbiddenMessage("대회 상세를 조회할 수 없습니다.")
+        );
       else setSeasonError("대회 시즌 정보를 불러오지 못했습니다.");
     } finally {
       setIsLoadingSeason(false);
@@ -162,7 +171,13 @@ export default function AdminContestDetailPage() {
           ? "이 시즌을 취소 상태로 변경할까요?"
           : "이 시즌의 취소 상태를 해제할까요?";
 
-    if (!window.confirm(confirmMessage)) {
+    const shouldProceed = await confirm({
+      description: confirmMessage,
+      confirmText: "변경",
+      tone: field === "isCancel" && nextIsCancel ? "danger" : "default",
+    });
+
+    if (!shouldProceed) {
       return;
     }
 
@@ -175,21 +190,34 @@ export default function AdminContestDetailPage() {
       });
 
       setSeason(updatedSeason);
+      toast({
+        title:
+          field === "isPublic"
+            ? nextIsPublic
+              ? "시즌을 공개로 변경했습니다."
+              : "시즌을 비공개로 변경했습니다."
+            : nextIsCancel
+              ? "시즌을 취소 상태로 변경했습니다."
+              : "시즌 취소 상태를 해제했습니다.",
+        tone: "success",
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 시즌 상태를 변경할 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("시즌 상태를 변경할 수 없습니다.")
+        );
         return;
       }
 
       console.error("시즌 상태 변경 실패:", error);
-      alert("시즌 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("시즌 상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setUpdatingStatusField(null);
     }

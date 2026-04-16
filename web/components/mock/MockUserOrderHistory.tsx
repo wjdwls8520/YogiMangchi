@@ -6,6 +6,7 @@ import UserOrderHistory, {
   type OrderFilter,
   type UserOrderHistoryRow,
 } from "@/components/trade/UserOrderHistory";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { cancelOrder } from "@/lib/api/trade";
 import { useMockWalletStore } from "@/stores/useMockWalletStore";
 
@@ -78,6 +79,7 @@ const isNoMockWalletMessage = (message: string) => {
 };
 
 export default function MockUserOrderHistory() {
+  const { alert, confirm, toast } = useFeedback();
   const historyVersion = useMockWalletStore((state) => state.historyVersion);
   const isParticipated = useMockWalletStore((state) => state.isParticipated);
   const hasLoadedPortfolio = useMockWalletStore(
@@ -129,7 +131,7 @@ export default function MockUserOrderHistory() {
           url = `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`;
         } else {
           params.set("status", "COMPLETED");
-          params.set("size", "20");
+          params.set("size", "10");
           url = `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`;
         }
 
@@ -229,7 +231,7 @@ export default function MockUserOrderHistory() {
   ]);
 
   const handleCancelOrder = async (orderId: number) => {
-    const confirmed = window.confirm("해당 미체결 주문을 취소하시겠습니까?");
+    const confirmed = await confirm("해당 미체결 주문을 취소하시겠습니까?");
 
     if (!confirmed) {
       return;
@@ -246,9 +248,13 @@ export default function MockUserOrderHistory() {
       }
 
       setRefreshKey((current) => current + 1);
+      toast({
+        title: "주문이 취소되었습니다.",
+        tone: "success",
+      });
     } catch (error) {
       console.error("미체결 주문 취소 실패:", error);
-      window.alert("주문 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("주문 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setCancelingOrderId(null);
     }

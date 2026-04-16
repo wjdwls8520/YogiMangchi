@@ -2,25 +2,19 @@
 import { useState } from "react";
 import { Trophy } from "lucide-react";
 import ContestDetailModal from "./ContestDetailModal";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useRouter } from "next/navigation";
+import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 
 export default function ContestFloatingButton() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const isLogin = useAuthStore((state) => state.isLogin);
-  const user = useAuthStore((state) => state.user);
-  const router = useRouter();
+  const requireVerifiedUser = useRequireVerifiedUser({
+    loginRedirectMode: "push",
+    verifyRedirectMode: "push",
+  });
 
-  const handleOpenModal = () => {
-    if (!isLogin || !user) {
-      alert("로그인이 필요한 서비스입니다.");
-      router.push("/login");
-      return;
-    }
+  const handleOpenModal = async () => {
+    const canOpenModal = await requireVerifiedUser();
 
-    if (user.role === "USER") {
-      alert("본인인증이 필요한 서비스입니다.");
-      router.push("/verify");
+    if (!canOpenModal) {
       return;
     }
 

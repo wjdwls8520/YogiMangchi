@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import {
   approveContestApplicant,
   getContestApplicants,
@@ -13,6 +14,10 @@ import {
   type ContestParticipant,
   type ContestRejectedApplicant,
 } from "@/lib/api/admin-contest";
+import {
+  ADMIN_LOGIN_REQUIRED_MESSAGE,
+  getAdminForbiddenMessage,
+} from "@/lib/utils/adminFeedback";
 
 export type ContestMembersTab = "applicants" | "participants" | "rejected";
 const MEMBERS_PAGE_SIZE = 5;
@@ -83,6 +88,7 @@ export default function ContestMembersManager({
   canProcessApplicants = true,
   processBlockedMessage = "신청 승인과 반려는 모집중이고 공개 상태이며 취소되지 않은 시즌에서만 가능합니다.",
 }: ContestMembersManagerProps) {
+  const { alert, toast } = useFeedback();
   const [activeTab, setActiveTab] = useState<ContestMembersTab>(initialTab);
   const [applicants, setApplicants] = useState<ContestApplicant[]>([]);
   const [participants, setParticipants] = useState<ContestParticipant[]>([]);
@@ -134,12 +140,14 @@ export default function ContestMembersManager({
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        setLoadError("로그인이 필요한 관리자 기능입니다.");
+        setLoadError(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        setLoadError("관리자 권한이 없어 참가자 정보를 조회할 수 없습니다.");
+        setLoadError(
+          getAdminForbiddenMessage("참가자 정보를 조회할 수 없습니다.")
+        );
         return;
       }
 
@@ -195,7 +203,7 @@ export default function ContestMembersManager({
   // 승인/반려 액션 후에는 목록을 다시 조회해 화면과 서버 상태를 맞춥니다.
   const runApprove = async (applicantIds: number[]) => {
     if (!canProcessApplicants) {
-      alert(processBlockedMessage);
+      await alert(processBlockedMessage);
       return;
     }
 
@@ -208,7 +216,7 @@ export default function ContestMembersManager({
         )
       );
 
-      alert("선택한 신청자를 승인했습니다.");
+      toast({ title: "선택한 신청자를 승인했습니다.", tone: "success" });
       setSelectedApplicantIds([]);
       await loadMemberLists();
       onUpdated?.();
@@ -216,22 +224,24 @@ export default function ContestMembersManager({
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 신청자를 승인할 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("신청자를 승인할 수 없습니다.")
+        );
         return;
       }
 
       if (message.includes("409")) {
-        alert(processBlockedMessage);
+        await alert(processBlockedMessage);
         return;
       }
 
       console.error("대회 신청 승인 실패:", error);
-      alert("신청자 승인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("신청자 승인에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSubmittingAction(false);
     }
@@ -239,7 +249,7 @@ export default function ContestMembersManager({
 
   const runReject = async (applicantIds: number[], rejectReason: string) => {
     if (!canProcessApplicants) {
-      alert(processBlockedMessage);
+      await alert(processBlockedMessage);
       return;
     }
 
@@ -252,7 +262,7 @@ export default function ContestMembersManager({
         )
       );
 
-      alert("선택한 신청자를 반려했습니다.");
+      toast({ title: "선택한 신청자를 반려했습니다.", tone: "success" });
       setSelectedApplicantIds([]);
       setBulkRejectReason("");
       await loadMemberLists();
@@ -261,22 +271,24 @@ export default function ContestMembersManager({
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 신청자를 반려할 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("신청자를 반려할 수 없습니다.")
+        );
         return;
       }
 
       if (message.includes("409")) {
-        alert(processBlockedMessage);
+        await alert(processBlockedMessage);
         return;
       }
 
       console.error("대회 신청 반려 실패:", error);
-      alert("신청자 반려에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("신청자 반려에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSubmittingAction(false);
     }
@@ -284,7 +296,7 @@ export default function ContestMembersManager({
 
   const handleApproveSelected = async () => {
     if (selectedApplicantIds.length === 0) {
-      alert("승인할 신청자를 선택해 주세요.");
+      await alert("승인할 신청자를 선택해 주세요.");
       return;
     }
 
@@ -293,7 +305,7 @@ export default function ContestMembersManager({
 
   const handleApproveAll = async () => {
     if (applicants.length === 0) {
-      alert("승인할 신청자가 없습니다.");
+      await alert("승인할 신청자가 없습니다.");
       return;
     }
 
@@ -302,12 +314,12 @@ export default function ContestMembersManager({
 
   const handleRejectSelected = async () => {
     if (selectedApplicantIds.length === 0) {
-      alert("반려할 신청자를 선택해 주세요.");
+      await alert("반려할 신청자를 선택해 주세요.");
       return;
     }
 
     if (!bulkRejectReason.trim()) {
-      alert("반려 사유를 입력해 주세요.");
+      await alert("반려 사유를 입력해 주세요.");
       return;
     }
 
@@ -319,18 +331,12 @@ export default function ContestMembersManager({
   };
 
   const handleRejectSingle = async (applicantId: number) => {
-    const rejectReason = window.prompt("반려 사유를 입력해 주세요.");
-
-    if (rejectReason === null) {
+    if (!bulkRejectReason.trim()) {
+      await alert("상단의 반려 사유를 입력한 뒤 다시 시도해 주세요.");
       return;
     }
 
-    if (!rejectReason.trim()) {
-      alert("반려 사유를 입력해 주세요.");
-      return;
-    }
-
-    await runReject([applicantId], rejectReason.trim());
+    await runReject([applicantId], bulkRejectReason.trim());
   };
 
   const handleLoadMore = async () => {
@@ -384,17 +390,19 @@ export default function ContestMembersManager({
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
-        alert("로그인이 필요한 관리자 기능입니다.");
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
         return;
       }
 
       if (message.includes("403")) {
-        alert("관리자 권한이 없어 참가자 정보를 더 불러올 수 없습니다.");
+        await alert(
+          getAdminForbiddenMessage("참가자 정보를 더 불러올 수 없습니다.")
+        );
         return;
       }
 
       console.error("대회 참가자 목록 추가 조회 실패:", error);
-      alert("참가자 정보를 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      await alert("참가자 정보를 더 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsLoadingMore(false);
     }

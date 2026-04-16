@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SSEProvider from "./SSEProvider";
+import AuthBootstrap from "./AuthBootstrap";
+import FeedbackProvider from "@/components/ui/FeedbackProvider";
 
 export const metadata: Metadata = {
   title: "요기망치",
@@ -18,11 +20,12 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
-
-          <SSEProvider>
-          {children}
-          </SSEProvider>
-
+          <FeedbackProvider>
+              <AuthBootstrap />
+              <SSEProvider>
+                  {children}
+              </SSEProvider>
+          </FeedbackProvider>
       </body>
     </html>
   );

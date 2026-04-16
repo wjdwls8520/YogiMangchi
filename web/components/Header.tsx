@@ -20,36 +20,13 @@ import {
 import MenuLayer from "./ui/MenuLayer";
 
 export default function Header() {
-  const { isLogin, login, logout, user } = useAuthStore();
+  const { isLogin, user } = useAuthStore();
   const { isDarkMode, toggleDarkMode } = useUIStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isMenuMounted, setIsMenuMounted] = useState(false);
 
   const [isAlarmOpen, setIsAlarmOpen] = useState(false);
   const [isAlarmMounted, setIsAlarmMounted] = useState(false);
-
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/api/v1/member/me/info", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          login(data);
-        } else {
-          logout();
-        }
-      } catch (error) {
-        logout();
-      }
-    };
-    checkAuth();
-  }, [login, logout]);
 
 
   useEffect(() => {
