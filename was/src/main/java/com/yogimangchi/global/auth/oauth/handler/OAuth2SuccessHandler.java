@@ -36,6 +36,18 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         CustomOAuth2User customOAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         SocialUserInfo socialUserInfo = customOAuth2User.getSocialUserInfo();
 
+        if (socialUserInfo.email() == null) {
+            clearSession(request, response);
+            response.setContentType("text/html; charset=UTF-8");
+            response.getWriter().write("""
+                <script>
+                    alert('카카오 계정에 연결된 이메일이 없어 회원가입이 제한됩니다.\\n구글 로그인을 이용해주세요.');
+                    window.location.href = '%s/login';
+                </script>
+            """.formatted(FRONTEND_URL));
+            return;
+        }
+
         SocialLoginResult result = socialLoginService.handleSocialLogin(socialUserInfo);
 
         if (result.existingMember()) {

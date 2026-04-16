@@ -81,6 +81,15 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME}   # 본인 Gmail 주소
+    password: ${GMAIL_APP_PASSWORD}  # 앱 비밀번호 16자리
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expire-ms: 3600000

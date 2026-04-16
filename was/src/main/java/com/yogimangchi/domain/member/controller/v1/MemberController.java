@@ -1,12 +1,14 @@
 package com.yogimangchi.domain.member.controller.v1;
 
 import com.yogimangchi.domain.member.dto.request.UpdateMyProfileDto;
+import com.yogimangchi.domain.member.dto.request.UpdateVerifiedInfoRequestDto;
 import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.service.MemberService;
 import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.validator.NicknameValidator;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -95,6 +97,19 @@ public class MemberController {
         MyProfileInfoDto updatedProfile = memberService.updateMyProfile(loginMemberId, request);
 
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @Operation(summary = "인증회원 상세정보 수정", description = "인증회원의 전화번호, 주소를 수정합니다.")
+    @PatchMapping("/me/verified-info")
+    public ResponseEntity<Void> updateVerifiedInfo(
+            @AuthenticationPrincipal Long loginMemberId,
+            @RequestBody @Valid UpdateVerifiedInfoRequestDto request
+    ) {
+        if (loginMemberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        memberService.updateVerifiedInfo(loginMemberId, request);
+        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "회원 탈퇴", description = "로그인한 멤버를 소프트 삭제합니다. \n\n deleteYn 을 'Y'로 변경하고 인증 쿠키를 만료시킵니다. \n\n 탈퇴시 소셜정보는 따로 탈퇴회원 db에 복사하고 기존 소셜정보는 삭제함, \n\n 팔로우 팔로윙 수는 줄어들지만 좋아요수는 그대로 존재함( 게시글, 댓글에 좋아요 누른 유저들의 리스트를 볼 수 없음을 고려함 ) \n\n 게시글과 댓글에 멤버정보 숨김처리 및 타겟 대댓글 멤버정보 숨기처리")
