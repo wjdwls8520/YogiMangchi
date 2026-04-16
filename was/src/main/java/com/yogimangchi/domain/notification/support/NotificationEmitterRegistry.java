@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-public class NotificationEmitterRepository {
+public class NotificationEmitterRegistry {
 
     // 회원별 다중 SSE 연결 저장소
     private final Map<Long, Map<String, SseEmitter>> emittersByMemberId = new ConcurrentHashMap<>();
