@@ -111,4 +111,21 @@ public class Member {
     public boolean isDeleted() {
         return "Y".equals(this.deleteYn);
     }
+
+
+
+    public void verifyWithInfo(String phoneNumber, String addressCode, String address1, String address2) {
+        this.role = MemberRole.VERIFIED_USER;
+        this.phoneNumber = phoneNumber;
+        this.addressCode = addressCode;
+        this.address1 = address1;
+        this.address2 = address2;
+    }
+
+    public void updateVerifiedInfo(String phoneNumber, String addressCode, String address1, String address2) {
+        this.phoneNumber = phoneNumber;
+        this.addressCode = addressCode;
+        this.address1 = address1;
+        this.address2 = address2;
+    }
 }

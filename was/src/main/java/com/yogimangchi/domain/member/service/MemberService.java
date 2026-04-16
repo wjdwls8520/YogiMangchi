@@ -1,11 +1,14 @@
 package com.yogimangchi.domain.member.service;
 
 import com.yogimangchi.domain.member.dto.request.UpdateMyProfileDto;
+import com.yogimangchi.domain.member.dto.request.UpdateVerifiedInfoRequestDto;
 import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.WithdrawnOAuthAccount;
+import com.yogimangchi.domain.member.enums.MemberRole;
+import com.yogimangchi.global.exception.member.MemberException;
 import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
@@ -49,6 +52,7 @@ public class MemberService {
     private final RefreshTokenService refreshTokenService;
     private final MemberReader memberReader;
     private final S3Service s3Service;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional(readOnly = true)
     public NicknameDuplicationDto isAvailableNickname(String nickname) {
@@ -150,6 +154,22 @@ public class MemberService {
     }
 
     @Transactional
+    public void updateVerifiedInfo(Long loginMemberId, UpdateVerifiedInfoRequestDto request) {
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
+        if (member.getRole() != MemberRole.VERIFIED_USER) {
+            throw MemberException.notVerifiedUser();
+        }
+
+        member.updateVerifiedInfo(
+                request.phoneNumber(),
+                request.addressCode(),
+                request.address1(),
+                request.address2()
+        );
+    }
+
+    @Transactional
     public void withdrawMember(Long loginMemberId) {
         Member member = memberReader.getAuthenticated(loginMemberId);
         String profileImgUrl = member.getProfileImgUrl();
@@ -161,6 +181,7 @@ public class MemberService {
         member.withdraw(createWithdrawnNickname(loginMemberId), getWithdrawnProfileImageUrl());
         scheduleRefreshTokenRemoval(loginMemberId);
         scheduleWithdrawnProfileImageDeletion(profileImgUrl);
+        emailVerificationService.deleteEmailVerificationKeys(loginMemberId);
     }
 
     private boolean hasProfileImage(MultipartFile profileImage) {
