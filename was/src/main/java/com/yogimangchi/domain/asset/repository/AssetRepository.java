@@ -44,17 +44,10 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
     @Query("SELECT a FROM Assets a WHERE a.id = :assetId")
     Optional<Assets> findByIdForUpdate(@Param("assetId") Long assetId);
 
-
-
-
-
-
-
-
     // 해당 시즌의 대회 지갑 보유 여부 확인
     boolean existsByMemberAndTypeAndContestSeason(Member participant, AssetType assetType, ContestSeason targetSeason);
 
-    // 현재 거래 가능한 대회 선물 지갑을 잠금 조회한다.
+    // 쓰기 작업 전 — 비관적 락으로 대회 지갑 조회 (시즌 진행 중 검증 포함)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT a
@@ -70,6 +63,28 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
               AND cs.contestEndAt >= :now
             """)
     Optional<Assets> findTradableContestWalletForUpdate(
+            @Param("memberId") Long memberId,
+            @Param("assetType") AssetType assetType,
+            @Param("status") String status,
+            @Param("contestSeasonId") Long contestSeasonId,
+            @Param("now") LocalDateTime now
+    );
+
+    // 읽기 전용 작업 — 락 없이 대회 지갑 조회 (시즌 진행 중 검증 포함)
+    @Query("""
+            SELECT a
+            FROM Assets a
+            JOIN a.contestSeason cs
+            WHERE a.member.id = :memberId
+              AND a.type = :assetType
+              AND a.status = :status
+              AND cs.id = :contestSeasonId
+              AND cs.isCancel = false
+              AND cs.isPublic = true
+              AND cs.contestStartAt <= :now
+              AND cs.contestEndAt >= :now
+            """)
+    Optional<Assets> findTradableContestWallet(
             @Param("memberId") Long memberId,
             @Param("assetType") AssetType assetType,
             @Param("status") String status,

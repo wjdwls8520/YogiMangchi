@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/futures")
 @RequiredArgsConstructor
-@Tag(name = "99-03-futures", description = "선물 매매주문 관련 API")
+@Tag(name = "99-04-futures", description = "선물 매매주문 관련 API")
 public class FuturesOrderController {
 
     private final FuturesOrderService futuresOrderService;

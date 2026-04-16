@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record FuturesLeverageResponseDto(
 
-        @Schema(description = "심볼", example = "BTCYD")
+        @Schema(description = "심볼", example = "BTCUSDT")
         String symbol,
 
         @Schema(description = "현재 설정된 레버리지 배수", example = "10")
