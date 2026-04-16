@@ -4,7 +4,6 @@ import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.futures.dto.request.FuturesLeverageRequestDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesLeverageResponseDto;
-import com.yogimangchi.domain.futures.entity.FuturesLeverageSetting;
 import com.yogimangchi.domain.futures.repository.FuturesLeverageSettingRepository;
 import com.yogimangchi.domain.futures.support.FuturesWalletReader;
 import com.yogimangchi.domain.market.entity.FuturesSymbolPolicy;
@@ -26,11 +25,12 @@ public class FuturesLeverageService {
     public FuturesLeverageResponseDto setLeverage(Long memberId, Long contestSeasonId, FuturesLeverageRequestDto request) {
         String symbol = request.symbol().trim().toUpperCase();
 
-        // 지갑 조회 (대회/본투자 분기)
-        Assets wallet = resolveWallet(memberId, contestSeasonId);
+        // 쓰기 트랜잭션 — 비관적 락으로 지갑 조회
+        Assets wallet = (contestSeasonId == null)
+                ? futuresWalletReader.getTradableRealWallet(memberId)
+                : futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
 
-        // 본투자 선물 지갑은 만료 여부를 별도로 검증한다.
-        // (대회 지갑은 getTradableContestWallet 쿼리에서 시즌 날짜 범위를 이미 검증함)
+        // 본투자 지갑은 만료 여부를 별도 검증 (대회 지갑은 쿼리에서 시즌 기간으로 이미 검증)
         if (wallet.getType() == AssetType.TRADE_FUTURE && LocalDateTime.now().isAfter(wallet.getExpiredAt())) {
             throw new IllegalArgumentException("선물 지갑의 이용 기간이 만료되었습니다. 지갑을 다시 생성해주세요.");
         }
@@ -51,22 +51,35 @@ public class FuturesLeverageService {
             );
         }
 
-        // 설정 조회 또는 신규 생성 후 레버리지 갱신
-        FuturesLeverageSetting setting = futuresLeverageSettingRepository
-                .findByAssetsAndSymbolForUpdate(wallet, symbol)
-                .orElseGet(() -> futuresLeverageSettingRepository.save(
-                        FuturesLeverageSetting.createDefault(wallet, symbol)
-                ));
+        // 행이 없으면 INSERT, 있으면 UPDATE — 단일 원자 연산으로 경쟁 조건 방지
+        futuresLeverageSettingRepository.upsertLeverage(wallet.getId(), symbol, request.leverage());
 
-        setting.updateLeverage(request.leverage());
-
-        return new FuturesLeverageResponseDto(symbol, setting.getLeverage(), maxLeverage);
+        return new FuturesLeverageResponseDto(symbol, request.leverage(), maxLeverage);
     }
 
-    private Assets resolveWallet(Long memberId, Long contestSeasonId) {
-        if (contestSeasonId == null) {
-            return futuresWalletReader.getTradableRealWallet(memberId);
-        }
-        return futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
+    @Transactional(readOnly = true)
+    public FuturesLeverageResponseDto getLeverage(Long memberId, Long contestSeasonId, String symbol) {
+        String upperSymbol = symbol.trim().toUpperCase();
+
+        // 읽기 트랜잭션 — 락 없이 지갑 조회
+        Assets wallet = (contestSeasonId == null)
+                ? futuresWalletReader.getReadableRealWallet(memberId)
+                : futuresWalletReader.getReadableContestWallet(memberId, contestSeasonId);
+
+        // 선물 지원 심볼 여부 + 레버리지 정책 조회 (maxLeverage 응답에 필요)
+        FuturesSymbolPolicy policy = futuresSymbolPolicyRepository.findWithMarketSymbolBySymbol(upperSymbol)
+                .orElseThrow(() -> new IllegalArgumentException("선물 거래를 지원하지 않는 심볼입니다: " + upperSymbol));
+
+        int maxLeverage = (wallet.getType() == AssetType.CONTEST)
+                ? policy.getContestMaxLeverage()
+                : policy.getMaxLeverage();
+
+        // 설정이 없으면 DB에 저장하지 않고 기본값 1 반환
+        int leverage = futuresLeverageSettingRepository
+                .findByAssetsAndSymbol(wallet, upperSymbol)
+                .map(setting -> setting.getLeverage())
+                .orElse(1);
+
+        return new FuturesLeverageResponseDto(upperSymbol, leverage, maxLeverage);
     }
 }

@@ -2,9 +2,8 @@ package com.yogimangchi.domain.futures.repository;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.entity.FuturesLeverageSetting;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,10 +13,17 @@ public interface FuturesLeverageSettingRepository extends JpaRepository<FuturesL
 
     Optional<FuturesLeverageSetting> findByAssetsAndSymbol(Assets assets, String symbol);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT f FROM FuturesLeverageSetting f WHERE f.assets = :assets AND f.symbol = :symbol")
-    Optional<FuturesLeverageSetting> findByAssetsAndSymbolForUpdate(
-            @Param("assets") Assets assets,
-            @Param("symbol") String symbol
+    // ON CONFLICT () DO UPDATE  postgreSQL 문법, ON DUPLICATE KEY UPDATE MYSQL, mariaDB 문법
+    @Modifying
+    @Query(value = """
+            INSERT INTO futures_leverage_setting (assets_id, symbol, leverage, created_at, updated_at)
+            VALUES (:assetsId, :symbol, :leverage, now(), now())
+            ON CONFLICT (assets_id, symbol) DO UPDATE
+              SET leverage = EXCLUDED.leverage, updated_at = now()
+            """, nativeQuery = true)
+    void upsertLeverage(
+            @Param("assetsId") Long assetsId,
+            @Param("symbol") String symbol,
+            @Param("leverage") int leverage
     );
 }
