@@ -4,6 +4,7 @@ import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import com.yogimangchi.domain.spot.constant.TradeFeePolicy;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.entity.TradeHistory;
@@ -29,6 +30,7 @@ public class LimitOrderExecutionService {
     private final HoldingRepository holdingRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
     private final LimitOrderSignalRegistry limitOrderSignalRegistry;
+    private final NotificationService notificationService;
 
     // 지정가 주문 체결 실행
     @Transactional
@@ -117,6 +119,9 @@ public class LimitOrderExecutionService {
 
         // 미체결 심볼 상태를 갱신한다.
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+
+        // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
+        notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
     }
 
     // 지정가 매도 주문 체결
@@ -163,5 +168,8 @@ public class LimitOrderExecutionService {
 
         // 미체결 심볼 상태를 갱신한다.
         limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+
+        // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
+        notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
     }
 }
