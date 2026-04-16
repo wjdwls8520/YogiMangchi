@@ -4,6 +4,7 @@ import com.yogimangchi.global.exception.asset.AssetException;
 import com.yogimangchi.global.exception.contest.ContestException;
 import com.yogimangchi.global.exception.member.MemberException;
 import com.yogimangchi.global.exception.notification.NotificationException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,10 +14,12 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.io.IOException;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -81,6 +84,13 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.FORBIDDEN.value(), "FORBIDDEN", e.getMessage()));
     }
 
+    @ExceptionHandler({AsyncRequestNotUsableException.class, IOException.class})
+    public void handleNotificationSseDisconnect(Exception e, HttpServletRequest request) throws Exception {
+        if (!isNotificationSseRequest(request)) {
+            throw e;
+        }
+    }
+
     // 위에서 처리하지 못한 예외를 최종적으로 500으로 응답한다.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
@@ -113,6 +123,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMemberException(MemberException e) {
         return ResponseEntity.status(e.getStatus())
                 .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
+    }
+
+    private boolean isNotificationSseRequest(HttpServletRequest request) {
+        return request != null
+                && "/api/v1/notifications/subscribe".equals(request.getRequestURI());
     }
 
 }

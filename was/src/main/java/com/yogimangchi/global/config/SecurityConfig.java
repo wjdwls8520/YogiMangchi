@@ -3,6 +3,7 @@ package com.yogimangchi.global.config;
 import com.yogimangchi.global.auth.jwt.filter.JwtAuthenticationFilter;
 import com.yogimangchi.global.auth.oauth.handler.OAuth2SuccessHandler;
 import com.yogimangchi.global.auth.oauth.service.CustomOAuth2UserService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,7 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/",
