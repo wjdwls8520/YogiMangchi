@@ -11,8 +11,8 @@ import java.util.concurrent.Executor;
 @EnableAsync // 스프링 프레임워크의 비동기 처리 기능을 활성화합니다. (@Async 어노테이션 사용 가능)
 public class AsyncConfig {
 
-    @Bean(name = "emailTaskExcutor") // 'emailTaskExecutor'라는 이름의 빈으로 등록합니다.
-    public Executor emailTaskExcutor() {
+    @Bean(name = "emailTaskExecutor")
+    public Executor emailTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         // 기본적으로 유지할 스레드 수, 항상 5개의 스레드는 대기 상태로 유지됩니다.
