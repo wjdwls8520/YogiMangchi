@@ -35,7 +35,7 @@ const getStatusBadgeClassName = (status: ContestSeasonDisplayStatus) => {
   return "bg-amber-50 text-amber-700 ring-1 ring-amber-200/50";
 };
 
-const getProgressBadgeClassName = (progress: "모집중" | "라이브 진행중") => {
+const getProgressBadgeClassName = (progress: "모집중" | "Live") => {
   if (progress === "모집중") {
     return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50";
   }
@@ -91,7 +91,7 @@ export default function AdminContestDetailPage() {
   const progressBadges = useMemo(
     () => [
       ...(season?.isRecruiting ? (["모집중"] as const) : []),
-      ...(season?.isLive ? (["라이브 진행중"] as const) : []),
+      ...(season?.isLive ? (["Live"] as const) : []),
     ],
     [season?.isLive, season?.isRecruiting]
   );
@@ -244,16 +244,22 @@ export default function AdminContestDetailPage() {
                   {normalizedStatus}
                 </span>
                 {progressBadges.length > 0 ? (
-                  progressBadges.map((badge) => (
-                    <span
-                      key={badge}
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${getProgressBadgeClassName(
-                        badge
-                      )}`}
-                    >
-                      {badge}
-                    </span>
-                  ))
+                    progressBadges.map((badge) => (
+                      <span
+                        key={badge}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${getProgressBadgeClassName(
+                          badge
+                        )}`}
+                      >
+                        {badge === "Live" ? (
+                          <span aria-hidden="true" className="relative flex h-3 w-3">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+                          </span>
+                        ) : null}
+                        {badge}
+                      </span>
+                    ))
                 ) : (
                   <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500 ring-1 ring-gray-200/50">
                     대기중

@@ -43,6 +43,11 @@ import {
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
+import {
+  getBaseAssetLabel,
+  getDefaultQuoteAssetLabel,
+  getDisplaySymbolLabel,
+} from "@/lib/utils/market-display";
 
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
@@ -73,6 +78,14 @@ type MockPortfolio = {
   totalProfit: number;
   totalRoi: number;
   holdings: MockHolding[];
+};
+
+type MarketSymbolMeta = {
+  symbol: string;
+  displayNameKr: string;
+  displayNameEn: string;
+  baseAsset: string;
+  quoteAsset: string;
 };
 
 const CHART_COLORS = [
@@ -111,10 +124,6 @@ const formatSignedPercent = (value?: number | null) => {
   }
 
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
-};
-
-const getSymbolLabel = (symbol: string) => {
-  return symbol.replace("USDT", "");
 };
 
 const getJson = async (response: Response) => {
@@ -160,6 +169,7 @@ export default function MePage() {
 
   const [isLoadingMock, setIsLoadingMock] = useState(false);
   const [mockErrorMessage, setMockErrorMessage] = useState("");
+  const [marketSymbols, setMarketSymbols] = useState<MarketSymbolMeta[]>([]);
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
   const [communityPosts, setCommunityPosts] = useState<Post[]>([]);
@@ -200,6 +210,40 @@ export default function MePage() {
     if (!isMounted) return;
 
     let isActive = true;
+
+    const loadMarketSymbols = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:8080/api/v1/market/spot/symbols",
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const json = await getJson(response);
+
+        if (!isActive) return;
+
+        const nextMarketSymbols =
+          Array.isArray(json)
+            ? (json as MarketSymbolMeta[])
+            : isRecord(json) && Array.isArray(json.data)
+            ? (json.data as MarketSymbolMeta[])
+            : [];
+
+        setMarketSymbols(nextMarketSymbols);
+      } catch (error) {
+        if (!isActive) return;
+        console.error("failed to load market symbols:", error);
+      }
+    };
+
+    void loadMarketSymbols();
 
     const loadMemberProfile = async () => {
       try {
@@ -742,7 +786,7 @@ export default function MePage() {
     const holdingsData = mockPortfolio.holdings
       .filter((item) => item.coinTotalValue > 0)
       .map((item, index) => ({
-        name: getSymbolLabel(item.symbol),
+        name: getBaseAssetLabel(item.symbol, marketSymbols),
         value:
           mockPortfolio.totalAsset > 0
             ? (item.coinTotalValue / mockPortfolio.totalAsset) * 100
@@ -757,14 +801,14 @@ export default function MePage() {
 
     if (cashRatio > 0) {
       holdingsData.unshift({
-        name: "USDT",
+        name: getDefaultQuoteAssetLabel(marketSymbols) || "현금",
         value: cashRatio,
         color: CHART_COLORS[0],
       });
     }
 
     return holdingsData.filter((item) => item.value > 0);
-  }, [portfolioTab, mockPortfolio]);
+  }, [portfolioTab, mockPortfolio, marketSymbols]);
 
   const reportItems = useMemo<ProfileReportItem[]>(() => {
     const normalizedReportedPosts = reportedPosts.map((post) => ({
@@ -1064,7 +1108,12 @@ export default function MePage() {
                         </p>
                       </div>
                       {mockPortfolio.holdings.map((item) => (
-                        <HoldingRow key={item.symbol} item={item} />
+                        <HoldingRow
+                          key={item.symbol}
+                          item={item}
+                          marketSymbols={marketSymbols}
+                          quoteAssetName={getDefaultQuoteAssetLabel(marketSymbols)}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -1135,23 +1184,33 @@ function AssetMiniInfo({
   );
 }
 
-function HoldingRow({ item }: { item: MockHolding }) {
+function HoldingRow({
+  item,
+  marketSymbols,
+  quoteAssetName,
+}: {
+  item: MockHolding;
+  marketSymbols: MarketSymbolMeta[];
+  quoteAssetName: string;
+}) {
   const isLoss = item.profit < 0;
   const color = isLoss ? "text-blue-500" : "text-red-500";
+  const baseAssetName = getBaseAssetLabel(item.symbol, marketSymbols);
+  const displaySymbol = getDisplaySymbolLabel(item.symbol, marketSymbols);
 
   return (
     <div className="p-6 rounded-[24px] border border-gray-100 bg-white hover:border-blue-100 hover:shadow-md transition-all">
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400">
-            {getSymbolLabel(item.symbol)}
+            {baseAssetName}
           </div>
           <div>
             <h4 className="text-sm font-black text-gray-900">
-              {getSymbolLabel(item.symbol)}
+              {baseAssetName}
             </h4>
             <p className="text-[10px] text-gray-400 font-bold uppercase">
-              {item.symbol}
+              {displaySymbol}
             </p>
           </div>
         </div>
@@ -1159,7 +1218,9 @@ function HoldingRow({ item }: { item: MockHolding }) {
         <div className="text-right">
           <p className={`text-sm font-black ${color}`}>
             {formatSignedNumber(item.profit)}
-            <span className="text-[10px] ml-1">USDT</span>
+            {quoteAssetName ? (
+              <span className="text-[10px] ml-1">{quoteAssetName}</span>
+            ) : null}
           </p>
           <p className={`text-[11px] font-black ${color}`}>
             {formatSignedPercent(item.roi)}
@@ -1171,22 +1232,22 @@ function HoldingRow({ item }: { item: MockHolding }) {
         <DataBox
           label="보유수량"
           value={formatNumber(item.quantity)}
-          unit={getSymbolLabel(item.symbol)}
+          unit={baseAssetName}
         />
         <DataBox
           label="평가금액"
           value={formatNumber(item.coinTotalValue)}
-          unit="USDT"
+          unit={quoteAssetName}
         />
         <DataBox
           label="매수평균가"
           value={formatNumber(item.averageBuyPrice)}
-          unit="USDT"
+          unit={quoteAssetName}
         />
         <DataBox
           label="매수금액"
           value={formatNumber(item.buyAmount)}
-          unit="USDT"
+          unit={quoteAssetName}
         />
       </div>
     </div>
@@ -1209,7 +1270,9 @@ function DataBox({
       </p>
       <p className="text-[11px] font-black text-gray-800">
         {value}
-        <span className="text-[9px] text-gray-400 font-medium ml-1">{unit}</span>
+        {unit ? (
+          <span className="text-[9px] text-gray-400 font-medium ml-1">{unit}</span>
+        ) : null}
       </p>
     </div>
   );

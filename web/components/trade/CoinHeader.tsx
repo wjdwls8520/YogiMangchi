@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 
 export default function CoinHeader() {
@@ -25,7 +26,7 @@ export default function CoinHeader() {
   const { price, changeRate, volume, highPrice, lowPrice } = realtime;
   const isUp = changeRate > 0;
   const isDown = changeRate < 0;
-  const colorClass = isUp ? "text-[#E12343]" : isDown ? "text-[#1763B6]" : "text-gray-900";
+  const colorClass = isUp ? "text-trade-buy" : isDown ? "text-trade-sell" : "text-gray-900";
   const sign = isUp ? "▲" : isDown ? "▼" : "";
 
   return (
@@ -40,7 +41,10 @@ export default function CoinHeader() {
         {/* 현재 가격 & 변동률 */}
         <div className="flex items-baseline gap-3">
           <span className={`text-3xl font-black ${colorClass}`}>
-            {price.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+            {formatAssetNumber(price, {
+              standardMaxFractionDigits: 4,
+              smallMaxFractionDigits: 8,
+            })}
           </span>
           <span className={`text-sm font-bold ${colorClass}`}>
             {sign} {Math.abs(changeRate).toFixed(2)}%
@@ -53,13 +57,23 @@ export default function CoinHeader() {
         <div className="border-l border-gray-200 pl-4">
           <p className="text-gray-400 mb-1">고가(24H)</p>
           <p className="text-gray-900 font-black">
-            {highPrice?.toLocaleString(undefined, { maximumFractionDigits: 4 }) || "-"}
+            {highPrice === null || highPrice === undefined
+              ? "-"
+              : formatAssetNumber(highPrice, {
+                  standardMaxFractionDigits: 4,
+                  smallMaxFractionDigits: 8,
+                })}
           </p>
         </div>
         <div className="border-l border-gray-200 pl-4">
           <p className="text-gray-400 mb-1">저가(24H)</p>
           <p className="text-gray-900 font-black">
-            {lowPrice?.toLocaleString(undefined, { maximumFractionDigits: 4 }) || "-"}
+            {lowPrice === null || lowPrice === undefined
+              ? "-"
+              : formatAssetNumber(lowPrice, {
+                  standardMaxFractionDigits: 4,
+                  smallMaxFractionDigits: 8,
+                })}
           </p>
         </div>
         <div className="border-l border-gray-200 pl-4">

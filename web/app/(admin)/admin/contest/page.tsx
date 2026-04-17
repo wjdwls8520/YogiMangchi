@@ -23,14 +23,13 @@ import {
   getAdminForbiddenMessage,
 } from "@/lib/utils/adminFeedback";
 
-type SortKey = "updatedAt";
 const ADMIN_CONTEST_PAGE_SIZE = 5;
 
 type ContestSeasonRow = {
   season: ContestSeason;
   id: number;
   title: string;
-  progressBadges: ("모집중" | "라이브 진행중")[];
+  progressBadges: ("모집중" | "Live")[];
   status: ContestSeasonDisplayStatus;
   isPublic: boolean;
   isCancel: boolean;
@@ -46,11 +45,11 @@ const toContestSeasonRow = (season: ContestSeason): ContestSeasonRow => {
   return {
     season,
     id: season.id,
-    title: season.title,
-    progressBadges: [
-      ...(season.isRecruiting ? (["모집중"] as const) : []),
-      ...(season.isLive ? (["라이브 진행중"] as const) : []),
-    ],
+      title: season.title,
+      progressBadges: [
+        ...(season.isRecruiting ? (["모집중"] as const) : []),
+        ...(season.isLive ? (["Live"] as const) : []),
+      ],
     status: translateContestDisplayStatus(season),
     isPublic: inferContestIsPublic(season),
     isCancel: inferContestIsCanceled(season),
@@ -84,7 +83,7 @@ const mergeUpdatedSeasonRow = (
   };
 };
 
-const getProgressBadgeClassName = (progress: "모집중" | "라이브 진행중") => {
+const getProgressBadgeClassName = (progress: "모집중" | "Live") => {
   if (progress === "모집중") {
     return "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100";
   }
@@ -120,7 +119,13 @@ const formatDateTime = (value: string) => {
 };
 
 const formatPeriod = (startAt: string, endAt: string) => {
-  return `${formatDateTime(startAt)} ~ ${formatDateTime(endAt)}`;
+  return (
+    <div className="flex flex-col items-center">
+      <span>{formatDateTime(startAt)}</span>
+      <span>~</span>
+      <span>{formatDateTime(endAt)}</span>
+    </div>
+  );
 };
 
 const ToggleSwitch = ({
@@ -165,27 +170,13 @@ export default function AdminContestPage() {
   const [updatingRowKey, setUpdatingRowKey] = useState<string | null>(null);
   const [hasNextRows, setHasNextRows] = useState(false);
   const [nextRowsCursorId, setNextRowsCursorId] = useState<number | null>(null);
-  const [sortConfig, setSortConfig] = useState<{
-    key: SortKey;
-    direction: "asc" | "desc";
-  }>({
-    key: "updatedAt",
-    direction: "desc",
-  });
 
   const sortedRows = useMemo(() => {
-    const sortableRows = [...rows];
-
-    sortableRows.sort((a, b) => {
-      const compareValue =
-        new Date(a[sortConfig.key]).getTime() -
-        new Date(b[sortConfig.key]).getTime();
-
-      return sortConfig.direction === "asc" ? compareValue : compareValue * -1;
-    });
-
-    return sortableRows;
-  }, [rows, sortConfig]);
+    return [...rows].sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }, [rows]);
 
   const loadContestSeasonRows = useCallback(
     async ({
@@ -262,30 +253,6 @@ export default function AdminContestPage() {
     void loadContestSeasonRows({ reset: true });
   }, [loadContestSeasonRows]);
 
-  const requestSort = (key: "updatedAt") => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return {
-          key,
-          direction: prev.direction === "asc" ? "desc" : "asc",
-        };
-      }
-
-      return {
-        key,
-        direction: "asc",
-      };
-    });
-  };
-
-  const sortMark = (key: SortKey) => {
-    if (sortConfig.key !== key) {
-      return "↕";
-    }
-
-    return sortConfig.direction === "asc" ? "↑" : "↓";
-  };
-
   const handleCreatedSeason = () => {
     void loadContestSeasonRows({ reset: true });
   };
@@ -314,7 +281,7 @@ export default function AdminContestPage() {
     row.progressBadges.includes("모집중")
   ).length;
   const progressingCount = rows.filter((row) =>
-    row.progressBadges.includes("라이브 진행중")
+    row.progressBadges.includes("Live")
   ).length;
 
   const handleToggleStatus = async (
@@ -441,9 +408,9 @@ export default function AdminContestPage() {
             <thead className="bg-gray-50 text-gray-600">
               <tr className="border-b border-gray-200">
                 <th className="sticky left-0 z-10 w-[70px] bg-gray-50 px-3 py-4 text-center font-black">
-                  ID (No.)
+                  ID
                 </th>
-                <th className="w-[220px] px-3 py-4 text-center font-black">
+                <th className="w-[220px] px-3 py-4 text-left font-black">
                   대회명
                 </th>
                 <th className="w-[80px] px-3 py-4 text-center font-black">
@@ -464,18 +431,6 @@ export default function AdminContestPage() {
                 <th className="w-[160px] px-3 py-4 text-center font-black">
                   대회 기간
                 </th>
-                <th className="w-[120px] px-3 py-4 text-center font-black">
-                  <button
-                    type="button"
-                    onClick={() => requestSort("updatedAt")}
-                    className="inline-flex items-center gap-1"
-                  >
-                    수정일시
-                    <span className="text-[11px] text-gray-400">
-                      {sortMark("updatedAt")}
-                    </span>
-                  </button>
-                </th>
                 <th className="w-[90px] px-3 py-4 text-center font-black">
                   관리
                 </th>
@@ -486,7 +441,7 @@ export default function AdminContestPage() {
               {isLoadingRows ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9}
                     className="px-6 py-16 text-center text-sm font-medium text-gray-500"
                   >
                     대회 목록을 불러오는 중입니다...
@@ -495,7 +450,7 @@ export default function AdminContestPage() {
               ) : rowsError ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9}
                     className="px-6 py-16 text-center text-sm font-medium text-red-500"
                   >
                     {rowsError}
@@ -505,15 +460,15 @@ export default function AdminContestPage() {
                 sortedRows.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    className="group border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                   >
-                    <td className="sticky left-0 z-[1] bg-white px-3 py-4 text-center font-bold text-gray-500">
+                    <td className="sticky left-0 z-[1] bg-white px-3 py-4 text-center font-bold text-gray-500 transition-colors group-hover:bg-gray-50">
                       {row.id}
                     </td>
                     <td className="px-3 py-4">
                       <Link
                         href={`/admin/contest/${row.id}`}
-                        className="line-clamp-2 font-black leading-6 text-gray-900 underline-offset-4 hover:text-blue-600 hover:underline"
+                        className="inline max-w-full break-words font-black leading-6 text-gray-900 underline underline-offset-4 hover:text-blue-600"
                       >
                         {row.title}
                       </Link>
@@ -521,16 +476,22 @@ export default function AdminContestPage() {
                     <td className="px-3 py-4 text-center">
                       <div className="flex flex-wrap justify-center gap-2">
                         {row.progressBadges.length > 0 ? (
-                          row.progressBadges.map((badge) => (
-                            <span
-                              key={badge}
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getProgressBadgeClassName(
-                                badge
-                              )}`}
-                            >
-                              {badge}
-                            </span>
-                          ))
+                            row.progressBadges.map((badge) => (
+                              <span
+                                key={badge}
+                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black ${getProgressBadgeClassName(
+                                  badge
+                                )}`}
+                              >
+                                {badge === "Live" ? (
+                                  <span aria-hidden="true" className="relative flex h-3 w-3">
+                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                                    <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+                                  </span>
+                                ) : null}
+                                {badge}
+                              </span>
+                            ))
                         ) : (
                           <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-500 ring-1 ring-gray-200">
                             대기중
@@ -571,14 +532,11 @@ export default function AdminContestPage() {
                         />
                       </div>
                     </td>
-                    <td className="px-3 py-4 text-sm font-medium leading-5 text-gray-600">
+                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600">
                       {formatPeriod(row.recruitmentStartAt, row.recruitmentEndAt)}
                     </td>
-                    <td className="px-3 py-4 text-sm font-medium leading-5 text-gray-600">
+                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600">
                       {formatPeriod(row.contestStartAt, row.contestEndAt)}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-medium leading-5 text-gray-500">
-                      {formatDateTime(row.updatedAt)}
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex justify-center">
@@ -597,7 +555,7 @@ export default function AdminContestPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9}
                     className="px-6 py-16 text-center text-sm font-medium text-gray-500"
                   >
                     아직 등록된 대회가 없습니다.

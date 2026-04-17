@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, Star  } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
+import SegmentTabs from "@/components/ui/SegmentTabs";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { getMarketLabel, type MarketType } from "@/lib/utils/market";
 import type { RealtimeData } from "@/stores/useTickerStore";
@@ -188,10 +189,9 @@ export default function CoinList({
           <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
         </div>
 
-        <Tabs
+        <SegmentTabs
           activeTab={coinTab}
           onChange={(value) => setCoinTab(value as CoinTab)}
-          fullWidth={true}
           tabs={[
             { label: "전체", value: "all" },
             { label: "보유", value: "have" },
@@ -201,7 +201,7 @@ export default function CoinList({
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <table className="w-full text-[13px] whitespace-nowrap">
+        <table className="w-full text-[11px] whitespace-nowrap">
           <thead className="sticky top-0 bg-white text-[12px] font-bold text-gray-500 border-b border-gray-200 z-10">
             <tr>
               <th
@@ -224,7 +224,7 @@ export default function CoinList({
                 className="py-2.5 px-2 text-right cursor-pointer hover:bg-gray-50"
                 onClick={() => requestSort("change")}
               >
-                변동률(%){" "}
+                변동률{" "}
                 {sortConfig.key === "change" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
@@ -246,15 +246,15 @@ export default function CoinList({
 
               const colorClass =
                 coin.change > 0
-                  ? "text-[#E12343]"
+                  ? "text-trade-buy"
                   : coin.change < 0
-                    ? "text-[#1763B6]"
+                    ? "text-trade-sell"
                     : "text-gray-900";
 
               const priceDisplay = coin.price
                 ? coin.price.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 4,
+                    minimumFractionDigits: coin.price < 1 ? 2 : 2,
+                    maximumFractionDigits: coin.price < 1 ? 8 : 4,
                   })
                 : "-";
 
@@ -286,9 +286,9 @@ export default function CoinList({
                         <Star
                         color="#e4f500"
                         fill="#f1ff29"
-                        className="size-5"/>
+                        className="size-4"/>
                       ) : (
-                        <Star className="size-5 text-gray-300 hover:text-yellow-200" />
+                        <Star className="size-4 text-gray-300 hover:text-yellow-200" />
                       )}
                     </button>
 

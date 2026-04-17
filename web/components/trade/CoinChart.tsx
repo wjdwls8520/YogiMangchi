@@ -6,6 +6,7 @@ import {
   createChart, ColorType, Time, CandlestickSeries, HistogramSeries, 
   LineSeries, AreaSeries, BarSeries, BaselineSeries, PriceScaleMode, createSeriesMarkers
 } from "lightweight-charts";
+import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 import {
   getBinanceKlineApiUrl,
@@ -26,6 +27,13 @@ const chartTypeOptions = [
   { label: "라인", value: "line" },
   { label: "면적", value: "area" },
 ];
+
+const formatChartPrice = (value: number) => {
+  return formatAssetNumber(value, {
+    standardMaxFractionDigits: 4,
+    smallMaxFractionDigits: 8,
+  });
+};
 
 export default function CoinChart() {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
@@ -114,6 +122,9 @@ export default function CoinChart() {
       width: chartContainerRef.current.clientWidth,
       height: 500,
       grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
+      localization: {
+        priceFormatter: (price) => formatChartPrice(price),
+      },
       timeScale: { timeVisible: true, secondsVisible: false, barSpacing: 12, rightOffset: 5 },
       rightPriceScale: { borderVisible: false },
       crosshair: { mode: 1 }, 
@@ -151,7 +162,9 @@ export default function CoinChart() {
         const volData: any = param.seriesData.get(seriesRef.current.volume);
         if (data) {
           const dateStr = new Date((param.time as number) * 1000).toLocaleString();
-          const price = data.value !== undefined ? data.value.toFixed(2) : data.close.toFixed(2);
+          const price = formatChartPrice(
+            data.value !== undefined ? Number(data.value) : Number(data.close)
+          );
           const volume = volData ? volData.value.toFixed(2) : '0.00';
           tooltipRef.current.innerHTML = `<div style="font-size: 12px; color: #888; margin-bottom: 4px;">${dateStr}</div><div style="font-weight: bold; color: inherit;">가격: $${price}</div><div style="font-size: 12px; color: #888;">거래량: ${volume}</div>`;
           tooltipRef.current.style.display = 'block';

@@ -3,6 +3,50 @@ type FetchClientOptions = Omit<RequestInit, "body"> & {
   body?: BodyInit | object | null;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null;
+};
+
+const extractApiErrorMessage = (payload: unknown) => {
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  if (!isRecord(payload)) {
+    return "";
+  }
+
+  if (typeof payload.message === "string") {
+    return payload.message;
+  }
+
+  if (typeof payload.error === "string") {
+    return payload.error;
+  }
+
+  const data = isRecord(payload.data) ? payload.data : null;
+
+  if (data && typeof data.message === "string") {
+    return data.message;
+  }
+
+  return "";
+};
+
+export class FetchClientError extends Error {
+  status: number;
+  userMessage: string;
+  payload: unknown;
+
+  constructor(status: number, userMessage = "", payload: unknown = null) {
+    super(userMessage ? `API 에러: ${status} - ${userMessage}` : `API 에러: ${status}`);
+    this.name = "FetchClientError";
+    this.status = status;
+    this.userMessage = userMessage;
+    this.payload = payload;
+  }
+}
+
 export async function fetchClient(
   url: string,
   options: FetchClientOptions = {}
@@ -30,14 +74,20 @@ export async function fetchClient(
     body: requestBody,
   });
 
+  const contentType = res.headers.get("content-type");
+  const isJsonResponse = contentType?.includes("application/json");
+  const payload = isJsonResponse ? await res.json().catch(() => null) : null;
+
   if (!res.ok) {
-    throw new Error(`API 에러: ${res.status}`);
+    throw new FetchClientError(
+      res.status,
+      extractApiErrorMessage(payload),
+      payload
+    );
   }
 
-  const contentType = res.headers.get("content-type");
-
-  if (contentType?.includes("application/json")) {
-    return res.json();
+  if (isJsonResponse) {
+    return payload;
   }
 
   return null;

@@ -1,5 +1,6 @@
 ﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { FetchClientError } from "@/lib/api/client";
 import { placeLimitOrder, placeMarketOrder } from "@/lib/api/trade";
 
 // 모의투자 자산 관련 API 기본 경로
@@ -307,6 +308,26 @@ const getFailureStatus = (
 // 응답 body가 비어 있어도 안전하게 json 파싱
 const parseJson = async (response: Response) =>
   response.json().catch(() => null);
+
+const getOrderErrorStatus = (error: unknown) => {
+  return error instanceof FetchClientError ? error.status : 0;
+};
+
+const getOrderErrorMessage = (error: unknown) => {
+  if (error instanceof FetchClientError) {
+    return error.userMessage || error.message;
+  }
+
+  return error instanceof Error ? error.message : "";
+};
+
+const isHandledOrderError = (error: unknown) => {
+  if (!(error instanceof FetchClientError)) {
+    return false;
+  }
+
+  return [400, 401, 403, 409].includes(error.status);
+};
 
 export const useMockWalletStore = create<MockWalletState>()(
   persist(
@@ -637,13 +658,15 @@ export const useMockWalletStore = create<MockWalletState>()(
                 status: "success",
               };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "";
+          const message = getOrderErrorMessage(error);
 
-          console.error("Failed to execute mock market order.", error);
+          if (!isHandledOrderError(error)) {
+            console.error("Failed to execute mock market order.", error);
+          }
 
           return {
             success: false,
-            status: getFailureStatus(0, message, "order"),
+            status: getFailureStatus(getOrderErrorStatus(error), message, "order"),
             message: message || "주문 처리에 실패했습니다.",
           };
         }
@@ -680,13 +703,15 @@ export const useMockWalletStore = create<MockWalletState>()(
                 status: "success",
               };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "";
+          const message = getOrderErrorMessage(error);
 
-          console.error("Failed to execute mock limit order.", error);
+          if (!isHandledOrderError(error)) {
+            console.error("Failed to execute mock limit order.", error);
+          }
 
           return {
             success: false,
-            status: getFailureStatus(0, message, "order"),
+            status: getFailureStatus(getOrderErrorStatus(error), message, "order"),
             message: message || "주문 처리에 실패했습니다.",
           };
         }

@@ -470,7 +470,7 @@ export default function ContestMainPage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1480px] space-y-10">
+    <div className="mx-auto max-w-[1280px] space-y-10">
       <ContestOngoingSection
         isLoading={isLoadingPage}
         contests={ongoingContests}

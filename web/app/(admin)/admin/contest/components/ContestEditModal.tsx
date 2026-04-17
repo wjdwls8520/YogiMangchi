@@ -184,11 +184,11 @@ export default function ContestEditModal({
                   }
                   maxLength={DESCRIPTION_MAX_LENGTH}
                   placeholder="대회 안내 문구와 운영 설명을 입력해 주세요."
-                  className={`min-h-20 w-full rounded-xl border px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:ring-2 ${
-                    isDescriptionTooLong
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                      : "border-gray-200 focus:border-[#0058FF] focus:ring-[#0058FF]"
-                  }`}
+                    className={`min-h-20 w-full resize-none rounded-xl border px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:ring-2 ${
+                      isDescriptionTooLong
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                        : "border-gray-200 focus:border-[#0058FF] focus:ring-[#0058FF]"
+                    }`}
                 />
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <span

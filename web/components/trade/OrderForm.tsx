@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
 import Tabs from "@/components/ui/Tabs";
+import SegmentTabs from "@/components/ui/SegmentTabs";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
@@ -59,6 +61,7 @@ type OrderFormBodyProps = {
   onChangeOrderType: (nextType: OrderType) => void;
   selectedCoin: string;
   baseName: string;
+  quoteName: string;
   currentPrice: number;
   isParticipated: boolean;
   isLoadingPortfolio: boolean;
@@ -113,6 +116,7 @@ function OrderFormBody({
   onChangeOrderType,
   selectedCoin,
   baseName,
+  quoteName,
   currentPrice,
   isParticipated,
   isLoadingPortfolio,
@@ -153,13 +157,23 @@ function OrderFormBody({
       : 0;
 
   const availableDisplayValue = orderTab === "buy" ? usdtBalance : availableHolding;
-  const availableUnit = orderTab === "buy" ? "YD" : baseName;
+  const availableUnit = orderTab === "buy" ? quoteName : baseName;
   const expectedLimitAmount =
     Number.isFinite(numericPrice) && numericPrice > 0 &&
     Number.isFinite(numericQty) && numericQty > 0
       ? numericPrice * numericQty
       : 0;
   const isDisabled = isSubmitting || isLoadingPortfolio;
+  const limitBuyPriceError =
+    !isMarketOrder && orderTab === "buy" && Number.isFinite(numericPrice) && numericPrice > 0
+      ? !Number.isFinite(numericQty) || numericQty <= 0
+        ? numericPrice > usdtBalance
+          ? "주문 가능 금액을 초과했습니다."
+          : ""
+        : expectedLimitAmount > usdtBalance
+          ? "주문 가능 금액을 초과했습니다."
+          : ""
+      : "";
 
   const buttonText =
     mode !== "mock"
@@ -236,7 +250,7 @@ function OrderFormBody({
       }
 
       if (expectedLimitAmount < MIN_ORDER_AMOUNT) {
-        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${quoteName} 이상입니다.`);
         return;
       }
 
@@ -284,7 +298,7 @@ function OrderFormBody({
       }
 
       if (numericAmount < MIN_ORDER_AMOUNT) {
-        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${quoteName} 이상입니다.`);
         return;
       }
 
@@ -301,7 +315,7 @@ function OrderFormBody({
       }
 
       if (expectedSellAmount < MIN_ORDER_AMOUNT) {
-        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} YD 이상입니다.`);
+        await alert(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${quoteName} 이상입니다.`);
         return;
       }
 
@@ -377,29 +391,19 @@ function OrderFormBody({
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-1 pt-6">
-      <div className="flex gap-1">
-        {[
+      <SegmentTabs
+        activeTab={orderType}
+        onChange={(value) => onChangeOrderType(value as OrderType)}
+        tabs={[
           { label: "지정", value: "limit" as const },
           { label: "시장", value: "market" as const },
           { label: "자동", value: "auto" as const },
-        ].map((option) => (
-          <button
-            key={option.value}
-            onClick={() => onChangeOrderType(option.value)}
-            className={`flex-1 py-2 text-xs font-black border transition-all ${
-              orderType === option.value
-                ? "bg-gray-800 text-white border-gray-800"
-                : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+        ]}
+      />
 
-      <div className="flex justify-between items-center text-[11px] font-black pt-2">
+      <div className="flex justify-between items-center text-xs font-black pt-2">
         <span className="text-gray-500 uppercase">주문 가능</span>
-        <span className="text-gray-900 font-black">
+        <span className="text-gray-900 font-black text-sm">
           {formatNumber(availableDisplayValue, orderTab === "buy" ? 2 : 8)}
           <span className="text-gray-400 font-medium ml-1">{availableUnit}</span>
         </span>
@@ -408,10 +412,10 @@ function OrderFormBody({
       <div className="space-y-3">
         {!isMarketOrder && (
           <div className="flex items-center gap-2">
-            <label className="w-20 text-[11px] font-black text-gray-500">
+            <label className="w-20 text-xs font-black text-gray-500">
               주문가격
             </label>
-            <div className="flex-1 flex gap-1">
+            <div className="flex-1 space-y-1">
               <Input
                 type="text"
                 inputMode="decimal"
@@ -419,28 +423,21 @@ function OrderFormBody({
                 onChange={(e) =>
                   setOrderPrice(sanitizeDecimalInput(e.target.value))
                 }
-                className="text-right font-black h-10 bg-white border-gray-200 rounded-none flex-1"
+                className={`text-right font-black h-10 bg-white border-gray-200 rounded-none flex-1 ${
+                  limitBuyPriceError ? "text-red-500" : ""
+                }`}
               />
-              <div className="flex flex-col gap-0.5 shrink-0">
-                <button
-                  type="button"
-                  className="w-6 h-[19px] bg-white border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50"
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="w-6 h-[19px] bg-white border border-gray-200 flex items-center justify-center text-xs hover:bg-gray-50"
-                >
-                  -
-                </button>
-              </div>
+              {limitBuyPriceError ? (
+                <p className="text-xs font-bold text-red-500 text-right">
+                  {limitBuyPriceError}
+                </p>
+              ) : null}
             </div>
           </div>
         )}
 
         <div className="flex items-center gap-2">
-          <label className="w-20 text-[11px] font-black text-gray-500">
+          <label className="w-20 text-xs font-black text-gray-500">
             {isMarketBuy ? "주문금액" : `주문수량(${baseName})`}
           </label>
           <div className="flex-1 space-y-1">
@@ -456,8 +453,8 @@ function OrderFormBody({
                   }
                   className="text-right font-black h-10 bg-white border-gray-200 rounded-none w-full pr-10"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
-                  YD
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400">
+                  {quoteName}
                 </span>
               </div>
             ) : (
@@ -484,7 +481,7 @@ function OrderFormBody({
                   key={option.label}
                   type="button"
                   onClick={() => handleSelectRatio(option.ratio)}
-                  className="py-1.5 bg-white border border-gray-200 text-[10px] font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                  className="py-1.5 bg-white border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-100 transition-all"
                 >
                   {option.label}
                 </button>
@@ -511,7 +508,7 @@ function OrderFormBody({
               ) : (
                 <>
                   {formatNumber(expectedSellAmount)}
-                  <span className="text-gray-400 font-medium ml-1">YD</span>
+                  <span className="text-gray-400 font-medium ml-1">{quoteName}</span>
                 </>
               )}
             </span>
@@ -528,14 +525,15 @@ function OrderFormBody({
                 readOnly={true}
                 className="w-full bg-white border-gray-200 rounded-none h-10 text-right font-bold pr-10"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
-                YD
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400">
+                {quoteName}
               </span>
             </div>
           </div>
         )}
 
-        <p className="text-[11px] text-gray-400 leading-relaxed">
+        <p className="flex items-center gap-1 text-xs text-gray-400 leading-relaxed">
+          <Info className="h-3.5 w-3.5 shrink-0" />
           {feeDescription}
         </p>
 
@@ -544,8 +542,8 @@ function OrderFormBody({
           disabled={isDisabled}
           className={`w-full h-14 font-black text-lg rounded-none transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
             orderTab === "buy"
-              ? "bg-[#E12343] hover:bg-red-700"
-              : "bg-[#1763B6] hover:bg-blue-700"
+              ? "bg-trade-buy hover:bg-trade-buy-hover"
+              : "bg-trade-sell hover:bg-trade-sell-hover"
           }`}
         >
           {buttonText}
@@ -585,15 +583,16 @@ export default function OrderForm({
 
   if (!realtime || !meta) {
     return (
-      <div className="lg:col-span-5 bg-white border border-gray-200 h-[520px] animate-pulse" />
+      <div className="lg:col-span-5 bg-white border border-gray-200 animate-pulse" />
     );
   }
 
   const baseName = meta.baseAsset;
+  const quoteName = meta.quoteAsset;
   const formResetKey = `${selectedCoin}-${orderType}-${orderTab}`;
 
   return (
-    <div className="h-[520px] lg:col-span-5 bg-white border border-gray-200 p-6 flex flex-col lg:h-full">
+    <div className="lg:col-span-5 bg-white border border-gray-200 p-6 flex flex-col lg:h-full">
       <Tabs
         activeTab={orderTab}
         onChange={(val) => setOrderTab(val as OrderTab)}
@@ -602,12 +601,12 @@ export default function OrderForm({
           {
             label: `${baseName} 매수`,
             value: "buy",
-            activeColor: "text-[#E12343] border-[#E12343]",
+            activeColor: "text-trade-buy border-trade-buy",
           },
           {
             label: `${baseName} 매도`,
             value: "sell",
-            activeColor: "text-[#1763B6] border-[#1763B6]",
+            activeColor: "text-trade-sell border-trade-sell",
           },
         ]}
       />
@@ -620,6 +619,7 @@ export default function OrderForm({
         onChangeOrderType={setOrderType}
         selectedCoin={selectedCoin}
         baseName={baseName}
+        quoteName={quoteName}
         currentPrice={realtime.price}
         isParticipated={isParticipated}
         isLoadingPortfolio={isLoadingPortfolio}
