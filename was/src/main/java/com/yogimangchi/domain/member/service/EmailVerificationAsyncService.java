@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.member.service;
 
+import com.yogimangchi.global.SseEnums.EmailType;
 import com.yogimangchi.global.mail.EmailSendService;
 import com.yogimangchi.global.mail.EmailSseService;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class EmailVerificationAsyncService {
             stringRedisTemplate.opsForValue().set(EMAIL_VERIFY_PREFIX + memberId, code, CODE_TTL);
 
             // 이메일 발송이 성공했음을 SSE 연결을 통해 유저의 브라우저로 실시간 알림을 보냅니다.
-            emailSseService.sendEvent(memberId, "EMAIL_SENT", "이메일이 발송되었습니다.");
+            emailSseService.sendEvent(memberId, EmailType.EMAIL_SENT.name(), "이메일이 발송되었습니다.");
 
             // 서버 로그에 인증 코드 발송이 성공했음을 기록합니다.
             log.info("이메일 인증 코드 발송 완료. memberId={}", memberId);
@@ -39,7 +40,7 @@ public class EmailVerificationAsyncService {
             log.error("이메일 인증 코드 발송 실패. memberId={}", memberId, e);
 
             // 이메일 발송 실패 사실을 SSE를 통해 유저에게 실시간으로 알려 페이지 새로고침 없이 대응하게 합니다.
-            emailSseService.sendEvent(memberId, "EMAIL_SEND_FAILED", "이메일 발송에 실패했습니다. 다시 시도해주세요.");
+            emailSseService.sendEvent(memberId, EmailType.EMAIL_SEND_FAILED.name(), "이메일 발송에 실패했습니다. 다시 시도해주세요.");
         }
     }
 }
