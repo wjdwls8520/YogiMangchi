@@ -149,7 +149,7 @@ export default function RecentTrades() {
 
               <span
                 className={`text-[12px] font-black text-right ${
-                  trade.isBuyerMaker ? "text-[#1763B6]" : "text-[#E12343]"
+                  trade.isBuyerMaker ? "text-trade-sell" : "text-trade-buy"
                 }`}
               >
                 {formatPrice(trade.price)}

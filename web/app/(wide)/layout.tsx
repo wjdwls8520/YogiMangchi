@@ -11,7 +11,7 @@ export default function WideLayout({
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F5F7]"> 
       <Header />
-      <main className="flex-1 w-full max-w-[1480px] mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-[1380px] mx-auto px-4 py-8">
         {children}
       </main>
       <Footer />

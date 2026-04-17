@@ -175,7 +175,7 @@ export default function OrderBook() {
                   className="absolute right-0 top-0 bottom-0 bg-blue-50/30"
                   style={{ width: getBarWidth(level.quantity, maxAskQty) }}
                 />
-                <span className="relative z-10 text-[12px] font-black text-[#1763B6]">
+                <span className="relative z-10 text-[12px] font-black text-trade-sell">
                   {formatPrice(level.price)}
                 </span>
                 <span className="relative z-10 text-[11px] font-bold text-gray-500">
@@ -211,7 +211,7 @@ export default function OrderBook() {
                   className="absolute right-0 top-0 bottom-0 bg-red-50/30"
                   style={{ width: getBarWidth(level.quantity, maxBidQty) }}
                 />
-                <span className="relative z-10 text-[12px] font-black text-[#E12343]">
+                <span className="relative z-10 text-[12px] font-black text-trade-buy">
                   {formatPrice(level.price)}
                 </span>
                 <span className="relative z-10 text-[11px] font-bold text-gray-500">

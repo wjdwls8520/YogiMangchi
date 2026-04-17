@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   PieChart,
@@ -11,8 +11,15 @@ import {
   Label,
 } from "recharts";
 import Tabs from "@/components/ui/Tabs";
+import SegmentTabs from "@/components/ui/SegmentTabs";
 import Select from "@/components/ui/Select";
 import { formatDateTime } from "@/lib/utils/date";
+import {
+  getBaseAssetLabel,
+  getDefaultQuoteAssetLabel,
+  getDisplaySymbolLabel,
+} from "@/lib/utils/market-display";
+import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 
 
 type AssetTab = "trade" | "contest" | "mock";
@@ -100,6 +107,7 @@ type DetailTableCell = {
 
 type DetailTableData = {
   headers: string[];
+  headerClasses: string[];
   rows: DetailTableCell[][];
   emptyText: string;
 };
@@ -148,13 +156,13 @@ const createDefaultTradeHistoryFilters = (): TradeListFilters => ({
 });
 
 const SIDE_OPTIONS = [
-  { label: "전체", value: "" },
+  { label: "구분", value: "" },
   { label: "매수", value: "BUY" },
   { label: "매도", value: "SELL" },
 ];
 
 const ORDER_STATUS_OPTIONS = [
-  { label: "전체", value: "" },
+  { label: "상태", value: "" },
   { label: "대기중", value: "PENDING" },
   { label: "부분체결", value: "PARTIALLY_FILLED" },
   { label: "체결완료", value: "COMPLETED" },
@@ -162,7 +170,7 @@ const ORDER_STATUS_OPTIONS = [
 ];
 
 const TRADE_STATUS_OPTIONS = [
-  { label: "전체", value: "" },
+  { label: "상태", value: "" },
   { label: "체결완료", value: "COMPLETED" },
   { label: "부분체결", value: "PARTIALLY_FILLED" },
   { label: "대기중", value: "PENDING" },
@@ -170,21 +178,11 @@ const TRADE_STATUS_OPTIONS = [
 ];
 
 const formatNumber = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0";
-  }
-
-  return value.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  });
+  return formatAssetNumber(value);
 };
 
 const formatSignedNumber = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0";
-  }
-
-  return `${value > 0 ? "+" : ""}${formatNumber(value)}`;
+  return formatSignedAssetNumber(value);
 };
 
 const formatSignedPercent = (value?: number | null) => {
@@ -210,18 +208,18 @@ const formatOrderType = (orderType?: string) => {
   return orderType || "-";
 };
 
-const getSymbolLabel = (symbol: string) => {
-  return symbol.replace("USDT", "");
-};
-
-const getAssetCellValue = (displayNameKr?: string | null, symbol?: string | null) => {
-  const assetLabel = displayNameKr || getSymbolLabel(symbol || "");
+const getAssetCellValue = (
+  displayNameKr: string | null | undefined,
+  symbol: string | null | undefined,
+  marketSymbols: MarketSymbolMeta[]
+) => {
+  const assetLabel = displayNameKr || getBaseAssetLabel(symbol, marketSymbols);
 
   return (
     <div className="flex flex-col">
       <span className="font-black text-gray-900">{assetLabel}</span>
       <span className="text-xs font-medium text-gray-400">
-        {symbol || "-"}
+        {getDisplaySymbolLabel(symbol, marketSymbols)}
       </span>
     </div>
   );
@@ -914,7 +912,7 @@ export default function AssetsPage() {
     const holdingsData = mockPortfolio.holdings
       .filter((item) => item.coinTotalValue > 0)
       .map((item, index) => ({
-        name: getSymbolLabel(item.symbol),
+        name: getBaseAssetLabel(item.symbol, marketSymbols),
         value:
           mockPortfolio.totalAsset > 0
             ? (item.coinTotalValue / mockPortfolio.totalAsset) * 100
@@ -929,14 +927,14 @@ export default function AssetsPage() {
 
     if (cashRatio > 0) {
       holdingsData.unshift({
-        name: "USDT",
+        name: getDefaultQuoteAssetLabel(marketSymbols) || "현금",
         value: cashRatio,
         color: CHART_COLORS[0],
       });
     }
 
     return holdingsData.filter((item) => item.value > 0);
-  }, [assetTab, mockPortfolio]);
+  }, [assetTab, marketSymbols, mockPortfolio]);
 
   const summary =
     assetTab === "mock" && mockPortfolio
@@ -963,6 +961,12 @@ export default function AssetsPage() {
           totalProfit: 0,
           totalRoi: 0,
         };
+  const defaultQuoteAssetLabel = getDefaultQuoteAssetLabel(marketSymbols);
+  const withQuoteAssetHeader = useCallback(
+    (label: string) =>
+      defaultQuoteAssetLabel ? `${label}(${defaultQuoteAssetLabel})` : label,
+    [defaultQuoteAssetLabel]
+  );
 
   const detailTable = useMemo<DetailTableData>(() => {
     if (detailTab === "holdings") {
@@ -970,14 +974,30 @@ export default function AssetsPage() {
         headers: [
           "자산",
           "보유수량",
-          "평균매수가",
-          "현재가",
-          "평가금액",
-          "평가손익",
+          withQuoteAssetHeader("평균매수가"),
+          withQuoteAssetHeader("현재가"),
+          withQuoteAssetHeader("평가금액"),
+          withQuoteAssetHeader("평가손익"),
           "수익률",
         ],
+        headerClasses: [
+          "text-center",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+        ],
         rows: (mockPortfolio?.holdings ?? []).map((item) => [
-          cell(getAssetCellValue(getSymbolLabel(item.symbol), item.symbol), "text-center"),
+          cell(
+            getAssetCellValue(
+              getBaseAssetLabel(item.symbol, marketSymbols),
+              item.symbol,
+              marketSymbols
+            ),
+            "text-center"
+          ),
           cell(formatNumber(item.quantity), "text-right"),
           cell(formatNumber(item.averageBuyPrice), "text-right"),
           cell(formatNumber(item.currentPrice), "text-right"),
@@ -999,14 +1019,29 @@ export default function AssetsPage() {
       return {
         headers: [
           "자산",
-          "총매수",
-          "총평가",
-          "평가손익",
+          withQuoteAssetHeader("총매수"),
+          withQuoteAssetHeader("총평가"),
+          withQuoteAssetHeader("평가손익"),
           "수익률",
           "비중",
         ],
+        headerClasses: [
+          "text-center",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+        ],
         rows: (mockPortfolio?.holdings ?? []).map((item) => [
-          cell(getAssetCellValue(getSymbolLabel(item.symbol), item.symbol), "text-center"),
+          cell(
+            getAssetCellValue(
+              getBaseAssetLabel(item.symbol, marketSymbols),
+              item.symbol,
+              marketSymbols
+            ),
+            "text-center"
+          ),
           cell(formatNumber(item.buyAmount), "text-right"),
           cell(formatNumber(item.coinTotalValue), "text-right"),
           cell(
@@ -1030,22 +1065,41 @@ export default function AssetsPage() {
           "자산",
           "구분",
           "주문유형",
-          "주문가격",
+          withQuoteAssetHeader("주문가격"),
           "주문수량",
-          "주문금액",
+          withQuoteAssetHeader("주문금액"),
           "상태",
+        ],
+        headerClasses: [
+          "text-center",
+          "text-center",
+          "text-center",
+          "text-center",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-center",
         ],
         rows: orderHistories.map((item) => [
           cell(formatDateTime(item.orderedAt), "text-center text-gray-500"),
-          cell(getAssetCellValue(item.displayNameKr, item.symbol), "text-center"),
+          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
           cell(
             item.side === "BUY" ? "매수" : "매도",
             `text-center ${getSideColorClass(item.side)}`
           ),
           cell(formatOrderType(item.orderType), "text-center text-gray-600"),
-          cell(formatNumber(item.orderPrice), "text-right"),
-          cell(formatNumber(item.orderQuantity), "text-right"),
-          cell(formatNumber(item.orderAmount), "text-right font-bold"),
+          cell(
+            formatNumber(item.avgFilledPrice ?? item.orderPrice),
+            "text-right"
+          ),
+          cell(
+            formatNumber(item.filledQuantity ?? item.orderQuantity),
+            "text-right"
+          ),
+          cell(
+            formatNumber(item.executedAmount ?? item.orderAmount),
+            "text-right font-bold"
+          ),
           cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
         ]),
         emptyText: ordersErrorMessage || "주문내역이 없습니다.",
@@ -1058,15 +1112,25 @@ export default function AssetsPage() {
           "체결일시",
           "자산",
           "구분",
-          "체결가",
+          withQuoteAssetHeader("체결가"),
           "체결수량",
-          "총금액",
-          "수수료",
-          "실현손익",
+          withQuoteAssetHeader("총금액"),
+          withQuoteAssetHeader("수수료"),
+          withQuoteAssetHeader("실현손익"),
+        ],
+        headerClasses: [
+          "text-center",
+          "text-center",
+          "text-center",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
+          "text-right",
         ],
         rows: tradeHistories.map((item) => [
           cell(formatDateTime(item.executedAt || item.orderedAt), "text-center text-gray-500"),
-          cell(getAssetCellValue(item.displayNameKr, item.symbol), "text-center"),
+          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
           cell(
             item.side === "BUY" ? "매수" : "매도",
             `text-center ${getSideColorClass(item.side)}`
@@ -1089,15 +1153,25 @@ export default function AssetsPage() {
         "주문일시",
         "자산",
         "구분",
-        "주문가격",
+        withQuoteAssetHeader("주문가격"),
         "주문수량",
         "미체결수량",
-        "주문금액",
+        withQuoteAssetHeader("주문금액"),
         "상태",
+      ],
+      headerClasses: [
+        "text-center",
+        "text-center",
+        "text-center",
+        "text-right",
+        "text-right",
+        "text-right",
+        "text-right",
+        "text-center",
       ],
       rows: openOrders.map((item) => [
         cell(formatDateTime(item.orderedAt), "text-center text-gray-500"),
-        cell(getAssetCellValue(item.displayNameKr, item.symbol), "text-center"),
+        cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
         cell(
           item.side === "BUY" ? "매수" : "매도",
           `text-center ${getSideColorClass(item.side)}`
@@ -1118,6 +1192,8 @@ export default function AssetsPage() {
     openOrders,
     ordersErrorMessage,
     tradesErrorMessage,
+    marketSymbols,
+    withQuoteAssetHeader,
   ]);
 
   const isLoadingDetailTab =
@@ -1228,8 +1304,16 @@ export default function AssetsPage() {
 
   return (
     <main className="w-full space-y-6">
+      <section className="space-y-2 mb-16">
+        <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+          내 자산
+        </h1>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          보유 자산과 주문, 거래 내역을 한 곳에서 확인할 수 있습니다.
+        </p>
+      </section>
+
       <Tabs
-        className="text-[18px]"
         tabs={[
           { label: "트레이딩", value: "trade" },
           { label: "대회", value: "contest" },
@@ -1239,7 +1323,7 @@ export default function AssetsPage() {
         onChange={(value) => setAssetTab(value as AssetTab)}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
         <section className="lg:col-span-4 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl"></div>
           
@@ -1357,25 +1441,43 @@ export default function AssetsPage() {
         </section>
       </div>
 
+      <section className="space-y-2">
+        <h2 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
+          자산 상세 내역
+        </h2>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          보유 현황과 주문, 거래 흐름을 탭별로 확인할 수 있습니다.
+        </p>
+      </section>
+
       <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
         <div className="border-b border-gray-100 dark:border-gray-700 pt-6">
-          <Tabs
-            tabs={[
-              { label: "보유자산", value: "holdings" },
-              { label: "손익현황", value: "pnl" },
-              { label: "주문내역", value: "orders" },
-              { label: "거래내역", value: "trades" },
-              { label: "미체결내역", value: "open" },
-            ]}
-            activeTab={detailTab}
-            onChange={(value) => setDetailTab(value as DetailTab)}
-            fullWidth={true}
-          />
+          <div className="px-6 pb-6">
+            <SegmentTabs
+              tabs={[
+                { label: "보유자산", value: "holdings" },
+                { label: "손익현황", value: "pnl" },
+                { label: "주문내역", value: "orders" },
+                { label: "거래내역", value: "trades" },
+                { label: "미체결내역", value: "open" },
+              ]}
+              activeTab={detailTab}
+              onChange={(value) => setDetailTab(value as DetailTab)}
+              fullWidth={false}
+              size="xl"
+              radius="full"
+            />
+          </div>
         </div>
 
-        {assetTab === "mock" && isFilterableDetailTab ? (
+        {assetTab === "mock" ? (
           <div className="border-b border-gray-100 dark:border-gray-700 px-6 py-5">
-            <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap">
+            <div
+              aria-hidden={!isFilterableDetailTab}
+              className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap ${
+                isFilterableDetailTab ? "" : "invisible pointer-events-none"
+              }`}
+            >
               <div className="flex flex-1 flex-wrap items-center gap-3">
                 <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-white px-2 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]">
                   <input
@@ -1447,7 +1549,7 @@ export default function AssetsPage() {
                               {market.displayNameKr}
                             </p>
                             <p className="truncate text-xs text-gray-400">
-                              {market.symbol}
+                              {getDisplaySymbolLabel(market.symbol, marketSymbols)}
                             </p>
                           </div>
                           <span className="ml-3 shrink-0 text-xs font-medium text-gray-400">
@@ -1485,9 +1587,13 @@ export default function AssetsPage() {
               {detailTab === "orders" || detailTab === "trades" ? (
                 <div
                   ref={scrollContainerRef}
-                  className="max-h-[420px] overflow-y-auto"
+                  className="max-h-[410px] overflow-y-auto"
                 >
-                  <DetailTable headers={detailTable.headers} rows={detailTable.rows} />
+                  <DetailTable
+                    headers={detailTable.headers}
+                    headerClasses={detailTable.headerClasses}
+                    rows={detailTable.rows}
+                  />
 
                   <div className="px-6 py-4 text-center">
                     {canLoadMoreCurrentTab ? (
@@ -1507,7 +1613,11 @@ export default function AssetsPage() {
                   </div>
                 </div>
               ) : (
-                <DetailTable headers={detailTable.headers} rows={detailTable.rows} />
+                <DetailTable
+                  headers={detailTable.headers}
+                  headerClasses={detailTable.headerClasses}
+                  rows={detailTable.rows}
+                />
               )}
             </>
           )}
@@ -1548,9 +1658,11 @@ function EmptyState({ text, className = "py-20" }: { text: string; className?: s
 
 function DetailTable({
   headers,
+  headerClasses,
   rows,
 }: {
   headers: string[];
+  headerClasses: string[];
   rows: DetailTableCell[][];
 }) {
   return (
@@ -1558,10 +1670,12 @@ function DetailTable({
       <table className="w-full min-w-[980px] text-sm whitespace-nowrap">
         <thead className="bg-gray-50/80 dark:bg-gray-800/80 text-gray-500 text-center dark:text-gray-400 font-bold border-b border-gray-200 dark:border-gray-700">
           <tr>
-            {headers.map((header) => (
+            {headers.map((header, index) => (
               <th
                 key={header}
-                className="py-4 px-6 text-center first:pl-8 last:pr-8 tracking-tight"
+                className={`py-4 px-6 first:pl-8 last:pr-8 tracking-tight ${
+                  headerClasses[index] ?? "text-center"
+                }`}
               >
                 {header}
               </th>

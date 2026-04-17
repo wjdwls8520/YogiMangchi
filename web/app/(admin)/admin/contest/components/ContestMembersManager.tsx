@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
+import BaseModal from "@/components/ui/BaseModal";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import {
   approveContestApplicant,
@@ -96,7 +97,8 @@ export default function ContestMembersManager({
     ContestRejectedApplicant[]
   >([]);
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<number[]>([]);
-  const [bulkRejectReason, setBulkRejectReason] = useState("");
+  const [rejectingApplicant, setRejectingApplicant] = useState<ContestApplicant | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -168,7 +170,6 @@ export default function ContestMembersManager({
 
   useEffect(() => {
     setSelectedApplicantIds([]);
-    setBulkRejectReason("");
   }, [activeTab]);
 
   const allApplicantIds = useMemo(
@@ -216,7 +217,13 @@ export default function ContestMembersManager({
         )
       );
 
-      toast({ title: "선택한 신청자를 승인했습니다.", tone: "success" });
+      toast({
+        title:
+          applicantIds.length > 1
+            ? "선택한 신청자를 승인했습니다."
+            : "신청자를 승인했습니다.",
+        tone: "success",
+      });
       setSelectedApplicantIds([]);
       await loadMemberLists();
       onUpdated?.();
@@ -250,7 +257,7 @@ export default function ContestMembersManager({
   const runReject = async (applicantIds: number[], rejectReason: string) => {
     if (!canProcessApplicants) {
       await alert(processBlockedMessage);
-      return;
+      return false;
     }
 
     setIsSubmittingAction(true);
@@ -262,33 +269,40 @@ export default function ContestMembersManager({
         )
       );
 
-      toast({ title: "선택한 신청자를 반려했습니다.", tone: "success" });
+      toast({
+        title:
+          applicantIds.length > 1
+            ? "선택한 신청자를 반려했습니다."
+            : "신청자를 반려했습니다.",
+        tone: "success",
+      });
       setSelectedApplicantIds([]);
-      setBulkRejectReason("");
       await loadMemberLists();
       onUpdated?.();
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
       if (message.includes("401")) {
         await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
-        return;
+        return false;
       }
 
       if (message.includes("403")) {
         await alert(
           getAdminForbiddenMessage("신청자를 반려할 수 없습니다.")
         );
-        return;
+        return false;
       }
 
       if (message.includes("409")) {
         await alert(processBlockedMessage);
-        return;
+        return false;
       }
 
       console.error("대회 신청 반려 실패:", error);
       await alert("신청자 반려에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      return false;
     } finally {
       setIsSubmittingAction(false);
     }
@@ -303,40 +317,47 @@ export default function ContestMembersManager({
     await runApprove(selectedApplicantIds);
   };
 
-  const handleApproveAll = async () => {
-    if (applicants.length === 0) {
-      await alert("승인할 신청자가 없습니다.");
-      return;
-    }
-
-    await runApprove(applicants.map((applicant) => applicant.applicantId));
-  };
-
-  const handleRejectSelected = async () => {
-    if (selectedApplicantIds.length === 0) {
-      await alert("반려할 신청자를 선택해 주세요.");
-      return;
-    }
-
-    if (!bulkRejectReason.trim()) {
-      await alert("반려 사유를 입력해 주세요.");
-      return;
-    }
-
-    await runReject(selectedApplicantIds, bulkRejectReason.trim());
-  };
-
   const handleApproveSingle = async (applicantId: number) => {
     await runApprove([applicantId]);
   };
 
-  const handleRejectSingle = async (applicantId: number) => {
-    if (!bulkRejectReason.trim()) {
-      await alert("상단의 반려 사유를 입력한 뒤 다시 시도해 주세요.");
+  const handleOpenRejectModal = (applicant: ContestApplicant) => {
+    if (!canProcessApplicants) {
+      void alert(processBlockedMessage);
       return;
     }
 
-    await runReject([applicantId], bulkRejectReason.trim());
+    setRejectingApplicant(applicant);
+    setRejectReason("");
+  };
+
+  const handleCloseRejectModal = () => {
+    if (isSubmittingAction) {
+      return;
+    }
+
+    setRejectingApplicant(null);
+    setRejectReason("");
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingApplicant) {
+      return;
+    }
+
+    if (!rejectReason.trim()) {
+      await alert("반려 사유를 입력해 주세요.");
+      return;
+    }
+
+    const isRejected = await runReject(
+      [rejectingApplicant.applicantId],
+      rejectReason.trim()
+    );
+
+    if (isRejected) {
+      handleCloseRejectModal();
+    }
   };
 
   const handleLoadMore = async () => {
@@ -434,33 +455,15 @@ export default function ContestMembersManager({
       ) : null}
 
       {activeTab === "applicants" ? (
-        <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+        <div className="space-y-4">
           {!canProcessApplicants ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
               {processBlockedMessage}
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm font-black text-gray-900">
-                승인 대기 신청자 관리
-              </p>
-              <p className="mt-1 text-sm font-medium text-gray-500">
-                선택 승인, 선택 반려, 전체 승인까지 한 번에 처리할 수 있습니다.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="white"
-                onClick={toggleSelectAllApplicants}
-                disabled={isLoading || applicants.length === 0 || !canProcessApplicants}
-              >
-                {isAllSelected ? "전체 선택 해제" : "전체 선택"}
-              </Button>
+          <div className="flex justify-end">
+            <div className="flex shrink-0 gap-2">
               <Button
                 type="button"
                 size="sm"
@@ -474,41 +477,6 @@ export default function ContestMembersManager({
               >
                 선택 승인
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleApproveAll}
-                disabled={isSubmittingAction || applicants.length === 0 || !canProcessApplicants}
-              >
-                전체 승인
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-700">
-              선택 반려 사유
-            </label>
-            <textarea
-              value={bulkRejectReason}
-              onChange={(event) => setBulkRejectReason(event.target.value)}
-              placeholder="선택한 신청자를 반려할 경우 사유를 입력해 주세요."
-              className="min-h-24 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]"
-            />
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                variant="gray"
-                onClick={handleRejectSelected}
-                disabled={
-                  isSubmittingAction ||
-                  selectedApplicantIds.length === 0 ||
-                  !canProcessApplicants
-                }
-              >
-                선택 반려
-              </Button>
             </div>
           </div>
         </div>
@@ -519,7 +487,18 @@ export default function ContestMembersManager({
           <thead className="bg-gray-50 text-gray-600">
             <tr className="border-b border-gray-200">
               {activeTab === "applicants" ? (
-                <th className="w-[70px] px-4 py-4 text-center font-black">선택</th>
+                <th className="w-[70px] px-4 py-4 text-center font-black">
+                  <input
+                    type="checkbox"
+                    aria-label={isAllSelected ? "전체 선택 해제" : "전체 선택"}
+                    checked={isAllSelected}
+                    onChange={toggleSelectAllApplicants}
+                    disabled={
+                      isLoading || applicants.length === 0 || !canProcessApplicants
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
               ) : null}
               <th className="w-[120px] px-4 py-4 text-center font-black">
                 회원 ID
@@ -625,7 +604,7 @@ export default function ContestMembersManager({
                           size="sm"
                           variant="gray"
                           onClick={() =>
-                            void handleRejectSingle(applicant.applicantId)
+                            handleOpenRejectModal(applicant)
                           }
                           disabled={isSubmittingAction || !canProcessApplicants}
                         >
@@ -750,6 +729,48 @@ export default function ContestMembersManager({
             )}
           </Button>
         </div>
+      ) : null}
+
+      {rejectingApplicant ? (
+        <BaseModal
+          title="신청자 반려"
+          onClose={handleCloseRejectModal}
+          footer={
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="white"
+                onClick={handleCloseRejectModal}
+                disabled={isSubmittingAction}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                variant="gray"
+                onClick={() => void handleConfirmReject()}
+                disabled={isSubmittingAction}
+              >
+                반려
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm font-medium leading-6 text-gray-600">
+              <span className="font-black text-gray-900">
+                {rejectingApplicant.nickname}
+              </span>
+              {" "}신청자를 반려합니다. 반려 사유를 입력해 주세요.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              placeholder="반려 사유를 입력해 주세요."
+              className="min-h-32 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]"
+            />
+          </div>
+        </BaseModal>
       ) : null}
     </div>
   );

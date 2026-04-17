@@ -172,7 +172,7 @@ const alarmLayer =
       id="header"
       className="sticky top-0 left-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-100 dark:bg-zinc-900/80 dark:border-zinc-800 transition-colors"
     >
-      <div className="relative max-w-[1480px] m-auto px-6 py-3 flex items-center justify-between">
+      <div className="relative max-w-[1280px] m-auto px-6 py-3 flex items-center justify-between">
         
         <Link href="/" aria-label="메인 페이지로 이동" className="flex items-center scale-[0.85] origin-left flex-shrink-0">
           <Logo />

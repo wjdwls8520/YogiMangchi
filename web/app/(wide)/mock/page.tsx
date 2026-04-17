@@ -19,7 +19,7 @@ export default function TradingPage() {
       <MockNoticeBar />
       <div className="flex flex-col lg:flex-row gap-3 items-start">
         {/* 왼쪽영역 */}
-        <div className="w-full lg:w-[390px] shrink-0 lg:sticky lg:top-24.5 lg:h-[calc(100vh-32px)]">
+        <div className="w-full lg:w-[370px] shrink-0 lg:sticky lg:top-24.5 lg:h-[calc(100vh-32px)]">
           <MockCoinList />
         </div>
 
@@ -31,7 +31,7 @@ export default function TradingPage() {
             <MainCandleChart />
           </section>
 
-          <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch lg:h-[520px]">
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch lg:h-[570px]">
             <RecentTrades />
             <OrderBook />
             <MockOrderForm />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import UserOrderHistory, {
   type HistoryTab,
   type OrderFilter,
@@ -28,24 +28,50 @@ type OpenOrderItem = {
   executedAt: string | null;
 };
 
+type CursorPage<T> = {
+  content: T[];
+  nextCursorId: number | null;
+  hasNext: boolean;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
 };
 
-const getCursorContent = <T,>(payload: unknown): T[] => {
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  if (data && Array.isArray(data.content)) return data.content as T[];
-
-  const nestedData = data && isRecord(data.data) ? data.data : null;
-  if (nestedData && Array.isArray(nestedData.content)) {
-    return nestedData.content as T[];
+const getCursorPage = <T,>(payload: unknown): CursorPage<T> => {
+  if (!isRecord(payload)) {
+    return {
+      content: [],
+      nextCursorId: null,
+      hasNext: false,
+    };
   }
 
-  return [];
+  const data = isRecord(payload.data) ? payload.data : null;
+  const nestedData = data && isRecord(data.data) ? data.data : null;
+
+  const source =
+    Array.isArray(payload.content) || "nextCursorId" in payload || "hasNext" in payload
+      ? payload
+      : data &&
+          (Array.isArray(data.content) || "nextCursorId" in data || "hasNext" in data)
+        ? data
+        : nestedData;
+
+  if (!source || !isRecord(source)) {
+    return {
+      content: [],
+      nextCursorId: null,
+      hasNext: false,
+    };
+  }
+
+  return {
+    content: Array.isArray(source.content) ? (source.content as T[]) : [],
+    nextCursorId:
+      typeof source.nextCursorId === "number" ? source.nextCursorId : null,
+    hasNext: source.hasNext === true,
+  };
 };
 
 const getArrayContent = <T,>(payload: unknown): T[] => {
@@ -96,6 +122,40 @@ export default function MockUserOrderHistory() {
   const [errorMessage, setErrorMessage] = useState("");
   const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [nextCursorId, setNextCursorId] = useState<number | null>(null);
+  const [hasNext, setHasNext] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const buildBaseParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("assetType", "MOCK");
+
+    if (selectedOrderType === "buy") {
+      params.set("side", "BUY");
+    }
+
+    if (selectedOrderType === "sell") {
+      params.set("side", "SELL");
+    }
+
+    return params;
+  }, [selectedOrderType]);
+
+  const mapHistoryRows = useCallback((orders: OpenOrderItem[]) => {
+    return orders.map((item) => ({
+      id: item.orderId,
+      date: item.executedAt || item.orderedAt,
+      symbol: item.symbol,
+      side: item.side,
+      quantity: item.filledQuantity ?? item.orderQuantity,
+      price: item.avgFilledPrice ?? item.orderPrice,
+      totalAmount: item.executedAmount ?? item.orderAmount,
+      fee: item.totalFee,
+      status: item.orderStatus,
+    }));
+  }, []);
 
   useEffect(() => {
     if (!hasLoadedPortfolio) {
@@ -106,24 +166,21 @@ export default function MockUserOrderHistory() {
       setRows([]);
       setErrorMessage("");
       setIsLoading(false);
+      setNextCursorId(null);
+      setHasNext(false);
+      setIsFetchingMore(false);
       return;
     }
 
     const loadRows = async () => {
       setIsLoading(true);
       setErrorMessage("");
+      setNextCursorId(null);
+      setHasNext(false);
+      setIsFetchingMore(false);
 
       try {
-        const params = new URLSearchParams();
-        params.set("assetType", "MOCK");
-
-        if (selectedOrderType === "buy") {
-          params.set("side", "BUY");
-        }
-
-        if (selectedOrderType === "sell") {
-          params.set("side", "SELL");
-        }
+        const params = buildBaseParams();
 
         let url = "";
 
@@ -189,21 +246,11 @@ export default function MockUserOrderHistory() {
             }))
           );
         } else {
-          const orders = getCursorContent<OpenOrderItem>(payload);
+          const page = getCursorPage<OpenOrderItem>(payload);
 
-          setRows(
-            orders.map((item) => ({
-              id: item.orderId,
-              date: item.executedAt || item.orderedAt,
-              symbol: item.symbol,
-              side: item.side,
-              quantity: item.filledQuantity ?? item.orderQuantity,
-              price: item.avgFilledPrice ?? item.orderPrice,
-              totalAmount: item.executedAmount ?? item.orderAmount,
-              fee: item.totalFee,
-              status: item.orderStatus,
-            }))
-          );
+          setRows(mapHistoryRows(page.content));
+          setNextCursorId(page.nextCursorId);
+          setHasNext(page.hasNext);
         }
       } catch (error) {
         console.error("주문/거래내역 조회 실패:", error);
@@ -228,6 +275,85 @@ export default function MockUserOrderHistory() {
     refreshKey,
     ownerMemberId,
     loadMockWallet,
+    buildBaseParams,
+    mapHistoryRows,
+  ]);
+
+  useEffect(() => {
+    if (historyTab !== "filled") return;
+    if (isLoading || isFetchingMore) return;
+    if (!hasNext || nextCursorId === null) return;
+    if (!loadMoreRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+
+        if (!entry?.isIntersecting) return;
+
+        setIsFetchingMore(true);
+
+        const loadMoreRows = async () => {
+          try {
+            const params = buildBaseParams();
+            params.set("status", "COMPLETED");
+            params.set("size", "10");
+            params.set("cursorId", String(nextCursorId));
+
+            const response = await fetch(
+              `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`,
+              {
+                method: "GET",
+                credentials: "include",
+              }
+            );
+
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok) {
+              console.error(
+                "체결 주문 추가 조회 실패:",
+                extractErrorMessage(payload) || "요청 실패"
+              );
+              setHasNext(false);
+              return;
+            }
+
+            const page = getCursorPage<OpenOrderItem>(payload);
+
+            setRows((prev) => [...prev, ...mapHistoryRows(page.content)]);
+            setNextCursorId(page.nextCursorId);
+            setHasNext(page.hasNext);
+          } catch (error) {
+            console.error("체결 주문 추가 조회 실패:", error);
+            setHasNext(false);
+          } finally {
+            setIsFetchingMore(false);
+          }
+        };
+
+        void loadMoreRows();
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "120px 0px",
+      }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [
+    historyTab,
+    selectedOrderType,
+    hasNext,
+    nextCursorId,
+    isLoading,
+    isFetchingMore,
+    buildBaseParams,
+    mapHistoryRows,
   ]);
 
   const handleCancelOrder = async (orderId: number) => {
@@ -270,6 +396,10 @@ export default function MockUserOrderHistory() {
       errorMessage={errorMessage}
       hasLoadedPortfolio={hasLoadedPortfolio}
       isParticipated={isParticipated}
+      hasNext={historyTab === "filled" ? hasNext : false}
+      isFetchingMore={historyTab === "filled" ? isFetchingMore : false}
+      loadMoreRef={historyTab === "filled" ? loadMoreRef : undefined}
+      scrollContainerRef={scrollContainerRef}
       onHistoryTabChange={setHistoryTab}
       onOrderTypeChange={setSelectedOrderType}
       onCancelOrder={handleCancelOrder}
