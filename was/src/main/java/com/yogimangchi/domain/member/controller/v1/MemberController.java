@@ -5,6 +5,7 @@ import com.yogimangchi.domain.member.dto.request.UpdateVerifiedInfoRequestDto;
 import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
+import com.yogimangchi.domain.member.dto.response.VerifiedInfoResponseDto;
 import com.yogimangchi.domain.member.service.MemberService;
 import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.validator.NicknameValidator;
@@ -97,6 +98,18 @@ public class MemberController {
         MyProfileInfoDto updatedProfile = memberService.updateMyProfile(loginMemberId, request);
 
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @Operation(summary = "인증회원 상세정보 조회", description = "인증회원의 전화번호, 주소를 조회 합니다.")
+    @GetMapping("/me/verified-info")
+    public ResponseEntity<VerifiedInfoResponseDto> getVerifiedInfo(
+            @AuthenticationPrincipal Long loginMemberId
+    ) {
+        if (loginMemberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        VerifiedInfoResponseDto response = memberService.getVerifiedInfo(loginMemberId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "인증회원 상세정보 수정", description = "인증회원의 전화번호, 주소를 수정합니다.")
