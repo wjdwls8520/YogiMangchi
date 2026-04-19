@@ -63,10 +63,10 @@ public class Member {
     @Column(name = "address_code", length = 5)
     private String addressCode;
 
-    @Column(length = 20)
+    @Column(length = 255)
     private String address1;
 
-    @Column(length = 100)
+    @Column(length = 255)
     private String address2;
 
     protected Member() {
