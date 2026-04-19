@@ -78,10 +78,13 @@ public class NotificationSseService {
         return emitter;
     }
 
-    public void sendNotification(Long memberId, NotificationResponseDto notification) {
+    public void sendNotification(Long memberId, String eventName, NotificationResponseDto notification) {
         // 잘못된 전송 요청은 로그만 남기고 무시한다.
-        if (memberId == null || notification == null) {
-            log.warn("알림 SSE 전송을 생략했습니다. memberId={}, notification={}", memberId, notification);
+        if (memberId == null || eventName == null || eventName.isBlank() || notification == null) {
+            log.warn("알림 SSE 전송을 생략했습니다. memberId={}, eventName={}, notification={}",
+                    memberId,
+                    eventName,
+                    notification);
             return;
         }
 
@@ -89,10 +92,11 @@ public class NotificationSseService {
 
         for (Map.Entry<String, SseEmitter> entry : emitters.entrySet()) {
             try {
+                // 프론트가 event name만 보고도 즉시 분기할 수 있도록 호출부에서 전달한 이름을 사용한다.
                 entry.getValue().send(
                         SseEmitter.event()
                                 .id(String.valueOf(notification.notificationId()))
-                                .name("NOTIFICATION_CREATED")
+                                .name(eventName)
                                 .data(notification)
                 );
             } catch (IOException | IllegalStateException exception) {

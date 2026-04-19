@@ -15,6 +15,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -84,7 +85,7 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(HttpStatus.FORBIDDEN.value(), "FORBIDDEN", e.getMessage()));
     }
 
-    @ExceptionHandler({AsyncRequestNotUsableException.class, IOException.class})
+    @ExceptionHandler({AsyncRequestTimeoutException.class, AsyncRequestNotUsableException.class, IOException.class})
     public void handleNotificationSseDisconnect(Exception e, HttpServletRequest request) throws Exception {
         if (!isNotificationSseRequest(request)) {
             throw e;
