@@ -31,6 +31,10 @@ public class AuthCookieService {
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(REFRESH_TOKEN_COOKIE_NAME).toString());
     }
 
+    public void expireAccessTokenCookie(HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(ACCESS_TOKEN_COOKIE_NAME).toString());
+    }
+
     public void expireSessionCookie(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie(SESSION_COOKIE_NAME).toString());
     }

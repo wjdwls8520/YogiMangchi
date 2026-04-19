@@ -5,8 +5,10 @@ import com.yogimangchi.domain.member.dto.request.EmailSendRequestDto;
 import com.yogimangchi.domain.member.dto.request.EmailVerifyRequestDto;
 import com.yogimangchi.domain.member.dto.response.OAuthEmailResponseDto;
 import com.yogimangchi.domain.member.service.EmailVerificationService;
+import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class EmailVerificationController {
 
     private final EmailVerificationService emailVerificationService;
+    private final AuthCookieService authCookieService;
 
     @Operation(
             summary = "소셜 로그인 이메일 조회",
@@ -100,9 +103,11 @@ public class EmailVerificationController {
     @PostMapping("/complete")
     public ResponseEntity<Void> completeVerification(
             @AuthenticationPrincipal Long loginMemberId,
-            @RequestBody @Valid CompleteVerificationRequestDto request
+            @RequestBody @Valid CompleteVerificationRequestDto request,
+            HttpServletResponse response
     ) {
         emailVerificationService.completeVerification(loginMemberId, request);
+        authCookieService.expireAccessTokenCookie(response);
         return ResponseEntity.ok().build();
     }
 }
