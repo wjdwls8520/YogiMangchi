@@ -12,7 +12,7 @@ interface Props {
 export default function SSEProvider({ children }: Props) {
     const { isLogin } = useAuthStore();
   
-    const { setAlarms, addAlarm } = useAlaramStore();
+    const { setAlarms, addAlarm, setAlarmCount } = useAlaramStore();
 
     
     useEffect(() => {
@@ -35,14 +35,14 @@ export default function SSEProvider({ children }: Props) {
       };
   
 
-      // 알람 상태 가져오기
+      // 알람 개수 가져오기
       const init = async () => {
         try {
           const data = await getAlarmStatus();
-          console.log(data);
-          // setAlarms(data);
+          setAlarmCount(data.newCount);
+
         } catch (e) {
-          console.error("알림 상태 조회 실패", e);
+          console.error("알림 개수 조회 실패", e);
         }
       };
 
