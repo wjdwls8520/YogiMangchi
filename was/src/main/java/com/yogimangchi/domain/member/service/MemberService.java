@@ -7,6 +7,7 @@ import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
 import com.yogimangchi.domain.member.dto.response.VerifiedInfoResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
+import com.yogimangchi.domain.member.entity.OAuthAccount;
 import com.yogimangchi.domain.member.entity.WithdrawnOAuthAccount;
 import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.global.exception.member.MemberException;
@@ -359,6 +360,7 @@ public class MemberService {
     @Transactional(readOnly = true)
     public VerifiedInfoResponseDto getVerifiedInfo(Long loginMemberId) {
         Member member = memberReader.getAuthenticated(loginMemberId);
+        OAuthAccount oauthAndMember = oAuthAccountRepository.findByMember(member);
 
         if (!MemberRole.VERIFIED_USER.equals(member.getRole()) && !MemberRole.ADMIN.equals(member.getRole())) {
             throw MemberException.notVerifiedUser();
@@ -368,7 +370,9 @@ public class MemberService {
                 member.getPhoneNumber(),
                 member.getAddressCode(),
                 member.getAddress1(),
-                member.getAddress2()
+                member.getAddress2(),
+                oauthAndMember.getEmail(),
+                true // 위에서 인증회원인것을 검증 했기 때문에 트루
         );
     }
 }

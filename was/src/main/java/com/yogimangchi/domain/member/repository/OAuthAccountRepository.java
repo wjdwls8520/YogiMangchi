@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.member.repository;
 
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
+import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.OAuthAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +34,6 @@ public interface OAuthAccountRepository extends JpaRepository<OAuthAccount, Long
           and m.deleteYn = 'N'
     """)
     MyProfileInfoDto findMyProfileInfo(@Param("memberId") Long memberId);
+
+    OAuthAccount findByMember(Member member);
 }
