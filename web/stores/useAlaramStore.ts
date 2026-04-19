@@ -29,13 +29,19 @@ interface AlaramState {
 
 interface AlarmStore {
   alarms: AlaramState[];
+  alarmCount: number;
   setAlarms: (alarms: AlaramState[]) => void;
   addAlarm: (alarm: AlaramState) => void;
+  setAlarmCount: (arg0: number) => void;
 }
 
 
 export const useAlaramStore = create<AlarmStore>((set) => ({
   alarms: [],
+
+  alarmCount: 0,
+
+  setAlarmCount: (alarmCount) => set({alarmCount}),
 
   setAlarms: (alarms) => set({ alarms }),
 
