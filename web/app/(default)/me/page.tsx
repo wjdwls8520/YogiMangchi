@@ -40,6 +40,7 @@ import {
   Tooltip,
   Label,
 } from "recharts";
+import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
@@ -888,17 +889,158 @@ export default function MePage() {
           totalRoi: 0,
         };
 
+  const renderCommunityTabContent = (tab: CommunityTab) => (
+    <ProfileCommunitySection
+      communityTab={tab}
+      onChange={(value) => setCommunityTab(value as CommunityTab)}
+      posts={communityPosts}
+      replies={communityReplies}
+      likedPosts={likedPosts}
+      likedReplies={likedReplies}
+      reports={reportItems}
+      isLoadingPosts={isLoadingCommunityPosts}
+      isLoadingReplies={isLoadingCommunityReplies}
+      isLoadingLikedPosts={isLoadingLikedPosts}
+      isLoadingLikedReplies={isLoadingLikedReplies}
+      isLoadingReports={isLoadingReports}
+      postsErrorMessage={communityPostsErrorMessage}
+      repliesErrorMessage={communityRepliesErrorMessage}
+      likedPostsErrorMessage={likedPostsErrorMessage}
+      likedRepliesErrorMessage={likedRepliesErrorMessage}
+      reportsErrorMessage={reportsErrorMessage}
+      isOwnProfile={true}
+      onCancelReport={(report) => void handleCancelReport(report)}
+      cancellingReportKey={cancellingReportKey}
+      showTabs={false}
+      showSurface={false}
+    />
+  );
+
+  const renderPortfolioTabContent = (tab: PortfolioTab) => {
+    if (tab !== "mock") {
+      return (
+        <div className="py-24 text-center text-gray-300 font-bold">
+          {tab === "trade"
+            ? "트레이딩 데이터는 아직 준비 중입니다."
+            : "대회 데이터는 아직 준비 중입니다."}
+        </div>
+      );
+    }
+
+    if (isLoadingMock) {
+      return (
+        <div className="py-24 text-center text-gray-300 font-bold">
+          모의투자 데이터를 불러오는 중입니다.
+        </div>
+      );
+    }
+
+    if (!mockPortfolio) {
+      return (
+        <div className="py-24 text-center text-gray-300 font-bold">
+          {mockErrorMessage || "모의투자 데이터가 없습니다."}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-10">
+        <div>
+          <h3 className="mb-8 text-lg font-black text-gray-900">
+            자산 포트폴리오 비중
+          </h3>
+
+          {pieData.length === 0 ? (
+            <div className="py-24 text-center text-gray-300 font-bold">
+              비중을 표시할 자산이 없습니다.
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row items-center gap-10">
+              <div className="h-64 w-full md:w-1/2 relative">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      innerRadius={75}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, i) => (
+                        <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
+                      ))}
+                      <Label
+                        value="보유 비중(%)"
+                        position="center"
+                        fill="#999"
+                        style={{ fontSize: "12px", fontWeight: "bold" }}
+                      />
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-4 w-full md:w-1/2">
+                {pieData.map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex justify-between items-center border-b border-gray-50 pb-2"
+                  >
+                    <span className="text-xs font-bold text-gray-500 flex items-center gap-2">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      {item.name}
+                    </span>
+                    <span className="text-sm font-black text-gray-900">
+                      {item.value.toFixed(2)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-100 pt-10">
+          <div className="mb-6">
+            <h3 className="text-lg font-black text-gray-900">
+              보유자산 목록
+            </h3>
+          </div>
+
+          {mockPortfolio.holdings.length > 0 ? (
+            <div className="space-y-4">
+              {mockPortfolio.holdings.map((item) => (
+                <HoldingRow
+                  key={item.symbol}
+                  item={item}
+                  marketSymbols={marketSymbols}
+                  quoteAssetName={getDefaultQuoteAssetLabel(marketSymbols)}
+                />
+              ))}
+            </div>
+          ) : (
+            <ProfileEmptyState text="보유 중인 모의투자 자산이 없습니다." />
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="flex flex-col lg:flex-row gap-8 items-start">
-        <aside className="w-full lg:w-[400px] lg:sticky lg:top-24 space-y-6">
+        <aside className="w-full lg:w-96 lg:sticky lg:top-24 space-y-6">
           <ProfileSidebar
             profile={memberProfile}
             onClickFollowers={handleOpenFollowers}
             onClickFollowings={handleOpenFollowings}
             actionArea={
               <>
-                <div className="grid grid-cols-2 gap-2 w-full">
+                <div className="grid grid-cols-2 gap-2 w-full mb-2">
                   <Button
                     variant="white"
                     size="sm"
@@ -924,7 +1066,7 @@ export default function MePage() {
                     variant="white"
                     fullWidth={true}
                     className="mt-2"
-                    onClick={() => router.push("/verify")}
+                    onClick={() => router.push("/verify?source=me")}
                   >
                     회원 인증하기
                   </Button>
@@ -933,7 +1075,7 @@ export default function MePage() {
             }
           />
 
-          <section className="rounded-[32px] bg-[#0058FF] p-8 text-white shadow-xl shadow-blue-100">
+          <section className="card bg-brand-primary text-white">
             <div className="flex justify-between items-center mb-6">
               <span className="text-lg font-bold opacity-80">{summary.title}</span>
             </div>
@@ -976,175 +1118,40 @@ export default function MePage() {
         </aside>
 
         <main className="flex-1 w-full space-y-6">
-          <div className="flex p-1 bg-gray-200/50 rounded-2xl gap-1">
-            <button
-              onClick={() => setMainTab("portfolio")}
-              className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
-                mainTab === "portfolio"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              나의 포트폴리오
-            </button>
-
-            <button
-              onClick={() => setMainTab("community")}
-              className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
-                mainTab === "community"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              커뮤니티
-            </button>
-          </div>
+          <Tabs
+            tabs={[
+              { label: "나의 포트폴리오", value: "portfolio" },
+              { label: "커뮤니티", value: "community" },
+            ]}
+            activeTab={mainTab}
+            onChange={(value) => setMainTab(value as MainTab)}
+            fullWidth={false}
+          />
 
           {mainTab === "portfolio" ? (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-                <div className="mb-8">
-                  <Tabs
-                    tabs={[
-                      { label: "트레이딩", value: "trade" },
-                      { label: "대회", value: "contest" },
-                      { label: "모의투자(예시)", value: "mock" },
-                    ]}
-                    activeTab={portfolioTab}
-                    onChange={(value) => setPortfolioTab(value as PortfolioTab)}
-                  />
-                </div>
-
-                <h3 className="text-lg font-black text-gray-900 mb-8">
-                  자산 포트폴리오 비중
-                </h3>
-
-                {portfolioTab !== "mock" ? (
-                  <div className="py-24 text-center text-gray-300 font-bold">
-                    {portfolioTab === "trade"
-                      ? "트레이딩 데이터는 아직 준비 중입니다."
-                      : "대회 데이터는 아직 준비 중입니다."}
-                  </div>
-                ) : isLoadingMock ? (
-                  <div className="py-24 text-center text-gray-300 font-bold">
-                    모의투자 데이터를 불러오는 중입니다.
-                  </div>
-                ) : !mockPortfolio ? (
-                  <div className="py-24 text-center text-gray-300 font-bold">
-                    {mockErrorMessage || "모의투자 데이터가 없습니다."}
-                  </div>
-                ) : pieData.length === 0 ? (
-                  <div className="py-24 text-center text-gray-300 font-bold">
-                    비중을 표시할 자산이 없습니다.
-                  </div>
-                ) : (
-                  <div className="flex flex-col md:flex-row items-center gap-10">
-                    <div className="h-[260px] w-full md:w-1/2 relative">
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            innerRadius={75}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {pieData.map((entry, i) => (
-                              <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
-                            ))}
-                            <Label
-                              value="보유 비중(%)"
-                              position="center"
-                              fill="#999"
-                              style={{ fontSize: "12px", fontWeight: "bold" }}
-                            />
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-4 w-full md:w-1/2">
-                      {pieData.map((item) => (
-                        <div
-                          key={item.name}
-                          className="flex justify-between items-center border-b border-gray-50 pb-2"
-                        >
-                          <span className="text-xs font-bold text-gray-500 flex items-center gap-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            {item.name}
-                          </span>
-                          <span className="text-sm font-black text-gray-900">
-                            {item.value.toFixed(2)}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-[32px] bg-white shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 md:p-10">
-                  {portfolioTab !== "mock" ? (
-                    <div className="py-32 text-center text-gray-300 font-bold">
-                      아직 해당 자산 데이터는 준비 중입니다.
-                    </div>
-                  ) : isLoadingMock ? (
-                    <div className="py-32 text-center text-gray-300 font-bold">
-                      데이터를 불러오는 중입니다.
-                    </div>
-                  ) : mockPortfolio && mockPortfolio.holdings.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="mb-2">
-                        <h3 className="text-lg font-black text-gray-900">
-                          보유자산 목록
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                          현재 보유 중인 자산 수량과 평가 정보를 확인할 수 있습니다.
-                        </p>
-                      </div>
-                      {mockPortfolio.holdings.map((item) => (
-                        <HoldingRow
-                          key={item.symbol}
-                          item={item}
-                          marketSymbols={marketSymbols}
-                          quoteAssetName={getDefaultQuoteAssetLabel(marketSymbols)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <ProfileEmptyState text="보유 중인 모의투자 자산이 없습니다." />
-                  )}
-                </div>
-              </section>
+              <FolderTabs
+                tabs={[
+                  { id: "trade", label: "트레이딩", content: renderPortfolioTabContent("trade") },
+                  { id: "contest", label: "대회", content: renderPortfolioTabContent("contest") },
+                  { id: "mock", label: "모의투자(예시)", content: renderPortfolioTabContent("mock") },
+                ]}
+                activeId={portfolioTab}
+                onChange={(id) => setPortfolioTab(id as PortfolioTab)}
+              />
             </div>
           ) : (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <ProfileCommunitySection
-                communityTab={communityTab}
-                onChange={(value) => setCommunityTab(value as CommunityTab)}
-                posts={communityPosts}
-                replies={communityReplies}
-                likedPosts={likedPosts}
-                likedReplies={likedReplies}
-                reports={reportItems}
-                isLoadingPosts={isLoadingCommunityPosts}
-                isLoadingReplies={isLoadingCommunityReplies}
-                isLoadingLikedPosts={isLoadingLikedPosts}
-                isLoadingLikedReplies={isLoadingLikedReplies}
-                isLoadingReports={isLoadingReports}
-                postsErrorMessage={communityPostsErrorMessage}
-                repliesErrorMessage={communityRepliesErrorMessage}
-                likedPostsErrorMessage={likedPostsErrorMessage}
-                likedRepliesErrorMessage={likedRepliesErrorMessage}
-                reportsErrorMessage={reportsErrorMessage}
-                isOwnProfile={true}
-                onCancelReport={(report) => void handleCancelReport(report)}
-                cancellingReportKey={cancellingReportKey}
+              <FolderTabs
+                tabs={[
+                  { id: "posts", label: "게시글", content: renderCommunityTabContent("posts") },
+                  { id: "replies", label: "댓글", content: renderCommunityTabContent("replies") },
+                  { id: "likedPosts", label: "좋아요", content: renderCommunityTabContent("likedPosts") },
+                  { id: "likedReplies", label: "좋아요 댓글", content: renderCommunityTabContent("likedReplies") },
+                  { id: "reports", label: "신고내역", content: renderCommunityTabContent("reports") },
+                ]}
+                activeId={communityTab}
+                onChange={(id) => setCommunityTab(id as CommunityTab)}
               />
             </div>
           )}
@@ -1176,7 +1183,7 @@ function AssetMiniInfo({
 }) {
   return (
     <div className={align === "right" ? "text-right" : ""}>
-      <p className="text-[10px] opacity-60 font-bold mb-0.5 uppercase">
+      <p className="text-xxs opacity-60 font-bold mb-0.5 uppercase">
         {label}
       </p>
       <p className="text-sm font-black">{value}</p>
@@ -1199,17 +1206,17 @@ function HoldingRow({
   const displaySymbol = getDisplaySymbolLabel(item.symbol, marketSymbols);
 
   return (
-    <div className="p-6 rounded-[24px] border border-gray-100 bg-white hover:border-blue-100 hover:shadow-md transition-all">
+    <div className="card p-6 border-gray-100">
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400">
+          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-xxs font-black text-gray-400">
             {baseAssetName}
           </div>
           <div>
             <h4 className="text-sm font-black text-gray-900">
               {baseAssetName}
             </h4>
-            <p className="text-[10px] text-gray-400 font-bold uppercase">
+            <p className="text-xxs text-gray-400 font-bold uppercase">
               {displaySymbol}
             </p>
           </div>
@@ -1219,10 +1226,10 @@ function HoldingRow({
           <p className={`text-sm font-black ${color}`}>
             {formatSignedNumber(item.profit)}
             {quoteAssetName ? (
-              <span className="text-[10px] ml-1">{quoteAssetName}</span>
+              <span className="text-xxs ml-1">{quoteAssetName}</span>
             ) : null}
           </p>
-          <p className={`text-[11px] font-black ${color}`}>
+          <p className={`text-xxs font-black ${color}`}>
             {formatSignedPercent(item.roi)}
           </p>
         </div>
@@ -1265,13 +1272,13 @@ function DataBox({
 }) {
   return (
     <div>
-      <p className="text-[9px] text-gray-400 font-bold mb-1 uppercase">
+      <p className="text-xxs text-gray-400 font-bold mb-1 uppercase">
         {label}
       </p>
-      <p className="text-[11px] font-black text-gray-800">
+      <p className="text-xxs font-black text-gray-800">
         {value}
         {unit ? (
-          <span className="text-[9px] text-gray-400 font-medium ml-1">{unit}</span>
+          <span className="text-xxs text-gray-400 font-medium ml-1">{unit}</span>
         ) : null}
       </p>
     </div>

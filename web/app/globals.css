@@ -48,8 +48,22 @@ body {
   }
 }
 
+/* 카드형식 공통디자인정의 */
+@layer components {
+  .card {
+    @apply rounded-2xl p-8 bg-white border-1 border-gray-200 dark:bg-gray-800 dark:border-gray-700;
+  }
+}
 
 @layer base {
+  input[type="checkbox"] {
+    @apply h-5 w-5 rounded border-gray-300 accent-brand-primary transition-all;
+  }
+
+  input[type="checkbox"]:focus-visible {
+    @apply outline-none ring-2 ring-brand-primary;
+  }
+
   /* 전체 스크롤바 정의 */
   ::-webkit-scrollbar {
     width: 6px;

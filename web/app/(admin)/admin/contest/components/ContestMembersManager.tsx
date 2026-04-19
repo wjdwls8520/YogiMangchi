@@ -496,7 +496,6 @@ export default function ContestMembersManager({
                     disabled={
                       isLoading || applicants.length === 0 || !canProcessApplicants
                     }
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
               ) : null}
@@ -571,7 +570,6 @@ export default function ContestMembersManager({
                         onChange={() =>
                           toggleApplicantSelection(applicant.applicantId)
                         }
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
                     <td className="px-4 py-4 text-center font-bold text-gray-600">

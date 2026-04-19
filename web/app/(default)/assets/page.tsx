@@ -10,8 +10,8 @@ import {
   Tooltip,
   Label,
 } from "recharts";
+import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
-import SegmentTabs from "@/components/ui/SegmentTabs";
 import Select from "@/components/ui/Select";
 import { formatDateTime } from "@/lib/utils/date";
 import {
@@ -1304,14 +1304,6 @@ export default function AssetsPage() {
 
   return (
     <main className="w-full space-y-6">
-      <section className="space-y-2 mb-16">
-        <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
-          내 자산
-        </h1>
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          보유 자산과 주문, 거래 내역을 한 곳에서 확인할 수 있습니다.
-        </p>
-      </section>
 
       <Tabs
         tabs={[
@@ -1441,43 +1433,20 @@ export default function AssetsPage() {
         </section>
       </div>
 
-      <section className="space-y-2">
-        <h2 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
-          자산 상세 내역
-        </h2>
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          보유 현황과 주문, 거래 흐름을 탭별로 확인할 수 있습니다.
-        </p>
-      </section>
-
-      <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
-        <div className="border-b border-gray-100 dark:border-gray-700 pt-6">
-          <div className="px-6 pb-6">
-            <SegmentTabs
-              tabs={[
-                { label: "보유자산", value: "holdings" },
-                { label: "손익현황", value: "pnl" },
-                { label: "주문내역", value: "orders" },
-                { label: "거래내역", value: "trades" },
-                { label: "미체결내역", value: "open" },
-              ]}
-              activeTab={detailTab}
-              onChange={(value) => setDetailTab(value as DetailTab)}
-              fullWidth={false}
-              size="xl"
-              radius="full"
-            />
-          </div>
-        </div>
-
-        {assetTab === "mock" ? (
-          <div className="border-b border-gray-100 dark:border-gray-700 px-6 py-5">
-            <div
-              aria-hidden={!isFilterableDetailTab}
-              className={`flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap ${
-                isFilterableDetailTab ? "" : "invisible pointer-events-none"
-              }`}
-            >
+      <FolderTabs
+        tabs={[
+          { id: "holdings", label: "보유자산", content: null },
+          { id: "pnl", label: "손익현황", content: null },
+          { id: "orders", label: "주문내역", content: null },
+          { id: "trades", label: "거래내역", content: null },
+          { id: "open", label: "미체결내역", content: null },
+        ]}
+        activeId={detailTab}
+        onChange={(id) => setDetailTab(id as DetailTab)}
+      >
+        {assetTab === "mock" && isFilterableDetailTab ? (
+          <div className=" mb-5">
+            <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap">
               <div className="flex flex-1 flex-wrap items-center gap-3">
                 <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-white px-2 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]">
                   <input
@@ -1495,7 +1464,7 @@ export default function AssetsPage() {
                   />
                 </div>
 
-                <div className="w-32">
+                <div className="">
                   <Select
                     options={SIDE_OPTIONS}
                     value={currentFilters.side}
@@ -1505,7 +1474,7 @@ export default function AssetsPage() {
                   />
                 </div>
 
-                <div className="w-32">
+                <div className="w-30">
                   <Select
                     options={currentStatusOptions}
                     value={currentFilters.status}
@@ -1575,7 +1544,7 @@ export default function AssetsPage() {
           </div>
         ) : null}
 
-        <div className="p-0">
+        <div className="px-0 pb-0">
           {assetTab !== "mock" ? (
             <EmptyState className="py-24" text="아직 해당 자산 데이터는 준비 중입니다." />
           ) : isLoadingMock || isLoadingDetailTab ? (
@@ -1622,7 +1591,7 @@ export default function AssetsPage() {
             </>
           )}
         </div>
-      </section>
+      </FolderTabs>
     </main>
   );
 }

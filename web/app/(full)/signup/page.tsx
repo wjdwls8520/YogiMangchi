@@ -10,6 +10,35 @@ import PolicyModal from "@/components/PolicyModal";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
 
+type InlineFeedbackProps = {
+  tone?: "success" | "error";
+  message?: string;
+  reserveTopMargin?: boolean;
+};
+
+function InlineFeedback({
+  tone = "error",
+  message,
+  reserveTopMargin = false,
+}: InlineFeedbackProps) {
+  const Icon = tone === "success" ? CheckCircle2 : CircleAlert;
+
+  return (
+    <div className={`${reserveTopMargin ? "mt-2" : ""} min-h-5`}>
+      {message ? (
+        <p
+          className={`flex items-center gap-1.5 text-xs font-bold ${
+            tone === "success" ? "text-blue-600" : "text-red-500"
+          }`}
+        >
+          <Icon size={14} strokeWidth={2.4} />
+          <span>{message}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,6 +52,8 @@ export default function SignupPage() {
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [termsFeedback, setTermsFeedback] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   //닉네임 중복체크(false 가입 불가)
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
@@ -33,6 +64,12 @@ export default function SignupPage() {
     setIsNicknameChecked(false);
     setNicknameFeedback(null);
   }, [nickname]);
+
+  useEffect(() => {
+    if (termsAgreed && privacyAgreed) {
+      setTermsFeedback("");
+    }
+  }, [privacyAgreed, termsAgreed]);
 
   // 닉네임 유효성 검사 (백엔드 정규식과 동일)
   const validateNickname = (name: string) => {
@@ -82,14 +119,46 @@ export default function SignupPage() {
     }
   };
   
-  // 가입버튼 활성화 조건
-  const isFormValid = nickname.trim().length > 0 && isNicknameChecked && termsAgreed && privacyAgreed;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+
+    if (!nickname.trim()) {
+      setIsNicknameChecked(false);
+      setNicknameFeedback({
+        tone: "error",
+        message: "닉네임을 입력해 주세요.",
+      });
+      return;
+    }
+
+    if (!validateNickname(nickname)) {
+      setIsNicknameChecked(false);
+      setNicknameFeedback({
+        tone: "error",
+        message: "닉네임은 공백 없는 한글, 영문, 숫자만 사용 가능하며 2~12자여야 합니다.",
+      });
+      return;
+    }
+
+    if (!isNicknameChecked) {
+      setNicknameFeedback({
+        tone: "error",
+        message: "닉네임 중복확인이 필요합니다.",
+      });
+      return;
+    }
+
+    if (!termsAgreed || !privacyAgreed) {
+      setTermsFeedback("필수 약관에 동의해 주세요.");
+      toast({
+        title: "필수 약관에 동의해 주세요.",
+        tone: "error",
+      });
+      return;
+    }
 
     try {
+      setIsSubmitting(true);
       const response = await fetch("http://localhost:8080/api/v1/auth/signup", {
         method: "POST",
         headers: {
@@ -116,15 +185,17 @@ export default function SignupPage() {
     } catch (error) {
       console.error("API 전송 에러:", error);
       await alert("서버와 통신하는 중 문제가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-[520px] rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm sm:p-10">
         <div className="flex justify-center mb-2">
           <Link href="/" aria-label="메인 페이지로 이동">
-            <Logo className="h-12"/>
+            <Logo className="h-10"/>
           </Link>
         </div>
         {/* 헤더 영역 */}
@@ -159,22 +230,11 @@ export default function SignupPage() {
                 {isNicknameChecked ? "확인 완료" : "중복 확인"}
               </Button>
             </div>
-            {nicknameFeedback ? (
-              <p
-                className={`mt-2 flex items-center gap-1.5 text-[12px] font-bold ${
-                  nicknameFeedback.tone === "success"
-                    ? "text-blue-600"
-                    : "text-red-500"
-                }`}
-              >
-                {nicknameFeedback.tone === "success" ? (
-                  <CheckCircle2 size={14} strokeWidth={2.4} />
-                ) : (
-                  <CircleAlert size={14} strokeWidth={2.4} />
-                )}
-                <span>{nicknameFeedback.message}</span>
-              </p>
-            ) : null}
+            <InlineFeedback
+              tone={nicknameFeedback?.tone}
+              message={nicknameFeedback?.message}
+              reserveTopMargin
+            />
           </div>
 
           {/* 2. 약관 동의 및 제출 버튼 영역 */}
@@ -188,7 +248,6 @@ export default function SignupPage() {
                     type="checkbox"
                     checked={termsAgreed}
                     onChange={(e) => setTermsAgreed(e.target.checked)}
-                    className="h-5 w-5 rounded border-gray-300 text-[#0058FF] focus:ring-[#0058FF] transition-all"
                   />
                   <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
                     [필수] 요기망치 서비스 이용약관 동의
@@ -197,7 +256,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setActiveModal("terms")}
-                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
+                  className="text-xs font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
                 >
                   보기
                 </button>
@@ -210,7 +269,6 @@ export default function SignupPage() {
                     type="checkbox"
                     checked={privacyAgreed}
                     onChange={(e) => setPrivacyAgreed(e.target.checked)}
-                    className="h-5 w-5 rounded border-gray-300 text-[#0058FF] focus:ring-[#0058FF] transition-all"
                   />
                   <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
                     [필수] 개인정보 수집 및 이용 동의
@@ -219,7 +277,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setActiveModal("privacy")}
-                  className="text-[13px] font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
+                  className="text-xs font-medium text-gray-400 underline underline-offset-2 hover:text-gray-600 transition-colors cursor-pointer"
                 >
                   보기
                 </button>
@@ -227,10 +285,17 @@ export default function SignupPage() {
 
             </div>
 
+            <div className="mb-4">
+              <InlineFeedback message={termsFeedback} />
+            </div>
+
             <Button
-              type="submit" fullWidth size="lg" disabled={!isFormValid}
+              type="submit"
+              fullWidth
+              size="lg"
+              disabled={isSubmitting}
             >
-              회원가입 완료하기
+              {isSubmitting ? "가입 처리 중..." : "회원가입 완료"}
             </Button>
           </div>
 
