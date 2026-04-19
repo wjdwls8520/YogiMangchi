@@ -5,6 +5,7 @@ import com.yogimangchi.domain.member.dto.request.UpdateVerifiedInfoRequestDto;
 import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
+import com.yogimangchi.domain.member.dto.response.VerifiedInfoResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.WithdrawnOAuthAccount;
 import com.yogimangchi.domain.member.enums.MemberRole;
@@ -355,4 +356,19 @@ public class MemberService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public VerifiedInfoResponseDto getVerifiedInfo(Long loginMemberId) {
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
+        if (!MemberRole.VERIFIED_USER.equals(member.getRole()) && !MemberRole.ADMIN.equals(member.getRole())) {
+            throw MemberException.notVerifiedUser();
+        }
+
+        return new VerifiedInfoResponseDto(
+                member.getPhoneNumber(),
+                member.getAddressCode(),
+                member.getAddress1(),
+                member.getAddress2()
+        );
+    }
 }
