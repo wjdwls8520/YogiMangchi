@@ -73,7 +73,7 @@ export default function SegmentTabs({
   className = "",
   fullWidth = true,
   size = "md",
-  radius = "none",
+  radius = "md",
 }: SegmentTabsProps) {
   const sizeClasses = SIZE_CLASSES[size];
   const radiusClasses = RADIUS_CLASSES[radius];

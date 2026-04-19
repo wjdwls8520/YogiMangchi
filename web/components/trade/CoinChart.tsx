@@ -123,7 +123,7 @@ export default function CoinChart() {
       height: 500,
       grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
       localization: {
-        priceFormatter: (price) => formatChartPrice(price),
+        priceFormatter: (price: number) => formatChartPrice(price),
       },
       timeScale: { timeVisible: true, secondsVisible: false, barSpacing: 12, rightOffset: 5 },
       rightPriceScale: { borderVisible: false },

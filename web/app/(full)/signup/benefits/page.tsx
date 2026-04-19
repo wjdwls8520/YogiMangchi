@@ -8,7 +8,7 @@ export default function VerifyPage() {
   const router = useRouter();
 
   const handleVerify = () => {
-    router.push("/verify");
+    router.push("/verify?source=benefits");
   };
 
   const handleSkip = () => {

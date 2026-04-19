@@ -94,7 +94,7 @@ export default function ProfileSidebar({
   const hasRole = Boolean(roleLabel);
 
   return (
-    <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+    <section className="card">
       <div className="flex flex-col items-center">
         <div className="relative h-24 w-24 mb-3 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50 overflow-hidden text-gray-400">
           <img
@@ -126,7 +126,7 @@ export default function ProfileSidebar({
         {relationArea ? <div className="mt-3 w-full">{relationArea}</div> : null}
         {actionArea ? <div className="mt-6 w-full">{actionArea}</div> : null}
 
-        <div className="grid grid-cols-2 w-full mt-6 pt-6 border-t border-gray-50">
+        <div className="grid grid-cols-2 w-full border-t border-gray-50">
           <StatTag
             label="Followers"
             value={profile.followerCount}

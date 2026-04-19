@@ -1,179 +1,396 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { CheckCircle2, Info } from "lucide-react";
+import AddressSearchModal from "@/components/AddressSearchModal";
+import Logo from "@/components/ui/Logo";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import AddressSearchModal from "@/components/AddressSearchModal";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
-import Link from "next/link";
-import Logo from "@/components/ui/Logo";
+import {
+  completeMemberVerification,
+  getMyMemberInfo,
+  getOAuthEmail,
+  sendEmailVerificationCode,
+  verifyEmailVerificationCode,
+} from "@/lib/api/member";
+import { FetchClientError } from "@/lib/api/client";
+import { subscribeAlarms } from "@/lib/api/notifications";
+import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils/phone";
+import { useAuthStore } from "@/stores/useAuthStore";
+
+const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof FetchClientError) {
+    return error.userMessage || fallbackMessage;
+  }
+
+  return fallbackMessage;
+};
+
+const logUnexpectedApiError = (label: string, error: unknown) => {
+  if (error instanceof FetchClientError && error.status < 500) {
+    return;
+  }
+
+  console.error(label, error);
+};
 
 export default function VerifyDetailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const login = useAuthStore((state) => state.login);
   const { alert, toast } = useFeedback();
+  const emailEventSourceRef = useRef<EventSource | null>(null);
+  const sendCodeTimeoutRef = useRef<number | null>(null);
 
-  // 폼 상태 관리
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false); // 인증번호 발송 여부
-  const [isVerified, setIsVerified] = useState(false); // 인증 완료 여부
-  
-  // 주소 상태 관리 (카카오 주소 API 연동 시 사용)
-  const [zonecode, setZonecode] = useState(""); // 우편번호
-  const [address, setAddress] = useState(""); // 기본주소
-  const [detailAddress, setDetailAddress] = useState(""); // 상세주소
-
-  // 모달을 열고 닫을 스위치 상태
+  const [oauthEmail, setOauthEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [isEmailCodeSent, setIsEmailCodeSent] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [zonecode, setZonecode] = useState("");
+  const [address, setAddress] = useState("");
+  const [detailAddress, setDetailAddress] = useState("");
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(true);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 모달에서 주소를 선택했을 때 실행될 함수
-  const handleAddressSelect = (selectedZipcode: string, selectedAddress: string) => {
+  const source = searchParams.get("source");
+  const successRedirectPath = source === "benefits" ? "/" : "/me";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOAuthEmail = async () => {
+      try {
+        const response = await getOAuthEmail();
+
+        if (isMounted) {
+          setOauthEmail(response.email);
+        }
+      } catch (error) {
+        console.error("소셜 이메일 조회 실패:", error);
+        await alert("로그인이 필요하거나 이메일 정보를 불러올 수 없습니다.");
+        router.push("/login");
+      } finally {
+        if (isMounted) {
+          setIsLoadingEmail(false);
+        }
+      }
+    };
+
+    void loadOAuthEmail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [alert, router]);
+
+  const handleAddressSelect = (
+    selectedZipcode: string,
+    selectedAddress: string
+  ) => {
     setZonecode(selectedZipcode);
     setAddress(selectedAddress);
-    setDetailAddress(""); // 새 주소를 찾았으니 기존 상세 주소는 초기화
+    setDetailAddress("");
   };
 
-  // 인증번호 발송 로직
+  const clearSendCodeTimeout = () => {
+    if (sendCodeTimeoutRef.current !== null) {
+      window.clearTimeout(sendCodeTimeoutRef.current);
+      sendCodeTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    const eventSource = subscribeAlarms();
+    emailEventSourceRef.current = eventSource;
+
+    const handleEmailSent = (event: MessageEvent) => {
+      clearSendCodeTimeout();
+      setIsSendingCode(false);
+      setIsEmailCodeSent(true);
+      setIsEmailVerified(false);
+      setEmailCode("");
+      toast({
+        title:
+          typeof event.data === "string" && event.data
+            ? event.data
+            : "이메일이 발송되었습니다.",
+        tone: "success",
+      });
+    };
+
+    const handleEmailSendFailed = (event: MessageEvent) => {
+      clearSendCodeTimeout();
+      setIsSendingCode(false);
+      toast({
+        title:
+          typeof event.data === "string" && event.data
+            ? event.data
+            : "이메일 발송에 실패했습니다. 다시 시도해 주세요.",
+        tone: "error",
+      });
+    };
+
+    eventSource.addEventListener("EMAIL_SENT", handleEmailSent as EventListener);
+    eventSource.addEventListener(
+      "EMAIL_SEND_FAILED",
+      handleEmailSendFailed as EventListener
+    );
+
+    eventSource.onerror = () => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+        emailEventSourceRef.current = null;
+      }
+    };
+
+    return () => {
+      clearSendCodeTimeout();
+      eventSource.removeEventListener(
+        "EMAIL_SENT",
+        handleEmailSent as EventListener
+      );
+      eventSource.removeEventListener(
+        "EMAIL_SEND_FAILED",
+        handleEmailSendFailed as EventListener
+      );
+      eventSource.close();
+      if (emailEventSourceRef.current === eventSource) {
+        emailEventSourceRef.current = null;
+      }
+    };
+  }, [toast]);
+
   const handleSendCode = async () => {
-    if (phone.length < 10) {
-      await alert("올바른 휴대폰 번호를 입력해주세요.");
+    if (!oauthEmail) {
+      await alert("인증에 사용할 이메일 정보를 확인할 수 없습니다.");
       return;
     }
-    // TODO: 실제 SMS 발송 API 연동
-    setIsCodeSent(true);
-    toast({
-      title: "인증번호가 발송되었습니다.",
-      description: "테스트용이라 아무 숫자나 입력해도 됩니다.",
-      tone: "success",
-    });
+
+    try {
+      setIsSendingCode(true);
+      clearSendCodeTimeout();
+      await sendEmailVerificationCode(oauthEmail);
+      sendCodeTimeoutRef.current = window.setTimeout(() => {
+        setIsSendingCode(false);
+        toast({
+          title: "응답 시간이 초과되었습니다. 다시 시도해 주세요.",
+          tone: "error",
+        });
+      }, 30000);
+    } catch (error) {
+      logUnexpectedApiError("이메일 인증코드 발송 실패:", error);
+      clearSendCodeTimeout();
+      setIsSendingCode(false);
+      toast({
+        title: getApiErrorMessage(
+          error,
+          "인증코드 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."
+        ),
+        tone: "error",
+      });
+    } finally {
+    }
   };
 
-  // 인증번호 확인 로직
   const handleVerifyCode = async () => {
-    if (verifyCode.length === 0) return;
-    // TODO: 실제 인증번호 확인 API 연동
-    setIsVerified(true);
-    toast({
-      title: "인증이 완료되었습니다.",
-      tone: "success",
-    });
+    if (!oauthEmail) {
+      await alert("인증에 사용할 이메일 정보를 확인할 수 없습니다.");
+      return;
+    }
+
+    const trimmedCode = emailCode.trim();
+
+    if (trimmedCode.length !== 6) {
+      await alert("인증코드 6자리를 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setIsVerifyingCode(true);
+      await verifyEmailVerificationCode(oauthEmail, trimmedCode);
+      setIsEmailVerified(true);
+      toast({
+        title: "이메일 인증이 완료되었습니다.",
+        tone: "success",
+      });
+    } catch (error) {
+      logUnexpectedApiError("이메일 인증 실패:", error);
+      setIsEmailVerified(false);
+      await alert(
+        getApiErrorMessage(
+          error,
+          "인증코드가 올바르지 않거나 만료되었습니다."
+        )
+      );
+    } finally {
+      setIsVerifyingCode(false);
+    }
   };
 
-  // 폼 제출
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!isVerified) {
-      await alert("휴대폰 본인인증을 완료해주세요.");
-      return;
-    }
-    if (!name || !address || !detailAddress) {
-      await alert("모든 정보를 입력해주세요.");
+
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    if (!/^\d{10,11}$/.test(normalizedPhone)) {
+      await alert("휴대폰 번호는 숫자 10~11자리로 입력해 주세요.");
       return;
     }
 
-    // TODO: 백엔드에 인증 회원 정보 저장 API 호출
-    console.log("인증 회원 정보 제출:", { name, phone, address: `${address} ${detailAddress}` });
-    await alert("인증 회원 업그레이드가 완료되었습니다!");
-    router.push("/"); // 메인 홈으로 이동
+    if (!isEmailVerified) {
+      await alert("이메일 인증을 완료해 주세요.");
+      return;
+    }
+
+    if (!zonecode || !address) {
+      await alert("주소를 입력해 주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await completeMemberVerification({
+        phoneNumber: normalizedPhone,
+        addressCode: zonecode,
+        address1: address,
+        address2: detailAddress.trim() || undefined,
+      });
+
+      window.sessionStorage.setItem("needs-auth-sync", "1");
+
+      try {
+        const memberInfo = await getMyMemberInfo();
+        login(memberInfo);
+      } catch (error) {
+        logUnexpectedApiError("인증 완료 후 회원 정보 동기화 실패:", error);
+      }
+
+      toast({
+        title: "인증 회원 전환이 완료되었습니다.",
+        tone: "success",
+      });
+      router.push(successRedirectPath);
+    } catch (error) {
+      logUnexpectedApiError("인증 회원 전환 실패:", error);
+      await alert(
+        getApiErrorMessage(
+          error,
+          "인증 회원 전환에 실패했습니다. 잠시 후 다시 시도해 주세요."
+        )
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-[520px] rounded-2xl bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-10">
-        <div className="flex justify-center mb-8">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm sm:p-10">
+        <div className="mb-10 flex justify-center">
           <Link href="/" aria-label="메인 페이지로 이동">
-            <Logo className="h-12"/>
+            <Logo className="h-12" />
           </Link>
         </div>
-        {/* 타이틀 영역 */}
-        <div className="mb-8 text-center">
+
+        <div className="mb-8">
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-            인증 회원 정보 입력
+            인증 회원 전환
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            경품 수령을 위해 정확한 정보를 입력해 주세요.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* 1. 수령인 이름 */}
           <div>
-            <label htmlFor="name" className="mb-2 block text-sm font-semibold text-gray-900">
-              이름 (실명)
+            <label
+              htmlFor="phone"
+              className="mb-2 block text-sm font-semibold text-gray-900"
+            >
+              휴대폰 번호
             </label>
             <Input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="예: 홍길동"
+              type="tel"
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+              maxLength={13}
+              placeholder="숫자만 입력해 주세요"
             />
           </div>
 
-          {/* 2. 휴대폰 번호 및 인증 */}
           <div>
-            <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-gray-900">
-              휴대폰 번호
+            <label className="mb-2 block text-sm font-semibold text-gray-900">
+              이메일 인증
             </label>
-            <div className="flex gap-2 mb-2">
+            <div className="mb-2 flex gap-2">
               <Input
-                type="tel"
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} // 숫자만 입력
-                disabled={isVerified}
-                placeholder="숫자만 입력해 주세요"
+                type="email"
+                value={oauthEmail}
+                readOnly
+                disabled={isLoadingEmail}
+                placeholder="소셜 로그인 이메일을 불러오는 중입니다"
               />
               <Button
                 type="button"
                 variant="white"
                 onClick={handleSendCode}
-                disabled={isVerified}
+                disabled={isLoadingEmail || isSendingCode || isEmailVerified}
               >
-                {isCodeSent ? "재전송" : "인증번호 받기"}
+                {isSendingCode
+                  ? "발송 중"
+                  : isEmailCodeSent
+                    ? "재전송"
+                    : "인증코드 받기"}
               </Button>
             </div>
 
-            {/* 인증번호 입력 필드 (인증번호 발송 버튼을 누른 후에만 보임) */}
-            {isCodeSent && !isVerified && (
-              <div className="flex gap-2 mt-2 animate-fade-in">
+            {isEmailCodeSent && !isEmailVerified ? (
+              <div className="mt-2 flex gap-2">
                 <Input
                   type="text"
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value)}
-                  placeholder="인증번호 입력"
+                  value={emailCode}
+                  onChange={(e) =>
+                    setEmailCode(e.target.value.replace(/[^0-9]/g, ""))
+                  }
+                  maxLength={6}
+                  placeholder="인증코드 6자리 입력"
                 />
                 <Button
                   type="button"
                   variant="white"
                   onClick={handleVerifyCode}
+                  disabled={isVerifyingCode}
                 >
-                  확인
+                  {isVerifyingCode ? "확인 중" : "확인"}
                 </Button>
               </div>
-            )}
-            {/* 인증 완료 메시지 */}
-            {isVerified && (
-              <p className="mt-2 text-sm font-medium text-[#0058FF]">휴대폰 인증이 완료되었습니다.</p>
+            ) : null}
+
+            {isEmailVerified ? (
+              <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-brand-primary">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                이메일 인증이 완료되었습니다.
+              </p>
+            ) : (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                소셜 로그인에 사용한 이메일로 인증코드가 발송됩니다.
+              </p>
             )}
           </div>
 
-          {/* 3. 배송지 주소 */}
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-900">
               주소
             </label>
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={zonecode}
-                  readOnly
-                  placeholder="우편번호"
-                />
+                <Input type="text" value={zonecode} readOnly placeholder="우편번호" />
                 <Button
                   type="button"
                   variant="gray"
@@ -192,29 +409,30 @@ export default function VerifyDetailPage() {
                 type="text"
                 value={detailAddress}
                 onChange={(e) => setDetailAddress(e.target.value)}
-                disabled={!zonecode} //우편번호없을때 상세주소입력막기
-                placeholder="상세 주소를 입력해 주세요"
+                disabled={!zonecode}
+                placeholder="상세 주소를 입력해 주세요 (선택)"
               />
             </div>
           </div>
 
-          {/* 하단 완료 버튼 */}
           <div className="pt-4">
-            <Button type="submit" size="lg" fullWidth>
-              인증 회원 등록 완료
+            <Button
+              type="submit"
+              size="lg"
+              fullWidth
+              disabled={isSubmitting || isLoadingEmail}
+            >
+              {isSubmitting ? "처리 중..." : "인증 회원 등록 완료"}
             </Button>
           </div>
-
         </form>
       </div>
 
-      {/* 모달 컴포넌트 마운트 */}
-      <AddressSearchModal 
+      <AddressSearchModal
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}
         onComplete={handleAddressSelect}
       />
-
     </div>
   );
 }

@@ -543,7 +543,7 @@ export default function AdminContestPage() {
                         <Button
                           type="button"
                           variant="white"
-                          size="sm"
+                          size="xs"
                           onClick={() => setEditingSeason(row.season)}
                         >
                           수정

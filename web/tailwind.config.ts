@@ -11,6 +11,7 @@ const config = {
   theme: {
     extend: {
       colors: {
+        "brand-primary": "#0058FF",
         "trade-buy": "#E12343",
         "trade-buy-hover": "#C81F3C",
         "trade-sell": "#1763B6",

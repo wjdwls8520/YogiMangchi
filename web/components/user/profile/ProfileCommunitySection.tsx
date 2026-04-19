@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import Tabs from "@/components/ui/Tabs";
+import SegmentTabs from "@/components/ui/SegmentTabs";
 import { formatTime } from "@/lib/utils/date";
 import type { Post, Reply } from "@/app/(default)/community/types/post";
 
@@ -29,6 +29,8 @@ interface ProfileCommunitySectionProps {
   isOwnProfile?: boolean;
   onCancelReport?: (report: ProfileReportItem) => void;
   cancellingReportKey?: string | null;
+  showTabs?: boolean;
+  showSurface?: boolean;
 }
 
 export function ProfileEmptyState({ text }: { text: string }) {
@@ -56,6 +58,8 @@ export default function ProfileCommunitySection({
   isOwnProfile = false,
   onCancelReport,
   cancellingReportKey = null,
+  showTabs = true,
+  showSurface = true,
 }: ProfileCommunitySectionProps) {
   const tabs = isOwnProfile
     ? [
@@ -70,15 +74,21 @@ export default function ProfileCommunitySection({
         { label: "댓글", value: "replies" },
       ];
 
-  return (
-    <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
-      <Tabs
-        tabs={tabs}
-        activeTab={communityTab}
-        onChange={(value) => onChange(value as ProfileCommunityTab)}
-      />
+  const content = (
+    <>
+      {showTabs ? (
+        <SegmentTabs
+          tabs={tabs}
+          activeTab={communityTab}
+          onChange={(value) => onChange(value as ProfileCommunityTab)}
+          fullWidth={false}
+          size="lg"
+          radius="full"
+          className="flex-wrap"
+        />
+      ) : null}
 
-      <div className="mt-8">
+      <div className={showTabs ? "mt-8" : ""}>
         {communityTab === "posts" ? (
           isLoadingPosts ? (
             <ProfileEmptyState
@@ -166,6 +176,16 @@ export default function ProfileCommunitySection({
           <ProfileEmptyState text="표시할 내역이 없습니다." />
         )}
       </div>
+    </>
+  );
+
+  if (!showSurface) {
+    return content;
+  }
+
+  return (
+    <section className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+      {content}
     </section>
   );
 }

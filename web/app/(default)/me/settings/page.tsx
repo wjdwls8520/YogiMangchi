@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -8,26 +8,38 @@ import AddressSearchModal from "@/components/AddressSearchModal";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { MemberInfo } from "@/types/member";
-
-interface MemberProfile {
-  memberId: number;
-  provider: string;
-  nickname: string;
-  profileImgUrl: string | null;
-  profileMsg: string | null;
-  bestCount: number;
-  followerCount: number;
-  followingCount: number;
-  term_agree: boolean;
-  private_agree: boolean;
-  role: string;
-  phone_number?: string;
-  address_code?: string;
-  address1?: string;
-  address2?: string;
-}
+import { FetchClientError } from "@/lib/api/client";
+import {
+  getMyMemberProfile,
+  type MyMemberProfileResponse,
+  updateMyProfileInfo,
+  updateMyVerifiedInfo,
+} from "@/lib/api/member";
+import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils/phone";
 
 const DEFAULT_PROFILE_PREVIEW_IMAGE = "/user_default.png";
+
+const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof FetchClientError) {
+    return error.userMessage || fallbackMessage;
+  }
+
+  return fallbackMessage;
+};
+
+const logUnexpectedApiError = (label: string, error: unknown) => {
+  if (error instanceof FetchClientError && error.status < 500) {
+    return;
+  }
+
+  console.error(label, error);
+};
+
+const getVerifiedPhone = (profile: MyMemberProfileResponse | null) =>
+  profile?.phone_number || profile?.phoneNumber || "";
+
+const getVerifiedAddressCode = (profile: MyMemberProfileResponse | null) =>
+  profile?.address_code || profile?.addressCode || "";
 
 export default function MeSettingPage() {
   const router = useRouter();
@@ -35,10 +47,10 @@ export default function MeSettingPage() {
   const login = useAuthStore((state) => state.login);
   const { alert, toast } = useFeedback();
 
-  const [memberProfile, setMemberProfile] = useState<MemberProfile | null>(null);
+  const [memberProfile, setMemberProfile] = useState<MyMemberProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [originalNickname, setOriginalNickname] = useState("");
-  const [role, setRole] = useState("USER");
+  const [role, setRole] = useState<MemberInfo["role"]>("USER");
 
   const [nickname, setNickname] = useState("");
   const [profileMsg, setProfileMsg] = useState("");
@@ -46,6 +58,7 @@ export default function MeSettingPage() {
   const [zonecode, setZonecode] = useState("");
   const [address, setAddress] = useState("");
   const [detailAddress, setDetailAddress] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [isNicknameChecked, setIsNicknameChecked] = useState(true);
@@ -55,37 +68,54 @@ export default function MeSettingPage() {
   const [imageType, setImageType] = useState<"CUSTOM" | "DEFAULT" | null>(null);
   const [isImageMenuOpen, setIsImageMenuOpen] = useState(false);
 
+  const syncMemberProfile = useCallback(async () => {
+    const data = await getMyMemberProfile();
+
+    setMemberProfile(data);
+    setOriginalNickname(data.nickname);
+    setNickname(data.nickname);
+    setProfileMsg(data.profileMsg || "");
+
+    const nextRole: MemberInfo["role"] =
+      data.role === "ADMIN" || data.role === "VERIFIED_USER"
+        ? data.role
+        : "USER";
+
+    setRole(nextRole);
+    setPhone(formatPhoneNumber(getVerifiedPhone(data)));
+    setZonecode(getVerifiedAddressCode(data));
+    setAddress(data.address1 || "");
+    setDetailAddress(data.address2 || "");
+    setPreviewImg(data.profileImgUrl || "");
+    setUploadFile(null);
+    setImageType(null);
+    setIsNicknameChecked(true);
+
+    const nextAuthUser: MemberInfo = {
+      memberId: data.memberId,
+      provider: data.provider,
+      nickname: data.nickname,
+      profileImgUrl: data.profileImgUrl || "",
+      profileMsg: data.profileMsg || "",
+      bestCount: data.bestCount,
+      followerCount: data.followerCount,
+      followingCount: data.followingCount,
+      term_agree: data.term_agree,
+      private_agree: data.private_agree,
+      role: nextRole,
+    };
+
+    login(nextAuthUser);
+
+    return data;
+  }, [login]);
+
   useEffect(() => {
     const fetchMemberInfo = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/v1/member/me/info", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("데이터 로드 실패");
-        }
-
-        const data: MemberProfile = await response.json();
-
-        setMemberProfile(data);
-        setOriginalNickname(data.nickname);
-        setNickname(data.nickname);
-        setProfileMsg(data.profileMsg || "");
-        setRole(data.role || "USER");
-
-        setPhone(data.phone_number || "");
-        setZonecode(data.address_code || "");
-        setAddress(data.address1 || "");
-        setDetailAddress(data.address2 || "");
-
-        setPreviewImg(data.profileImgUrl || "");
-        setUploadFile(null);
-        setImageType(null);
-      } catch (err) {
-        console.error("멤버 정보 로드 실패:", err);
+        await syncMemberProfile();
+      } catch (error) {
+        logUnexpectedApiError("멤버 정보 로드 실패:", error);
         await alert("로그인이 필요하거나 정보를 불러올 수 없습니다.");
         router.push("/login");
       } finally {
@@ -93,8 +123,8 @@ export default function MeSettingPage() {
       }
     };
 
-    fetchMemberInfo();
-  }, [alert, router]);
+    void fetchMemberInfo();
+  }, [alert, router, syncMemberProfile]);
 
   const validateNickname = (name: string) => /^[가-힣a-zA-Z0-9]{2,12}$/.test(name);
 
@@ -187,77 +217,79 @@ export default function MeSettingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (nickname !== originalNickname && !isNicknameChecked) {
+    const trimmedNickname = nickname.trim();
+    const trimmedDetailAddress = detailAddress.trim();
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    if (trimmedNickname !== originalNickname && !isNicknameChecked) {
       await alert("닉네임 중복 확인을 해주세요.");
       return;
     }
 
-    try {
-      const params = new URLSearchParams();
-      params.set("nickname", nickname.trim());
-      params.set("profileMsg", profileMsg);
-
-      if (imageType === "DEFAULT") {
-        params.set("type", "reset");
-      }
-
-      const formData = new FormData();
-
-      if (imageType === "CUSTOM" && uploadFile) {
-        formData.append("profileImage", uploadFile);
-      }
-
-      const response = await fetch(
-        `http://localhost:8080/api/v1/member/me/info?${params.toString()}`,
-        {
-          method: "PATCH",
-          body: formData,
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        console.error("서버 응답 에러:", errData);
-        await alert(errData?.message || "정보 수정에 실패했습니다.");
+    if (role !== "USER") {
+      if (!/^\d{10,11}$/.test(normalizedPhone)) {
+        await alert("휴대폰 번호는 숫자 10~11자리로 입력해 주세요.");
         return;
       }
 
-      const updatedData: MemberProfile | null = await response.json().catch(() => null);
+      if (!zonecode || !address) {
+        await alert("주소를 입력해 주세요.");
+        return;
+      }
+    }
 
-      if (updatedData) {
-        setMemberProfile(updatedData);
-        setPreviewImg(updatedData.profileImgUrl || "");
-        setUploadFile(null);
-        setImageType(null);
+    const hasProfileChanges =
+      trimmedNickname !== originalNickname ||
+      profileMsg !== (memberProfile?.profileMsg || "") ||
+      imageType !== null;
 
-        const nextRole: MemberInfo["role"] =
-          updatedData.role === "ADMIN" || updatedData.role === "VERIFIED_USER"
-            ? updatedData.role
-            : "USER";
+    const hasVerifiedChanges =
+      role !== "USER" &&
+      (normalizedPhone !== getVerifiedPhone(memberProfile) ||
+        zonecode !== getVerifiedAddressCode(memberProfile) ||
+        address !== (memberProfile?.address1 || "") ||
+        trimmedDetailAddress !== (memberProfile?.address2 || ""));
 
-        const nextAuthUser: MemberInfo = {
-          memberId: updatedData.memberId,
-          provider: updatedData.provider,
-          nickname: updatedData.nickname,
-          profileImgUrl: updatedData.profileImgUrl || "",
-          profileMsg: updatedData.profileMsg || "",
-          bestCount: updatedData.bestCount,
-          followerCount: updatedData.followerCount,
-          followingCount: updatedData.followingCount,
-          term_agree: updatedData.term_agree,
-          private_agree: updatedData.private_agree,
-          role: nextRole,
-        };
+    if (!hasProfileChanges && !hasVerifiedChanges) {
+      toast({ title: "변경된 내용이 없습니다.", tone: "warning" });
+      return;
+    }
 
-        login(nextAuthUser);
+    try {
+      setIsSubmitting(true);
+
+      if (hasProfileChanges) {
+        await updateMyProfileInfo({
+          nickname: trimmedNickname,
+          profileMsg,
+          type: imageType === "DEFAULT" ? "reset" : undefined,
+          profileImage: imageType === "CUSTOM" ? uploadFile || undefined : undefined,
+        });
       }
 
+      if (hasVerifiedChanges) {
+        await updateMyVerifiedInfo({
+          phoneNumber: normalizedPhone,
+          addressCode: zonecode,
+          address1: address,
+          address2: trimmedDetailAddress || undefined,
+        });
+      }
+
+      await syncMemberProfile();
+
       toast({ title: "정보가 성공적으로 수정되었습니다.", tone: "success" });
-      router.push("/profile");
+      router.push("/me");
     } catch (error) {
-      console.error("수정 에러:", error);
-      await alert("서버와 통신 중 에러가 발생했습니다.");
+      logUnexpectedApiError("회원정보 수정 실패:", error);
+      await alert(
+        getApiErrorMessage(
+          error,
+          "서버와 통신 중 에러가 발생했습니다."
+        )
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -393,7 +425,12 @@ export default function MeSettingPage() {
                 <p className="text-sm font-bold text-gray-800 mb-3">
                   인증 회원만 입력할 수 있습니다.
                 </p>
-                <Button type="button" size="sm" className="rounded-xl px-6">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl px-6"
+                  onClick={() => router.push("/verify?source=me")}
+                >
                   인증하러 가기
                 </Button>
               </div>
@@ -407,7 +444,8 @@ export default function MeSettingPage() {
                 <Input
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9-]/g, ""))}
+                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                  maxLength={13}
                   disabled={role === "USER"}
                   placeholder="010-0000-0000"
                 />
@@ -469,9 +507,10 @@ export default function MeSettingPage() {
               <Button
                 type="submit"
                 size="lg"
+                disabled={isSubmitting}
                 className="flex-1 h-14 rounded-2xl font-bold bg-[#0058FF] hover:bg-blue-700"
               >
-                변경사항 저장
+                {isSubmitting ? "저장 중..." : "변경사항 저장"}
               </Button>
             </div>
           </div>

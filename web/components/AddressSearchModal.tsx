@@ -44,6 +44,12 @@ export default function AddressSearchModal({ isOpen, onClose, onComplete }: Addr
   }, [onComplete]);
 
   useEffect(() => {
+    if (!isOpen) {
+      hasOpenedRef.current = false;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen || hasOpenedRef.current || isAddressSearchWindowOpening) {
       return;
     }
