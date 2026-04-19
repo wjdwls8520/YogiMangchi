@@ -12,9 +12,9 @@ public record CompleteVerificationRequestDto(
     @NotBlank @Size(max = 5)
     String addressCode,
 
-    @NotBlank @Size(max = 20)
+    @NotBlank @Size(max = 255)
     String address1,
 
-    @Size(max = 100)
+    @Size(max = 255)
     String address2
 ) {}
