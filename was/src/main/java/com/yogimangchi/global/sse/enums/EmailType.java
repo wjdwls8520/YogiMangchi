@@ -1,4 +1,4 @@
-package com.yogimangchi.global.SseEnums;
+package com.yogimangchi.global.sse.enums;
 
 public enum EmailType {
     EMAIL_SENT,

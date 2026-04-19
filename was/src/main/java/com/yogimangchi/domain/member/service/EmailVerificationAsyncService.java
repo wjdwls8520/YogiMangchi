@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.member.service;
 
-import com.yogimangchi.global.SseEnums.EmailType;
+import com.yogimangchi.global.sse.enums.EmailType;
 import com.yogimangchi.global.mail.EmailSendService;
 import com.yogimangchi.global.mail.EmailSseService;
 import lombok.RequiredArgsConstructor;

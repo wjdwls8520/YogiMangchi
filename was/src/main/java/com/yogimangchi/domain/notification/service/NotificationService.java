@@ -21,6 +21,7 @@ import com.yogimangchi.domain.notification.repository.NotificationStateRepositor
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.global.exception.notification.NotificationException;
+import com.yogimangchi.global.sse.enums.TradeSseEventType;
 import com.yogimangchi.global.support.MemberReader;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -260,6 +261,7 @@ public class NotificationService {
 
         String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
         NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
+        TradeSseEventType tradeSseEventType = resolveTradeSseEventType(assetType);
 
         OrderCompletedNotificationPayload payload = new OrderCompletedNotificationPayload(
                 orderId,
@@ -279,6 +281,7 @@ public class NotificationService {
         log.info("주문 체결 알림 payload 생성 완료. orderId={}, assetTypeDisplayName={}",
                 orderId, assetTypeDisplayName);
 
+        // 알림 카테고리와 SSE 이벤트명은 각각 탭 분류와 실시간 분기 기준으로 사용한다.
         saveAndSend(
                 Notification.create(
                         notificationReceiver,
@@ -286,11 +289,12 @@ public class NotificationService {
                         notificationCategory,
                         NotificationType.ORDER_COMPLETED,
                         serializePayload(payload)
-                )
+                ),
+                tradeSseEventType.name()
         );
     }
 
-    private void saveAndSend(Notification notification) {
+    private void saveAndSend(Notification notification, String eventName) {
         Long receiverId = notification.getReceiver().getId();
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -312,7 +316,7 @@ public class NotificationService {
             throw NotificationException.notificationResponseCreationFailed();
         }
 
-        notificationSseService.sendNotification(receiverId, response);
+        notificationSseService.sendNotification(receiverId, eventName, response);
     }
 
     private String serializePayload(Object payload) {
@@ -339,6 +343,15 @@ public class NotificationService {
             case MOCK -> NotificationCategory.MOCK;
             case TRADE_SPOT, TRADE_FUTURE -> NotificationCategory.TRADE;
             case CONTEST -> NotificationCategory.CONTEST;
+        };
+    }
+
+    private TradeSseEventType resolveTradeSseEventType(AssetType assetType) {
+        // 프론트가 투자 탭별 체결 이벤트를 빠르게 분기할 수 있도록 SSE 이름을 구분한다.
+        return switch (assetType) {
+            case MOCK -> TradeSseEventType.NOTIFICATION_MOCK_ORDER_COMPLETED;
+            case TRADE_SPOT, TRADE_FUTURE -> TradeSseEventType.NOTIFICATION_TRADE_ORDER_COMPLETED;
+            case CONTEST -> TradeSseEventType.NOTIFICATION_CONTEST_ORDER_COMPLETED;
         };
     }
 }
