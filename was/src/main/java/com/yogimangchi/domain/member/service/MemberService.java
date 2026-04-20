@@ -159,7 +159,7 @@ public class MemberService {
     public void updateVerifiedInfo(Long loginMemberId, UpdateVerifiedInfoRequestDto request) {
         Member member = memberReader.getAuthenticated(loginMemberId);
 
-        if (member.getRole() != MemberRole.VERIFIED_USER) {
+        if (!MemberRole.VERIFIED_USER.equals(member.getRole()) && !MemberRole.ADMIN.equals(member.getRole())) {
             throw MemberException.notVerifiedUser();
         }
 
