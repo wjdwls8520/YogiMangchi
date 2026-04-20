@@ -29,6 +29,9 @@ public record NotificationResponseDto(
         @Schema(description = "알림 생성 시각")
         LocalDateTime createdAt,
 
+        @Schema(description = "알림에 마지막 실제 이벤트가 반영된 시각")
+        LocalDateTime lastEventAt,
+
         @Schema(description = "화면 렌더링에 필요한 payload 객체")
         JsonNode payload
 ) {
@@ -45,6 +48,7 @@ public record NotificationResponseDto(
                     notification.getType(),
                     notification.isRead(),
                     notification.getCreatedAt(),
+                    notification.getLastEventAt(),
                     payload
             );
         } catch (JsonProcessingException exception) {
