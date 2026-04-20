@@ -2,6 +2,8 @@ package com.yogimangchi.domain.futures.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
+
 public record FuturesLeverageResponseDto(
 
         @Schema(description = "심볼", example = "BTCUSDT")
@@ -11,6 +13,9 @@ public record FuturesLeverageResponseDto(
         int leverage,
 
         @Schema(description = "이 지갑 타입에서 이 심볼에 허용되는 최대 레버리지 배수", example = "100")
-        int maxLeverage
+        int maxLeverage,
+
+        @Schema(description = "해당 심볼에 거래가능한 명목금액 (증거금 * 레버리지)", example = "100000")
+        BigDecimal availableOrderNotionalAmount
 ) {
 }

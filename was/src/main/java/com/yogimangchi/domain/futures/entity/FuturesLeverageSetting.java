@@ -31,7 +31,7 @@ public class FuturesLeverageSetting {
     private Assets assets;
 
     @Column(nullable = false, length = 20)
-    @Comment("레버리지 설정 대상 심볼 - 예: BTCYD")
+    @Comment("레버리지 설정 대상 심볼 - 예: BTCUSDT")
     private String symbol;
 
     @Column(nullable = false)

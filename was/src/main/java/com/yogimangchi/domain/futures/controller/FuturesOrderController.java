@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.futures.controller;
 
-import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderRequestDto;
+import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderOpenRequestDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesOrderResponseDto;
 import com.yogimangchi.domain.futures.service.FuturesOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,14 +25,14 @@ public class FuturesOrderController {
             description = "현재 대회 시즌의 지갑으로 시장가로 주문합니다. 롱(매수)/숏(매도) 정보를 함께 리퀘스트바디에 담아주세요."
     )
     @PreAuthorize("hasAnyRole('VERIFIED_USER', 'ADMIN')")
-    @PostMapping("/contest/{contestSeasonId}/order/market")
-    public ResponseEntity<FuturesOrderResponseDto> getMarketSymbols(
+    @PostMapping("/contest/{contestSeasonId}/order/market/open")
+    public ResponseEntity<FuturesOrderResponseDto> placeFuturesMarketOrderOpen(
             @AuthenticationPrincipal Long memberId,
             @PathVariable("contestSeasonId") Long contestSeasonId,
-            @RequestBody @Valid FuturesMarketOrderRequestDto request
+            @RequestBody @Valid FuturesMarketOrderOpenRequestDto request
     ) {
 
-        futuresOrderService.placeFuturesMarketOrder(memberId, contestSeasonId, request);
+        futuresOrderService.placeFuturesMarketOrderOpen(memberId, contestSeasonId, request);
         return null;
     }
 }

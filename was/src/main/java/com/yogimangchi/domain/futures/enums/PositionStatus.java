@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.futures.enums;
 
-public enum PositionAction {
+public enum PositionStatus {
     OPEN,
     CLOSE
 }

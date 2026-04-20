@@ -3,14 +3,15 @@ package com.yogimangchi.domain.futures.entity;
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.enums.OrderStatus;
 import com.yogimangchi.domain.futures.enums.OrderType;
-import com.yogimangchi.domain.futures.enums.PositionAction;
 import com.yogimangchi.domain.futures.enums.PositionSide;
+import com.yogimangchi.domain.futures.enums.PositionStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,6 +40,11 @@ public class FuturesOrder {
     @Comment("주문 유형 (MARKET: 시장가, LIMIT: 지정가)")
     private OrderType orderType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_status", nullable = false, length = 20)
+    @Comment("주문 상태 (PENDING: 미체결, PARTIALLY_FILLED: 부분 체결, COMPLETED: 체결 완료, CANCELED: 취소)")
+    private OrderStatus orderStatus;
+
     @Column(nullable = false, length = 10)
     @Enumerated(EnumType.STRING)
     @Comment("주문 포지션 방향 (LONG: 롱, SHORT: 숏)")
@@ -47,12 +53,7 @@ public class FuturesOrder {
     @Column(nullable = false, length = 10)
     @Enumerated(EnumType.STRING)
     @Comment("주문 포지션 행동 (OPEN: 포지션 시작, CLOSE: 포지션 종료)")
-    private PositionAction positionAction;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "order_status", nullable = false, length = 20)
-    @Comment("주문 상태 (PENDING: 미체결, PARTIALLY_FILLED: 부분 체결, COMPLETED: 체결 완료, CANCELED: 취소)")
-    private OrderStatus orderStatus;
+    private PositionStatus positionAction;
 
 
     // *** 코인 ***
@@ -111,21 +112,47 @@ public class FuturesOrder {
 
 
     // *** 메서드팩토리 ***
-    public static FuturesOrder create(
-            Assets assets, String symbol, PositionSide positionSide, PositionAction positionAction, BigDecimal orderPrice, BigDecimal quantity, BigDecimal orderMargin, BigDecimal notionalAmount, BigDecimal totalFee
+    public static FuturesOrder orderMarketCreate(
+            Assets assets,
+            String symbol,
+            OrderType orderType,
+            OrderStatus orderStatus,
+            PositionSide positionSide,
+            PositionStatus positionAction,
+
+            BigDecimal orderPrice,
+            BigDecimal orderQuantity,
+            BigDecimal filledQuantity,
+            BigDecimal remainingQuantity,
+            BigDecimal avgFilledPrice,
+
+            BigDecimal orderMargin,
+            BigDecimal notionalAmount,
+            BigDecimal executedAmount,
+            BigDecimal totalFee,
+
+            LocalDateTime executedAt
     ) {
         FuturesOrder futuresOrder = new FuturesOrder();
         futuresOrder.assets = assets;
         futuresOrder.symbol = symbol;
+        futuresOrder.orderType = orderType;
+        futuresOrder.orderStatus = orderStatus;
         futuresOrder.positionSide = positionSide;
         futuresOrder.positionAction = positionAction;
 
         futuresOrder.orderPrice = orderPrice;
-        futuresOrder.orderQuantity = quantity;
+        futuresOrder.orderQuantity = orderQuantity;
+        futuresOrder.remainingQuantity = remainingQuantity;
+        futuresOrder.avgFilledPrice = avgFilledPrice;
+        futuresOrder.filledQuantity = filledQuantity;
 
         futuresOrder.orderMargin = orderMargin;
         futuresOrder.notionalAmount = notionalAmount;
+        futuresOrder.executedAmount = executedAmount;
         futuresOrder.totalFee = totalFee;
+
+        futuresOrder.executedAt = executedAt;
 
         return futuresOrder;
     }
