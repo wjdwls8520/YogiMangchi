@@ -66,6 +66,11 @@ public class Notification {
     @Schema(description = "알림 생성 시각")
     private LocalDateTime createdAt;
 
+    @CreationTimestamp
+    @Column(name = "last_event_at", nullable = false)
+    @Schema(description = "알림에 마지막 실제 이벤트가 반영된 시각")
+    private LocalDateTime lastEventAt;
+
     @Column(name = "payload_json", columnDefinition = "text")
     @Schema(description = "프론트가 메시지와 이동 경로를 조립할 때 사용하는 JSON payload")
     private String payloadJson;
@@ -90,5 +95,13 @@ public class Notification {
 
         this.isRead = true;
         this.readAt = readAt;
+    }
+
+    public void updateLastEventAt(LocalDateTime lastEventAt) {
+        if (lastEventAt == null) {
+            return;
+        }
+
+        this.lastEventAt = lastEventAt;
     }
 }
