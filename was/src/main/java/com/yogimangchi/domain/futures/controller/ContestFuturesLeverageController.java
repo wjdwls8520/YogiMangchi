@@ -14,36 +14,38 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/futures")
+@RequestMapping("/api/v1/futures/contest")
 @RequiredArgsConstructor
-@Tag(name = "99-04-FUTURES", description = "본투자 선물 매매주문 관련 API")
-public class FuturesLeverageController {
+@Tag(name = "99-04-CONTEST FUTURES", description = "대회 선물 매매주문 관련 API")
+public class ContestFuturesLeverageController {
 
     private final FuturesLeverageService futuresLeverageService;
 
     @Operation(
-            summary = "본투자 선물 레버리지 조회",
-            description = "본투자 선물 지갑의 특정 심볼 레버리지를 조회합니다. 설정 이력이 없으면 기본값 1배를 반환합니다."
+            summary = "대회 선물 레버리지 조회",
+            description = "특정 대회 시즌 지갑의 심볼 레버리지를 조회합니다. 설정 이력이 없으면 기본값 1배를 반환합니다."
     )
     @PreAuthorize("hasAnyRole('VERIFIED_USER', 'ADMIN')")
-    @GetMapping("/leverage")
+    @GetMapping("/{contestSeasonId}/leverage")
     public ResponseEntity<FuturesLeverageResponseDto> getLeverage(
             @AuthenticationPrincipal Long memberId,
+            @PathVariable Long contestSeasonId,
             @RequestParam @NotBlank String symbol
     ) {
-        return ResponseEntity.ok(futuresLeverageService.getLeverage(memberId, null, symbol));
+        return ResponseEntity.ok(futuresLeverageService.getLeverage(memberId, contestSeasonId, symbol));
     }
 
     @Operation(
-            summary = "본투자 선물 레버리지 설정",
-            description = "본투자 선물 지갑의 심볼별 레버리지를 설정합니다. 설정값은 이후 해당 심볼 주문에 적용됩니다."
+            summary = "대회 선물 레버리지 설정",
+            description = "특정 대회 시즌 지갑의 심볼별 레버리지를 설정합니다. 설정값은 이후 해당 심볼 주문에 적용됩니다."
     )
     @PreAuthorize("hasAnyRole('VERIFIED_USER', 'ADMIN')")
-    @PutMapping("/leverage")
+    @PutMapping("/{contestSeasonId}/leverage")
     public ResponseEntity<FuturesLeverageResponseDto> setLeverage(
             @AuthenticationPrincipal Long memberId,
+            @PathVariable Long contestSeasonId,
             @RequestBody @Valid FuturesLeverageRequestDto request
     ) {
-        return ResponseEntity.ok(futuresLeverageService.setLeverage(memberId, null, request));
+        return ResponseEntity.ok(futuresLeverageService.setLeverage(memberId, contestSeasonId, request));
     }
 }
