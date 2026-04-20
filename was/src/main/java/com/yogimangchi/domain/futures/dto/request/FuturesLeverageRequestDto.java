@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record FuturesLeverageRequestDto(
 
-        @Schema(description = "레버리지를 설정할 심볼", example = "BTCYD")
+        @Schema(description = "레버리지를 설정할 심볼", example = "BTCUSDT")
         @NotBlank
         String symbol,
 

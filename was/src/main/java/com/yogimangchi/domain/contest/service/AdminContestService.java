@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.contest.service;
 
-import com.yogimangchi.domain.asset.service.futures.FuturesAssetService;
+import com.yogimangchi.domain.futures.service.FuturesAssetService;
 import com.yogimangchi.domain.contest.season.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.application.dto.query.ContestApplicantQueryDto;
 import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipantQueryDto;

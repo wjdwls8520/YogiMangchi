@@ -159,6 +159,18 @@ public class FuturesPosition {
 
     // 청산 시 포지션 수치 차감
     public void reduce(BigDecimal closeQuantity, BigDecimal closeMargin, BigDecimal closeNotional, BigDecimal pnl) {
+        // 수량 / 증거금 / 명목금액 차감
+        this.filledQuantity = this.filledQuantity.subtract(closeQuantity);
+        this.totalMargin = this.totalMargin.subtract(closeMargin);
+        this.notionalAmount = this.notionalAmount.subtract(closeNotional);
 
+        // 누적 실현손익 반영
+        this.realizedPnl = this.realizedPnl.add(pnl);
+
+        // 잔여 수량이 0이면 포지션 종료 처리
+        if (this.filledQuantity.compareTo(BigDecimal.ZERO) == 0) {
+            this.positionStatus = PositionStatus.CLOSE;
+        }
+        // 수량이 남아있으면 entryPrice·leverage·liquidationPrice 변동 없음 (진입가 불변 원칙)
     }
 }

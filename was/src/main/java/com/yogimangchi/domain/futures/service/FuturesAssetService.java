@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.asset.service.futures;
+package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
