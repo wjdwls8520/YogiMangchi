@@ -1,8 +1,7 @@
 package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
-import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
-import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
+import com.yogimangchi.domain.chartapi.repository.FuturesPriceRepository;
 import com.yogimangchi.domain.futures.dto.query.FuturesPositionOpenResult;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderCloseRequestDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderOpenRequestDto;
@@ -33,7 +32,7 @@ public class FuturesOrderService {
 
     private final FuturesWalletReader futuresWalletReader;
 
-    private final ChartPriceRepository chartPriceRepository;
+    private final FuturesPriceRepository futuresPriceRepository;
     private final FuturesOrderRepository futuresOrderRepository;
     private final FuturesPositionRepository futuresPositionRepository;
 
@@ -58,10 +57,10 @@ public class FuturesOrderService {
         // 심볼 검증 + 적용 레버리지 조회
         int leverage = futuresLeverageService.getLeverage(memberId, contestSeasonId, symbol).leverage();
 
-        // 현재 시세 조회
-        ChartPriceDto currentPrice = chartPriceRepository.findBySymbol(symbol)
-                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."));
-        BigDecimal orderPrice = new BigDecimal(currentPrice.price());
+        // 현재 선물 체결 기준가 조회
+        BigDecimal orderPrice = futuresPriceRepository.findTickerPriceBySymbol(symbol)
+                .map(BigDecimal::new)
+                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 선물 시세를 확인할 수 없습니다."));
 
         // 증거금 / 명목금액 / 수수료 계산
         BigDecimal orderMargin = orderPrice.multiply(request.orderQuantity()).divide(new BigDecimal(leverage), 8, RoundingMode.HALF_UP);
@@ -125,10 +124,10 @@ public class FuturesOrderService {
         String symbol = positionSnapshot.getSymbol();
         PositionSide positionSide = positionSnapshot.getPositionSide();
 
-        // 현재 시세 조회
-        ChartPriceDto currentPrice = chartPriceRepository.findBySymbol(symbol)
-                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."));
-        BigDecimal closePrice = new BigDecimal(currentPrice.price());
+        // 현재 선물 체결 기준가 조회
+        BigDecimal closePrice = futuresPriceRepository.findTickerPriceBySymbol(symbol)
+                .map(BigDecimal::new)
+                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 선물 시세를 확인할 수 없습니다."));
 
         // 청산 명목금액 및 수수료 계산
         BigDecimal closeNotional = closePrice.multiply(request.closeQuantity());
