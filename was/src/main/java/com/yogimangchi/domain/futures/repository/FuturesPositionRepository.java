@@ -34,6 +34,11 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             @Param("positionStatus") PositionStatus positionStatus
     );
 
+    // 청산 시 — ID 기준 단건 조회 (비관적 락)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT fp FROM FuturesPosition fp WHERE fp.id = :positionId")
+    Optional<FuturesPosition> findByIdForUpdate(@Param("positionId") Long positionId);
+
     // 레버리지 변경 시 — 해당 심볼의 모든 OPEN 포지션 조회 (롱+숏 동시 갱신, 비관적 락)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
