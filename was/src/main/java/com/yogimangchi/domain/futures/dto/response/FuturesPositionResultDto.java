@@ -43,9 +43,6 @@ public record FuturesPositionResultDto(
         @Schema(description = "포지션 누적 실현 손익 (청산 시마다 합산)", example = "0.00")
         BigDecimal realizedPnl,
 
-        @Schema(description = "이번 청산에서 발생한 실현 손익 (진입 주문이면 null)", example = "50.00", nullable = true)
-        BigDecimal thisCloseRealizedPnl,
-
         @Schema(description = "신규 포지션 여부 (true: 신규 생성, false: 추가 진입)", example = "true")
         boolean isNewPosition
 ) {
@@ -63,13 +60,12 @@ public record FuturesPositionResultDto(
                 position.getNotionalAmount(),
                 position.getLiquidationPrice(),
                 position.getRealizedPnl(),
-                null,           // 진입 주문은 이번 청산 손익 없음
                 isNewPosition
         );
     }
 
-    // 청산(CLOSE) 주문 결과용
-    public static FuturesPositionResultDto fromClose(FuturesPosition position, BigDecimal thisCloseRealizedPnl) {
+    // 부분 청산(CLOSE) 주문 결과용 — 잔여 포지션이 남아있을 때만 호출
+    public static FuturesPositionResultDto fromClose(FuturesPosition position) {
         return new FuturesPositionResultDto(
                 position.getId(),
                 position.getSymbol(),
@@ -82,8 +78,7 @@ public record FuturesPositionResultDto(
                 position.getNotionalAmount(),
                 position.getLiquidationPrice(),
                 position.getRealizedPnl(),
-                thisCloseRealizedPnl,
-                false           // 청산은 항상 기존 포지션에서 발생
+                false
         );
     }
 }

@@ -62,29 +62,40 @@ public class FuturesPositionService {
     @Transactional
     public FuturesPosition closePosition(
             Assets wallet,
-            String symbol,
-            PositionSide positionSide,
+            Long positionId,
             BigDecimal closeQuantity,
             BigDecimal closePrice
     ) {
-        // 1. OPEN 포지션 조회 (비관적 락 — 동시 청산 요청 방지)
+        // 1. ID 기준 포지션 조회 (비관적 락 — 동시 청산 요청 방지)
         FuturesPosition position = futuresPositionRepository
-                .findByAssetsAndSymbolAndPositionSideWherePositionStatusForUpdate(wallet, symbol, positionSide, PositionStatus.OPEN)
-                .orElseThrow(() -> new IllegalArgumentException("청산할 포지션이 없습니다."));
+                .findByIdForUpdate(positionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
 
-        // 2. 청산 수량 검증
+        // 2. 소유권 검증 — 요청자의 지갑 소속 포지션인지 확인
+        if (!position.getAssets().getId().equals(wallet.getId())) {
+            throw new IllegalArgumentException("해당 포지션에 대한 접근 권한이 없습니다.");
+        }
+
+        // 3. OPEN 상태 검증
+        if (position.getPositionStatus() != PositionStatus.OPEN) {
+            throw new IllegalArgumentException("이미 청산된 포지션입니다.");
+        }
+
+        // 4. 청산 수량 검증
         if (closeQuantity.compareTo(position.getFilledQuantity()) > 0) {
             throw new IllegalArgumentException("보유 수량보다 청산 수량이 많습니다.");
         }
 
-        // 3. 청산 비율 계산 (부분 청산 대응)
+        PositionSide positionSide = position.getPositionSide();
+
+        // 5. 청산 비율 계산 (부분 청산 대응)
         BigDecimal closeRatio = closeQuantity.divide(position.getFilledQuantity(), 8, RoundingMode.HALF_UP);
 
-        // 4. 비율 기준 증거금·명목금액 산출
+        // 6. 비율 기준 증거금·명목금액 산출
         BigDecimal closeMargin = position.getTotalMargin().multiply(closeRatio).setScale(8, RoundingMode.HALF_UP);
         BigDecimal closeNotional = position.getNotionalAmount().multiply(closeRatio).setScale(8, RoundingMode.HALF_UP);
 
-        // 5. 실현손익 계산 (레버리지 곱하지 않음 — 레버리지 효과는 증거금 비율에 이미 내포)
+        // 7. 실현손익 계산 (레버리지 곱하지 않음 — 레버리지 효과는 증거금 비율에 이미 내포)
         //    LONG  실현손익 = (청산가 - 평균진입가) × 청산수량
         //    SHORT 실현손익 = (평균진입가 - 청산가) × 청산수량
         BigDecimal realizedPnl;
@@ -98,20 +109,20 @@ public class FuturesPositionService {
                     .setScale(8, RoundingMode.HALF_UP);
         }
 
-        // 6. 청산 수수료 (현재가 × 청산수량 × taker fee)
+        // 8. 청산 수수료 (현재가 × 청산수량 × taker fee)
         BigDecimal closeFee = closePrice.multiply(closeQuantity)
                 .multiply(TRADE_FEE)
                 .setScale(8, RoundingMode.HALF_UP);
 
-        // 7. 정산금액 = 청산증거금 + 실현손익 - 청산수수료
+        // 9. 정산금액 = 청산증거금 + 실현손익 - 청산수수료
         BigDecimal settlement = closeMargin.add(realizedPnl).subtract(closeFee);
 
-        // 8. 지갑 정산 (손실이 증거금을 초과하면 0으로 cap — 강제청산 로직 미구현 방어)
+        // 10. 지갑 정산 (손실이 증거금을 초과하면 0으로 cap — 강제청산 로직 미구현 방어)
         if (settlement.compareTo(BigDecimal.ZERO) > 0) {
             wallet.addMoney(settlement);
         }
 
-        // 9. 포지션 수치 차감 (잔여수량 0이면 CLOSE 상태로 전환)
+        // 11. 포지션 수치 차감 (잔여수량 0이면 CLOSE 상태로 전환)
         position.reduce(closeQuantity, closeMargin, closeNotional, realizedPnl);
 
         return position;

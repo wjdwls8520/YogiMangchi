@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -61,7 +62,7 @@ public class ContestFuturesOrderController {
     public ResponseEntity<FuturesCursorResponseDto<FuturesOrderResponseDto>> getOrders(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long contestSeasonId,
-            @ModelAttribute FuturesOrderSearchConditionDto condition
+            @ParameterObject @ModelAttribute FuturesOrderSearchConditionDto condition
     ) {
         return ResponseEntity.ok(futuresQueryService.getOrders(memberId, contestSeasonId, condition));
     }
@@ -84,7 +85,7 @@ public class ContestFuturesOrderController {
     public ResponseEntity<FuturesCursorResponseDto<FuturesPositionResponseDto>> getClosedPositions(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long contestSeasonId,
-            @ModelAttribute FuturesClosedPositionSearchConditionDto condition
+            @ParameterObject @ModelAttribute FuturesClosedPositionSearchConditionDto condition
     ) {
         return ResponseEntity.ok(futuresQueryService.getClosedPositions(memberId, contestSeasonId, condition));
     }
