@@ -295,7 +295,7 @@ export default function VerifyDetailPage() {
       <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm sm:p-10">
         <div className="mb-10 flex justify-center">
           <Link href="/" aria-label="메인 페이지로 이동">
-            <Logo className="h-12" />
+            <Logo className="h-10" />
           </Link>
         </div>
 

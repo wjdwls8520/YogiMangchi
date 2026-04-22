@@ -126,7 +126,7 @@ export default function ProfileSidebar({
         {relationArea ? <div className="mt-3 w-full">{relationArea}</div> : null}
         {actionArea ? <div className="mt-6 w-full">{actionArea}</div> : null}
 
-        <div className="grid grid-cols-2 w-full border-t border-gray-50">
+        <div className="grid grid-cols-2 w-full">
           <StatTag
             label="Followers"
             value={profile.followerCount}
@@ -141,15 +141,6 @@ export default function ProfileSidebar({
             onClick={onClickFollowings}
             hasLeftBorder
           />
-
-          {/* <div className="text-center border-l border-gray-50">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-              Mangchi
-            </p>
-            <p className="text-lg font-black text-orange-500">
-              {profile.bestCount}
-            </p>
-          </div> */}
         </div>
       </div>
     </section>

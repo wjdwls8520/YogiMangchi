@@ -15,8 +15,6 @@ export default async function CategoryDetailPage({ params }: PageProps) {
     const post = await getPostServer(postId);
     const comments = await getReplysServer(postId);
 
-    console.log(comments)
-
     return <>
       <CategoryDetailClient post={post} initialComments={comments.content} nextCursorId={comments.nextCursorId} />
     </>;

@@ -14,10 +14,10 @@ interface Props {
 
 export default function CommunityList({ posts }: Props) {
 
-    const { appendPosts } = usePostStore();
+    const appendPosts = usePostStore((state) => state.appendPosts);
 
     const [isLoading, setIsLoading] = useState(false);
-    const observerRef = useRef<HTMLDivElement | null>(null); // 스크롤 위치 확인
+    const observerRef = useRef<HTMLLIElement | null>(null); // 스크롤 위치 확인
 
     const hasMore = usePostStore((state) => state.hasMore);
     const setHasMore = usePostStore((state) => state.setHasMore);
@@ -26,7 +26,7 @@ export default function CommunityList({ posts }: Props) {
 
     // 무한 스크롤, 이전 게시글 불러오기
     const fetchPosts = useCallback(async () => {
-        if (!hasMore || isLoading || !cursorId) return;
+        if (!hasMore || isLoading || cursorId == null) return;
 
         try {
             setIsLoading(true);
@@ -35,12 +35,12 @@ export default function CommunityList({ posts }: Props) {
 
             appendPosts(result.content);
             setHasMore(result.hasNext);
-            setCursorId(result.cursorId);
+            setCursorId(result.nextCursorId ?? null);
 
         } finally {
             setIsLoading(false);
         }
-    }, [hasMore, isLoading, cursorId]);
+    }, [appendPosts, cursorId, hasMore, isLoading, setCursorId, setHasMore]);
 
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
@@ -62,14 +62,15 @@ export default function CommunityList({ posts }: Props) {
             <ul className="flex flex-col gap-5">
                 {posts?.map((post) => 
                         <li key={`${post.memberId}${post.id}`}>
-                            <CommunityItem 
-                                post={post} 
-                                variant="list" 
-                            />
+                            <CommunityItem post={post} />
                         </li>
                 )}
-                <div ref={observerRef} />
-                {isLoading && <CommunityItemSkeleton />}
+                <li ref={observerRef} className="h-px" aria-hidden="true" />
+                {isLoading && (
+                    <li>
+                        <CommunityItemSkeleton />
+                    </li>
+                )}
             </ul>
         </article>
     )

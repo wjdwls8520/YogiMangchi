@@ -6,6 +6,8 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { getMyMemberInfo } from "@/lib/api/member";
 import PolicyModal from "@/components/PolicyModal";
 import Link from "next/link";
 import Logo from "@/components/ui/Logo";
@@ -44,6 +46,7 @@ export default function SignupPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? ""; // 백엔드에서 넘겨주는 소셜로그인 토큰
   const { alert, toast } = useFeedback();
+  const login = useAuthStore((state) => state.login);
 
   const [nickname, setNickname] = useState("");
   const [termsAgreed, setTermsAgreed] = useState(false);
@@ -179,9 +182,15 @@ export default function SignupPage() {
         return;
       }
 
-      console.log("온보딩 완료 데이터 전송 성공!");
+      try {
+        const memberInfo = await getMyMemberInfo();
+        login(memberInfo);
+      } catch (error) {
+        console.error("회원가입 후 로그인 동기화 실패:", error);
+      }
+
       toast({ title: "회원가입이 완료되었습니다.", tone: "success" });
-      router.push("/signup/benefits"); // 가입 완료 후 메인 페이지로 이동
+      router.push("/signup/benefits");
     } catch (error) {
       console.error("API 전송 에러:", error);
       await alert("서버와 통신하는 중 문제가 발생했습니다.");

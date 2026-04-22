@@ -3,12 +3,12 @@
 import CommunityList from "./CommunityList";
 import { Post } from "../types/post";
 import { usePostStore } from "@/stores/usePostStore";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { useShallow } from "zustand/shallow";
 
 interface Props {
   initialPosts: Post[];
-  cursorId: number;
+  cursorId: number | null;
   hasNext: boolean;
 }
 
@@ -20,17 +20,11 @@ export default function CommunityContainer({ initialPosts, cursorId, hasNext }: 
   const setCursorId = usePostStore((state) => state.setCursorId);
   const setHasMore = usePostStore((state) => state.setHasMore);
 
-
-  const isInitialized = useRef(false);
-
   useEffect(() => {
-    if (!isInitialized.current) {
-      setPosts(initialPosts);
-      setCursorId(cursorId);
-      setHasMore(hasNext);
-      isInitialized.current = true;
-    }
-  }, []);
+    setPosts(initialPosts);
+    setCursorId(cursorId);
+    setHasMore(hasNext);
+  }, [cursorId, hasNext, initialPosts, setCursorId, setHasMore, setPosts]);
 
   // fallback
   const displayPosts = posts.length ? posts : initialPosts;

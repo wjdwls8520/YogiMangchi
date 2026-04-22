@@ -1,38 +1,30 @@
-import SubMenu from "@/components/SubMenu";
-import NewsList from "./components/NewsList";
+import { notFound } from "next/navigation";
 import CommunityContainer from "../components/CommunityContainer";
+import CommunityTabs from "../components/CommunityTabs";
+import { COMMUNITY_LIST_CATEGORIES } from "../constants";
 import { getPostsServer } from "@/lib/api/post.server";
-
-const menus  = [
-    { id: "best", label: "주간 인기글" },
-    { id: "latest", label: "최신글" },
-];
 
 export default async function CategoryPage({
   params,
 }: {
   params: { category: string };
 }) {
+  const { category } = await params;
 
-    const { category } = await params;
-    const isNews = category === "news";
+  if (!COMMUNITY_LIST_CATEGORIES.has(category)) {
+    notFound();
+  }
 
-    const posts = await getPostsServer();
+  const posts = await getPostsServer();
 
-    return (
-        <>
-            {!isNews && <SubMenu menus={menus} />}
-            {
-                !isNews ? 
-                <CommunityContainer 
-                    initialPosts={posts.content} 
-                    cursorId={posts.nextCursorId}  
-                    hasNext={posts.hasNext}
-                    
-                /> 
-                : 
-                <NewsList />
-            }
-        </>
-    )
+  return (
+    <>
+      <CommunityTabs activeTab={category} />
+      <CommunityContainer
+        initialPosts={posts.content}
+        cursorId={posts.nextCursorId}
+        hasNext={posts.hasNext}
+      />
+    </>
+  );
 }

@@ -21,7 +21,7 @@ export default function CategoryDetailClient({
 
   return (
     <>
-      <CommunityItem post={post} variant="detail" />
+      <CommunityItem post={post} isDetail />
       <CommentContainer
         post={post}
         comments={initialComments}
