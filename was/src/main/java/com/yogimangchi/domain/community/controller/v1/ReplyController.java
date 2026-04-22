@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.controller.v1;
 
+import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.community.dto.request.AuthorReplySearchDto;
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
@@ -68,9 +69,10 @@ public class ReplyController {
         @RequestBody @Valid ReplyCreateDto request
 
     ) {
-        ReplyDetailDto createdReply = replyService.createReply(loginMemberId, postId, request);
+        // 파사드 도입 전까지는 내부 결과 DTO를 컨트롤러에서 응답 DTO로 변환한다.
+        ReplyCreatedResultDto createdReply = replyService.createReply(loginMemberId, postId, request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdReply);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdReply.toReplyDetailDto());
     }
 
     @Operation(
