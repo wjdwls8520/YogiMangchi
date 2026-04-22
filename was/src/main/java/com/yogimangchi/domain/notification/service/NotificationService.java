@@ -3,11 +3,14 @@ package com.yogimangchi.domain.notification.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.PostCommentCreatedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.ReplyCommentCreatedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.request.NotificationIdsRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
@@ -21,6 +24,7 @@ import com.yogimangchi.domain.notification.repository.NotificationStateRepositor
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.global.exception.notification.NotificationException;
+import com.yogimangchi.domain.notification.support.NotificationPreviewUtils;
 import com.yogimangchi.global.sse.enums.TradeSseEventType;
 import com.yogimangchi.global.support.MemberReader;
 import java.math.BigDecimal;
@@ -173,6 +177,78 @@ public class NotificationService {
         notificationRepository.deleteAllByIdsAndReceiverId(request.notificationIds(), memberId);
     }
 
+    // 게시글 작성자에게 전달할 "새 댓글" 알림을 저장하고,
+    // 이후 파사드가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    @Transactional
+    public NotificationResponseDto createPostCommentNotification(Long receiverId, ReplyCreatedResultDto createdResult) {
+        Member notificationReceiver = memberRepository.findActiveById(receiverId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("게시글 댓글 알림 수신 회원을 찾을 수 없습니다. receiverId={}, replyId={}",
+                    receiverId, createdResult.id());
+            return null;
+        }
+
+        // actorMemberId는 응답 DTO와 알림 payload에서 모두 필요하므로 actor 연관관계도 함께 저장한다.
+        Member actor = memberRepository.getReferenceById(createdResult.memberId());
+
+        // 게시글 댓글 알림은 게시글 제목과 댓글 미리보기를 함께 담아 프론트가 문구를 조립할 수 있게 한다.
+        PostCommentCreatedNotificationPayload payload = new PostCommentCreatedNotificationPayload(
+                createdResult.postId(),
+                createdResult.id(),
+                createdResult.postTitle(),
+                createdResult.memberId(),
+                createdResult.nickname(),
+                createdResult.profileImgUrl(),
+                NotificationPreviewUtils.createReplyContentPreview(createdResult.content())
+        );
+
+        return saveNotification(Notification.create(
+                notificationReceiver,
+                actor,
+                NotificationCategory.COMMUNITY,
+                NotificationType.POST_COMMENT_CREATED,
+                serializePayload(payload)
+        ));
+    }
+
+    // 부모댓글/대상댓글 작성자에게 전달할 "새 답글" 알림을 저장하고,
+    // 이후 파사드가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    @Transactional
+    public NotificationResponseDto createReplyCommentNotification(Long receiverId, ReplyCreatedResultDto createdResult) {
+        Member notificationReceiver = memberRepository.findActiveById(receiverId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("답글 알림 수신 회원을 찾을 수 없습니다. receiverId={}, replyId={}",
+                    receiverId, createdResult.id());
+            return null;
+        }
+
+        Member actor = memberRepository.getReferenceById(createdResult.memberId());
+
+        // 답글 알림은 어떤 댓글 흐름에서 발생했는지 추적할 수 있도록 parent/target 식별자를 함께 저장한다.
+        ReplyCommentCreatedNotificationPayload payload = new ReplyCommentCreatedNotificationPayload(
+                createdResult.postId(),
+                createdResult.id(),
+                createdResult.parentReplyId(),
+                createdResult.targetReplyId(),
+                createdResult.memberId(),
+                createdResult.nickname(),
+                createdResult.profileImgUrl(),
+                NotificationPreviewUtils.createReplyContentPreview(createdResult.content())
+        );
+
+        return saveNotification(Notification.create(
+                notificationReceiver,
+                actor,
+                NotificationCategory.COMMUNITY,
+                NotificationType.REPLY_COMMENT_CREATED,
+                serializePayload(payload)
+        ));
+    }
+
     public void notifyOrderCompleted(Member receiver, AssetType assetType, Order order) {
         if (receiver == null || receiver.getId() == null || order == null || order.getId() == null) {
             log.warn("주문 체결 알림 생성을 건너뜁니다. receiver={}, order={}", receiver, order);
@@ -317,6 +393,21 @@ public class NotificationService {
         }
 
         notificationSseService.sendNotification(receiverId, eventName, response);
+    }
+
+    // 커뮤니티 알림의 공통 저장 로직이다.
+    // 순차 호출 구조에서는 저장과 SSE 전송을 분리해 커넥션 점유 시간을 짧게 유지한다.
+    private NotificationResponseDto saveNotification(Notification notification) {
+        Long receiverId = notification.getReceiver().getId();
+        log.info("알림 저장 시작. receiverId={}, category={}, type={}",
+                receiverId, notification.getCategory(), notification.getType());
+
+        Notification savedNotification = notificationRepository.saveAndFlush(notification);
+
+        log.info("알림 저장 완료. notificationId={}, receiverId={}",
+                savedNotification.getId(), receiverId);
+
+        return NotificationResponseDto.from(savedNotification, objectMapper);
     }
 
     private String serializePayload(Object payload) {
