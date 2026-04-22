@@ -43,6 +43,7 @@ import {
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
+import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import {
   getBaseAssetLabel,
@@ -676,7 +677,11 @@ export default function MePage() {
 
     if (cancellingReportKey) return;
 
-    const confirmed = await confirm("신고를 취소하시겠습니까?");
+    const confirmed = await confirm({
+      description: "신고를 취소하시겠습니까?",
+      confirmText: "확인",
+      cancelText: "닫기",
+    });
     if (!confirmed) return;
 
     setCancellingReportKey(reportKey);
@@ -863,7 +868,7 @@ export default function MePage() {
   const user = memberProfile;
   const isGeneralUser = user.role === "USER";
 
-  const summary =
+  const summary: AssetSummary =
     portfolioTab === "mock" && mockPortfolio
       ? {
           title: "모의투자 자산",
@@ -1065,7 +1070,7 @@ export default function MePage() {
                   <Button
                     variant="white"
                     fullWidth={true}
-                    className="mt-2"
+                    className="mb-2"
                     onClick={() => router.push("/verify?source=me")}
                   >
                     회원 인증하기
@@ -1075,36 +1080,7 @@ export default function MePage() {
             }
           />
 
-          <section className="card bg-brand-primary text-white">
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-lg font-bold opacity-80">{summary.title}</span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold opacity-80">총 보유 자산</span>
-            </div>
-            <h3 className="text-3xl font-black mb-1">
-              {formatNumber(summary.totalAsset)}
-            </h3>
-
-            <div className="grid grid-cols-2 gap-y-4 mt-8 pt-6 border-t border-white/10">
-              <AssetMiniInfo label="총매수" value={formatNumber(summary.totalBuyAmount)} />
-              <AssetMiniInfo
-                label="총평가"
-                value={formatNumber(summary.totalCoinValue)}
-                align="right"
-              />
-              <AssetMiniInfo
-                label="총손익"
-                value={formatSignedNumber(summary.totalProfit)}
-              />
-              <AssetMiniInfo
-                label="수익률"
-                value={formatSignedPercent(summary.totalRoi)}
-                align="right"
-              />
-            </div>
-          </section>
+          <AssetSummaryCard summary={summary} />
 
           <Button
             variant="white"
@@ -1172,25 +1148,6 @@ export default function MePage() {
   );
 }
 
-function AssetMiniInfo({
-  label,
-  value,
-  align = "left",
-}: {
-  label: string;
-  value: string;
-  align?: "left" | "right";
-}) {
-  return (
-    <div className={align === "right" ? "text-right" : ""}>
-      <p className="text-xxs opacity-60 font-bold mb-0.5 uppercase">
-        {label}
-      </p>
-      <p className="text-sm font-black">{value}</p>
-    </div>
-  );
-}
-
 function HoldingRow({
   item,
   marketSymbols,
@@ -1206,7 +1163,7 @@ function HoldingRow({
   const displaySymbol = getDisplaySymbolLabel(item.symbol, marketSymbols);
 
   return (
-    <div className="card p-6 border-gray-100">
+    <div className="card p-6">
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-xxs font-black text-gray-400">

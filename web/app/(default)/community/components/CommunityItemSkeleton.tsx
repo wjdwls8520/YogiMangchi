@@ -1,10 +1,10 @@
 export default function CommunityItemSkeleton() {
   return (
-    <div className="border border-gray-200 rounded-2xl p-8 animate-pulse">
+    <div className="card animate-pulse">
       
       {/* header */}
       <div className="flex items-center gap-3">
-        <div className="w-[34px] h-[34px] bg-gray-200 rounded-full" />
+        <div className="h-9 w-9 rounded-full bg-gray-200" />
         <div className="flex flex-col gap-2">
           <div className="w-24 h-3 bg-gray-200 rounded" />
           <div className="w-16 h-3 bg-gray-200 rounded" />

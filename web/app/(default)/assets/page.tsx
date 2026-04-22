@@ -13,6 +13,7 @@ import {
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Select from "@/components/ui/Select";
+import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
 import { formatDateTime } from "@/lib/utils/date";
 import {
   getBaseAssetLabel,
@@ -936,7 +937,7 @@ export default function AssetsPage() {
     return holdingsData.filter((item) => item.value > 0);
   }, [assetTab, marketSymbols, mockPortfolio]);
 
-  const summary =
+  const summary: AssetSummary =
     assetTab === "mock" && mockPortfolio
       ? {
           title: "모의투자 자산",
@@ -1316,51 +1317,10 @@ export default function AssetsPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
-        <section className="lg:col-span-4 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-5 blur-2xl"></div>
-          
-          <div className="flex justify-between items-center mb-8 relative z-10">
-            <span className="text-sm font-bold text-gray-300 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-              {summary.title}
-            </span>
-          </div>
-
-          <div className="space-y-6 relative z-10">
-            <div>
-              <p className="text-sm font-medium text-gray-400 mb-1">총 보유 자산</p>
-              <h3 className="text-4xl font-black tracking-tight text-white">
-                {formatNumber(summary.totalAsset)}
-              </h3>
-            </div>
-            
-            <div>
-              <p className="text-sm font-medium text-gray-400 mb-1">보유 현금</p>
-              <h3 className="text-2xl font-bold tracking-tight text-gray-200">
-                {formatNumber(summary.cashBalance)}
-              </h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-5 mt-8 pt-6 border-t border-white/10 relative z-10">
-            <AssetMiniInfo label="총 매수금액" value={formatNumber(summary.totalBuyAmount)} />
-            <AssetMiniInfo
-              label="총 평가금액"
-              value={formatNumber(summary.totalCoinValue)}
-              align="right"
-            />
-            <AssetMiniInfo
-              label="평가손익"
-              value={formatSignedNumber(summary.totalProfit)}
-              valueColor={summary.totalProfit > 0 ? "text-red-400" : summary.totalProfit < 0 ? "text-blue-400" : "text-white"}
-            />
-            <AssetMiniInfo
-              label="수익률"
-              value={formatSignedPercent(summary.totalRoi)}
-              valueColor={summary.totalRoi > 0 ? "text-red-400" : summary.totalRoi < 0 ? "text-blue-400" : "text-white"}
-              align="right"
-            />
-          </div>
-        </section>
+        <AssetSummaryCard
+          summary={summary}
+          className="lg:col-span-4"
+        />
 
         <section className="lg:col-span-8 rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
           {assetTab !== "mock" ? (
@@ -1593,27 +1553,6 @@ export default function AssetsPage() {
         </div>
       </FolderTabs>
     </main>
-  );
-}
-
-function AssetMiniInfo({
-  label,
-  value,
-  align = "left",
-  valueColor = "text-white",
-}: {
-  label: string;
-  value: string;
-  align?: "left" | "right";
-  valueColor?: string;
-}) {
-  return (
-    <div className={align === "right" ? "text-right" : ""}>
-      <p className="text-xs font-medium text-gray-400 mb-1">
-        {label}
-      </p>
-      <p className={`text-[15px] font-bold ${valueColor}`}>{value}</p>
-    </div>
   );
 }
 

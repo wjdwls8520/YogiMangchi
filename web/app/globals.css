@@ -64,6 +64,14 @@ body {
     @apply outline-none ring-2 ring-brand-primary;
   }
 
+  input[type="radio"] {
+    @apply h-4 w-4 border-gray-300 accent-brand-primary transition-all;
+  }
+
+  input[type="radio"]:focus-visible {
+    @apply outline-none ring-2 ring-brand-primary;
+  }
+
   /* 전체 스크롤바 정의 */
   ::-webkit-scrollbar {
     width: 6px;

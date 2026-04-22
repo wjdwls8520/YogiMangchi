@@ -27,7 +27,7 @@ export default function LoginPage() {
 
         <div className="flex justify-center mb-10">
           <Link href="/" aria-label="메인 페이지로 이동">
-            <Logo className="h-12"/>
+            <Logo className="h-10"/>
           </Link>
         </div>
 

@@ -33,8 +33,21 @@ export type MyMemberProfileResponse = {
   phoneNumber?: string;
   address_code?: string;
   addressCode?: string;
+  address1?: string | null;
+  address2?: string | null;
+};
+
+export type MyVerifiedInfoResponse = {
+  email?: string;
+  verifiedEmail?: string;
+  phone_number?: string;
+  phoneNumber?: string;
+  address_code?: string;
+  addressCode?: string;
   address1?: string;
-  address2?: string;
+  address2?: string | null;
+  isVerified?: boolean;
+  isVeried?: boolean;
 };
 
 export type CompleteVerificationRequest = {
@@ -64,6 +77,11 @@ export const getMyMemberInfo = async () => {
 // 현재 로그인한 회원의 확장 프로필 정보 조회
 export const getMyMemberProfile = async () => {
   return fetchClient("member/me/info") as Promise<MyMemberProfileResponse>;
+};
+
+// 현재 로그인한 회원의 인증회원 상세 정보 조회
+export const getMyVerifiedInfo = async () => {
+  return fetchClient("member/me/verified-info") as Promise<MyVerifiedInfoResponse>;
 };
 
 // 현재 로그인한 회원 기본 프로필 수정

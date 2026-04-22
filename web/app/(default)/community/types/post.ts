@@ -24,7 +24,8 @@ export interface Post {
   updatedAt: string;
   memberId: number;
   nickname: string;
-  profileImg: string;
+  profileImg?: string | null;
+  profileImgUrl?: string | null;
   files: File[];
 };
 
@@ -41,6 +42,7 @@ export interface Reply {
     content: string;
     targetReplyId: number | null;
     replyCount: number;
+    reportCount: number;
     reportedByMe: boolean;
     parentReplyId: number | null;
     targetMemberId: number | null;

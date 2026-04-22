@@ -7,6 +7,7 @@ interface ModalInfo {
     title :string;
     onClose :() => void;
     isSubmit: boolean;
+    closeOnDimClick?: boolean;
 }
 
 
@@ -19,7 +20,11 @@ export default function Modal({ props, children } :ModalProps) {
 
     // dim 영역 클릭 시 modal 꺼짐
     const onDimClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target instanceof HTMLElement && e.target.id === 'layerDim') {
+        if (
+          props.closeOnDimClick !== false &&
+          e.target instanceof HTMLElement &&
+          e.target.id === 'layerDim'
+        ) {
             props.onClose();
         }
     }

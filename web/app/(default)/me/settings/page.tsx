@@ -10,6 +10,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import type { MemberInfo } from "@/types/member";
 import { FetchClientError } from "@/lib/api/client";
 import {
+  getMyVerifiedInfo,
   getMyMemberProfile,
   type MyMemberProfileResponse,
   updateMyProfileInfo,
@@ -41,6 +42,29 @@ const getVerifiedPhone = (profile: MyMemberProfileResponse | null) =>
 const getVerifiedAddressCode = (profile: MyMemberProfileResponse | null) =>
   profile?.address_code || profile?.addressCode || "";
 
+const getVerifiedEmail = (
+  profile:
+    | {
+        email?: string;
+        verifiedEmail?: string;
+      }
+    | null
+) => profile?.verifiedEmail || profile?.email || "";
+
+const normalizeMemberRole = (role: string | null | undefined): MemberInfo["role"] => {
+  const normalizedRole = role?.toUpperCase() || "";
+
+  if (normalizedRole.includes("ADMIN")) {
+    return "ADMIN";
+  }
+
+  if (normalizedRole.includes("VERIFIED")) {
+    return "VERIFIED_USER";
+  }
+
+  return "USER";
+};
+
 export default function MeSettingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +75,7 @@ export default function MeSettingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [originalNickname, setOriginalNickname] = useState("");
   const [role, setRole] = useState<MemberInfo["role"]>("USER");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
 
   const [nickname, setNickname] = useState("");
   const [profileMsg, setProfileMsg] = useState("");
@@ -67,47 +92,61 @@ export default function MeSettingPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [imageType, setImageType] = useState<"CUSTOM" | "DEFAULT" | null>(null);
   const [isImageMenuOpen, setIsImageMenuOpen] = useState(false);
+  const canEditVerifiedInfo = role === "VERIFIED_USER" || role === "ADMIN";
 
   const syncMemberProfile = useCallback(async () => {
-    const data = await getMyMemberProfile();
+    const profileData = await getMyMemberProfile();
 
-    setMemberProfile(data);
-    setOriginalNickname(data.nickname);
-    setNickname(data.nickname);
-    setProfileMsg(data.profileMsg || "");
+    const nextRole = normalizeMemberRole(profileData.role);
 
-    const nextRole: MemberInfo["role"] =
-      data.role === "ADMIN" || data.role === "VERIFIED_USER"
-        ? data.role
-        : "USER";
+    let verifiedData = null;
+
+    if (nextRole !== "USER") {
+      try {
+        verifiedData = await getMyVerifiedInfo();
+      } catch (error) {
+        logUnexpectedApiError("인증회원 정보 로드 실패:", error);
+      }
+    }
+
+    const mergedProfile: MyMemberProfileResponse = {
+      ...profileData,
+      ...(verifiedData || {}),
+    };
+
+    setMemberProfile(mergedProfile);
+    setOriginalNickname(mergedProfile.nickname);
+    setNickname(mergedProfile.nickname);
+    setProfileMsg(mergedProfile.profileMsg || "");
 
     setRole(nextRole);
-    setPhone(formatPhoneNumber(getVerifiedPhone(data)));
-    setZonecode(getVerifiedAddressCode(data));
-    setAddress(data.address1 || "");
-    setDetailAddress(data.address2 || "");
-    setPreviewImg(data.profileImgUrl || "");
+    setVerifiedEmail(getVerifiedEmail(verifiedData));
+    setPhone(formatPhoneNumber(getVerifiedPhone(mergedProfile)));
+    setZonecode(getVerifiedAddressCode(mergedProfile));
+    setAddress(mergedProfile.address1 || "");
+    setDetailAddress(mergedProfile.address2 || "");
+    setPreviewImg(mergedProfile.profileImgUrl || "");
     setUploadFile(null);
     setImageType(null);
     setIsNicknameChecked(true);
 
     const nextAuthUser: MemberInfo = {
-      memberId: data.memberId,
-      provider: data.provider,
-      nickname: data.nickname,
-      profileImgUrl: data.profileImgUrl || "",
-      profileMsg: data.profileMsg || "",
-      bestCount: data.bestCount,
-      followerCount: data.followerCount,
-      followingCount: data.followingCount,
-      term_agree: data.term_agree,
-      private_agree: data.private_agree,
+      memberId: mergedProfile.memberId,
+      provider: mergedProfile.provider,
+      nickname: mergedProfile.nickname,
+      profileImgUrl: mergedProfile.profileImgUrl || "",
+      profileMsg: mergedProfile.profileMsg || "",
+      bestCount: mergedProfile.bestCount,
+      followerCount: mergedProfile.followerCount,
+      followingCount: mergedProfile.followingCount,
+      term_agree: mergedProfile.term_agree,
+      private_agree: mergedProfile.private_agree,
       role: nextRole,
     };
 
     login(nextAuthUser);
 
-    return data;
+    return mergedProfile;
   }, [login]);
 
   useEffect(() => {
@@ -226,7 +265,7 @@ export default function MeSettingPage() {
       return;
     }
 
-    if (role !== "USER") {
+    if (canEditVerifiedInfo) {
       if (!/^\d{10,11}$/.test(normalizedPhone)) {
         await alert("휴대폰 번호는 숫자 10~11자리로 입력해 주세요.");
         return;
@@ -244,7 +283,7 @@ export default function MeSettingPage() {
       imageType !== null;
 
     const hasVerifiedChanges =
-      role !== "USER" &&
+      canEditVerifiedInfo &&
       (normalizedPhone !== getVerifiedPhone(memberProfile) ||
         zonecode !== getVerifiedAddressCode(memberProfile) ||
         address !== (memberProfile?.address1 || "") ||
@@ -299,28 +338,25 @@ export default function MeSettingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         로딩 중...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] px-4 py-12 sm:px-6 lg:px-8 pb-24 relative">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="mb-8">
           <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
             회원정보 수정
           </h1>
-          <p className="mt-2 text-sm text-gray-400 font-medium">
-            프로필과 인증 정보를 관리할 수 있습니다.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100">
+          <div className="card">
             <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-[#0058FF] rounded-full inline-block"></span>
+              <span className="inline-block h-4 w-1.5 rounded-full bg-brand-primary"></span>
               기본 정보
             </h2>
 
@@ -338,12 +374,12 @@ export default function MeSettingPage() {
                     }`}
                   />
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-[10px] font-bold">변경</span>
+                    <span className="text-white text-xxs font-bold">변경</span>
                   </div>
                 </div>
 
                 {isImageMenuOpen && (
-                  <div className="absolute top-26 z-20 w-48 rounded-2xl bg-white shadow-lg border border-gray-100 p-2 flex flex-col gap-1">
+                  <div className="absolute top-full z-20 mt-2 flex w-48 flex-col gap-1 rounded-2xl border border-gray-100 bg-white p-2 shadow-lg">
                     <button
                       type="button"
                       onClick={() => handleImageOptionSelect("CUSTOM")}
@@ -368,7 +404,7 @@ export default function MeSettingPage() {
                   accept="image/png, image/jpeg, image/jpg"
                   className="hidden"
                 />
-                <p className="mt-3 text-[11px] text-gray-400 font-bold">
+                <p className="mt-3 text-xxs text-gray-400 font-bold">
                   이미지를 클릭하여 변경
                 </p>
               </div>
@@ -391,7 +427,6 @@ export default function MeSettingPage() {
                   <Button
                     type="button"
                     variant={isNicknameChecked ? "gray" : "sky"}
-                    className="shrink-0 w-24 rounded-2xl font-bold"
                     onClick={handleCheckDuplication}
                   >
                     {isNicknameChecked ? "확인 완료" : "중복 확인"}
@@ -414,14 +449,14 @@ export default function MeSettingPage() {
             </div>
           </div>
 
-          <div className="rounded-[32px] bg-white p-8 shadow-sm border border-gray-100 relative overflow-hidden">
+          <div className="card relative overflow-hidden">
             <h2 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-orange-500 rounded-full inline-block"></span>
+              <span className="inline-block h-4 w-1.5 rounded-full bg-orange-500"></span>
               인증 회원 정보
             </h2>
 
-            {role === "USER" && (
-              <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-[32px]">
+            {!canEditVerifiedInfo && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
                 <p className="text-sm font-bold text-gray-800 mb-3">
                   인증 회원만 입력할 수 있습니다.
                 </p>
@@ -436,7 +471,21 @@ export default function MeSettingPage() {
               </div>
             )}
 
-            <div className={`space-y-6 ${role === "USER" ? "opacity-30" : ""}`}>
+            <div className={`space-y-6 ${!canEditVerifiedInfo ? "opacity-30" : ""}`}>
+              <div>
+                <label className="mb-2 block text-sm font-bold text-gray-900">
+                  인증 이메일
+                </label>
+                <Input
+                  type="email"
+                  value={verifiedEmail}
+                  readOnly
+                  disabled={!canEditVerifiedInfo}
+                  placeholder="인증 이메일"
+                  className="bg-gray-50"
+                />
+              </div>
+
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-900">
                   휴대폰 번호
@@ -446,14 +495,14 @@ export default function MeSettingPage() {
                   value={phone}
                   onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                   maxLength={13}
-                  disabled={role === "USER"}
+                  disabled={!canEditVerifiedInfo}
                   placeholder="010-0000-0000"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-900">
-                  배송지 주소 (경품 수령용)
+                  주소
                 </label>
                 <div className="space-y-2">
                   <div className="flex gap-2">
@@ -469,7 +518,7 @@ export default function MeSettingPage() {
                       variant="white"
                       className="shrink-0 border-gray-200"
                       onClick={() => setIsAddressModalOpen(true)}
-                      disabled={role === "USER"}
+                      disabled={!canEditVerifiedInfo}
                     >
                       주소 찾기
                     </Button>
@@ -485,7 +534,7 @@ export default function MeSettingPage() {
                     type="text"
                     value={detailAddress}
                     onChange={(e) => setDetailAddress(e.target.value)}
-                    disabled={!zonecode || role === "USER"}
+                    disabled={!zonecode || !canEditVerifiedInfo}
                     placeholder="상세 주소를 입력해 주세요"
                   />
                 </div>
@@ -499,7 +548,7 @@ export default function MeSettingPage() {
                 type="button"
                 variant="white"
                 size="lg"
-                className="flex-1 h-14 rounded-2xl font-bold"
+                className="flex-1 rounded-2xl font-bold"
                 onClick={() => router.back()}
               >
                 취소
@@ -508,7 +557,7 @@ export default function MeSettingPage() {
                 type="submit"
                 size="lg"
                 disabled={isSubmitting}
-                className="flex-1 h-14 rounded-2xl font-bold bg-[#0058FF] hover:bg-blue-700"
+                className="flex-1 rounded-2xl font-bold"
               >
                 {isSubmitting ? "저장 중..." : "변경사항 저장"}
               </Button>

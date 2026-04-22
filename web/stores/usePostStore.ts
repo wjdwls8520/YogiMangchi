@@ -6,11 +6,11 @@ interface PostsState {
 
   hasMore: boolean; // 무한스크롤할 게시물이 있는지
 
-  cursorId: number; // 무한스크롤 시 마지막 게시물
+  cursorId: number | null; // 무한스크롤 시 다음 커서
 
   setHasMore: (arg0: boolean) => void;
 
-  setCursorId: (arg0: number) => void;
+  setCursorId: (arg0: number | null) => void;
 
   // 첫 화면에서 보여줄 배열
   setPosts: (newPosts: Post[]) => void;
@@ -26,30 +26,39 @@ interface PostsState {
 
   // 게시글 업데이트
   replacePost: (replacePost: Post) => void;
+
+  // optimistic 임시 글을 서버 응답 글로 치환
+  reconcilePost: (tempPostId: number, nextPost: Post) => void;
 }
 
-export const usePostStore = create<PostsState>((set, get) => ({
+export const usePostStore = create<PostsState>((set) => ({
     postsMap: new Map(),
 
     hasMore: false,
 
-    cursorId: 0,
+    cursorId: null,
 
-    setPosts: (posts: Post[]) => set({
-        postsMap: new Map(posts.map((p) => [p.id, p]))
-    }),
+    setPosts: (posts: Post[]) =>
+      set((state) => {
+        const incomingIds = new Set(posts.map((post) => post.id));
+        const localOnlyPosts = Array.from(state.postsMap.values()).filter(
+          (post) => !incomingIds.has(post.id)
+        );
+
+        return {
+          postsMap: new Map(
+            [...posts, ...localOnlyPosts].map((post) => [post.id, post])
+          )
+        };
+      }),
 
     // 무한스크롤 시 스크롤 여부 업데이트
-    setHasMore: (more) => set((state) => {
-      return {
-        hasMore: more
-      }
+    setHasMore: (more) => set({
+      hasMore: more
     }),
 
-    setCursorId: (id) => set((state) => {
-      return {
-        cursorId: id
-      }
+    setCursorId: (id) => set({
+      cursorId: id
     }),
 
     // 글 생성 시 state 업데이트
@@ -90,6 +99,34 @@ export const usePostStore = create<PostsState>((set, get) => ({
 
       return {
         postsMap: newMap
+      };
+    }),
+
+  reconcilePost: (tempPostId: number, nextPost: Post) =>
+    set((state) => {
+      const nextEntries: [number, Post][] = [];
+      let hasReconciled = false;
+
+      state.postsMap.forEach((post, postId) => {
+        if (postId === tempPostId) {
+          nextEntries.push([nextPost.id, nextPost]);
+          hasReconciled = true;
+          return;
+        }
+
+        if (postId === nextPost.id) {
+          return;
+        }
+
+        nextEntries.push([postId, post]);
+      });
+
+      if (!hasReconciled) {
+        nextEntries.unshift([nextPost.id, nextPost]);
+      }
+
+      return {
+        postsMap: new Map(nextEntries)
       };
     }),
 }));

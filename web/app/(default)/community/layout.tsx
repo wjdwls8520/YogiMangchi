@@ -1,5 +1,4 @@
 import FloatMenu from "./components/FloatMenu";
-import Menu from "./components/Menu";
 import ReportModal from "./components/ReportModal";
 import Top5 from "./components/Top5";
 import WriteModalWrapper from "./components/WriteModalWrapper";
@@ -44,19 +43,19 @@ export default async function CommunityLayout({
 }: {
   children: React.ReactNode;
 }) {
-
-    return (
-        <>
-            <section className="md:grid md:grid-cols-11 lg:grid-cols-15 gap-11 relative">
-                <Menu />
-                <div className="col-span-8">
-                    {children}
-                </div>
-                <Top5 ranker={ranker} />
-                <FloatMenu />
-                <WriteModalWrapper />     
-                <ReportModal />
-            </section>
-        </>
-    )
+  return (
+    <>
+      <section className="relative mx-auto max-w-5xl lg:flex lg:items-start lg:gap-14">
+        <div className="w-full min-w-0 lg:flex-1">
+          {children}
+        </div>
+        <div className="hidden lg:block lg:w-90 lg:shrink-0">
+          <Top5 ranker={ranker} />
+        </div>
+        <FloatMenu />
+        <WriteModalWrapper />
+        <ReportModal />
+      </section>
+    </>
+  );
 }

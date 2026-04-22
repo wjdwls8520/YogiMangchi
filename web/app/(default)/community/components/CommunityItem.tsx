@@ -1,17 +1,17 @@
 "use client";
 
-
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils/cs";
-import { Post, Reply } from "../types/post";
+import { Post } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
 import Slider from "@/components/Slider/Slider";
 import { formatTime } from "@/lib/utils/date";
 import Image from "next/image";
-import { deleteLike, deletePost, putLike } from "@/lib/api/post";
+import { deleteLike, deletePost, putLike, unreportPost } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { useModalStore } from "@/stores/useModalStore";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
 import HeartButton from "./ui/LikeButton";
 import ActionMenu from "./ui/ActionMenu";
 import ActionMenuButton from "./ui/ActionMenuButton";
@@ -24,12 +24,10 @@ import { useActionMenuUIStore } from "@/stores/useActionMenuUIStore";
 
 interface Props {
   post: Post;
-  variant: "list" | "detail";
-  replys?: Reply[];
-
+  isDetail?: boolean;
 }
 
-export default function CommunityItem({ post, variant }: Props) {
+export default function CommunityItem({ post, isDetail = false }: Props) {
 
     const params = useParams();
     const category = params.category;    
@@ -47,15 +45,11 @@ export default function CommunityItem({ post, variant }: Props) {
     // modal 상태 관리
     const WriteModalOpen = useModalStore((state) => state.openWrite);
     const ReportModalOpen = useModalStore((state) => state.openReport);
+    const { alert, confirm, toast } = useFeedback();
 
     // actionMenu 상태 관리
     const openActionMenu = useActionMenuUIStore((state) => state.openActionMenu);
     const setActionMenu = useActionMenuUIStore((state) => state.setActionMenu);
-
-    // 리스트 아이템 UI 상태 관리
-    const textRef = useRef<HTMLDivElement>(null);
-    const [isOverflow, setIsOverflow] = useState(false);
-    const [isExpanded, setIsExpanded] = useState(false);
 
     const isOpen = openActionMenu === post.id;
 
@@ -64,6 +58,7 @@ export default function CommunityItem({ post, variant }: Props) {
     const { user } = useAuthStore();
 
     const isSlide = (currentPost?.files?.length ?? 0) > 2;
+    const profileImage = currentPost.profileImgUrl ?? currentPost.profileImg;
 
     const toggleActionMenu = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -79,16 +74,63 @@ export default function CommunityItem({ post, variant }: Props) {
 
     const handleDelete = async (e: React.MouseEvent, postId: number) => {
         e.preventDefault();
-        
+
+        setActionMenu(null);
+        const confirmed = await confirm({
+          description: "게시글을 삭제하시겠습니까?",
+          confirmText: "삭제",
+          cancelText: "취소",
+          tone: "danger",
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
         await deletePost(postId);
         removePost(postId); // post[] 상태 삭제
+        toast({
+          title: "게시글이 삭제되었습니다.",
+          tone: "success",
+        });
         
     }
 
     const openReportModal = async (e: React.MouseEvent) => {
         e.preventDefault();
-        
-        withAuth(() => ReportModalOpen(currentPost.id))();
+        setActionMenu(null);
+
+        withAuth(async () => {
+            if (currentPost.reportedByMe) {
+                const confirmed = await confirm({
+                    description: "신고를 취소하시겠습니까?",
+                    confirmText: "확인",
+                    cancelText: "닫기",
+                });
+
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    const result = await unreportPost(currentPost.id);
+                    replacePost({
+                        ...currentPost,
+                        reportCount: result.reportCount,
+                        reportedByMe: result.reportedByMe,
+                    });
+                    toast({
+                        title: "신고가 취소되었습니다.",
+                        tone: "success",
+                    });
+                } catch {
+                    await alert("신고 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                }
+                return;
+            }
+
+            ReportModalOpen(currentPost.id);
+        })();
     }
 
     const handleLike = (e: React.MouseEvent) => {
@@ -121,14 +163,6 @@ export default function CommunityItem({ post, variant }: Props) {
         })();
 
     };
-
-    useEffect(() => {
-        const el = textRef.current;
-        if (!el) return;
-
-        setIsOverflow(el.scrollHeight > el.clientHeight);
-    }, []);
-
     // actionMenu 밖 클릭 시 닫기
     useEffect(() => {
     const handleClickOutside = () => {
@@ -142,112 +176,154 @@ export default function CommunityItem({ post, variant }: Props) {
     return () => {
         document.removeEventListener("click", handleClickOutside);
     };
-    }, [openActionMenu]);
+    }, [openActionMenu, setActionMenu]);
+
+    const contentSection = (
+      <>
+        <div>
+          <h3
+            className="mb-1.5 break-words text-lg font-bold leading-snug text-gray-900"
+          >
+            {currentPost.title}
+          </h3>
+          <div
+            className={cn(
+              "break-words text-[15px] leading-relaxed text-gray-700",
+              isDetail
+                ? "whitespace-pre-wrap"
+                : "line-clamp-3"
+            )}
+          >
+            {currentPost.content}
+          </div>
+        </div>
+
+        {currentPost?.files?.length > 0 && (
+          <div className="mt-4">
+              {isSlide ? (
+              <Slider snap={false}>
+                <ul className="flex gap-2.5 w-full pb-2">
+                  {currentPost?.files.map((file) => (
+                    <li 
+                      key={file.id}
+                      className="snap-start shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+                    >
+                      <Image 
+                        src={file.previewUrl ? file.previewUrl : file.path} 
+                        alt={file.originalname || "게시글 이미지"} 
+                        width={500} 
+                        height={500} 
+                        draggable={false}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </Slider>
+            ) : (
+              <ul className="flex gap-2.5 w-full">
+                {currentPost?.files.map((file) => (
+                  <li 
+                    key={file.id}
+                    className="shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+                  >
+                    <Image 
+                      src={file.previewUrl ? file.previewUrl : file.path} 
+                      alt={file.originalname || "게시글 이미지"} 
+                      width={500} 
+                      height={500} 
+                      draggable={false}
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}      
+      </>
+    );
 
     return(
         <>
-            <div className="border border-gray-200 rounded-2xl p-8">
-                <header className="grid grid-cols-[1fr_auto] items-center gap-3">
-                    <Link
-                        href={`/member/${currentPost.memberId}`}
-                        className="grid min-w-0 grid-cols-[auto_1fr] items-center gap-3 rounded-xl px-1 py-1 transition-colors hover:bg-gray-50"
-                        aria-label={`${currentPost.nickname} 프로필로 이동`}
-                    >
-                        <UserAvatar profileImg={currentPost.profileImg} />
-                        <div className="min-w-0">
-                            <p className="truncate font-semibold transition-colors hover:text-blue-600 hover:underline">
-                                {currentPost.nickname}
-                            </p>
-                            <small className="text-gray-500">{formatTime(currentPost.createdAt)}</small>
-                        </div>
-                    </Link>
-                    <div className="relative">
-                        <ActionMenuButton toggleMenu={e => toggleActionMenu(e)} />
-                        {
-                            isOpen &&
-                            <ActionMenu 
-                                isOwner={post.memberId === user?.memberId} 
-                                reportedByMe={post.reportedByMe}
-                                onDelete={(e) => handleDelete(e, currentPost.id)} 
-                                onEdit={openUpdateModal} 
-                                onReport={openReportModal}
-                            />
-                        }
-                    </div>
-                </header>
-                <Link href={`/community/${category}/${post.id}`}>
-                    <div className="pt-3">
-                        <p className="text-xl font-semibold">{currentPost.title}</p>
-                        <div className={cn("pt-1", (!isExpanded && variant !== 'detail') &&"line-clamp-4")} ref={textRef}>
-                            {currentPost.content}
-                        </div>
-                        {
-                            (isOverflow && variant !== 'detail')&&
-                            <button type="button" className="mt-7 text-gray-400"  
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setIsExpanded(prev => !prev);
-                            }}>
-                                {isExpanded ? "접기" : "더보기"}
-                            </button>
-                        }
-                    </div>
+      <div className="card group">
+        {/* Header Section */}
+        <header className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center min-w-0 gap-3">
+            <Link
+              href={`/member/${currentPost.memberId}`}
+              className="shrink-0 transition-transform hover:scale-105"
+              aria-label={`${currentPost.nickname} 프로필로 이동`}
+            >
+              <UserAvatar profileImg={profileImage ?? undefined} />
+            </Link>
+            <div className="flex flex-col min-w-0">
+              <Link
+                href={`/member/${currentPost.memberId}`}
+                className="block truncate text-base font-bold text-gray-900 transition-colors hover:text-blue-600"
+                aria-label={`${currentPost.nickname} 프로필로 이동`}
+              >
+                {currentPost.nickname}
+              </Link>
+              <small className="block text-xs font-medium text-gray-500 mt-0.5">
+                {formatTime(currentPost.createdAt)}
+              </small>
+            </div>
+          </div>
+          <div className="relative self-start -mt-3">
+            <ActionMenuButton toggleMenu={e => toggleActionMenu(e)} />
+            {isOpen && (
+                <ActionMenu 
+                isOwner={currentPost.memberId === user?.memberId} 
+                reportedByMe={currentPost.reportedByMe}
+                onDelete={(e) => handleDelete(e, currentPost.id)} 
+                onEdit={openUpdateModal} 
+                onReport={openReportModal}
+              />
+            )}
+          </div>
+        </header>
 
-                    {
-                        currentPost?.files?.length > 0 && (
-                            isSlide ? (
-                                <Slider>
-                                    <ul className="flex gap-2 w-full pt-6 pb-3">
-                                        {
-                                            currentPost?.files.map((file) => <li key={file.id}
-                                                                            className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
-                                                                        >
-                                                                            {
-                                                                                file.previewUrl ? 
-                                                                                <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
-                                                                                <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
-                                                                            }
-                                                                        </li>)
-                                        }
-                                    </ul>
-                                </Slider>
-                            ) : (
-                                <ul className="flex gap-2 w-full pt-6 pb-3">
-                                    {
-                                        currentPost?.files.map((file) => <li key={file.id}
-                                                                        className="snap-start shrink-0 w-[40%] border border-gray-200 rounded-2xl overflow-hidden"
-                                                                    >
-                                                                        {
-                                                                            file.previewUrl ? 
-                                                                            <Image src={file.previewUrl} alt={"미리보기 이미지"} width={500} height={500} draggable={false} /> :
-                                                                            <Image src={file.path} alt={file.originalname} width={500} height={500} draggable={false} />
-                                                                        }
-                                                                    </li>)
-                                    }
-                                </ul>
-                            )
-                        )
-                    }      
-                </Link>
-                <ul className="flex items-center gap-4 mt-4 text-gray-400 text-sm">
-                    <li>
-                        <HeartButton 
-                            likeCount={currentPost.likeCount} 
-                            liked={currentPost.likedByMe} 
-                            onLike={handleLike} 
-                        />
-                    </li>                
-                    <li>
-                        <BubbleButton openComments={() => router.push(`/community/${category}/${post.id}`)}>
-                            {currentPost.replyCount}
-                        </BubbleButton>
-                    </li>                
-                    <li>
-                        <button type="button" className="flex items-center gap-1"><Share2 className="text-xl" size={18} strokeWidth={2} /> 공유</button>
-                    </li>                
-                </ul>    
-            </div>        
-        </>
+        {/* Content Section */}
+        {isDetail ? (
+          <div>{contentSection}</div>
+        ) : (
+          <Link href={`/community/${category}/${currentPost.id}`} className="block outline-none">
+            {contentSection}
+          </Link>
+        )}
+
+        {/* Footer Actions Section */}
+        <div className="mt-5 pt-3.5 border-t border-gray-100/80">
+          <ul className="flex items-center gap-6 text-gray-500 font-medium text-[14px]">
+            <li>
+              <HeartButton 
+                likeCount={currentPost.likeCount} 
+                liked={currentPost.likedByMe} 
+                onLike={handleLike} 
+              />
+            </li>                
+            <li>
+              <BubbleButton openComments={() => router.push(`/community/${category}/${post.id}`)}>
+                {currentPost.replyCount}
+              </BubbleButton>
+            </li>                
+            <li>
+              <button 
+                type="button" 
+                className="flex items-center gap-1.5 hover:text-gray-800 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault(); // 기본 이동 방지용 추가
+                  // 공유 로직이 있다면 여기에 추가
+                }}
+              >
+                <Share2 size={18} strokeWidth={2} />
+                <span>공유</span>
+              </button>
+            </li>                
+          </ul>
+        </div>
+      </div>        
+    </>
     )
 }

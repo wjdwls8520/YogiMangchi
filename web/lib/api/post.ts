@@ -9,12 +9,19 @@ interface CreateReplyBody {
     targetId: number | null;
 }
 
+export interface ReportResponse {
+    targetId: number;
+    reportCount: number;
+    reportedByMe: boolean;
+}
+
 export const createPost = async (formData: FormData) => {
-    await fetchClient('community/posts', {
+    const result = await fetchClient('community/posts', {
         method: "POST",
         body: formData,
     });
 
+    return result;
 }
 
 /* 전체 게시글 보기 */
@@ -72,7 +79,7 @@ export const deletePost = async (postId: number) => {
 }
 
 /* 게시글 신고 */
-export const reportPost = async (postId: number, reasonType: string) => {
+export const reportPost = async (postId: number, reasonType: string): Promise<ReportResponse> => {
     const params = new URLSearchParams();
     
     if (reasonType !== undefined) params.append('reasonType', String(reasonType));
@@ -82,21 +89,16 @@ export const reportPost = async (postId: number, reasonType: string) => {
         method: "PUT"
     });
 
-    return result;
+    return result as ReportResponse;
 }
 
 /* 게시글 신고 취소 */
-export const unreportPost = async (postId: number, reasonType: string) => {
-    const params = new URLSearchParams();
-    
-    if (reasonType !== undefined) params.append('reasonType', String(reasonType));
-
-    const query = params.toString();
-    const result = await fetchClient(`community/posts/${postId}/reports${query ? `?${query}` : ''}`, {
+export const unreportPost = async (postId: number): Promise<ReportResponse> => {
+    const result = await fetchClient(`community/posts/${postId}/reports`, {
         method: "DELETE"
     });
 
-    return result;
+    return result as ReportResponse;
 }
 
 /* 게시글 댓글 불러오기 */
@@ -179,7 +181,7 @@ export const deleteReply = async (postId: number, replyId: number) => {
 }
 
 /* 댓글 신고 */
-export const reportReply = async ({postId, replyId, reasonType}: {postId: number; replyId: number; reasonType: string;}) => {
+export const reportReply = async ({postId, replyId, reasonType}: {postId: number; replyId: number; reasonType: string;}): Promise<ReportResponse> => {
 
     const params = new URLSearchParams();
     
@@ -187,9 +189,20 @@ export const reportReply = async ({postId, replyId, reasonType}: {postId: number
 
     const query = params.toString();
 
-    await fetchClient(`community/posts/${postId}/replys/${replyId}/reports${query ? `?${query}` : ''}`, {
+    const result = await fetchClient(`community/posts/${postId}/replys/${replyId}/reports${query ? `?${query}` : ''}`, {
         method: "PUT"
-    })
+    });
+
+    return result as ReportResponse;
+}
+
+/* 댓글 신고 취소 */
+export const unreportReply = async ({postId, replyId}: {postId: number; replyId: number;}): Promise<ReportResponse> => {
+    const result = await fetchClient(`community/posts/${postId}/replys/${replyId}/reports`, {
+        method: "DELETE"
+    });
+
+    return result as ReportResponse;
 }
 
 /* 신고 enum 리스트 가져오기 */
