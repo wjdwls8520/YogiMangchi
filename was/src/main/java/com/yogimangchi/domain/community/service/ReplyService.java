@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.service;
 
+import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
 import com.yogimangchi.domain.community.dto.response.ReplyDetailDto;
@@ -157,7 +158,7 @@ public class ReplyService {
 
 
     @Transactional
-    public ReplyDetailDto createReply(Long loginMemberId, Long postId, ReplyCreateDto request) {
+    public ReplyCreatedResultDto createReply(Long loginMemberId, Long postId, ReplyCreateDto request) {
 
         // ── 1. 입력값 정제 (앞뒤 공백 제거 + 빈 값 방어) ──
         String content = normalizeText(request.content(), "내용");
@@ -191,6 +192,9 @@ public class ReplyService {
         Reply saveReply = replyRepository.save(reply);
 
         Long parentId = saveReply.getParentReply() == null ? null : saveReply.getParentReply().getId();
+        Long parentReplyMemberId = saveReply.getParentReply() == null
+                ? null
+                : saveReply.getParentReply().getMember().getId();
         Long targetReplyId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getId();
         Long targetMemberId = saveReply.getTargetReply() == null ? null : saveReply.getTargetReply().getMember().getId();
         String targetNickname = saveReply.getTargetReply() == null
@@ -203,7 +207,9 @@ public class ReplyService {
             replyRepository.increaseReplyCount(saveReply.getParentReply().getId());
         }
 
-        return new ReplyDetailDto(
+        // 댓글 생성 결과는 내부 DTO로 한 번 묶어두고,
+        // 이후 파사드에서 알림 생성과 응답 변환에 함께 사용한다.
+        return new ReplyCreatedResultDto(
                 saveReply.getId(),
                 saveReply.getContent(),
                 saveReply.getLikeCount(),
@@ -212,6 +218,7 @@ public class ReplyService {
                 false,
                 saveReply.getReplyCount(),
                 parentId,
+                parentReplyMemberId,
                 targetReplyId,
                 targetMemberId,
                 targetNickname,
@@ -221,6 +228,8 @@ public class ReplyService {
                 saveReply.getMember().getNickname(),
                 saveReply.getMember().getProfileImgUrl(),
                 saveReply.getPost().getId(),
+                saveReply.getPost().getTitle(),
+                saveReply.getPost().getMember().getId(),
                 saveReply.getDeleteYn()
         );
     }

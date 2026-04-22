@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.community.controller.v1;
 
+import com.yogimangchi.domain.community.facade.CommunityReplyFacadeService;
 import com.yogimangchi.domain.community.dto.request.AuthorReplySearchDto;
 import com.yogimangchi.domain.community.dto.request.ReplyCreateDto;
 import com.yogimangchi.domain.community.dto.request.ReplySearchDto;
@@ -22,6 +23,7 @@ import org.springdoc.core.annotations.ParameterObject;
 @Tag(name = "Community-Reply", description = "커뮤니티 댓글 관련 API")
 public class ReplyController {
 
+    private final CommunityReplyFacadeService communityReplyFacadeService;
     private final ReplyService replyService;
 
     @Operation(
@@ -68,7 +70,9 @@ public class ReplyController {
         @RequestBody @Valid ReplyCreateDto request
 
     ) {
-        ReplyDetailDto createdReply = replyService.createReply(loginMemberId, postId, request);
+        // 댓글 작성 흐름은 파사드에서 조립해 두고,
+        // 이후 알림 저장과 SSE 전송도 같은 위치에서 확장한다.
+        ReplyDetailDto createdReply = communityReplyFacadeService.createReply(loginMemberId, postId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReply);
     }
