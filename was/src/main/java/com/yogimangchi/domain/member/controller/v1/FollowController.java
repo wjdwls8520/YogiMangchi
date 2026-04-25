@@ -3,6 +3,7 @@ package com.yogimangchi.domain.member.controller.v1;
 import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
 import com.yogimangchi.domain.member.dto.response.FollowMemberDto;
 import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
+import com.yogimangchi.domain.member.facade.FollowFacadeService;
 import com.yogimangchi.domain.member.service.FollowService;
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,7 @@ import org.springdoc.core.annotations.ParameterObject;
 @Tag(name = "02 - Member-Follow", description = "멤버 팔로우 관련 API")
 public class FollowController {
 
+    private final FollowFacadeService followFacadeService;
     private final FollowService followService;
 
     @Operation(
@@ -69,7 +71,7 @@ public class FollowController {
             @Parameter(description = "팔로우할 대상 멤버 ID")
             @PathVariable Long targetMemberId
     ) {
-        FollowResponseDto response = followService.followMember(loginMemberId, targetMemberId);
+        FollowResponseDto response = followFacadeService.followMember(loginMemberId, targetMemberId);
         return ResponseEntity.ok(response);
     }
 

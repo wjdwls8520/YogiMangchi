@@ -6,10 +6,12 @@ import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.community.dto.result.PostLikeCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyLikeCreatedResultDto;
+import com.yogimangchi.domain.member.dto.result.FollowCreatedResultDto;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.domain.notification.dto.payload.FollowCreatedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.PostCommentCreatedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.PostLikedNotificationPayload;
@@ -34,6 +36,7 @@ import com.yogimangchi.domain.notification.support.NotificationPreviewUtils;
 import com.yogimangchi.global.sse.enums.TradeSseEventType;
 import com.yogimangchi.global.support.MemberReader;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +56,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+
+    private static final Duration FOLLOW_NOTIFICATION_COOLDOWN = Duration.ofDays(1);
 
     private final NotificationRepository notificationRepository;
     private final NotificationSseService notificationSseService;
@@ -365,6 +370,77 @@ public class NotificationService {
                 actor,
                 NotificationCategory.COMMUNITY,
                 NotificationType.REPLY_LIKED,
+                serializePayload(payload)
+        ));
+    }
+
+    // 팔로우 생성 결과를 기준으로 수신자 활성 여부와 쿨타임 기반 재알림 정책을 확인한 뒤,
+    // 알림을 저장하고 이후 파사드가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    @Transactional
+    public NotificationResponseDto createFollowNotification(FollowCreatedResultDto createdResult) {
+        // 멱등 요청으로 실제 팔로우 row가 새로 생기지 않았다면 알림도 만들지 않는다.
+        if (!createdResult.newFollowCreated()) {
+            return null;
+        }
+
+        // 자기 자신을 팔로우하는 경우는 서비스에서 막고 있지만, 방어적으로 한 번 더 확인한다.
+        if (createdResult.receiverMemberId().equals(createdResult.actorMemberId())) {
+            return null;
+        }
+
+        Member receiver = memberRepository.findActiveById(createdResult.receiverMemberId())
+                .orElse(null);
+
+        if (receiver == null) {
+            log.warn("팔로우 알림 수신 회원을 찾을 수 없습니다. receiverId={}, actorMemberId={}",
+                    createdResult.receiverMemberId(), createdResult.actorMemberId());
+            return null;
+        }
+
+        LocalDateTime notifiedAt = LocalDateTime.now();
+        Long receiverId = createdResult.receiverMemberId();
+        Long actorId = createdResult.actorMemberId();
+
+        // 최초 알림은 insert로 기록하고, 이미 row가 있으면 쿨타임이 지난 경우에만 lastNotifiedAt을 원자적으로 갱신한다.
+        int dedupeInserted = notificationDedupeStateRepository.insertIgnore(
+                NotificationType.FOLLOW_CREATED.name(),
+                actorId,
+                receiverId,
+                NotificationTargetType.MEMBER.name(),
+                receiverId,
+                notifiedAt
+        );
+
+        if (dedupeInserted == 0) {
+            int dedupeUpdated = notificationDedupeStateRepository.updateLastNotifiedAtIfBefore(
+                    NotificationType.FOLLOW_CREATED.name(),
+                    actorId,
+                    receiverId,
+                    NotificationTargetType.MEMBER.name(),
+                    receiverId,
+                    notifiedAt.minus(FOLLOW_NOTIFICATION_COOLDOWN),
+                    notifiedAt
+            );
+
+            if (dedupeUpdated == 0) {
+                return null;
+            }
+        }
+
+        Member actor = memberRepository.getReferenceById(actorId);
+
+        // 팔로우 알림은 팔로우한 회원의 프로필로 이동할 수 있도록 actor 식별자와 화면 표시 정보를 담는다.
+        FollowCreatedNotificationPayload payload = new FollowCreatedNotificationPayload(
+                actorId,
+                actor.getNickname(),
+                actor.getProfileImgUrl()
+        );
+
+        return saveNotification(Notification.create(
+                receiver,
+                actor,
+                NotificationCategory.COMMUNITY,
+                NotificationType.FOLLOW_CREATED,
                 serializePayload(payload)
         ));
     }
