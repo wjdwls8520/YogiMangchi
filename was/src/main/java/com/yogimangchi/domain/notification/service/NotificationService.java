@@ -3,9 +3,9 @@ package com.yogimangchi.domain.notification.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.asset.enums.AssetType;
-import com.yogimangchi.domain.community.entity.Post;
-import com.yogimangchi.domain.community.entity.Reply;
+import com.yogimangchi.domain.community.dto.result.PostLikeCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
+import com.yogimangchi.domain.community.dto.result.ReplyLikeCreatedResultDto;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.entity.Member;
@@ -22,7 +22,9 @@ import com.yogimangchi.domain.notification.dto.response.NotificationStatusRespon
 import com.yogimangchi.domain.notification.entity.Notification;
 import com.yogimangchi.domain.notification.entity.NotificationState;
 import com.yogimangchi.domain.notification.enums.NotificationCategory;
+import com.yogimangchi.domain.notification.enums.NotificationTargetType;
 import com.yogimangchi.domain.notification.enums.NotificationType;
+import com.yogimangchi.domain.notification.repository.NotificationDedupeStateRepository;
 import com.yogimangchi.domain.notification.repository.NotificationRepository;
 import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
@@ -56,6 +58,7 @@ public class NotificationService {
     private final NotificationSseService notificationSseService;
     private final MemberRepository memberRepository;
     private final MarketSymbolRepository marketSymbolRepository;
+    private final NotificationDedupeStateRepository notificationDedupeStateRepository;
     private final NotificationStateRepository notificationStateRepository;
     private final ObjectMapper objectMapper;
     private final PlatformTransactionManager transactionManager;
@@ -253,14 +256,49 @@ public class NotificationService {
         ));
     }
 
-    // 게시글 작성자에게 전달할 "게시글 좋아요" 알림을 저장하고,
-    // 이후 서비스가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    // 게시글 좋아요 생성 결과를 기준으로 수신자 활성 여부와 최초 1회 정책을 확인한 뒤,
+    // 알림을 저장하고 이후 파사드가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
     @Transactional
-    public NotificationResponseDto createPostLikedNotification(Member receiver, Member actor, Post post) {
+    public NotificationResponseDto createPostLikedNotification(PostLikeCreatedResultDto createdResult) {
+        // 멱등 요청으로 실제 좋아요 row가 새로 생기지 않았다면 알림도 만들지 않는다.
+        if (!createdResult.newLikeCreated()) {
+            return null;
+        }
+
+        // 자기 글 좋아요는 알림을 만들지 않는다.
+        if (createdResult.receiverMemberId().equals(createdResult.actorMemberId())) {
+            return null;
+        }
+
+        Member receiver = memberRepository.findActiveById(createdResult.receiverMemberId())
+                .orElse(null);
+
+        if (receiver == null) {
+            log.warn("게시글 좋아요 알림 수신 회원을 찾을 수 없습니다. receiverId={}, postId={}",
+                    createdResult.receiverMemberId(), createdResult.postId());
+            return null;
+        }
+
+        // 같은 사람이 같은 게시글에 대해 이미 알림을 보낸 적 있으면 최초 1회 정책에 따라 스킵한다.
+        int dedupeInserted = notificationDedupeStateRepository.insertIgnore(
+                NotificationType.POST_LIKED.name(),
+                createdResult.actorMemberId(),
+                createdResult.receiverMemberId(),
+                NotificationTargetType.POST.name(),
+                createdResult.postId(),
+                LocalDateTime.now()
+        );
+
+        if (dedupeInserted == 0) {
+            return null;
+        }
+
+        Member actor = memberRepository.getReferenceById(createdResult.actorMemberId());
+
         // 게시글 좋아요 알림은 게시글 id와 좋아요를 누른 회원 정보를 payload에 담는다.
         PostLikedNotificationPayload payload = new PostLikedNotificationPayload(
-                post.getId(),
-                actor.getId(),
+                createdResult.postId(),
+                createdResult.actorMemberId(),
                 actor.getNickname(),
                 actor.getProfileImgUrl()
         );
@@ -274,15 +312,50 @@ public class NotificationService {
         ));
     }
 
-    // 댓글 작성자에게 전달할 "댓글 좋아요" 알림을 저장하고,
-    // 이후 서비스가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    // 댓글 좋아요 생성 결과를 기준으로 수신자 활성 여부와 최초 1회 정책을 확인한 뒤,
+    // 알림을 저장하고 이후 파사드가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
     @Transactional
-    public NotificationResponseDto createReplyLikedNotification(Member receiver, Member actor, Reply reply) {
+    public NotificationResponseDto createReplyLikedNotification(ReplyLikeCreatedResultDto createdResult) {
+        // 멱등 요청으로 실제 좋아요 row가 새로 생기지 않았다면 알림도 만들지 않는다.
+        if (!createdResult.newLikeCreated()) {
+            return null;
+        }
+
+        // 자기 댓글 좋아요는 알림을 만들지 않는다.
+        if (createdResult.receiverMemberId().equals(createdResult.actorMemberId())) {
+            return null;
+        }
+
+        Member receiver = memberRepository.findActiveById(createdResult.receiverMemberId())
+                .orElse(null);
+
+        if (receiver == null) {
+            log.warn("댓글 좋아요 알림 수신 회원을 찾을 수 없습니다. receiverId={}, replyId={}",
+                    createdResult.receiverMemberId(), createdResult.replyId());
+            return null;
+        }
+
+        // 같은 사람이 같은 댓글에 대해 이미 알림을 보낸 적 있으면 최초 1회 정책에 따라 스킵한다.
+        int dedupeInserted = notificationDedupeStateRepository.insertIgnore(
+                NotificationType.REPLY_LIKED.name(),
+                createdResult.actorMemberId(),
+                createdResult.receiverMemberId(),
+                NotificationTargetType.REPLY.name(),
+                createdResult.replyId(),
+                LocalDateTime.now()
+        );
+
+        if (dedupeInserted == 0) {
+            return null;
+        }
+
+        Member actor = memberRepository.getReferenceById(createdResult.actorMemberId());
+
         // 댓글 좋아요 알림은 게시글 id, 댓글 id와 좋아요를 누른 회원 정보를 payload에 담는다.
         ReplyLikedNotificationPayload payload = new ReplyLikedNotificationPayload(
-                reply.getPost().getId(),
-                reply.getId(),
-                actor.getId(),
+                createdResult.postId(),
+                createdResult.replyId(),
+                createdResult.actorMemberId(),
                 actor.getNickname(),
                 actor.getProfileImgUrl()
         );
