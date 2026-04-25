@@ -2,6 +2,7 @@ package com.yogimangchi.domain.member.service;
 
 import com.yogimangchi.domain.member.dto.query.FollowMemberQueryDto;
 import com.yogimangchi.domain.member.dto.request.FollowSearchDto;
+import com.yogimangchi.domain.member.dto.result.FollowCreatedResultDto;
 import com.yogimangchi.domain.member.dto.response.FollowMemberDto;
 import com.yogimangchi.domain.member.dto.response.FollowResponseDto;
 import com.yogimangchi.domain.member.entity.Member;
@@ -9,11 +10,10 @@ import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.global.support.MemberReader;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class FollowService {
     private final MemberReader memberReader;
 
     @Transactional
-    public FollowResponseDto followMember(Long loginMemberId, Long targetMemberId) {
+    public FollowCreatedResultDto followMember(Long loginMemberId, Long targetMemberId) {
         Member loginMember = memberReader.getAuthenticated(loginMemberId);
         Member targetMember = memberReader.getFindMember(targetMemberId);
 
@@ -36,7 +36,14 @@ public class FollowService {
             memberRepository.increaseFollowerCount(targetMemberId);
         }
 
-        return new FollowResponseDto(targetMemberId, memberRepository.findFollowerCountById(targetMemberId), true);
+        return new FollowCreatedResultDto(
+                targetMemberId,
+                memberRepository.findFollowerCountById(targetMemberId),
+                true,
+                insertedCount > 0,
+                loginMember.getId(),
+                targetMember.getId()
+        );
     }
 
     @Transactional
