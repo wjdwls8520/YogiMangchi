@@ -3,6 +3,8 @@ package com.yogimangchi.domain.notification.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.community.entity.Post;
+import com.yogimangchi.domain.community.entity.Reply;
 import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
@@ -10,7 +12,9 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.PostCommentCreatedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.PostLikedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.ReplyCommentCreatedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.ReplyLikedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.request.NotificationIdsRequestDto;
 import com.yogimangchi.domain.notification.dto.request.NotificationSearchConditionDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
@@ -245,6 +249,49 @@ public class NotificationService {
                 actor,
                 NotificationCategory.COMMUNITY,
                 NotificationType.REPLY_COMMENT_CREATED,
+                serializePayload(payload)
+        ));
+    }
+
+    // 게시글 작성자에게 전달할 "게시글 좋아요" 알림을 저장하고,
+    // 이후 서비스가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    @Transactional
+    public NotificationResponseDto createPostLikedNotification(Member receiver, Member actor, Post post) {
+        // 게시글 좋아요 알림은 게시글 id와 좋아요를 누른 회원 정보를 payload에 담는다.
+        PostLikedNotificationPayload payload = new PostLikedNotificationPayload(
+                post.getId(),
+                actor.getId(),
+                actor.getNickname(),
+                actor.getProfileImgUrl()
+        );
+
+        return saveNotification(Notification.create(
+                receiver,
+                actor,
+                NotificationCategory.COMMUNITY,
+                NotificationType.POST_LIKED,
+                serializePayload(payload)
+        ));
+    }
+
+    // 댓글 작성자에게 전달할 "댓글 좋아요" 알림을 저장하고,
+    // 이후 서비스가 SSE로 보낼 수 있도록 응답 DTO를 반환한다.
+    @Transactional
+    public NotificationResponseDto createReplyLikedNotification(Member receiver, Member actor, Reply reply) {
+        // 댓글 좋아요 알림은 게시글 id, 댓글 id와 좋아요를 누른 회원 정보를 payload에 담는다.
+        ReplyLikedNotificationPayload payload = new ReplyLikedNotificationPayload(
+                reply.getPost().getId(),
+                reply.getId(),
+                actor.getId(),
+                actor.getNickname(),
+                actor.getProfileImgUrl()
+        );
+
+        return saveNotification(Notification.create(
+                receiver,
+                actor,
+                NotificationCategory.COMMUNITY,
+                NotificationType.REPLY_LIKED,
                 serializePayload(payload)
         ));
     }
