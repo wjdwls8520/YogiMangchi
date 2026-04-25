@@ -104,4 +104,10 @@ public class Notification {
 
         this.lastEventAt = lastEventAt;
     }
+
+    public void updateGroupedNotification(Member actor, String payloadJson, LocalDateTime lastEventAt) {
+        this.actor = actor;
+        this.payloadJson = payloadJson;
+        this.lastEventAt = lastEventAt;
+    }
 }

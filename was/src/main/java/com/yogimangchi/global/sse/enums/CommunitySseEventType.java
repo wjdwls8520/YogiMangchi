@@ -10,8 +10,20 @@ public enum CommunitySseEventType {
     // 게시글 좋아요 알림
     NOTIFICATION_COMMUNITY_POST_LIKED,
 
+    // 게시글 좋아요 묶음 알림 생성
+    NOTIFICATION_COMMUNITY_POST_LIKED_CREATED,
+
+    // 게시글 좋아요 묶음 알림 갱신
+    NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED,
+
     // 댓글 좋아요 알림
     NOTIFICATION_COMMUNITY_REPLY_LIKED,
+
+    // 댓글 좋아요 묶음 알림 생성
+    NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED,
+
+    // 댓글 좋아요 묶음 알림 갱신
+    NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED,
 
     // 팔로우 알림 전송
     NOTIFICATION_COMMUNITY_FOLLOW_CREATED

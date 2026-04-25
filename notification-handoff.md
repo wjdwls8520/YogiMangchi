@@ -89,6 +89,30 @@
 - `NotificationDedupeState.lastNotifiedAt` 기반 쿨타임 재알림 정책 반영 완료
 - 쿨타임 기간 `1일`로 최종 확정
 
+### 6. 커뮤니티 좋아요 묶음 알림
+- 게시글 좋아요 묶음 알림 구현 완료
+- 댓글 좋아요 묶음 알림 구현 완료
+- 댓글 알림은 묶지 않고, 좋아요만 묶음 대상으로 유지
+- 묶음 기준 확정
+  - `POST_LIKED`는 `postId` 단위
+  - `REPLY_LIKED`는 `replyId` 단위
+- 묶음 경계 정책 확정
+  - `read`가 아니라 `check` 기준
+  - 아직 `check`되지 않은 동안만 같은 알림 row를 update
+  - `check` 이후 새 좋아요부터는 새 알림 row create
+- `NotificationGroupState` 도입 완료
+- `create/update` SSE 이벤트 분리 완료
+  - `NOTIFICATION_COMMUNITY_POST_LIKED_CREATED`
+  - `NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED`
+  - `NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED`
+  - `NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED`
+- payload 구조 변경 완료
+  - `groupCount`
+  - `actorsPreview`
+  - 게시글 좋아요는 `postId`
+  - 댓글 좋아요는 `postId`, `replyId`
+- `deleteReadNotifications()`도 `checked` 기준으로만 group state 정리하도록 반영 완료
+
 ## 확정된 정책
 
 ### 1. 공통 정책
@@ -129,11 +153,18 @@
 - 커뮤니티 일반 알림과 분리된 `운영/제재 알림` 성격으로 다룰 예정
 
 ### 6. 묶음 알림 정책
-- 아직 미구현
-- 방향은 확정:
-  - 댓글은 묶지 않음
-  - 좋아요만 묶음 알림 후보
-- 나중에 `group_state`, `lastEventAt`, update/create SSE 정책을 함께 고려해야 함
+- 좋아요 묶음 알림은 구현 완료
+- 댓글은 묶지 않음
+- 좋아요만 묶음 대상으로 유지
+- 묶음 기준:
+  - 게시글 좋아요는 `postId`
+  - 댓글 좋아요는 `replyId`
+- 묶음 경계:
+  - `read`가 아니라 `check`
+  - 아직 확인되지 않은 동안만 같은 알림 row를 update
+  - `check` 이후에는 같은 target이라도 새 알림 row create
+- `read`는 개별 알림 소비 상태만 의미하고, 묶음 경계를 바꾸지 않음
+- SSE는 `create/update`를 분리해 프론트가 새 카드 추가와 기존 카드 갱신을 구분할 수 있게 함
 
 ## 현재 구조
 
@@ -187,6 +218,11 @@
   - `insert ... on conflict do nothing`
   - 성공하면 최초 알림
   - 실패하면 이미 보낸 적 있는 알림이라 스킵
+- 좋아요 묶음:
+  - `NotificationDedupeState`는 같은 actor의 같은 target 최초 좋아요만 반영하는 데 사용
+  - `NotificationGroupState`는 현재 receiver/type/target 조합이 어떤 notification row를 대표로 보는지 관리
+  - 같은 그룹 키에 대해 `check` 전이면 기존 notification row update
+  - `check` 후면 새 notification row create 후 group state가 새 row를 가리키도록 교체
 - 팔로우:
   - 최초 알림은 `insert ... on conflict do nothing`
   - 기존 row가 있으면 `lastNotifiedAt` 기준 쿨타임 계산 후 재알림
@@ -232,6 +268,10 @@
 - `NOTIFICATION_COMMUNITY_REPLY_COMMENT_CREATED`
 - `NOTIFICATION_COMMUNITY_POST_LIKED`
 - `NOTIFICATION_COMMUNITY_REPLY_LIKED`
+- `NOTIFICATION_COMMUNITY_POST_LIKED_CREATED`
+- `NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED`
+- `NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED`
+- `NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED`
 - `NOTIFICATION_COMMUNITY_FOLLOW_CREATED`
 
 ## 현재 확인된 테스트 결과
@@ -260,22 +300,26 @@
 - receiver 비활성 계정일 때 알림/`dedupe_state` 미생성 확인
 - SSE 이벤트명 `NOTIFICATION_COMMUNITY_FOLLOW_CREATED` 정상
 
+### 4. 좋아요 묶음 알림
+- 백엔드 구현 및 compile 검증 완료
+- 실제 정책 검증은 테스트 진행 예정
+- 확인 포인트:
+  - `check` 전까지 같은 target 좋아요가 같은 notification row update 되는지
+  - `check` 이후에는 같은 target 좋아요라도 새 notification row create 되는지
+  - `read`는 그룹 경계를 바꾸지 않는지
+  - `CREATED/UPDATED` SSE를 프론트가 올바르게 반영하는지
+
 ## 남은 작업 우선순위
 
-### 1순위: 신고/운영 알림
-- 일반 커뮤니티 알림과 분리된 운영 알림 설계
-- receiver, category, type, payload 정책 정리 후 구현
-
-### 2순위: 좋아요 묶음 알림
-- 댓글은 제외
-- 좋아요만 묶음 후보
-- `group_state`, `lastEventAt`, update/create SSE 정책 필요
-
-### 3순위: 실시간 UX 이벤트
+### 1순위: 실시간 UX 이벤트
 - 저장형 알림과 별개
 - 예:
   - 게시글 상세에서 `새 댓글이 있습니다`
   - 목록에서 `새 글이 있습니다`
+
+### 2순위: 신고/운영 알림
+- 일반 커뮤니티 알림과 분리된 운영 알림 설계
+- receiver, category, type, payload 정책 정리 후 구현
 
 ## 주의할 점
 - `actorMemberId`와 `receiver`를 혼동하지 말 것
@@ -311,7 +355,9 @@
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/Notification.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationState.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationDedupeState.java`
+- `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationGroupState.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/repository/NotificationDedupeStateRepository.java`
+- `was/src/main/java/com/yogimangchi/domain/notification/repository/NotificationGroupStateRepository.java`
 
 ## 빌드 확인
 - 최근 구조 변경 후 `was` 디렉터리에서 아래 명령으로 컴파일 확인 완료
@@ -324,4 +370,5 @@
 - 자동화 테스트는 아직 작성하지 않았음
 - 현재는 수동 테스트와 구조 점검 중심으로 진행 중
 - 팔로우 알림까지 구현 및 수동 검증 완료
-- 다음 세션에서는 이 문서를 먼저 읽고, 남은 작업 중 `신고/운영 알림`부터 이어가는 것이 가장 자연스럽다
+- 좋아요 묶음 알림도 구현 완료했고, 현재는 정책/프론트 반영 테스트 단계
+- 다음 세션에서는 이 문서를 먼저 읽고, 남은 작업 중 `실시간 UX 이벤트`부터 이어가는 것이 가장 자연스럽다

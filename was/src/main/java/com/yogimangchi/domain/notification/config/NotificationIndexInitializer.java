@@ -31,6 +31,12 @@ public class NotificationIndexInitializer {
             ON notification (receiver_member_id, category, id DESC)
             """;
 
+    // 묶음 알림이 연결된 notification row를 정리할 때 사용하는 인덱스
+    private static final String CREATE_GROUP_NOTIFICATION_ID_INDEX = """
+            CREATE INDEX IF NOT EXISTS idx_notification_group_state_notification_id
+            ON notification_group_state (notification_id)
+            """;
+
     private final JdbcTemplate jdbcTemplate;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -39,6 +45,7 @@ public class NotificationIndexInitializer {
         jdbcTemplate.execute(CREATE_RECEIVER_ID_DESC_INDEX);
         jdbcTemplate.execute(CREATE_RECEIVER_READ_ID_DESC_INDEX);
         jdbcTemplate.execute(CREATE_RECEIVER_CATEGORY_ID_DESC_INDEX);
+        jdbcTemplate.execute(CREATE_GROUP_NOTIFICATION_ID_INDEX);
 
         log.info("Notification indexes ensured");
     }

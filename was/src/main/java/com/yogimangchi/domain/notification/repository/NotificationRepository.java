@@ -109,8 +109,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
         delete from Notification n
         where n.receiver.id = :receiverId
           and n.isRead = true
+          and n.id <= :lastCheckedNotificationId
     """)
-    int deleteAllReadByReceiverId(@Param("receiverId") Long receiverId);
+    int deleteAllReadCheckedByReceiverId(@Param("receiverId") Long receiverId,
+                                         @Param("lastCheckedNotificationId") Long lastCheckedNotificationId);
 
     // 로그인 회원의 단건 알림만 삭제하도록 receiver 조건을 함께 건 벌크 삭제 쿼리
     @Modifying(flushAutomatically = true, clearAutomatically = true)
