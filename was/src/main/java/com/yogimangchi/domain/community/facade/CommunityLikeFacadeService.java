@@ -4,10 +4,9 @@ import com.yogimangchi.domain.community.dto.result.PostLikeCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyLikeCreatedResultDto;
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 import com.yogimangchi.domain.community.service.LikeService;
-import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
+import com.yogimangchi.domain.notification.dto.result.NotificationDispatchResultDto;
 import com.yogimangchi.domain.notification.service.NotificationService;
 import com.yogimangchi.domain.notification.service.NotificationSseService;
-import com.yogimangchi.global.sse.enums.CommunitySseEventType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,31 +34,31 @@ public class CommunityLikeFacadeService {
         return createdResult.toLikeResponseDto();
     }
 
-    // 게시글 좋아요 생성 결과를 기준으로 최초 1회 알림을 저장하고 SSE로 전송한다.
+    // 게시글 좋아요 생성 결과를 기준으로 묶음 알림을 저장하고 SSE로 전송한다.
     private void sendPostLikedNotification(PostLikeCreatedResultDto createdResult) {
-        NotificationResponseDto notification = notificationService.createPostLikedNotification(createdResult);
-        if (notification == null) {
+        NotificationDispatchResultDto dispatch = notificationService.createPostLikedNotification(createdResult);
+        if (dispatch == null) {
             return;
         }
 
         notificationSseService.sendNotification(
                 createdResult.receiverMemberId(),
-                CommunitySseEventType.NOTIFICATION_COMMUNITY_POST_LIKED.name(),
-                notification
+                dispatch.eventName(),
+                dispatch.notification()
         );
     }
 
-    // 댓글 좋아요 생성 결과를 기준으로 최초 1회 알림을 저장하고 SSE로 전송한다.
+    // 댓글 좋아요 생성 결과를 기준으로 묶음 알림을 저장하고 SSE로 전송한다.
     private void sendReplyLikedNotification(ReplyLikeCreatedResultDto createdResult) {
-        NotificationResponseDto notification = notificationService.createReplyLikedNotification(createdResult);
-        if (notification == null) {
+        NotificationDispatchResultDto dispatch = notificationService.createReplyLikedNotification(createdResult);
+        if (dispatch == null) {
             return;
         }
 
         notificationSseService.sendNotification(
                 createdResult.receiverMemberId(),
-                CommunitySseEventType.NOTIFICATION_COMMUNITY_REPLY_LIKED.name(),
-                notification
+                dispatch.eventName(),
+                dispatch.notification()
         );
     }
 }
