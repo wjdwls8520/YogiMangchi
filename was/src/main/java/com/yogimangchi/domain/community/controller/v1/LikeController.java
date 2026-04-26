@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.community.controller.v1;
 
 import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
+import com.yogimangchi.domain.community.facade.CommunityLikeFacadeService;
 import com.yogimangchi.domain.community.service.LikeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Community-Like", description = "커뮤니티 좋아요 관련 API")
 public class LikeController {
 
+    private final CommunityLikeFacadeService communityLikeFacadeService;
     private final LikeService likeService;
 
     @Operation(
@@ -26,7 +28,7 @@ public class LikeController {
             @AuthenticationPrincipal Long loginMemberId,
             @PathVariable Long postId
     ) {
-        LikeResponseDto response = likeService.likePost(loginMemberId, postId);
+        LikeResponseDto response = communityLikeFacadeService.likePost(loginMemberId, postId);
         return ResponseEntity.ok(response);
     }
 
@@ -53,7 +55,7 @@ public class LikeController {
             @PathVariable Long postId,
             @PathVariable Long replyId
     ) {
-        LikeResponseDto response = likeService.likeReply(loginMemberId, postId, replyId);
+        LikeResponseDto response = communityLikeFacadeService.likeReply(loginMemberId, postId, replyId);
         return ResponseEntity.ok(response);
     }
 

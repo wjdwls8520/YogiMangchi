@@ -69,16 +69,22 @@ public class NotificationDedupeState {
     @Schema(description = "알림 중복 방지 대상 리소스 종류")
     private NotificationTargetType targetType;
 
+    // targetType에 따라 의미가 달라지는 대상 식별자다.
+    // POST면 postId, REPLY면 replyId, MEMBER면 팔로우 대상 회원 id를 저장한다.
     @Column(name = "target_id", nullable = false)
-    @Schema(description = "알림 중복 방지 대상 리소스 ID", example = "1")
+    @Schema(description = "알림 중복 방지 대상 리소스 ID. POST면 postId, REPLY면 replyId, MEMBER면 회원 id", example = "1")
     private Long targetId;
 
+    // 이 조합으로 알림을 '처음' 보낸 시각이다.
+    // 좋아요처럼 최초 1회만 보내는 정책에서는 firstNotifiedAt과 lastNotifiedAt이 같은 값으로 유지된다.
     @Column(name = "first_notified_at", nullable = false)
-    @Schema(description = "최초 알림 발생 시각")
+    @Schema(description = "최초 알림 발생 시각. 좋아요는 최초 1회 알림 시각, 팔로우는 첫 알림 시각")
     private LocalDateTime firstNotifiedAt;
 
+    // 이 조합으로 알림을 '마지막으로' 보낸 시각이다.
+    // 팔로우처럼 쿨타임 이후 재알림을 허용하는 정책에서는 이 값을 갱신해 다음 허용 시점을 계산한다.
     @Column(name = "last_notified_at", nullable = false)
-    @Schema(description = "마지막 알림 발생 시각")
+    @Schema(description = "마지막 알림 발생 시각. 좋아요는 최초값과 같고, 팔로우는 재알림 시 갱신된다")
     private LocalDateTime lastNotifiedAt;
 
     @CreationTimestamp
@@ -88,7 +94,7 @@ public class NotificationDedupeState {
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    @Schema(description = "알림 중복 방지 상태 수정 시각")
+    @Schema(description = "알림 중복 방지 상태 수정 시각. 팔로우 재알림 등 상태 갱신 시 함께 변경된다")
     private LocalDateTime updatedAt;
 
     public static NotificationDedupeState create(
@@ -100,6 +106,7 @@ public class NotificationDedupeState {
             LocalDateTime notifiedAt
     ) {
         // actor가 같은 receiver의 같은 target에 대해 알림을 이미 발생시켰는지 기록한다.
+        // 최초 생성 시점에는 처음 알림 시각과 마지막 알림 시각이 동일하다.
         NotificationDedupeState state = new NotificationDedupeState();
         state.notificationType = notificationType;
         state.actor = actor;
@@ -117,6 +124,7 @@ public class NotificationDedupeState {
         }
 
         // 팔로우처럼 쿨타임 이후 재알림을 허용하는 타입에서 마지막 알림 시각을 갱신한다.
+        // 좋아요는 최초 1회 정책이라 일반적으로 이 메서드를 호출하지 않는다.
         this.lastNotifiedAt = notifiedAt;
     }
 }
