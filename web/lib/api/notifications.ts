@@ -73,8 +73,8 @@ export const deleteSelectedNotifications = async (notificationIds: number[]) => 
   });
 };
 
-export const deleteAllNotifications = async () => {
-  await fetchClient("notifications/all", {
+export const deleteReadNotifications = async () => {
+  await fetchClient("notifications/read", {
     method: "DELETE",
   });
 };

@@ -39,6 +39,10 @@ export interface NotificationDetailField {
   align: "left" | "center" | "right";
 }
 
+export const formatNotificationCount = (count: number) => {
+  return count > 99 ? "99+" : String(count);
+};
+
 const getPayloadRecord = (payload?: NotificationPayload | null) => {
   if (!payload || typeof payload !== "object") {
     return null;

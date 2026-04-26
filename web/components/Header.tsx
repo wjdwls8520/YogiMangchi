@@ -32,17 +32,10 @@ import {
   getNotificationListPageHref,
   getNotificationNavigationTarget,
 } from "@/lib/utils/notification-navigation";
+import { formatNotificationCount } from "@/lib/utils/notification";
 import type { NotificationItem } from "@/types/notification";
 
 const NOTIFICATION_PAGE_SIZE = 10;
-
-const formatBadgeCount = (count: number) => {
-  if (count > 99) {
-    return "99+";
-  }
-
-  return String(count);
-};
 
 export default function Header() {
   const router = useRouter();
@@ -299,6 +292,20 @@ export default function Header() {
     }
   };
 
+  const acknowledgeNewNotifications = async () => {
+    if (newCount === 0) {
+      return;
+    }
+
+    markChecked();
+
+    try {
+      await checkNotifications();
+    } catch (error) {
+      console.error("알림 확인 처리 실패", error);
+    }
+  };
+
   const handleReadAllNotifications = async () => {
     if (
       isReadingAllNotifications ||
@@ -431,7 +438,6 @@ export default function Header() {
           >
             <NotificationDrawer
               notifications={notifications}
-              newCount={newCount}
               isLoading={isLoadingNotifications}
               isReadingAll={isReadingAllNotifications}
               isLoadingMore={isLoadingMoreNotifications}
@@ -439,6 +445,7 @@ export default function Header() {
               onClose={closeAlarm}
               onMoveListPage={moveToNotificationsPage}
               onMoveNotification={moveToNotificationTarget}
+              onAcknowledgeNewNotifications={() => void acknowledgeNewNotifications()}
               onReadAll={() => void handleReadAllNotifications()}
               onLoadMore={() => void loadMoreNotifications()}
             />
@@ -490,7 +497,7 @@ export default function Header() {
 
               {isLogin && newCount > 0 ? (
                 <span className="absolute right-0.5 top-0 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-red-500 px-1 text-center text-[9px] font-bold text-white">
-                  {formatBadgeCount(newCount)}
+                  {formatNotificationCount(newCount)}
                 </span>
               ) : null}
             </button>
