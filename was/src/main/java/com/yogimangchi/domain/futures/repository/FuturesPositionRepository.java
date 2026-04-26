@@ -75,7 +75,7 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             Pageable pageable
     );
 
-    // 강제청산 부트스트랩 — 서버 재시작 시 OPEN 포지션이 존재하는 심볼 목록 복원
+    // 강제청산 부트스트랩 — 서버 재시작 시 OPEN 포지션이 존재하는 심볼 목록 복원 (서버 실행시 한번 동작하는 쿼리라서 캐싱하지 않음)
     @Query("SELECT DISTINCT fp.symbol FROM FuturesPosition fp WHERE fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN")
     List<String> findDistinctOpenPositionSymbols();
 
@@ -85,4 +85,14 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             @Param("assets") Assets assets,
             @Param("positionStatus") PositionStatus positionStatus
     );
+
+    // 강제청산 Coordinator — 심볼의 모든 OPEN 포지션 조회 (청산가 비교용, 락 없음)
+    @Query("""                                                                                                                                                         
+          SELECT fp                                                                                                                                                  
+          FROM FuturesPosition fp                                                                                                                                    
+          WHERE fp.symbol = :symbol                                                                                                                                  
+            AND fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN
+          """)
+    List<FuturesPosition> findAllOpenBySymbol(@Param("symbol") String symbol);
+
 }

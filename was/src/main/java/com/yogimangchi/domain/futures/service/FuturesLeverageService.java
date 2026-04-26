@@ -147,22 +147,24 @@ public class FuturesLeverageService {
     }
 
     // 레버리지 올릴 때 — 새 청산가가 현재가에 도달하는지 검증
+    // FuturesPosition.calculateLiquidationPrice()와 동일한 공식 사용
     private void validateLiquidationSafety(PositionSide positionSide, BigDecimal currentPrice,
                                             BigDecimal entryPrice, int newLeverage) {
         BigDecimal lev = BigDecimal.valueOf(newLeverage);
+        BigDecimal inverseL = BigDecimal.ONE.divide(lev, 8, RoundingMode.HALF_UP);
         BigDecimal newLiqPrice;
 
         if (positionSide == PositionSide.LONG) {
-            // LONG 청산가 = entryPrice × (1 - 1/leverage)
-            newLiqPrice = entryPrice.multiply(BigDecimal.ONE.subtract(
-                    BigDecimal.ONE.divide(lev, 8, RoundingMode.HALF_UP)));
+            // LONG 청산가 = entryPrice × (1 - 1/leverage + 수수료율)
+            newLiqPrice = entryPrice.multiply(
+                    BigDecimal.ONE.subtract(inverseL).add(TRADE_FEE));
             if (currentPrice.compareTo(newLiqPrice) <= 0) {
                 throw new IllegalArgumentException("현재가가 새 청산가에 도달하여 레버리지를 올릴 수 없습니다.");
             }
         } else {
-            // SHORT 청산가 = entryPrice × (1 + 1/leverage)
-            newLiqPrice = entryPrice.multiply(BigDecimal.ONE.add(
-                    BigDecimal.ONE.divide(lev, 8, RoundingMode.HALF_UP)));
+            // SHORT 청산가 = entryPrice × (1 + 1/leverage - 수수료율)
+            newLiqPrice = entryPrice.multiply(
+                    BigDecimal.ONE.add(inverseL).subtract(TRADE_FEE));
             if (currentPrice.compareTo(newLiqPrice) >= 0) {
                 throw new IllegalArgumentException("현재가가 새 청산가에 도달하여 레버리지를 올릴 수 없습니다.");
             }

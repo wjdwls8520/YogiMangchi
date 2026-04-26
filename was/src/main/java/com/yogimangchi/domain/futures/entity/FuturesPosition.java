@@ -115,14 +115,20 @@ public class FuturesPosition {
         return position;
     }
 
+    // 강제청산 수수료율 (taker fee 0.05%) — 청산가에 미리 반영하여 청산 실행 시 별도 계산 불필요
+    private static final BigDecimal LIQUIDATION_FEE_RATE = new BigDecimal("0.0005");
+
     private static BigDecimal calculateLiquidationPrice(PositionSide positionSide, BigDecimal entryPrice, int leverage) {
         BigDecimal leverageDecimal = BigDecimal.valueOf(leverage);
+        BigDecimal inverseL = BigDecimal.ONE.divide(leverageDecimal, 8, RoundingMode.HALF_UP);
         if (positionSide == PositionSide.LONG) {
-            // LONG 청산가 = entryPrice × (1 - 1/leverage)
-            return entryPrice.multiply(BigDecimal.ONE.subtract(BigDecimal.ONE.divide(leverageDecimal, 8, java.math.RoundingMode.HALF_UP)));
+            // LONG 청산가 = entryPrice × (1 - 1/leverage + 수수료율)
+            // 수수료만큼 청산가가 높아져 더 일찍 청산됨 → 증거금 부족 방어
+            return entryPrice.multiply(BigDecimal.ONE.subtract(inverseL).add(LIQUIDATION_FEE_RATE)).setScale(8, RoundingMode.HALF_UP);
         } else {
-            // SHORT 청산가 = entryPrice × (1 + 1/leverage)
-            return entryPrice.multiply(BigDecimal.ONE.add(BigDecimal.ONE.divide(leverageDecimal, 8, java.math.RoundingMode.HALF_UP)));
+            // SHORT 청산가 = entryPrice × (1 + 1/leverage - 수수료율)
+            // 수수료만큼 청산가가 낮아져 더 일찍 청산됨 → 증거금 부족 방어
+            return entryPrice.multiply(BigDecimal.ONE.add(inverseL).subtract(LIQUIDATION_FEE_RATE)).setScale(8, RoundingMode.HALF_UP);
         }
     }
 
