@@ -1,27 +1,84 @@
+import type {
+  CursorResponseDto,
+  NotificationItem,
+  NotificationListParams,
+  NotificationStatusResponse,
+} from "@/types/notification";
 import { fetchClient } from "./client";
 
-export const subscribeAlarms = () => {
+export const subscribeNotifications = () => {
+  return new EventSource("http://localhost:8080/api/v1/notifications/subscribe", {
+    withCredentials: true,
+  });
+};
 
-    const result = new EventSource(`http://localhost:8080/api/v1/notifications/subscribe`, { withCredentials: true });
+export const getNotificationStatus = async () => {
+  const result = await fetchClient("notifications/status");
 
-    return result;
-}
+  return result as NotificationStatusResponse;
+};
 
-export const getAlarmStatus = async () => {
-    const result = await fetchClient(`notifications/status`);
+export const getNotifications = async ({
+  cursorId,
+  size,
+  category,
+  read,
+}: NotificationListParams = {}) => {
+  const params = new URLSearchParams();
 
-    return result;
-}
+  if (cursorId !== undefined) params.append("cursorId", String(cursorId));
+  if (size !== undefined) params.append("size", String(size));
+  if (category !== undefined) params.append("category", String(category));
+  if (read !== undefined) params.append("read", String(read));
 
-export const getAlarms = async ({ cursorId, category, read }: { cursorId?: number; category?: string; read?: boolean; } = {}) => {
-    const params = new URLSearchParams();
-    
-    if (cursorId !== undefined) params.append('cursorId', String(cursorId));
-    if (category !== undefined) params.append('size', String(category));
-    if (read !== undefined) params.append('size', String(read));
+  const query = params.toString();
+  const result = await fetchClient(`notifications${query ? `?${query}` : ""}`);
 
-    const query = params.toString();
-    const result = await fetchClient(`notifications${query ? `?${query}` : ''}`);
+  return result as CursorResponseDto<NotificationItem>;
+};
 
-    return result;
-}
+export const checkNotifications = async () => {
+  await fetchClient("notifications/check", {
+    method: "PUT",
+  });
+};
+
+export const readAllNotifications = async () => {
+  await fetchClient("notifications/read-all", {
+    method: "PUT",
+  });
+};
+
+export const readNotification = async (notificationId: number) => {
+  await fetchClient(`notifications/${notificationId}/read`, {
+    method: "PUT",
+  });
+};
+
+export const readSelectedNotifications = async (notificationIds: number[]) => {
+  await fetchClient("notifications/read", {
+    method: "PUT",
+    body: {
+      notificationIds,
+    },
+  });
+};
+
+export const deleteSelectedNotifications = async (notificationIds: number[]) => {
+  await fetchClient("notifications", {
+    method: "DELETE",
+    body: {
+      notificationIds,
+    },
+  });
+};
+
+export const deleteAllNotifications = async () => {
+  await fetchClient("notifications/all", {
+    method: "DELETE",
+  });
+};
+
+export const subscribeAlarms = subscribeNotifications;
+export const getAlarmStatus = getNotificationStatus;
+export const getAlarms = getNotifications;

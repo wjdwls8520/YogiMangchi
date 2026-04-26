@@ -11,7 +11,7 @@ import { File as ServerFile, Post } from "../types/post";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useModalStore } from "@/stores/useModalStore";
 import { usePostStore } from "@/stores/usePostStore";
-import { ImagePlus, X } from "lucide-react";
+import { CircleAlert, ImagePlus, X } from "lucide-react";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
@@ -58,6 +58,7 @@ export default function WriteModal() {
     const [serverFiles, setServerFiles] = useState<ServerFile[]>(selectedPost?.files ?? []); // 서버에서 가져온 파일
     const [deleteFileIds, setDeleteFileIds] = useState<number[]>([]); // 서버에서 삭제할 파일
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isTitleLimitExceeded, setIsTitleLimitExceeded] = useState(false);
 
     const [form, setForm] = useState({
         title: mode === "edit" ? (selectedPost?.title ?? "") : "",
@@ -352,6 +353,60 @@ export default function WriteModal() {
         setDeleteFileIds(prev => [...prev, id]);
     }
 
+    const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const nativeEvent = e.nativeEvent;
+
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+
+        const ignoredKeys = new Set([
+            "Backspace",
+            "Delete",
+            "Tab",
+            "Escape",
+            "ArrowLeft",
+            "ArrowRight",
+            "ArrowUp",
+            "ArrowDown",
+            "Home",
+            "End",
+        ]);
+
+        if (ignoredKeys.has(e.key)) {
+            return;
+        }
+
+        const selectionStart = e.currentTarget.selectionStart ?? e.currentTarget.value.length;
+        const selectionEnd = e.currentTarget.selectionEnd ?? e.currentTarget.value.length;
+        const selectedLength = selectionEnd - selectionStart;
+        const incomingLength =
+            e.key.length === 1 ? e.key.length : nativeEvent.isComposing ? 1 : 0;
+
+        if (incomingLength === 0) {
+            return;
+        }
+
+        const nextLength =
+            e.currentTarget.value.length - selectedLength + incomingLength;
+
+        if (nextLength > TITLE_MAX_LENGTH) {
+            setIsTitleLimitExceeded(true);
+        }
+    };
+
+    const handleTitlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const selectionStart = e.currentTarget.selectionStart ?? e.currentTarget.value.length;
+        const selectionEnd = e.currentTarget.selectionEnd ?? e.currentTarget.value.length;
+        const pastedText = e.clipboardData.getData("text");
+        const nextLength =
+            e.currentTarget.value.length - (selectionEnd - selectionStart) + pastedText.length;
+
+        if (nextLength > TITLE_MAX_LENGTH) {
+            setIsTitleLimitExceeded(true);
+        }
+    };
+
     // 메모리 누수 방지
     useEffect(() => {
         return () => {
@@ -368,6 +423,7 @@ export default function WriteModal() {
             title: mode === "edit" ? (selectedPost?.title ?? "") : "",
             content: mode === "edit" ? (selectedPost?.content ?? "") : "",
         });
+        setIsTitleLimitExceeded(false);
         setUploadFiles([]);
         setServerFiles(selectedPost?.files ?? []);
         setDeleteFileIds([]);
@@ -395,10 +451,23 @@ export default function WriteModal() {
                             className="w-full p-2" 
                             maxLength={TITLE_MAX_LENGTH}
                             value={form?.title ?? ""}
-                            onChange={(e) =>
-                                setForm({ ...form, title: e.target.value.slice(0, TITLE_MAX_LENGTH) })
-                            } 
+                            onKeyDown={handleTitleKeyDown}
+                            onPaste={handleTitlePaste}
+                            onChange={(e) => {
+                                const nextTitle = e.target.value.slice(0, TITLE_MAX_LENGTH);
+                                setForm({ ...form, title: nextTitle });
+
+                                if (nextTitle.length < TITLE_MAX_LENGTH) {
+                                    setIsTitleLimitExceeded(false);
+                                }
+                            }}
                         />
+                        {isTitleLimitExceeded ? (
+                            <p className="flex items-center gap-1 px-2 pt-1 text-left text-xxs font-medium text-red-500">
+                                <CircleAlert size={14} />
+                                제목은 최대 {TITLE_MAX_LENGTH}자까지 작성하실 수 있습니다.
+                            </p>
+                        ) : null}
                     </div>
                     <textarea 
                         className="w-full resize-none p-2 mb-2" 

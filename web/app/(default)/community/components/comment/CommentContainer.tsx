@@ -40,6 +40,21 @@ interface CommentThreadItemProps {
   setOpenCommentId: Dispatch<SetStateAction<number | null>>;
 }
 
+const scrollToCommentElement = (commentId: number | null) => {
+  const element = document.getElementById(`comment-${commentId}`);
+
+  if (!element) {
+    return false;
+  }
+
+  element.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  return true;
+};
+
 function CommentThreadItem({
   post,
   rootComment,
@@ -235,15 +250,9 @@ function CommentThreadItem({
   };
 
   const handleScrollToTarget = (commentId: number | null) => {
-    const element = document.getElementById(`comment-${commentId}`);
-    if (!element) {
+    if (!scrollToCommentElement(commentId)) {
       return;
     }
-
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
 
     setHighlightId(commentId);
     window.setTimeout(() => {
@@ -511,6 +520,32 @@ export default function CommentContainer({ post, comments, nextCursorId }: Props
     replacePost(post);
     setComments(post.id, comments);
   }, [comments, post, replacePost, setComments]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || currentComments.length === 0) {
+      return;
+    }
+
+    const hash = window.location.hash;
+
+    if (!hash.startsWith("#comment-")) {
+      return;
+    }
+
+    const targetCommentId = Number(hash.replace("#comment-", ""));
+
+    if (!Number.isFinite(targetCommentId)) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      scrollToCommentElement(targetCommentId);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [currentComments]);
 
   return (
     <section className="mt-10">
