@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -153,7 +154,10 @@ public class NotificationController {
             description = "로그인한 회원이 실시간 알림을 받을 수 있도록 SSE 연결을 생성합니다."
     )
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@AuthenticationPrincipal Long memberId) {
-        return notificationSseService.subscribe(memberId);
+    public SseEmitter subscribe(
+            @AuthenticationPrincipal Long memberId,
+            @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return notificationSseService.subscribe(memberId, lastEventId);
     }
 }

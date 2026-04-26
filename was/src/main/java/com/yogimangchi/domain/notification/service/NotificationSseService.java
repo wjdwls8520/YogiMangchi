@@ -1,11 +1,22 @@
 package com.yogimangchi.domain.notification.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yogimangchi.domain.notification.dto.response.NotificationStatusResponseDto;
 import com.yogimangchi.domain.notification.dto.response.NotificationResponseDto;
+import com.yogimangchi.domain.notification.entity.Notification;
+import com.yogimangchi.domain.notification.entity.NotificationState;
+import com.yogimangchi.domain.notification.enums.NotificationCategory;
+import com.yogimangchi.domain.notification.enums.NotificationType;
+import com.yogimangchi.domain.notification.repository.NotificationRepository;
+import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
 import com.yogimangchi.domain.notification.support.NotificationEmitterRegistry;
 import com.yogimangchi.global.exception.notification.NotificationException;
+import com.yogimangchi.global.sse.enums.CommunitySseEventType;
+import com.yogimangchi.global.sse.enums.TradeSseEventType;
 import com.yogimangchi.global.support.MemberReader;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,11 +32,16 @@ public class NotificationSseService {
 
     private static final long DEFAULT_TIMEOUT = 60L * 60L * 1000L;
     private static final long HEARTBEAT_INTERVAL = 30_000L;
+    private static final String CONNECTED_EVENT_NAME = "CONNECTED";
+    private static final String STATUS_EVENT_NAME = "STATUS";
 
     private final NotificationEmitterRegistry notificationEmitterRegistry;
     private final MemberReader memberReader;
+    private final NotificationRepository notificationRepository;
+    private final NotificationStateRepository notificationStateRepository;
+    private final ObjectMapper objectMapper;
 
-    public SseEmitter subscribe(Long memberId) {
+    public SseEmitter subscribe(Long memberId, String lastEventIdHeader) {
         // 구독 시작 전에 로그인 회원 정보를 공통 로직으로 검증한다.
         memberReader.getAuthenticated(memberId);
 
@@ -66,10 +82,12 @@ public class NotificationSseService {
             // 최초 연결 직후 CONNECTED 이벤트를 보내 구독 성공 여부를 확인한다.
             emitter.send(
                     SseEmitter.event()
-                            .id(emitterId)
-                            .name("CONNECTED")
+                            .name(CONNECTED_EVENT_NAME)
                             .data("알림 구독이 연결되었습니다.")
             );
+
+            replayMissedNotifications(memberId, parseLastEventId(lastEventIdHeader), emitter);
+            sendStatusSnapshot(emitter, createStatusSnapshot(memberId));
         } catch (IOException exception) {
             notificationEmitterRegistry.remove(memberId, emitterId);
             throw NotificationException.notificationSubscribeFailed(exception);
@@ -93,16 +111,37 @@ public class NotificationSseService {
         for (Map.Entry<String, SseEmitter> entry : emitters.entrySet()) {
             try {
                 // 프론트가 event name만 보고도 즉시 분기할 수 있도록 호출부에서 전달한 이름을 사용한다.
-                entry.getValue().send(
-                        SseEmitter.event()
-                                .id(String.valueOf(notification.notificationId()))
-                                .name(eventName)
-                                .data(notification)
-                );
+                sendNotificationEvent(entry.getValue(), eventName, notification);
             } catch (IOException | IllegalStateException exception) {
                 // 죽은 emitter 하나가 다른 연결 전송까지 막지 않도록 즉시 제거한다.
                 if (notificationEmitterRegistry.remove(memberId, entry.getKey())) {
                     log.info("알림 SSE 전송 중 연결 제거. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}, cause={}",
+                            memberId,
+                            entry.getKey(),
+                            notificationEmitterRegistry.countByMemberId(memberId),
+                            notificationEmitterRegistry.countAllEmitters(),
+                            exception.getClass().getSimpleName());
+                }
+            }
+        }
+
+        sendStatus(memberId);
+    }
+
+    public void sendStatus(Long memberId) {
+        if (memberId == null) {
+            return;
+        }
+
+        NotificationStatusResponseDto status = createStatusSnapshot(memberId);
+        Map<String, SseEmitter> emitters = notificationEmitterRegistry.findAllByMemberId(memberId);
+
+        for (Map.Entry<String, SseEmitter> entry : emitters.entrySet()) {
+            try {
+                sendStatusSnapshot(entry.getValue(), status);
+            } catch (IOException | IllegalStateException exception) {
+                if (notificationEmitterRegistry.remove(memberId, entry.getKey())) {
+                    log.info("알림 상태 SSE 전송 중 연결 제거. memberId={}, emitterId={}, memberEmitterCount={}, totalEmitterCount={}, cause={}",
                             memberId,
                             entry.getKey(),
                             notificationEmitterRegistry.countByMemberId(memberId),
@@ -170,5 +209,97 @@ public class NotificationSseService {
 
         notificationEmitterRegistry.clear();
         log.info("서버 종료로 알림 SSE 연결 정리를 완료했습니다. emitterCount={}", emitterCount);
+    }
+
+    private void replayMissedNotifications(Long memberId, Long lastEventId, SseEmitter emitter) throws IOException {
+        if (lastEventId == null) {
+            return;
+        }
+
+        List<Notification> missedNotifications =
+                notificationRepository.findAllByReceiverIdAndIdGreaterThanOrderByIdAsc(memberId, lastEventId);
+
+        for (Notification notification : missedNotifications) {
+            sendNotificationEvent(
+                    emitter,
+                    resolveReplayEventName(notification),
+                    NotificationResponseDto.from(notification, objectMapper)
+            );
+        }
+    }
+
+    private Long parseLastEventId(String lastEventIdHeader) {
+        if (lastEventIdHeader == null || lastEventIdHeader.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(lastEventIdHeader);
+        } catch (NumberFormatException exception) {
+            log.warn("알림 SSE Last-Event-ID를 숫자로 해석하지 못했습니다. value={}", lastEventIdHeader);
+            return null;
+        }
+    }
+
+    private NotificationStatusResponseDto createStatusSnapshot(Long memberId) {
+        Long lastCheckedNotificationId = notificationStateRepository.findByMemberId(memberId)
+                .map(NotificationState::getLastCheckedNotificationId)
+                .orElse(null);
+
+        long newCount = lastCheckedNotificationId == null
+                ? notificationRepository.countByReceiverId(memberId)
+                : notificationRepository.countByReceiverIdAndIdGreaterThan(memberId, lastCheckedNotificationId);
+
+        long unreadCount = notificationRepository.countByReceiverIdAndIsReadFalse(memberId);
+
+        return NotificationStatusResponseDto.of(newCount, unreadCount);
+    }
+
+    private void sendNotificationEvent(
+            SseEmitter emitter,
+            String eventName,
+            NotificationResponseDto notification
+    ) throws IOException {
+        emitter.send(
+                SseEmitter.event()
+                        .id(String.valueOf(notification.notificationId()))
+                        .name(eventName)
+                        .data(notification)
+        );
+    }
+
+    private void sendStatusSnapshot(SseEmitter emitter, NotificationStatusResponseDto status) throws IOException {
+        emitter.send(
+                SseEmitter.event()
+                        .name(STATUS_EVENT_NAME)
+                        .data(status)
+        );
+    }
+
+    private String resolveReplayEventName(Notification notification) {
+        NotificationType notificationType = notification.getType();
+
+        return switch (notificationType) {
+            case ORDER_COMPLETED -> resolveOrderReplayEventName(notification.getCategory());
+            case POST_COMMENT_CREATED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_POST_COMMENT_CREATED.name();
+            case REPLY_COMMENT_CREATED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_REPLY_COMMENT_CREATED.name();
+            case POST_LIKED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED.name();
+            case REPLY_LIKED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED.name();
+            case FOLLOW_CREATED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_FOLLOW_CREATED.name();
+            default -> notificationType.name();
+        };
+    }
+
+    private String resolveOrderReplayEventName(NotificationCategory category) {
+        if (category == null) {
+            return NotificationType.ORDER_COMPLETED.name();
+        }
+
+        return switch (category) {
+            case MOCK -> TradeSseEventType.NOTIFICATION_MOCK_ORDER_COMPLETED.name();
+            case TRADE -> TradeSseEventType.NOTIFICATION_TRADE_ORDER_COMPLETED.name();
+            case CONTEST -> TradeSseEventType.NOTIFICATION_CONTEST_ORDER_COMPLETED.name();
+            default -> NotificationType.ORDER_COMPLETED.name();
+        };
     }
 }

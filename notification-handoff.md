@@ -6,9 +6,9 @@
 - 작업 재개 시에는 이 문서를 먼저 읽고 현재 상태를 파악한 뒤 다음 구현을 진행하면 된다.
 
 ## 작업 재개 시 사용하면 좋은 요청 예시
-- "`docs/notification-handoff.md` 먼저 읽고 현재 알림 구조와 정책을 파악한 뒤, 남은 작업 중 팔로우 알림부터 이어서 진행해줘."
-- "`docs/notification-handoff.md` 기준으로 현재 구현 상태를 점검하고, 아직 안 된 작업만 정리해줘."
-- "`docs/notification-handoff.md` 참고해서 커뮤니티 알림 구조를 이해한 뒤 테스트 체크리스트부터 다시 만들어줘."
+- "`notification-handoff.md` 먼저 읽고 현재 알림 구조와 정책을 파악한 뒤, 남은 작업을 이어서 진행해줘."
+- "`notification-handoff.md` 기준으로 현재 구현 상태를 점검하고, 아직 안 된 작업만 정리해줘."
+- "`notification-handoff.md` 참고해서 커뮤니티 알림 구조를 이해한 뒤 테스트 체크리스트부터 다시 만들어줘."
 
 ## 전체 설계 방향
 
@@ -20,10 +20,13 @@
 ### 2. SSE는 공통 채널 1개 사용
 - 회원당 SSE 채널은 하나로 유지한다.
 - 여러 종류의 알림을 같은 채널로 보내되, `event name`을 분리해서 프론트가 빠르게 분기할 수 있게 했다.
+- 구독 직후에는 `CONNECTED` 이벤트를 먼저 보내고, 이어서 현재 `newCount/unreadCount`를 담은 `STATUS` 이벤트를 보낸다.
+- 재연결 시에는 `Last-Event-ID`를 기준으로 누락된 알림 row를 replay하는 복구 로직을 둔다.
 - 예:
   - `NOTIFICATION_MOCK_ORDER_COMPLETED`
   - `NOTIFICATION_COMMUNITY_POST_COMMENT_CREATED`
-  - `NOTIFICATION_COMMUNITY_POST_LIKED`
+  - `NOTIFICATION_COMMUNITY_POST_LIKED_CREATED`
+  - `STATUS`
 
 ### 3. 도메인별 트랜잭션 전략 분리
 - 트레이드 알림:
@@ -45,12 +48,15 @@
 ### 1. 공통 알림 기능
 - SSE 구독 API 구현 완료
 - heartbeat 전송 및 끊어진 emitter 정리 완료
+- SSE 재연결 시 `Last-Event-ID` 기준 누락 알림 replay 복구 완료
+- SSE 구독 직후 `STATUS` 이벤트 전송 완료
+- 알림 발생 직후 `STATUS(newCount/unreadCount)` 갱신 전송 완료
 - 알림 목록 조회 API 완료
 - 알림 상태 조회 API 완료
 - 확인(check) API 완료
 - 단건 읽음 / 다건 읽음 / 전체 읽음 / 단건 삭제 / 다건 삭제 / 읽은 알림 삭제 완료
 - `NotificationState` 분리 완료
-- `hasNew`, `hasUnread`, `newCount`, `unreadCount` 기반 상태 관리 완료
+- `hasNew`, `newCount`, `unreadCount` 기반 상태 관리 완료
 
 ### 2. 트레이드 알림
 - 시장가 체결 알림 완료
@@ -73,6 +79,8 @@
 - 댓글 좋아요 알림 완료
 - 좋아요는 `최초 1회만 알림` 정책 적용 완료
 - `NotificationDedupeState` 도입 완료
+- `NotificationDedupeState` native 쿼리에서 영속성 컨텍스트를 비우지 않도록 수정 완료
+  - 좋아요 알림 payload 생성 시 `LazyInitializationException` 발생하던 이슈 수정
 - 좋아요도 댓글과 마찬가지로 파사드 구조로 정리 완료
   - `LikeService -> PostLikeCreatedResultDto / ReplyLikeCreatedResultDto -> CommunityLikeFacadeService -> NotificationService -> NotificationSseService`
 - receiver 활성 여부 확인(`findActiveById`)까지 반영 완료
@@ -101,6 +109,8 @@
   - 아직 `check`되지 않은 동안만 같은 알림 row를 update
   - `check` 이후 새 좋아요부터는 새 알림 row create
 - `NotificationGroupState` 도입 완료
+- `NotificationDispatchResultDto` 도입 완료
+  - 저장된 알림 응답 DTO와 실제 SSE event name을 함께 반환
 - `create/update` SSE 이벤트 분리 완료
   - `NOTIFICATION_COMMUNITY_POST_LIKED_CREATED`
   - `NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED`
@@ -166,28 +176,39 @@
 - `read`는 개별 알림 소비 상태만 의미하고, 묶음 경계를 바꾸지 않음
 - SSE는 `create/update`를 분리해 프론트가 새 카드 추가와 기존 카드 갱신을 구분할 수 있게 함
 
+### 7. SSE 상태/재연결 정책
+- 구독 직후 `CONNECTED` 이벤트를 전송한다.
+- 구독 직후 현재 `newCount`, `unreadCount`를 담은 `STATUS` 이벤트를 전송한다.
+- 알림 생성/갱신 후에도 해당 receiver에게 최신 `STATUS` 이벤트를 다시 전송한다.
+- 재연결 시 `Last-Event-ID`가 있으면, 그 이후의 `notificationId`를 가진 알림 row를 replay한다.
+- replay 시 event name은 알림 타입 기준으로 다시 매핑한다.
+  - 좋아요 묶음 replay는 현재 `UPDATED` event 기준으로 재전송한다.
+
 ## 현재 구조
 
 ### 1. 주요 레이어
-- `ReplyService`, `LikeService`
+- `ReplyService`, `LikeService`, `FollowService`
   - 본작업 저장/검증/카운트 반영 담당
-- `CommunityReplyFacadeService`, `CommunityLikeFacadeService`
+- `CommunityReplyFacadeService`, `CommunityLikeFacadeService`, `FollowFacadeService`
   - 유스케이스 전체 흐름 조립
   - 알림 저장과 SSE 전송 연결
 - `NotificationService`
   - 알림 row 저장
   - payload JSON 직렬화
   - receiver 검증 / dedupe 판단
+  - 그룹 알림 create/update 분기
 - `NotificationSseService`
-  - SSE 구독 / heartbeat / 전송 담당
+  - SSE 구독 / heartbeat / replay / 상태값 전송 담당
 
 ### 2. 내부 DTO를 따로 둔 이유
-- `ReplyDetailDto`, `LikeResponseDto`는 API 응답용
+- `ReplyDetailDto`, `LikeResponseDto`, `FollowResponseDto`는 API 응답용
 - 내부 알림 처리에는 응답보다 더 많은 정보가 필요함
 - 그래서 아래 내부 결과 DTO를 둠
   - `ReplyCreatedResultDto`
   - `PostLikeCreatedResultDto`
   - `ReplyLikeCreatedResultDto`
+  - `FollowCreatedResultDto`
+  - `NotificationDispatchResultDto`
 - 이 DTO는
   - 알림 생성 재료
   - 응답 변환 재료
@@ -203,6 +224,14 @@
   - 알림 저장 실패가 좋아요를 롤백시킬 수 있음
   - SSE가 커밋 전에 먼저 나갈 수 있음
 - 그래서 댓글과 같은 방식으로 파사드 구조로 정리함
+
+### 4. 상태값을 SSE로 같이 보내는 이유
+- 헤더 알림 아이콘 숫자는 `확인되지 않은 알림(new)` 개수 기준이다.
+- 개별 알림 read 여부와 헤더 숫자 변화는 기준이 다르므로, 알림 payload와 별개로 상태 스냅샷을 보내는 편이 프론트 처리에 안정적이다.
+- 현재는 `NotificationStatusResponseDto`를 `STATUS` event로 내려서 프론트가
+  - `newCount`
+  - `unreadCount`
+  를 즉시 반영할 수 있게 했다.
 
 ## Dedupe / State 설계
 
@@ -228,6 +257,9 @@
   - 기존 row가 있으면 `lastNotifiedAt` 기준 쿨타임 계산 후 재알림
   - 쿨타임은 `1일`
   - 재알림 가능 시 `lastNotifiedAt`을 조건부 update로 갱신
+- 알림 확인/헤더 상태:
+  - `NotificationState.lastCheckedNotificationId`를 기준으로 `newCount`를 계산
+  - 묶음 좋아요의 `check 전 update / check 후 create` 경계도 같은 값을 사용
 
 ### 3. 핵심 필드 의미
 - `notificationType`
@@ -273,6 +305,8 @@
 - `NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED`
 - `NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED`
 - `NOTIFICATION_COMMUNITY_FOLLOW_CREATED`
+- `STATUS`
+- `CONNECTED`
 
 ## 현재 확인된 테스트 결과
 
@@ -290,6 +324,7 @@
 - 좋아요 취소 후 재좋아요 시 재알림 없음
 - dedupe_state row 정상 생성
 - receiver 계정 기준으로만 조회/수신되는 것 확인 완료
+- `LazyInitializationException` 수정 후 첫 클릭 에러 없이 다시 동작하도록 보정 완료
 
 ### 3. 팔로우 알림
 - 첫 팔로우 알림 정상
@@ -302,12 +337,25 @@
 
 ### 4. 좋아요 묶음 알림
 - 백엔드 구현 및 compile 검증 완료
-- 실제 정책 검증은 테스트 진행 예정
-- 확인 포인트:
-  - `check` 전까지 같은 target 좋아요가 같은 notification row update 되는지
+- 실제 알림 SSE 수신 확인 완료
+  - `NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED`
+  - `groupCount`
+  - `actorsPreview`
+  수신 확인
+- 검증 완료 포인트:
+  - `check` 전까지 같은 target 좋아요가 같은 notification row update 되는 것 확인
+  - `groupCount`, `actorsPreview` 누적 확인
+  - `read`가 그룹 경계를 바꾸지 않도록 정책 반영 확인
+- 추가 확인 권장 포인트:
   - `check` 이후에는 같은 target 좋아요라도 새 notification row create 되는지
-  - `read`는 그룹 경계를 바꾸지 않는지
   - `CREATED/UPDATED` SSE를 프론트가 올바르게 반영하는지
+
+### 5. SSE 상태/재연결
+- `CONNECTED` 이벤트 정상
+- `STATUS` 이벤트 정상
+- heartbeat 정상
+- `Last-Event-ID` 기반 replay 복구 로직 구현 완료
+- 실제 재연결 누락 복구는 추가 수동 테스트 권장
 
 ## 남은 작업 우선순위
 
@@ -329,6 +377,7 @@
 - 메시지/링크는 프론트 조립형 유지
 - 좋아요와 댓글 모두 지금은 파사드 구조로 정리되어 있음
 - 트레이드는 `afterCommit + REQUIRES_NEW`, 커뮤니티는 `Facade + 순차 호출`
+- 좋아요 묶음 경계는 `read`가 아니라 `check` 기준이라는 점을 계속 유지할 것
 
 ## 관련 주요 파일
 
@@ -356,6 +405,7 @@
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationState.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationDedupeState.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/entity/NotificationGroupState.java`
+- `was/src/main/java/com/yogimangchi/domain/notification/dto/result/NotificationDispatchResultDto.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/repository/NotificationDedupeStateRepository.java`
 - `was/src/main/java/com/yogimangchi/domain/notification/repository/NotificationGroupStateRepository.java`
 
