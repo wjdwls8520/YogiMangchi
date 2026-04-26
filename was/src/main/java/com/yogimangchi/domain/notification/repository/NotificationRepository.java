@@ -76,6 +76,17 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
                                                      @Param("read") Boolean read,
                                                      Pageable pageable);
 
+    @EntityGraph(attributePaths = "actor")
+    @Query("""
+        select n
+        from Notification n
+        where n.receiver.id = :receiverId
+          and n.id > :lastEventId
+        order by n.id asc
+    """)
+    List<Notification> findAllByReceiverIdAndIdGreaterThanOrderByIdAsc(@Param("receiverId") Long receiverId,
+                                                                       @Param("lastEventId") Long lastEventId);
+
     // 로그인 회원의 읽지 않은 전체 알림을 같은 시각으로 읽음 처리하는 벌크 업데이트 쿼리
     // flushAutomatically - 기존 변경사항을 먼저 DB에 반영 clearAutomatically - 이후 오래된 영속성 컨텍스트를 비워서 꼬임 방지
     @Modifying(flushAutomatically = true, clearAutomatically = true)

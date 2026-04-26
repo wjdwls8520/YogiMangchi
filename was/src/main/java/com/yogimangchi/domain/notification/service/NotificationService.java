@@ -137,6 +137,7 @@ public class NotificationService {
         }
 
         notificationStateRepository.upsertLastCheckedNotificationId(memberId, latestNotificationId);
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -147,6 +148,7 @@ public class NotificationService {
                 .orElseThrow(NotificationException::notificationNotFound);
 
         notification.markAsRead(LocalDateTime.now());
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -159,6 +161,7 @@ public class NotificationService {
                 memberId,
                 readAt
         );
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -166,6 +169,7 @@ public class NotificationService {
         memberReader.getAuthenticated(memberId);
 
         notificationRepository.markAllAsReadByReceiverId(memberId, LocalDateTime.now());
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -184,6 +188,7 @@ public class NotificationService {
 
         notificationGroupStateRepository.deleteAllReadCheckedGroupsByReceiverId(memberId, lastCheckedNotificationId);
         notificationRepository.deleteAllReadCheckedByReceiverId(memberId, lastCheckedNotificationId);
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -195,6 +200,8 @@ public class NotificationService {
         if (deletedCount == 0) {
             throw NotificationException.notificationNotFound();
         }
+
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -203,6 +210,7 @@ public class NotificationService {
 
         notificationGroupStateRepository.deleteAllByNotificationIdsAndReceiverId(request.notificationIds(), memberId);
         notificationRepository.deleteAllByIdsAndReceiverId(request.notificationIds(), memberId);
+        sendStatusAfterCommit(memberId);
     }
 
     @Transactional
@@ -736,6 +744,25 @@ public class NotificationService {
         }
 
         notificationSseService.sendNotification(receiverId, eventName, response);
+    }
+
+    private void sendStatusAfterCommit(Long memberId) {
+        if (memberId == null) {
+            return;
+        }
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notificationSseService.sendStatus(memberId);
+                }
+            });
+            return;
+        }
+
+        notificationSseService.sendStatus(memberId);
     }
 
     private NotificationResponseDto saveNotification(Notification notification) {
