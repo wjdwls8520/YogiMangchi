@@ -16,8 +16,11 @@ import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
+import com.yogimangchi.domain.futures.event.PositionClosedEvent;
+import com.yogimangchi.domain.futures.event.PositionOpenedEvent;
 import com.yogimangchi.domain.futures.support.FuturesWalletReader;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ public class FuturesOrderService {
 
     private final FuturesLeverageService futuresLeverageService;
     private final FuturesPositionService futuresPositionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 시장가, 지정가 수수료
     private final static BigDecimal MARKET_TRADE_FEE = new BigDecimal("0.0005");
@@ -95,6 +99,14 @@ public class FuturesOrderService {
                 wallet, symbol, request.positionSide(), request.orderQuantity(),
                 orderPrice, leverage, orderMargin, notionalAmount
         );
+
+        // 신규 포지션일 때만 이벤트 발행 (추가 진입은 이미 Registry에 등록됨)
+        // AFTER_COMMIT 이후 Registry 등록 → 롤백 시 인메모리 불일치 방지
+        if (positionResult.isNewPosition()) {
+            eventPublisher.publishEvent(new PositionOpenedEvent(symbol));
+        }
+
+        // [알림] SSE로 선물 시장가 진입 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
 
         return new FuturesMarketOrderResponseDto(
                 FuturesOrderResultDto.from(futuresOrder),
@@ -166,6 +178,15 @@ public class FuturesOrderService {
         FuturesPositionResultDto positionResult = isFullyClosed
                 ? null
                 : FuturesPositionResultDto.fromClose(closedPosition);
+
+        // 완전 청산일 때만 이벤트 발행 (부분 청산은 포지션이 아직 존재)
+        // AFTER_COMMIT 이후 Registry 해제 → 롤백 시 인메모리 불일치 방지
+        if (isFullyClosed) {
+            eventPublisher.publishEvent(new PositionClosedEvent(symbol));
+        }
+
+        // [알림] SSE로 선물 시장가 청산 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
+        // isFullyClosed == true 이면 완전 청산 메시지, false 이면 부분 청산 메시지로 구분 가능
 
         return new FuturesMarketOrderResponseDto(
                 FuturesOrderResultDto.from(futuresOrder),

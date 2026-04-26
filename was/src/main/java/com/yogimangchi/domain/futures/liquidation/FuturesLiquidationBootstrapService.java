@@ -1,10 +1,14 @@
 package com.yogimangchi.domain.futures.liquidation;
 
+import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -61,13 +65,28 @@ public class FuturesLiquidationBootstrapService {
 
     // 구현 예정
     //
-    // 주입 예정 의존성:
-    //   FuturesPositionRepository    futuresPositionRepository
-    //   FuturesLiquidationRegistry   liquidationRegistry
-    //   FuturesLiquidationScheduler  liquidationScheduler
+    // 주입 예정 의존성( BootstrapService가 아래 3파일에 의존함 ):
+    //   FuturesPositionRepository    futuresPositionRepository   // DB 조회 담당
+    //   FuturesLiquidationRegistry   liquidationRegistry         // 인메모리 등록 담당
+    //   FuturesLiquidationScheduler  liquidationScheduler        // 스케줄러 시작 담당
+    private final FuturesPositionRepository futuresPositionRepository;
+    private final FuturesLiquidationRegistry liquidationRegistry;
+    private final FuturesLiquidationScheduler liquidationScheduler;
 
+    // 서버가 완전히 뜬 직후 자동 실행
     @EventListener(ApplicationReadyEvent.class)
+    @Transactional(readOnly = true)
     public void restoreOpenPositionSymbols() {
-        // 구현 예정
+
+        // DB에서 OPEN 포지션이 존재하는 심볼 목록 조회 ( 중복 제거 )
+        List<String> symbols = futuresPositionRepository.findDistinctOpenPositionSymbols();
+
+        // 각 심볼을 Registry에 등록 (보유자 수는 1로 세팅)
+        symbols.forEach(liquidationRegistry::register);
+
+        // 감시할 심볼이 있으면 스케줄러 시작
+        liquidationScheduler.refreshSchedule();
+
+        log.info("[강제청산 부트스트랩] OPEN 포지션 심볼 {}개 복원: {}", symbols.size(), symbols);
     }
 }

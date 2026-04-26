@@ -102,14 +102,17 @@ public class BinanceFuturesApiService {
             String stream = message.getStream();
 
             if (stream.endsWith("@ticker")) {
-                // 선물 최근 체결가 저장 — 시장가/지정가 주문 체결 기준가
                 futuresPriceRepository.saveTickerPrice(symbol, message.getData().getLastPrice());
+                log.debug("[선물 ticker] {} = {}", symbol, message.getData().getLastPrice());
 
             } else if (stream.endsWith("@markPrice")) {
-                // 마크 프라이스 저장 — 강제청산 조건 판단 기준가
                 String markPrice = message.getData().getMarkPrice();
                 futuresPriceRepository.saveMarkPrice(symbol, markPrice);
                 futuresLiquidationCoordinator.onPriceTick(symbol, new BigDecimal(markPrice));
+                log.debug("[선물 markPrice] {} = {}", symbol, markPrice);
+
+            } else {
+                log.debug("[선물 unknown stream] stream={}, payload={}", stream, payload);
             }
 
         } catch (Exception e) {
