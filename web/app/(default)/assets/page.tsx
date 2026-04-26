@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   PieChart,
   Pie,
@@ -117,6 +117,23 @@ type CursorPage<T> = {
   content: T[];
   nextCursorId: number | null;
   hasNext: boolean;
+};
+
+const ASSET_TAB_VALUES: AssetTab[] = ["trade", "contest", "mock"];
+const DETAIL_TAB_VALUES: DetailTab[] = [
+  "holdings",
+  "pnl",
+  "orders",
+  "trades",
+  "open",
+];
+
+const isAssetTab = (value: string | null): value is AssetTab => {
+  return value !== null && ASSET_TAB_VALUES.includes(value as AssetTab);
+};
+
+const isDetailTab = (value: string | null): value is DetailTab => {
+  return value !== null && DETAIL_TAB_VALUES.includes(value as DetailTab);
 };
 
 type TradeListFilters = {
@@ -437,9 +454,16 @@ const cell = (value: ReactNode, className = ""): DetailTableCell => ({
 
 export default function AssetsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchAssetTab = searchParams.get("assetTab");
+  const searchDetailTab = searchParams.get("detailTab");
 
-  const [assetTab, setAssetTab] = useState<AssetTab>("mock");
-  const [detailTab, setDetailTab] = useState<DetailTab>("holdings");
+  const [assetTab, setAssetTab] = useState<AssetTab>(
+    isAssetTab(searchAssetTab) ? searchAssetTab : "mock"
+  );
+  const [detailTab, setDetailTab] = useState<DetailTab>(
+    isDetailTab(searchDetailTab) ? searchDetailTab : "holdings"
+  );
 
   const [isLoadingMock, setIsLoadingMock] = useState(false);
   const [mockErrorMessage, setMockErrorMessage] = useState("");
@@ -471,6 +495,33 @@ export default function AssetsPage() {
   const [isSymbolInputFocused, setIsSymbolInputFocused] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const nextAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
+    const nextDetailTab = isDetailTab(searchDetailTab)
+      ? searchDetailTab
+      : "holdings";
+
+    setAssetTab((prev) => (prev === nextAssetTab ? prev : nextAssetTab));
+    setDetailTab((prev) => (prev === nextDetailTab ? prev : nextDetailTab));
+  }, [searchAssetTab, searchDetailTab]);
+
+  useEffect(() => {
+    const currentAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
+    const currentDetailTab = isDetailTab(searchDetailTab)
+      ? searchDetailTab
+      : "holdings";
+
+    if (assetTab === currentAssetTab && detailTab === currentDetailTab) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("assetTab", assetTab);
+    nextParams.set("detailTab", detailTab);
+
+    router.replace(`/assets?${nextParams.toString()}`, { scroll: false });
+  }, [assetTab, detailTab, router, searchAssetTab, searchDetailTab, searchParams]);
 
   useEffect(() => {
     let isActive = true;
@@ -1393,17 +1444,18 @@ export default function AssetsPage() {
         </section>
       </div>
 
-      <FolderTabs
-        tabs={[
-          { id: "holdings", label: "보유자산", content: null },
-          { id: "pnl", label: "손익현황", content: null },
-          { id: "orders", label: "주문내역", content: null },
-          { id: "trades", label: "거래내역", content: null },
-          { id: "open", label: "미체결내역", content: null },
-        ]}
-        activeId={detailTab}
-        onChange={(id) => setDetailTab(id as DetailTab)}
-      >
+      <div id="asset-detail-tabs">
+        <FolderTabs
+          tabs={[
+            { id: "holdings", label: "보유자산", content: null },
+            { id: "pnl", label: "손익현황", content: null },
+            { id: "orders", label: "주문내역", content: null },
+            { id: "trades", label: "거래내역", content: null },
+            { id: "open", label: "미체결내역", content: null },
+          ]}
+          activeId={detailTab}
+          onChange={(id) => setDetailTab(id as DetailTab)}
+        >
         {assetTab === "mock" && isFilterableDetailTab ? (
           <div className=" mb-5">
             <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap">
@@ -1551,7 +1603,8 @@ export default function AssetsPage() {
             </>
           )}
         </div>
-      </FolderTabs>
+        </FolderTabs>
+      </div>
     </main>
   );
 }

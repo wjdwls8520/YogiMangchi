@@ -1,7 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 export interface TabOption {
-  label: string;
+  label: ReactNode;
   value: string;
   activeColor?: string; // 탭마다 다른색상 줄수있는 옵션추가
 }

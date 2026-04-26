@@ -1,0 +1,387 @@
+import { formatAssetNumber } from "@/lib/utils/number";
+import { formatDateTime } from "@/lib/utils/date";
+import type {
+  NotificationCategory,
+  NotificationItem,
+  NotificationPayload,
+  NotificationTradeTone,
+} from "@/types/notification";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  MOCK: "모의투자",
+  TRADE: "실전투자",
+  CONTEST: "대회",
+  COMMUNITY: "커뮤니티",
+  FOLLOW: "팔로우",
+  REPORT: "신고",
+};
+
+const SIDE_LABELS: Record<string, string> = {
+  BUY: "매수",
+  SELL: "매도",
+  LONG: "롱",
+  SHORT: "숏",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  ORDER_COMPLETED: "주문 체결",
+  ORDER_CANCELED: "주문 취소",
+  POST_COMMENT_CREATED: "게시글 댓글",
+  REPLY_COMMENT_CREATED: "답글",
+  POST_LIKED: "게시글 좋아요",
+  REPLY_LIKED: "댓글 좋아요",
+  FOLLOW_CREATED: "팔로우",
+};
+
+export interface NotificationDetailField {
+  label: string;
+  value: string;
+  align: "left" | "center" | "right";
+}
+
+const getPayloadRecord = (payload?: NotificationPayload | null) => {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  return payload;
+};
+
+const getPayloadString = (
+  payload: NotificationPayload | null | undefined,
+  key: string
+) => {
+  const record = getPayloadRecord(payload);
+  const value = record?.[key];
+
+  return typeof value === "string" && value.trim() ? value : null;
+};
+
+const getPayloadNumber = (
+  payload: NotificationPayload | null | undefined,
+  key: string
+) => {
+  const record = getPayloadRecord(payload);
+  const value = record?.[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const normalizeNotificationText = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  return normalized || null;
+};
+
+const summarizeNotificationText = (value: string | null, maxLength = 24) => {
+  const normalized = normalizeNotificationText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength)}...`;
+};
+
+const getDisplayTarget = (notification: NotificationItem) => {
+  return (
+    getPayloadString(notification.payload, "displayNameKr") ??
+    getPayloadString(notification.payload, "symbol")
+  );
+};
+
+const getActorName = (notification: NotificationItem) => {
+  return (
+    getPayloadString(notification.payload, "actorNickname") ??
+    getPayloadString(notification.payload, "nickname") ??
+    getPayloadString(notification.payload, "memberNickname") ??
+    getPayloadString(notification.payload, "writerNickname") ??
+    getPayloadString(notification.payload, "actorName") ??
+    "다른 회원"
+  );
+};
+
+const getPostTitle = (notification: NotificationItem) => {
+  return (
+    getPayloadString(notification.payload, "postTitle") ??
+    getPayloadString(notification.payload, "targetPostTitle") ??
+    getPayloadString(notification.payload, "title") ??
+    getPayloadString(notification.payload, "communityTitle") ??
+    getPayloadString(notification.payload, "articleTitle") ??
+    getPayloadString(notification.payload, "boardTitle")
+  );
+};
+
+const getOrderSideLabel = (notification: NotificationItem) => {
+  const rawSide =
+    getPayloadString(notification.payload, "side") ??
+    getPayloadString(notification.payload, "positionSide");
+
+  if (!rawSide) {
+    return null;
+  }
+
+  return SIDE_LABELS[rawSide] ?? rawSide;
+};
+
+const getOrderSideTone = (
+  notification: NotificationItem
+): NotificationTradeTone => {
+  const rawSide =
+    getPayloadString(notification.payload, "side") ??
+    getPayloadString(notification.payload, "positionSide");
+
+  if (rawSide === "BUY" || rawSide === "LONG") {
+    return "buy";
+  }
+
+  if (rawSide === "SELL" || rawSide === "SHORT") {
+    return "sell";
+  }
+
+  return null;
+};
+
+const getOrderQuantity = (notification: NotificationItem) => {
+  return (
+    getPayloadNumber(notification.payload, "quantity") ??
+    getPayloadNumber(notification.payload, "filledQuantity") ??
+    getPayloadNumber(notification.payload, "orderQuantity")
+  );
+};
+
+const getOrderAmount = (notification: NotificationItem) => {
+  return (
+    getPayloadNumber(notification.payload, "executedAmount") ??
+    getPayloadNumber(notification.payload, "settlementAmount") ??
+    getPayloadNumber(notification.payload, "totalAmount") ??
+    getPayloadNumber(notification.payload, "orderAmount")
+  );
+};
+
+const getContentSummary = (notification: NotificationItem) => {
+  return summarizeNotificationText(getRawContent(notification));
+};
+
+const getPostTitleSummary = (notification: NotificationItem) => {
+  return summarizeNotificationText(getPostTitle(notification));
+};
+
+const getRawContent = (notification: NotificationItem) => {
+  const rawContent =
+    getPayloadString(notification.payload, "content") ??
+    getPayloadString(notification.payload, "replyContent") ??
+    getPayloadString(notification.payload, "commentContent") ??
+    getPayloadString(notification.payload, "message");
+
+  return normalizeNotificationText(rawContent);
+};
+
+export const getNotificationCategoryLabel = (category: NotificationCategory) => {
+  return CATEGORY_LABELS[category] ?? "알림";
+};
+
+export const getNotificationTypeLabel = (type: NotificationItem["type"]) => {
+  return TYPE_LABELS[type] ?? "일반 알림";
+};
+
+export const getNotificationStatusLabel = (notification: NotificationItem) => {
+  return notification.isRead ? "읽음" : "안 읽음";
+};
+
+export const isTradeNotification = (notification: NotificationItem) => {
+  return (
+    notification.type === "ORDER_COMPLETED" ||
+    notification.type === "ORDER_CANCELED"
+  );
+};
+
+export const getNotificationTradeMeta = (notification: NotificationItem) => {
+  if (!isTradeNotification(notification)) {
+    return {
+      sideLabel: null,
+      tone: null,
+    } as const;
+  }
+
+  return {
+    sideLabel: getOrderSideLabel(notification),
+    tone: getOrderSideTone(notification),
+  } as const;
+};
+
+export const formatNotificationTitle = (notification: NotificationItem) => {
+  const target = getDisplayTarget(notification);
+  const actorName = getActorName(notification);
+  const contentSummary = getContentSummary(notification);
+  const postTitleSummary = getPostTitleSummary(notification);
+
+  switch (notification.type) {
+    case "ORDER_COMPLETED":
+      return [target, "주문 체결되었습니다."].filter(Boolean).join(" ");
+    case "ORDER_CANCELED":
+      return [target, "주문 취소되었습니다."].filter(Boolean).join(" ");
+    case "POST_COMMENT_CREATED":
+      if (postTitleSummary) {
+        return `${actorName}님이 내 글 "${postTitleSummary}"에 댓글을 남겼습니다.`;
+      }
+
+      return contentSummary
+        ? `${actorName}님이 내 글에 댓글을 남겼습니다: "${contentSummary}"`
+        : `${actorName}님이 내 글에 댓글을 남겼습니다.`;
+    case "REPLY_COMMENT_CREATED":
+      if (postTitleSummary) {
+        return `${actorName}님이 내 글 "${postTitleSummary}"에 댓글을 남겼습니다.`;
+      }
+
+      return contentSummary
+        ? `${actorName}님이 내 글에 댓글을 남겼습니다: "${contentSummary}"`
+        : `${actorName}님이 내 글에 댓글을 남겼습니다.`;
+    case "POST_LIKED":
+      if (postTitleSummary) {
+        return `${actorName}님이 내 글 "${postTitleSummary}"을 좋아합니다.`;
+      }
+
+      return `${actorName}님이 내 게시글을 좋아합니다.`;
+    case "REPLY_LIKED":
+      if (postTitleSummary) {
+        return `${actorName}님이 글 "${postTitleSummary}"의 내 댓글을 좋아합니다.`;
+      }
+
+      return `${actorName}님이 내 댓글을 좋아합니다.`;
+    case "FOLLOW_CREATED":
+      return `${actorName}님이 나를 팔로우했습니다.`;
+    default:
+      return "새 알림이 도착했어요.";
+  }
+};
+
+export const formatNotificationDescription = (notification: NotificationItem) => {
+  const orderQuantity = getOrderQuantity(notification);
+  const orderAmount = getOrderAmount(notification);
+  const contentSummary = getContentSummary(notification);
+
+  if (notification.type === "ORDER_COMPLETED" || notification.type === "ORDER_CANCELED") {
+    return [
+      orderQuantity !== null ? `수량 ${formatAssetNumber(orderQuantity)}` : null,
+      orderAmount !== null ? `금액 ${formatAssetNumber(orderAmount)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  if (
+    notification.type === "POST_COMMENT_CREATED" ||
+    notification.type === "REPLY_COMMENT_CREATED"
+  ) {
+    return contentSummary ? `"${contentSummary}"` : "";
+  }
+
+  return "";
+};
+
+const createDetailField = (
+  label: string,
+  value: string | null,
+  align: NotificationDetailField["align"] = "left"
+) => {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    label,
+    value,
+    align,
+  } satisfies NotificationDetailField;
+};
+
+export const getNotificationDetailFields = (notification: NotificationItem) => {
+  const target = getDisplayTarget(notification);
+  const sideLabel = getOrderSideLabel(notification);
+  const actorName = getActorName(notification);
+  const postTitle = getPostTitle(notification);
+  const rawContent = getRawContent(notification);
+  const orderQuantity = getOrderQuantity(notification);
+  const orderAmount = getOrderAmount(notification);
+
+  switch (notification.type) {
+    case "ORDER_COMPLETED":
+    case "ORDER_CANCELED":
+      return [
+        createDetailField("종목", target),
+        createDetailField("주문 방향", sideLabel, "center"),
+        createDetailField(
+          "수량",
+          orderQuantity !== null ? formatAssetNumber(orderQuantity) : null,
+          "right"
+        ),
+        createDetailField(
+          "금액",
+          orderAmount !== null ? formatAssetNumber(orderAmount) : null,
+          "right"
+        ),
+      ].filter((field): field is NotificationDetailField => field !== null);
+    case "POST_COMMENT_CREATED":
+    case "REPLY_COMMENT_CREATED":
+      return [
+        createDetailField("글 제목", postTitle),
+        createDetailField("작성자", actorName),
+        createDetailField("내용", rawContent),
+      ].filter((field): field is NotificationDetailField => field !== null);
+    case "POST_LIKED":
+    case "REPLY_LIKED":
+    case "FOLLOW_CREATED":
+      return [
+        createDetailField("사용자", actorName),
+        createDetailField("글 제목", postTitle),
+      ].filter((field): field is NotificationDetailField => field !== null);
+    default:
+      return [
+        createDetailField("내용", rawContent),
+      ].filter((field): field is NotificationDetailField => field !== null);
+  }
+};
+
+export const formatNotificationRelativeTime = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+
+  const target = new Date(value);
+
+  if (Number.isNaN(target.getTime())) {
+    return "";
+  }
+
+  const seconds = Math.floor((Date.now() - target.getTime()) / 1000);
+
+  if (seconds < 60) {
+    return "방금 전";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}분 전`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}시간 전`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `${days}일 전`;
+  }
+
+  return formatDateTime(value);
+};
