@@ -32,7 +32,10 @@ public interface NotificationDedupeStateRepository extends JpaRepository<Notific
 
     // 최초 알림 상태 row를 원자적으로 생성하는 네이티브 쿼리
     // 같은 unique key가 이미 있으면 do nothing으로 무시하고 0을 반환
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    // dedupe 상태는 별도 테이블에만 반영되므로 영속성 컨텍스트를 비울 필요가 없다.
+    // clearAutomatically=true 이면 직전에 잡아둔 actor/receiver 프록시가 분리돼
+    // 같은 트랜잭션 안의 payload 생성에서 LazyInitializationException이 날 수 있다.
+    @Modifying(flushAutomatically = true)
     @Query(value = """
         insert into notification_dedupe_state (
             notification_type,
@@ -74,7 +77,7 @@ public interface NotificationDedupeStateRepository extends JpaRepository<Notific
     );
 
     // 팔로우처럼 쿨타임 이후 재알림을 허용하는 경우 마지막 알림 시각을 원자적으로 갱신한다.
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query(value = """
         update notification_dedupe_state
         set last_notified_at = :notifiedAt,
