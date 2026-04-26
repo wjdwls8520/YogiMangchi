@@ -91,6 +91,10 @@ export const getNotificationListTabValue = (
     return category;
   }
 
+  if (category === "FOLLOW") {
+    return "COMMUNITY" as NotificationListTabValue;
+  }
+
   return "OTHER" as NotificationListTabValue;
 };
 

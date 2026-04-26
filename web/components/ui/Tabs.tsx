@@ -13,6 +13,7 @@ interface TabsProps {
   activeTab: string;             // 현재 활성화된 탭의 value
   onChange: (value: string) => void; // 탭 클릭 시 실행될 함수
   className?: string;            // 전체 영역 여백 등 커스텀용
+  tabClassName?: string;         // 개별 탭 버튼 커스텀용
   fullWidth?: boolean;           // true면 탭들이 1/n로 꽉 차게 늘어남
   activeColor?: string; // 컴포넌트 전체의 기본 색상
 }
@@ -22,6 +23,7 @@ export default function Tabs({
   activeTab,
   onChange,
   className = "",
+  tabClassName = "",
   fullWidth = false,
   activeColor = "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300", // 기본값은 검정
 }: TabsProps) {
@@ -45,12 +47,13 @@ export default function Tabs({
               ${
                 fullWidth
                   ? "flex-1 text-center"
-                  : "mr-6 min-w-[112px] whitespace-nowrap text-center last:mr-0"
+                  : "min-w-[112px] whitespace-nowrap text-center last:mr-0"
               }
               ${isActive 
                 ? `font-black border-b-[3px] ${currentTabColor}`
                 : "font-bold text-gray-400 border-b-[3px] border-transparent hover:text-gray-600"
               }
+              ${tabClassName}
             `}
           >
             {tab.label}

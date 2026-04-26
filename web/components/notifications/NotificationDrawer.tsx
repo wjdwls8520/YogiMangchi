@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
 import {
+  formatNotificationCount,
   formatNotificationDescription,
   formatNotificationRelativeTime,
   formatNotificationTitle,
@@ -11,11 +12,10 @@ import {
 } from "@/lib/utils/notification";
 import { getNotificationTradeToneStyles } from "./notificationTradeTone";
 import type { NotificationItem } from "@/types/notification";
-import { Bell, ChevronRight, X } from "lucide-react";
+import { Bell, ChevronRight, RefreshCcw, X } from "lucide-react";
 
 interface NotificationDrawerProps {
   notifications: NotificationItem[];
-  newCount: number;
   isLoading: boolean;
   isReadingAll: boolean;
   isLoadingMore: boolean;
@@ -23,13 +23,28 @@ interface NotificationDrawerProps {
   onClose: () => void;
   onMoveListPage: () => void;
   onMoveNotification: (notification: NotificationItem) => void;
+  onAcknowledgeNewNotifications: () => void;
   onReadAll: () => void;
   onLoadMore: () => void;
 }
 
+const mergeNotificationsByNewest = (...groups: NotificationItem[][]) => {
+  const merged = new Map<number, NotificationItem>();
+
+  groups.flat().forEach((notification) => {
+    merged.set(notification.notificationId, notification);
+  });
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const bTime = new Date(b.createdAt).getTime();
+    const aTime = new Date(a.createdAt).getTime();
+
+    return bTime - aTime;
+  });
+};
+
 export default function NotificationDrawer({
   notifications,
-  newCount,
   isLoading,
   isReadingAll,
   isLoadingMore,
@@ -37,68 +52,134 @@ export default function NotificationDrawer({
   onClose,
   onMoveListPage,
   onMoveNotification,
+  onAcknowledgeNewNotifications,
   onReadAll,
   onLoadMore,
 }: NotificationDrawerProps) {
   const hasUnreadNotifications = notifications.some(
     (notification) => !notification.isRead
   );
-  const [highlightedNotificationId, setHighlightedNotificationId] = useState<number | null>(
-    null
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const revealHighlightTimeoutRef = useRef<number | null>(null);
+  const hasStartedBufferingRef = useRef(false);
+  const [pendingNotifications, setPendingNotifications] = useState<NotificationItem[]>([]);
+  const [highlightedNotificationIds, setHighlightedNotificationIds] = useState<number[]>([]);
+  const pendingNotificationsRef = useRef<NotificationItem[]>([]);
+  const previousNotificationsRef = useRef<NotificationItem[]>([]);
+  const pendingNotificationIdSet = new Set(
+    pendingNotifications.map((notification) => notification.notificationId)
   );
-  const previousNotificationIdsRef = useRef<number[]>([]);
-  const hasInitializedRef = useRef(false);
+  const visibleNotifications = notifications.filter(
+    (notification) => !pendingNotificationIdSet.has(notification.notificationId)
+  );
 
   useEffect(() => {
-    const currentNotificationIds = notifications.map(
+    pendingNotificationsRef.current = pendingNotifications;
+  }, [pendingNotifications]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    if (!hasStartedBufferingRef.current) {
+      hasStartedBufferingRef.current = true;
+      previousNotificationsRef.current = notifications;
+      return;
+    }
+
+    const pendingNotificationIdSet = new Set(
+      pendingNotificationsRef.current.map((notification) => notification.notificationId)
+    );
+    const previousNotificationIdSet = new Set(
+      previousNotificationsRef.current.map((notification) => notification.notificationId)
+    );
+    const knownNotificationIdSet = new Set([
+      ...previousNotificationIdSet,
+      ...pendingNotificationIdSet,
+    ]);
+    const leadingPendingNotifications: NotificationItem[] = [];
+
+    for (const notification of notifications) {
+      if (knownNotificationIdSet.has(notification.notificationId)) {
+        break;
+      }
+
+      leadingPendingNotifications.push(notification);
+    }
+
+    const nextPendingNotifications = mergeNotificationsByNewest(
+      pendingNotificationsRef.current,
+      leadingPendingNotifications
+    );
+
+    previousNotificationsRef.current = notifications;
+    setPendingNotifications(nextPendingNotifications);
+  }, [isLoading, notifications]);
+
+  useEffect(() => {
+    return () => {
+      if (revealHighlightTimeoutRef.current !== null) {
+        window.clearTimeout(revealHighlightTimeoutRef.current);
+      }
+    };
+  }, [notifications]);
+
+  const handleRevealPendingNotifications = () => {
+    if (pendingNotifications.length === 0) {
+      return;
+    }
+
+    const pendingNotificationIds = pendingNotifications.map(
       (notification) => notification.notificationId
     );
 
-    if (!hasInitializedRef.current) {
-      previousNotificationIdsRef.current = currentNotificationIds;
-      hasInitializedRef.current = true;
-      return;
+    setPendingNotifications([]);
+    setHighlightedNotificationIds(pendingNotificationIds);
+    onAcknowledgeNewNotifications();
+
+    if (revealHighlightTimeoutRef.current !== null) {
+      window.clearTimeout(revealHighlightTimeoutRef.current);
     }
 
-    const previousNotificationIdSet = new Set(previousNotificationIdsRef.current);
-    const nextHighlightedNotification = notifications.find(
-      (notification) => !previousNotificationIdSet.has(notification.notificationId)
-    );
-
-    previousNotificationIdsRef.current = currentNotificationIds;
-
-    if (!nextHighlightedNotification) {
-      return;
-    }
-
-    setHighlightedNotificationId(nextHighlightedNotification.notificationId);
-
-    const timeout = window.setTimeout(() => {
-      setHighlightedNotificationId((prev) =>
-        prev === nextHighlightedNotification.notificationId ? null : prev
-      );
+    revealHighlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedNotificationIds([]);
+      revealHighlightTimeoutRef.current = null;
     }, 2000);
 
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [notifications]);
+    window.requestAnimationFrame(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    });
+  };
+
+  const pendingNotificationCount = pendingNotifications.length;
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-white dark:bg-zinc-900">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-5">
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-center gap-2.5">
           <div className="flex items-center gap-2.5">
             <h2 className="text-left text-[17px] font-extrabold tracking-tight text-gray-900 dark:text-white">
               알림
             </h2>
-            {newCount > 0 ? (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#0058FF] px-1.5 text-[10px] font-bold tabular-nums text-white">
-                {newCount > 99 ? "99+" : newCount}
-              </span>
-            ) : null}
           </div>
+
+          {pendingNotificationCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleRevealPendingNotifications}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#0058FF]/10 px-3 text-center text-[12px] font-bold text-[#0058FF] transition-colors hover:bg-[#0058FF]/15 dark:bg-[#3B82F6]/15 dark:text-[#60A5FA] dark:hover:bg-[#3B82F6]/20"
+            >
+              <span>{`새로운 알림 ${formatNotificationCount(
+                pendingNotificationCount
+              )}건이 있습니다`}</span>
+              <RefreshCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
+            </button>
+          ) : null}
         </div>
 
         <button
@@ -133,10 +214,12 @@ export default function NotificationDrawer({
       </div>
 
       {/* Notification List */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {isLoading ? <NotificationListSkeleton /> : null}
 
-        {!isLoading && notifications.length === 0 ? (
+        {!isLoading &&
+        visibleNotifications.length === 0 &&
+        pendingNotificationCount === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 dark:bg-zinc-800/80">
               <Bell className="h-6 w-6 text-gray-300 dark:text-zinc-600" strokeWidth={1.8} />
@@ -154,11 +237,13 @@ export default function NotificationDrawer({
 
         {!isLoading ? (
           <ul>
-            {notifications.map((notification) => (
+            {visibleNotifications.map((notification) => (
               <NotificationListItem
                 key={notification.notificationId}
                 notification={notification}
-                isHighlighted={highlightedNotificationId === notification.notificationId}
+                isHighlighted={highlightedNotificationIds.includes(
+                  notification.notificationId
+                )}
                 onMoveNotification={onMoveNotification}
               />
             ))}
@@ -229,31 +314,33 @@ function NotificationListItem({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className={cn(
-                "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                isUnread
-                  ? "bg-[#0058FF]/10 text-[#0058FF] dark:bg-[#3B82F6]/15 dark:text-[#60A5FA]"
-                  : "bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500"
-              )}
-            >
-              {categoryLabel}
-            </span>
-
-            {sideLabel ? (
+          <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span
                 className={cn(
-                  "rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide",
-                  toneStyles.badge
+                  "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                  isUnread
+                    ? "bg-[#0058FF]/10 text-[#0058FF] dark:bg-[#3B82F6]/15 dark:text-[#60A5FA]"
+                    : "bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500"
                 )}
               >
-                {sideLabel}
+                {categoryLabel}
               </span>
-            ) : null}
+
+              {sideLabel ? (
+                <span
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                    toneStyles.badge
+                  )}
+                >
+                  {sideLabel}
+                </span>
+              ) : null}
+            </div>
 
             {timeLabel ? (
-              <span className="shrink-0 text-[11px] tabular-nums text-gray-400 dark:text-gray-600">
+              <span className="ml-auto shrink-0 text-[11px] tabular-nums text-gray-400 dark:text-gray-600">
                 {timeLabel}
               </span>
             ) : null}

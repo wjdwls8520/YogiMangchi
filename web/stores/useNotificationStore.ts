@@ -16,6 +16,7 @@ interface NotificationStore {
   newCount: number;
   nextCursorId: number | null;
   hasNext: boolean;
+  hasHydratedLatest: boolean;
   liveToasts: NotificationToastItem[];
   hydrateStatus: (status: NotificationStatusResponse) => void;
   replaceNotifications: (
@@ -33,7 +34,6 @@ interface NotificationStore {
   markNotificationsAsRead: (notificationIds: number[]) => void;
   markAllAsRead: () => void;
   removeNotifications: (notificationIds: number[]) => void;
-  removeAllNotifications: () => void;
   dismissToast: (toastId: string) => void;
   reset: () => void;
 }
@@ -82,6 +82,7 @@ const initialState = {
   newCount: 0,
   nextCursorId: null as number | null,
   hasNext: false,
+  hasHydratedLatest: false,
   liveToasts: [] as NotificationToastItem[],
 };
 
@@ -116,6 +117,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       items: mergeNotifications(response.content, state.items),
       nextCursorId: response.nextCursorId,
       hasNext: response.hasNext,
+      hasHydratedLatest: true,
       newCount: treatNewAsLive
         ? state.newCount + freshNotifications.length
         : state.newCount,
@@ -199,14 +201,6 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         (item) => !idSet.has(item.notificationId)
       ),
     }));
-  },
-
-  removeAllNotifications: () => {
-    set({
-      items: [],
-      nextCursorId: null,
-      hasNext: false,
-    });
   },
 
   dismissToast: (toastId) => {
