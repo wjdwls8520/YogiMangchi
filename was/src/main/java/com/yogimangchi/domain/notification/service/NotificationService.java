@@ -570,6 +570,7 @@ public class NotificationService {
     private PostLikedNotificationPayload createInitialPostLikedPayload(PostLikeCreatedResultDto createdResult, Member actor) {
         return new PostLikedNotificationPayload(
                 createdResult.postId(),
+                NotificationPreviewUtils.createPostTitlePreview(createdResult.postTitle()),
                 1L,
                 List.of(toActorPreview(actor))
         );
@@ -584,8 +585,9 @@ public class NotificationService {
 
         return serializePayload(new PostLikedNotificationPayload(
                 createdResult.postId(),
+                NotificationPreviewUtils.createPostTitlePreview(createdResult.postTitle()),
                 currentPayload.groupCount() + 1L,
-                mergeActorPreviews(currentPayload.actorsPreview(), actor)
+                mergeActorPreviews(actor)
         ));
     }
 
@@ -593,6 +595,8 @@ public class NotificationService {
         return new ReplyLikedNotificationPayload(
                 createdResult.postId(),
                 createdResult.replyId(),
+                NotificationPreviewUtils.createPostTitlePreview(createdResult.postTitle()),
+                NotificationPreviewUtils.createReplyContentPreview(createdResult.replyContent()),
                 1L,
                 List.of(toActorPreview(actor))
         );
@@ -608,8 +612,10 @@ public class NotificationService {
         return serializePayload(new ReplyLikedNotificationPayload(
                 createdResult.postId(),
                 createdResult.replyId(),
+                NotificationPreviewUtils.createPostTitlePreview(createdResult.postTitle()),
+                NotificationPreviewUtils.createReplyContentPreview(createdResult.replyContent()),
                 currentPayload.groupCount() + 1L,
-                mergeActorPreviews(currentPayload.actorsPreview(), actor)
+                mergeActorPreviews(actor)
         ));
     }
 
@@ -621,28 +627,9 @@ public class NotificationService {
         );
     }
 
-    private List<NotificationActorPreviewPayload> mergeActorPreviews(
-            List<NotificationActorPreviewPayload> existingPreview,
-            Member actor
-    ) {
-        List<NotificationActorPreviewPayload> merged = new ArrayList<>();
-        merged.add(toActorPreview(actor));
-
-        // 프론트 문구 조립에는 최근 1~2명만 있으면 충분하므로 preview 크기를 2로 제한한다.
-        if (existingPreview != null) {
-            for (NotificationActorPreviewPayload preview : existingPreview) {
-                if (preview == null || preview.memberId() == null || preview.memberId().equals(actor.getId())) {
-                    continue;
-                }
-
-                merged.add(preview);
-                if (merged.size() == 2) {
-                    break;
-                }
-            }
-        }
-
-        return merged;
+    private List<NotificationActorPreviewPayload> mergeActorPreviews(Member actor) {
+        // 프론트 문구 조립에는 최근 1명만 있으면 충분하므로 preview 크기를 1로 제한한다.
+        return List.of(toActorPreview(actor));
     }
 
     private String resolveLikeGroupedEventName(NotificationType notificationType, boolean created) {
