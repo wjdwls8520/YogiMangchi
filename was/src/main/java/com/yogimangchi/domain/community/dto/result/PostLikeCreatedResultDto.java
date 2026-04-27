@@ -6,6 +6,7 @@ import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 // 파사드가 알림 생성과 최종 응답 변환에 함께 사용한다.
 public record PostLikeCreatedResultDto(
         Long postId,
+        String postTitle, // 좋아요가 눌린 게시글 제목 원문
         Long likeCount,
         Boolean likedByMe,
         boolean newLikeCreated, // 실제로 새로운 좋아요 row가 생성되었는지 여부

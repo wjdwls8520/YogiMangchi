@@ -7,6 +7,8 @@ import com.yogimangchi.domain.community.dto.response.LikeResponseDto;
 public record ReplyLikeCreatedResultDto(
         Long postId,
         Long replyId,
+        String postTitle, // 댓글이 달린 게시글 제목 원문
+        String replyContent, // 좋아요가 눌린 댓글/대댓글 본문 원문
         Long likeCount,
         Boolean likedByMe,
         boolean newLikeCreated, // 실제로 새로운 좋아요 row가 생성되었는지 여부

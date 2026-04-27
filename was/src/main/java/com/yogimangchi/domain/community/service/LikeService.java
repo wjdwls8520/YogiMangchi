@@ -59,6 +59,7 @@ public class LikeService {
         // 이후 파사드에서 알림 생성과 응답 변환에 함께 사용한다.
         return new PostLikeCreatedResultDto(
                 postId,
+                post.getTitle(),
                 postRepository.findLikeCountById(postId),
                 true,
                 insertedCount > 0,
@@ -126,6 +127,8 @@ public class LikeService {
         return new ReplyLikeCreatedResultDto(
                 postId,
                 replyId,
+                post.getTitle(),
+                reply.getContent(),
                 replyRepository.findLikeCountById(replyId),
                 true,
                 insertedCount > 0,
