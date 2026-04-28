@@ -1,7 +1,13 @@
 // 게시글 관련 api
 
+import type { Post } from "@/app/(default)/community/types/post";
 import { fetchClient } from "./client";
 
+interface CursorResponse<T> {
+    content: T[];
+    nextCursorId: number | null;
+    hasNext: boolean;
+}
 
 interface CreateReplyBody {
     content: string;
@@ -34,7 +40,7 @@ export const getPosts = async ({ cursorId, size }: { cursorId?: number; size?: n
     const query = params.toString();
     const result = await fetchClient(`community/posts${query ? `?${query}` : ''}`);
 
-    return result;
+    return result as CursorResponse<Post>;
 }
 
 /* 게시글 상세 */
