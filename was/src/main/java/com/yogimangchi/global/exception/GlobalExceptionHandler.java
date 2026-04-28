@@ -86,8 +86,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({AsyncRequestTimeoutException.class, AsyncRequestNotUsableException.class, IOException.class})
-    public void handleNotificationSseDisconnect(Exception e, HttpServletRequest request) throws Exception {
-        if (!isNotificationSseRequest(request)) {
+    public void handleSseDisconnect(Exception e, HttpServletRequest request) throws Exception {
+        // SSE는 브라우저 탭 종료, 페이지 이동, EventSource.close()로도 IOException이 흔하게 발생한다.
+        // 알림/UX 실시간 구독 경로는 정상적인 연결 정리 흐름으로 보고 전역 에러 응답/스택트레이스를 생략한다.
+        if (!isHandledSseRequest(request)) {
             throw e;
         }
     }
@@ -126,9 +128,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
     }
 
-    private boolean isNotificationSseRequest(HttpServletRequest request) {
-        return request != null
-                && "/api/v1/notifications/subscribe".equals(request.getRequestURI());
+    private boolean isHandledSseRequest(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+
+        String requestUri = request.getRequestURI();
+        return "/api/v1/notifications/subscribe".equals(requestUri)
+                || "/api/v1/community/ux/subscribe/feed".equals(requestUri);
     }
 
 }

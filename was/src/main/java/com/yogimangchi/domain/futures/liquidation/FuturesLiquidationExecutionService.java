@@ -6,6 +6,7 @@ import com.yogimangchi.domain.futures.entity.FuturesPosition;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.event.PositionClosedEvent;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
+import com.yogimangchi.domain.futures.service.FuturesPendingCloseOrderCleanupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,6 +35,7 @@ public class FuturesLiquidationExecutionService {
 
     private final FuturesPositionRepository futuresPositionRepository;
     private final AssetRepository assetRepository;
+    private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final ApplicationEventPublisher eventPublisher;
 
     // 포지션 1개 강제청산 — Coordinator에서 포지션ID 단위로 호출
@@ -54,7 +56,7 @@ public class FuturesLiquidationExecutionService {
                 .orElseThrow(() -> new IllegalArgumentException("지갑을 찾을 수 없습니다."));
 
         BigDecimal closeQuantity = position.getFilledQuantity(); // 전량 청산이므로 현재 보유 수량 전부를 청산 수량으로 사용
-        BigDecimal closeNotional = markPrice.multiply(closeQuantity).setScale(8, RoundingMode.HALF_UP); // 청산 명목금액 = 마크프라이스 × 청산 수량 (현재 포지션의 실제 가치)
+        BigDecimal closeNotional = position.getNotionalAmount(); // 전량 청산이므로 진입 기준 명목금액 전체를 제거
         BigDecimal closeMargin   = position.getTotalMargin();  // 청산 증거금 = 포지션에 투입된 총 증거금 전액 (전량 청산이므로 전부 회수 대상)
 
         // 실현손익 계산
@@ -77,6 +79,10 @@ public class FuturesLiquidationExecutionService {
 
         // 포지션 수치 차감 (전량 청산 → CLOSE 상태로 전환)
         position.reduce(closeQuantity, closeMargin, closeNotional, realizedPnl);
+
+        futuresPendingCloseOrderCleanupService.reconcilePendingCloseOrders(
+                wallet, position.getSymbol(), position.getPositionSide(), position.getFilledQuantity()
+        );
 
         // [알림] SSE로 강제청산 완료됨을 wallet.getMember().getId() 대상으로 알리는 로직
         // 강제청산은 유저가 요청하지 않은 이벤트이므로 알림 우선순위가 높음

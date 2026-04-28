@@ -5,10 +5,12 @@ import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.futures.dto.request.FuturesLeverageRequestDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesLeverageResponseDto;
+import com.yogimangchi.domain.futures.entity.FuturesOrder;
 import com.yogimangchi.domain.futures.entity.FuturesPosition;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.repository.FuturesLeverageSettingRepository;
+import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.support.FuturesWalletReader;
 import com.yogimangchi.domain.market.entity.FuturesSymbolPolicy;
@@ -30,6 +32,7 @@ public class FuturesLeverageService {
     private final FuturesSymbolPolicyRepository futuresSymbolPolicyRepository;
     private final FuturesLeverageSettingRepository futuresLeverageSettingRepository;
     private final FuturesPositionRepository futuresPositionRepository;
+    private final FuturesOrderRepository futuresOrderRepository;
     private final ChartPriceRepository chartPriceRepository;
 
     private static final BigDecimal TRADE_FEE = new BigDecimal("0.0005");
@@ -64,56 +67,78 @@ public class FuturesLeverageService {
             );
         }
 
-        // OPEN 포지션이 있으면 레버리지 변경 검증 및 포지션 갱신
+        int newLeverage = request.leverage();
+
+        // OPEN 포지션과 PENDING LIMIT OPEN 주문이 있으면 레버리지 변경 검증 및 마진 동기화
         List<FuturesPosition> openPositions = futuresPositionRepository
                 .findAllByAssetsAndSymbolAndPositionStatusForUpdate(wallet, symbol, PositionStatus.OPEN);
+        List<FuturesOrder> pendingOpenOrders = futuresOrderRepository.findAllPendingLimitOpenOrders(wallet, symbol);
 
-        if (!openPositions.isEmpty()) {
-            // 현재가 조회 (청산가 안전 여부 판단에 필요)
-            BigDecimal currentPrice = new BigDecimal(
-                    chartPriceRepository.findBySymbol(symbol)
-                            .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."))
-                            .price()
-            );
+        BigDecimal totalMarginDiff = BigDecimal.ZERO;
+        BigDecimal currentPrice = null;
 
-            for (FuturesPosition position : openPositions) {
-                int newLeverage = request.leverage();
-                if (newLeverage == position.getLeverage()) continue; // 동일 레버리지면 스킵
-
-                // 새 레버리지 기준 증거금 재계산
-                BigDecimal newTotalMargin = position.getNotionalAmount()
-                        .divide(BigDecimal.valueOf(newLeverage), 8, RoundingMode.HALF_UP);
-                BigDecimal marginDiff = newTotalMargin.subtract(position.getTotalMargin());
-                // marginDiff > 0: 레버리지 낮춤 → 추가 증거금 필요
-                // marginDiff < 0: 레버리지 올림 → 증거금 일부 반환
-
-                if (newLeverage > position.getLeverage()) {
-                    // 레버리지 올릴 때 — 새 청산가가 현재가에 도달하면 예외
-                    validateLiquidationSafety(position.getPositionSide(), currentPrice,
-                            position.getEntryPrice(), newLeverage);
-                    // 남는 증거금 지갑으로 반환 (marginDiff 가 음수이므로 negate)
-                    wallet.addMoney(marginDiff.negate());
-                } else {
-                    // 레버리지 낮출 때 — 추가 증거금 잔고 검증 후 차감
-                    if (wallet.getCurrentMoney().compareTo(marginDiff) < 0) {
-                        throw new IllegalArgumentException("레버리지를 낮추기 위한 추가 증거금이 부족합니다.");
-                    }
-                    wallet.subtractMoney(marginDiff);
-                }
-
-                // 포지션 레버리지·증거금·청산가 갱신
-                position.updateLeverage(newLeverage, newTotalMargin);
+        for (FuturesPosition position : openPositions) {
+            if (newLeverage == position.getLeverage()) {
+                continue;
             }
+
+            if (newLeverage > position.getLeverage()) {
+                if (currentPrice == null) {
+                    currentPrice = new BigDecimal(
+                            chartPriceRepository.findBySymbol(symbol)
+                                    .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."))
+                                    .price()
+                    );
+                }
+                validateLiquidationSafety(position.getPositionSide(), currentPrice, position.getEntryPrice(), newLeverage);
+            }
+
+            BigDecimal newTotalMargin = position.getNotionalAmount()
+                    .divide(BigDecimal.valueOf(newLeverage), 8, RoundingMode.HALF_UP);
+            totalMarginDiff = totalMarginDiff.add(newTotalMargin.subtract(position.getTotalMargin()));
+        }
+
+        for (FuturesOrder pendingOpenOrder : pendingOpenOrders) {
+            BigDecimal newOrderMargin = pendingOpenOrder.getNotionalAmount()
+                    .divide(BigDecimal.valueOf(newLeverage), 8, RoundingMode.HALF_UP);
+            totalMarginDiff = totalMarginDiff.add(newOrderMargin.subtract(pendingOpenOrder.getOrderMargin()));
+        }
+
+        if (totalMarginDiff.compareTo(BigDecimal.ZERO) > 0
+                && wallet.getCurrentMoney().compareTo(totalMarginDiff) < 0) {
+            throw new IllegalArgumentException("레버리지 변경에 필요한 추가 증거금이 부족합니다.");
+        }
+
+        if (totalMarginDiff.compareTo(BigDecimal.ZERO) > 0) {
+            wallet.subtractMoney(totalMarginDiff);
+        } else if (totalMarginDiff.compareTo(BigDecimal.ZERO) < 0) {
+            wallet.addMoney(totalMarginDiff.negate());
+        }
+
+        for (FuturesPosition position : openPositions) {
+            if (newLeverage == position.getLeverage()) {
+                continue;
+            }
+
+            BigDecimal newTotalMargin = position.getNotionalAmount()
+                    .divide(BigDecimal.valueOf(newLeverage), 8, RoundingMode.HALF_UP);
+            position.updateLeverage(newLeverage, newTotalMargin);
+        }
+
+        for (FuturesOrder pendingOpenOrder : pendingOpenOrders) {
+            BigDecimal newOrderMargin = pendingOpenOrder.getNotionalAmount()
+                    .divide(BigDecimal.valueOf(newLeverage), 8, RoundingMode.HALF_UP);
+            pendingOpenOrder.updateOrderMargin(newOrderMargin);
         }
 
         // 행이 없으면 INSERT, 있으면 UPDATE — 단일 원자 연산으로 경쟁 조건 방지
-        futuresLeverageSettingRepository.upsertLeverage(wallet.getId(), symbol, request.leverage());
+        futuresLeverageSettingRepository.upsertLeverage(wallet.getId(), symbol, newLeverage);
 
         BigDecimal availableOrderNotionalAmount = wallet.getCurrentMoney()
-                .multiply(BigDecimal.valueOf(request.leverage()))
-                .divide(BigDecimal.ONE.add(TRADE_FEE.multiply(BigDecimal.valueOf(request.leverage()))), 4, RoundingMode.HALF_DOWN);
+                .multiply(BigDecimal.valueOf(newLeverage))
+                .divide(BigDecimal.ONE.add(TRADE_FEE.multiply(BigDecimal.valueOf(newLeverage))), 4, RoundingMode.HALF_DOWN);
 
-        return new FuturesLeverageResponseDto(symbol, request.leverage(), maxLeverage, availableOrderNotionalAmount);
+        return new FuturesLeverageResponseDto(symbol, newLeverage, maxLeverage, availableOrderNotionalAmount);
     }
 
     @Transactional(readOnly = true)

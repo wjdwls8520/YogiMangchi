@@ -1,7 +1,6 @@
 package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
-import com.yogimangchi.domain.chartapi.repository.FuturesPriceRepository;
 import com.yogimangchi.domain.futures.dto.query.FuturesPositionOpenResult;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderCloseRequestDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderOpenRequestDto;
@@ -14,10 +13,10 @@ import com.yogimangchi.domain.futures.enums.OrderStatus;
 import com.yogimangchi.domain.futures.enums.OrderType;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
-import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
-import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.event.PositionClosedEvent;
 import com.yogimangchi.domain.futures.event.PositionOpenedEvent;
+import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
+import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.support.FuturesWalletReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,17 +34,17 @@ public class FuturesOrderService {
 
     private final FuturesWalletReader futuresWalletReader;
 
-    private final FuturesPriceRepository futuresPriceRepository;
+    private final FuturesCurrentPriceService futuresCurrentPriceService;
     private final FuturesOrderRepository futuresOrderRepository;
     private final FuturesPositionRepository futuresPositionRepository;
 
     private final FuturesLeverageService futuresLeverageService;
+    private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final FuturesPositionService futuresPositionService;
     private final ApplicationEventPublisher eventPublisher;
 
     // 시장가, 지정가 수수료
     private final static BigDecimal MARKET_TRADE_FEE = new BigDecimal("0.0005");
-    private final static BigDecimal LIMIT_TRADE_FEE = new BigDecimal("0.0003");
 
     private final static BigDecimal MIN_ORDER_AMOUNT = new BigDecimal("10");
 
@@ -62,9 +61,7 @@ public class FuturesOrderService {
         int leverage = futuresLeverageService.getLeverage(memberId, contestSeasonId, symbol).leverage();
 
         // 현재 선물 체결 기준가 조회
-        BigDecimal orderPrice = futuresPriceRepository.findTickerPriceBySymbol(symbol)
-                .map(BigDecimal::new)
-                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 선물 시세를 확인할 수 없습니다."));
+        BigDecimal orderPrice = futuresCurrentPriceService.getCurrentPrice(symbol);
 
         // 증거금 / 명목금액 / 수수료 계산
         BigDecimal orderMargin = orderPrice.multiply(request.orderQuantity()).divide(new BigDecimal(leverage), 8, RoundingMode.HALF_UP);
@@ -123,7 +120,7 @@ public class FuturesOrderService {
                 ? futuresWalletReader.getTradableRealWallet(memberId)
                 : futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
 
-        // 포지션 사전 조회 — 심볼·방향 추출 및 기본 검증 (락 없음, closePosition에서 락 획득)
+        // 포지션 사전 조회 — 심볼·방향·증거금 추출 및 소유권 검증 (락 없음, OPEN 검증은 closePosition 락 이후에 수행)
         FuturesPosition positionSnapshot = futuresPositionRepository.findById(request.positionId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
         if (!positionSnapshot.getAssets().getId().equals(wallet.getId())) {
@@ -137,21 +134,22 @@ public class FuturesOrderService {
         PositionSide positionSide = positionSnapshot.getPositionSide();
 
         // 현재 선물 체결 기준가 조회
-        BigDecimal closePrice = futuresPriceRepository.findTickerPriceBySymbol(symbol)
-                .map(BigDecimal::new)
-                .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 선물 시세를 확인할 수 없습니다."));
+        BigDecimal closePrice = futuresCurrentPriceService.getCurrentPrice(symbol);
+
+        // 청산 비율 기준 증거금 산출 — 주문 히스토리에 실제 증거금 기록
+        BigDecimal closeMargin = positionSnapshot.calculateCloseMargin(request.closeQuantity());
 
         // 청산 명목금액 및 수수료 계산
-        BigDecimal closeNotional = closePrice.multiply(request.closeQuantity());
-        BigDecimal totalFee = closeNotional.multiply(MARKET_TRADE_FEE);
+        BigDecimal executedNotional = closePrice.multiply(request.closeQuantity()).setScale(8, RoundingMode.HALF_UP);
+        BigDecimal totalFee = executedNotional.multiply(MARKET_TRADE_FEE).setScale(8, RoundingMode.HALF_UP);
 
-        // 주문 히스토리 저장 (orderMargin은 포지션 비율로 산출되므로 0 기록)
+        // 주문 히스토리 저장
         FuturesOrder futuresOrder = FuturesOrder.orderMarketCreate(
                 wallet, symbol, OrderType.MARKET, OrderStatus.COMPLETED,
                 positionSide, PositionStatus.CLOSE,
                 closePrice, request.closeQuantity(), request.closeQuantity(),
                 BigDecimal.ZERO, closePrice,
-                BigDecimal.ZERO, closeNotional, closeNotional, totalFee,
+                closeMargin, executedNotional, executedNotional, totalFee,
                 LocalDateTime.now()
         );
         futuresOrderRepository.save(futuresOrder);
@@ -172,6 +170,10 @@ public class FuturesOrderService {
                     .multiply(request.closeQuantity())
                     .setScale(8, RoundingMode.HALF_UP);
         }
+
+        futuresPendingCloseOrderCleanupService.reconcilePendingCloseOrders(
+                wallet, symbol, positionSide, closedPosition.getFilledQuantity()
+        );
 
         // 완전 청산이면 position null, 부분 청산이면 잔여 포지션 상태 반환
         boolean isFullyClosed = closedPosition.getFilledQuantity().compareTo(BigDecimal.ZERO) == 0;

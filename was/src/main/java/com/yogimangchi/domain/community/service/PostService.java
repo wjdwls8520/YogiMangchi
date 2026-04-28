@@ -3,6 +3,7 @@ package com.yogimangchi.domain.community.service;
 import com.yogimangchi.domain.community.dto.request.PostCreateDto;
 import com.yogimangchi.domain.community.dto.request.PostSearchDto;
 import com.yogimangchi.domain.community.dto.request.PostUpdateDto;
+import com.yogimangchi.domain.community.dto.event.PostCreatedUxEventDto;
 import com.yogimangchi.domain.community.dto.response.PostAndMemberDto;
 import com.yogimangchi.domain.community.dto.response.PostDetailDto;
 import com.yogimangchi.domain.community.entity.Post;
@@ -50,6 +51,7 @@ public class PostService {
     private final MemberReader memberReader;
     private final PostReader postReader;
     private final CommunityPermissionValidator communityPermissionValidator;
+    private final CommunityUxSseService communityUxSseService;
     private final S3Service s3Service;
 
     private static final int MAX_TITLE_LENGTH = 50;
@@ -266,7 +268,7 @@ public class PostService {
                 ))
                 .toList();
 
-        return new PostDetailDto(
+        PostDetailDto response = new PostDetailDto(
                 savedPost.getId(),
                 savedPost.getTitle(),
                 savedPost.getContent(),
@@ -282,6 +284,10 @@ public class PostService {
                 member.getProfileImgUrl(),
                 responseFiles
         );
+
+        registerPostCreatedUxBroadcast(savedPost, member);
+
+        return response;
     }
 
     private String normalizeText(String value, String fieldName) {
@@ -511,6 +517,32 @@ public class PostService {
                 }
             }
         });
+    }
+
+    // 게시글 저장이 실제로 커밋된 뒤에만 커뮤니티 피드용 새 글 UX 이벤트를 broadcast 한다.
+    private void registerPostCreatedUxBroadcast(Post savedPost, Member author) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            communityUxSseService.sendPostCreated(createPostCreatedUxEvent(savedPost, author));
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                communityUxSseService.sendPostCreated(createPostCreatedUxEvent(savedPost, author));
+            }
+        });
+    }
+
+    // 공개 피드 화면에서 "새 글이 있습니다" 배너를 띄울 수 있도록 최소 정보만 UX payload에 담는다.
+    private PostCreatedUxEventDto createPostCreatedUxEvent(Post savedPost, Member author) {
+        return new PostCreatedUxEventDto(
+                savedPost.getId(),
+                savedPost.getTitle(),
+                author.getId(),
+                author.getNickname(),
+                savedPost.getCreatedAt()
+        );
     }
 
     private Set<Long> getLikedPostIds(Long loginMemberId, List<Long> postIds) {

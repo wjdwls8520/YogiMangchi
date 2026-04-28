@@ -11,7 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -157,5 +156,61 @@ public class FuturesOrder {
         return futuresOrder;
     }
 
+    // 지정가 주문 등록 — PENDING 상태로 생성, 체결 전이므로 filledQuantity/avgFilledPrice/executedAt 없음
+    public static FuturesOrder orderLimitCreate(
+            Assets assets,
+            String symbol,
+            PositionSide positionSide,
+            PositionStatus positionAction,
+
+            BigDecimal orderPrice,
+            BigDecimal orderQuantity,
+
+            BigDecimal orderMargin,
+            BigDecimal notionalAmount,
+            BigDecimal totalFee
+    ) {
+        FuturesOrder futuresOrder = new FuturesOrder();
+        futuresOrder.assets = assets;
+        futuresOrder.symbol = symbol;
+        futuresOrder.orderType = OrderType.LIMIT;
+        futuresOrder.orderStatus = OrderStatus.PENDING;
+        futuresOrder.positionSide = positionSide;
+        futuresOrder.positionAction = positionAction;
+
+        futuresOrder.orderPrice = orderPrice;
+        futuresOrder.orderQuantity = orderQuantity;
+        futuresOrder.filledQuantity = BigDecimal.ZERO;
+        futuresOrder.remainingQuantity = orderQuantity;
+        futuresOrder.avgFilledPrice = null;
+
+        futuresOrder.orderMargin = orderMargin;
+        futuresOrder.notionalAmount = notionalAmount;
+        futuresOrder.executedAmount = BigDecimal.ZERO;
+        futuresOrder.totalFee = totalFee;
+
+        futuresOrder.executedAt = null;
+        return futuresOrder;
+    }
+
+    // 지정가 주문 체결 완료 — 지정가 = 체결가이므로 orderPrice 를 avgFilledPrice 로 사용
+    public void fill(LocalDateTime filledAt) {
+        this.orderStatus = OrderStatus.COMPLETED;
+        this.filledQuantity = this.orderQuantity;
+        this.remainingQuantity = BigDecimal.ZERO;
+        this.avgFilledPrice = this.orderPrice;
+        this.executedAmount = this.orderPrice.multiply(this.orderQuantity);
+        this.executedAt = filledAt;
+    }
+
+    // 지정가 주문 취소 — 증거금/수수료 반환은 FuturesLimitOrderService 에서 처리
+    public void cancel(LocalDateTime canceledAt) {
+        this.orderStatus = OrderStatus.CANCELED;
+        this.canceledAt = canceledAt;
+    }
+
+    public void updateOrderMargin(BigDecimal newOrderMargin) {
+        this.orderMargin = newOrderMargin;
+    }
 
 }
