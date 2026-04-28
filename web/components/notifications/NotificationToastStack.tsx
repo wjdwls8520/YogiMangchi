@@ -1,9 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils/cs";
-import { formatNotificationRelativeTime } from "@/lib/utils/notification";
+import {
+  formatNotificationRelativeTime,
+  isCommentNotification,
+} from "@/lib/utils/notification";
 import type { NotificationToastItem } from "@/types/notification";
-import { Bell, X } from "lucide-react";
+import { Bell, CornerDownRight, X } from "lucide-react";
 import { getNotificationTradeToneStyles } from "./notificationTradeTone";
 
 interface NotificationToastStackProps {
@@ -23,6 +26,7 @@ export default function NotificationToastStack({
     <div className="pointer-events-none absolute right-0 top-full z-[60] mt-3 flex w-[calc(100vw-2rem)] max-w-[360px] flex-col gap-2">
       {toasts.map((toast) => {
         const toneStyles = getNotificationTradeToneStyles(toast.tradeTone ?? null);
+        const shouldShowCommentIcon = isCommentNotification(toast);
 
         return (
           <div
@@ -73,9 +77,15 @@ export default function NotificationToastStack({
                 </p>
 
                 {toast.description ? (
-                  <p className="mt-1 text-left text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {toast.description}
-                  </p>
+                  <div className="mt-1 flex items-start gap-1.5 text-left text-xs leading-5 text-gray-500 dark:text-gray-400">
+                    {shouldShowCommentIcon ? (
+                      <CornerDownRight
+                        className="mt-[3px] h-3.5 w-3.5 shrink-0"
+                        strokeWidth={2}
+                      />
+                    ) : null}
+                    <span className="min-w-0">{toast.description}</span>
+                  </div>
                 ) : null}
               </div>
 

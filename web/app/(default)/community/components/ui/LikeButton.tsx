@@ -11,11 +11,14 @@ interface Props {
 export default function LikeButton({liked, likeCount, onLike}: Props) {
 
     return (
-        <button type="button" className="flex items-center gap-1">
+        <button
+            type="button"
+            onClick={onLike}
+            className="flex items-center gap-1"
+        >
             <Heart 
                 strokeWidth={2} 
                 size={liked ? 19 : 18} 
-                onClick={onLike} 
                 className={cn("", liked && "fill-red-500 stroke-none")} 
             />
             {likeCount}

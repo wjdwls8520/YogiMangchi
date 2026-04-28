@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Check, ChevronDown, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ChevronDown,
+  CornerDownRight,
+  RefreshCcw,
+  Trash2,
+} from "lucide-react";
 import Button from "@/components/ui/Button";
 import Tabs from "@/components/ui/Tabs";
 import { cn } from "@/lib/utils/cs";
@@ -24,8 +31,12 @@ import {
   formatNotificationDescription,
   formatNotificationRelativeTime,
   formatNotificationTitle,
+  getNotificationActivityTime,
+  getNotificationActivityValue,
   getNotificationTradeMeta,
   getNotificationCategoryLabel,
+  isCommentNotification,
+  sortNotificationsByNewestActivity,
 } from "@/lib/utils/notification";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
@@ -67,12 +78,7 @@ const mergeNotificationsByNewest = (...groups: NotificationItem[][]) => {
     merged.set(notification.notificationId, notification);
   });
 
-  return Array.from(merged.values()).sort((a, b) => {
-    const bTime = new Date(b.createdAt).getTime();
-    const aTime = new Date(a.createdAt).getTime();
-
-    return bTime - aTime;
-  });
+  return sortNotificationsByNewestActivity(Array.from(merged.values()));
 };
 
 const createEmptyTabUnreadCounts = (): NotificationTabUnreadCounts => ({
@@ -175,6 +181,7 @@ export default function NotificationsPageView() {
   const hasHydratedLatest = useNotificationStore(
     (state) => state.hasHydratedLatest
   );
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
   const storeNotifications = useNotificationStore((state) => state.items);
   const markChecked = useNotificationStore((state) => state.markChecked);
   const markNotificationsAsRead = useNotificationStore(
@@ -207,6 +214,7 @@ export default function NotificationsPageView() {
   const previousStoreNotificationsRef = useRef<NotificationItem[]>([]);
   const pendingNotificationsRef = useRef<NotificationItem[]>([]);
   const revealTimeoutRef = useRef<number | null>(null);
+  const tabUnreadScanSignatureRef = useRef<string | null>(null);
   const tabParam = searchParams.get("tab");
   const focusParam = searchParams.get("focus");
   const activeTab: NotificationListTabValue = isNotificationListTabValue(tabParam)
@@ -253,8 +261,27 @@ export default function NotificationsPageView() {
   useEffect(() => {
     if (!isLogin) {
       setTabUnreadCounts(createEmptyTabUnreadCounts());
+      tabUnreadScanSignatureRef.current = null;
       return;
     }
+
+    const knownUnreadCounts = buildTabUnreadCounts(
+      mergeNotificationsByNewest(storeNotifications, notificationListState.items)
+    );
+
+    if (unreadCount === 0 || knownUnreadCounts.ALL >= unreadCount) {
+      setTabUnreadCounts(knownUnreadCounts);
+      tabUnreadScanSignatureRef.current = null;
+      return;
+    }
+
+    const nextScanSignature = `${unreadCount}:${knownUnreadCounts.ALL}`;
+
+    if (tabUnreadScanSignatureRef.current === nextScanSignature) {
+      return;
+    }
+
+    tabUnreadScanSignatureRef.current = nextScanSignature;
 
     let isActive = true;
 
@@ -262,16 +289,24 @@ export default function NotificationsPageView() {
       try {
         let cursorId: number | undefined;
         let hasNext = true;
-        const unreadNotifications: NotificationItem[] = [];
+        const nextCounts = createEmptyTabUnreadCounts();
 
-        while (hasNext) {
+        while (hasNext && nextCounts.ALL < unreadCount) {
           const response = await getNotifications({
             cursorId,
             size: TAB_UNREAD_COUNT_PAGE_SIZE,
             read: false,
           });
 
-          unreadNotifications.push(...response.content);
+          response.content.forEach((notification) => {
+            if (notification.isRead) {
+              return;
+            }
+
+            nextCounts.ALL += 1;
+            nextCounts[getNotificationListTabValue(notification.category)] += 1;
+          });
+
           cursorId = response.nextCursorId ?? undefined;
           hasNext = response.hasNext && response.nextCursorId !== null;
         }
@@ -280,7 +315,7 @@ export default function NotificationsPageView() {
           return;
         }
 
-        setTabUnreadCounts(buildTabUnreadCounts(unreadNotifications));
+        setTabUnreadCounts(nextCounts);
       } catch (error) {
         console.error("알림 탭 카운트 조회 실패", error);
       }
@@ -291,7 +326,7 @@ export default function NotificationsPageView() {
     return () => {
       isActive = false;
     };
-  }, [isLogin]);
+  }, [isLogin, notificationListState.items, storeNotifications, unreadCount]);
 
   useEffect(() => {
     if (!isLogin || isLoading) {
@@ -315,19 +350,37 @@ export default function NotificationsPageView() {
       return;
     }
 
-    const previousStoreNotificationIdSet = new Set(
-      previousStoreNotificationsRef.current.map((notification) => notification.notificationId)
+    const previousStoreNotificationMap = new Map(
+      previousStoreNotificationsRef.current.map((notification) => [
+        notification.notificationId,
+        notification,
+      ])
     );
-    const pendingNotificationIdSet = new Set(
-      pendingNotificationsRef.current.map((notification) => notification.notificationId)
+    const pendingNotificationMap = new Map(
+      pendingNotificationsRef.current.map((notification) => [
+        notification.notificationId,
+        notification,
+      ])
     );
     const leadingPendingNotifications: NotificationItem[] = [];
 
     for (const notification of storeNotifications) {
-      if (
-        previousStoreNotificationIdSet.has(notification.notificationId) ||
-        pendingNotificationIdSet.has(notification.notificationId)
-      ) {
+      const previousNotification = previousStoreNotificationMap.get(
+        notification.notificationId
+      );
+      const pendingNotification = pendingNotificationMap.get(
+        notification.notificationId
+      );
+      const knownActivityTime = Math.max(
+        previousNotification
+          ? getNotificationActivityTime(previousNotification)
+          : Number.NEGATIVE_INFINITY,
+        pendingNotification
+          ? getNotificationActivityTime(pendingNotification)
+          : Number.NEGATIVE_INFINITY
+      );
+
+      if (knownActivityTime >= getNotificationActivityTime(notification)) {
         break;
       }
 
@@ -1035,10 +1088,13 @@ function NotificationsPageItem({
   const title = formatNotificationTitle(notification);
   const description = formatNotificationDescription(notification);
   const categoryLabel = getNotificationCategoryLabel(notification.category);
-  const timeLabel = formatNotificationRelativeTime(notification.createdAt);
+  const timeLabel = formatNotificationRelativeTime(
+    getNotificationActivityValue(notification)
+  );
   const navigationTarget = getNotificationNavigationTarget(notification);
   const { sideLabel, tone } = getNotificationTradeMeta(notification);
   const toneStyles = getNotificationTradeToneStyles(tone);
+  const shouldShowCommentIcon = isCommentNotification(notification);
 
   const isUnread = !notification.isRead;
 
@@ -1157,9 +1213,15 @@ function NotificationsPageItem({
           </h2>
 
           {description ? (
-            <p className="mt-1 text-left text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
-              {description}
-            </p>
+            <div className="mt-1 flex items-start gap-1.5 text-left text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
+              {shouldShowCommentIcon ? (
+                <CornerDownRight
+                  className="mt-[2px] h-3.5 w-3.5 shrink-0"
+                  strokeWidth={2}
+                />
+              ) : null}
+              <span className="min-w-0">{description}</span>
+            </div>
           ) : null}
 
           {navigationTarget ? (

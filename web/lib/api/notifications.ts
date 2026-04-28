@@ -2,7 +2,6 @@ import type {
   CursorResponseDto,
   NotificationItem,
   NotificationListParams,
-  NotificationStatusResponse,
 } from "@/types/notification";
 import { fetchClient } from "./client";
 
@@ -10,12 +9,6 @@ export const subscribeNotifications = () => {
   return new EventSource("http://localhost:8080/api/v1/notifications/subscribe", {
     withCredentials: true,
   });
-};
-
-export const getNotificationStatus = async () => {
-  const result = await fetchClient("notifications/status");
-
-  return result as NotificationStatusResponse;
 };
 
 export const getNotifications = async ({
@@ -78,7 +71,3 @@ export const deleteReadNotifications = async () => {
     method: "DELETE",
   });
 };
-
-export const subscribeAlarms = subscribeNotifications;
-export const getAlarmStatus = getNotificationStatus;
-export const getAlarms = getNotifications;
