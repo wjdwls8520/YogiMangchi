@@ -36,6 +36,7 @@ import { formatNotificationCount } from "@/lib/utils/notification";
 import type { NotificationItem } from "@/types/notification";
 
 const NOTIFICATION_PAGE_SIZE = 10;
+const NOTIFICATION_DRAWER_REFRESH_STALE_MS = 60000;
 
 export default function Header() {
   const router = useRouter();
@@ -49,6 +50,10 @@ export default function Header() {
 
   const notifications = useNotificationStore((state) => state.items);
   const newCount = useNotificationStore((state) => state.newCount);
+  const hasHydratedLatest = useNotificationStore(
+    (state) => state.hasHydratedLatest
+  );
+  const lastSyncedAt = useNotificationStore((state) => state.lastSyncedAt);
   const nextCursorId = useNotificationStore((state) => state.nextCursorId);
   const hasNext = useNotificationStore((state) => state.hasNext);
   const liveToasts = useNotificationStore((state) => state.liveToasts);
@@ -334,7 +339,16 @@ export default function Header() {
       setIsAlarmOpen(true);
     });
 
-    void refreshNotifications();
+    const isNotificationCacheStale =
+      lastSyncedAt === 0 ||
+      Date.now() - lastSyncedAt > NOTIFICATION_DRAWER_REFRESH_STALE_MS;
+    const shouldRefreshNotifications =
+      !hasHydratedLatest || newCount > 0 || isNotificationCacheStale;
+
+    if (shouldRefreshNotifications) {
+      void refreshNotifications();
+    }
+
     void markNotificationsAsChecked();
   };
 

@@ -1,21 +1,25 @@
 "use client";
 
+import { subscribeNotifications } from "@/lib/api/notifications";
 import {
-  getNotifications,
-  getNotificationStatus,
-  subscribeNotifications,
-} from "@/lib/api/notifications";
+  dispatchNotificationSseBridgeEvent,
+  FORWARDED_NOTIFICATION_EVENT_NAMES,
+  type ForwardedNotificationEventName,
+} from "@/lib/utils/notification-sse";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { ReactNode, useEffect } from "react";
-import type { NotificationItem } from "@/types/notification";
+import type {
+  NotificationItem,
+  NotificationStatusResponse,
+} from "@/types/notification";
 
 interface Props {
   children: ReactNode;
 }
 
-const NOTIFICATION_POLL_INTERVAL_MS = 5000;
-const NOTIFICATION_POLL_SIZE = 10;
+const NOTIFICATION_STATUS_EVENT_NAME = "STATUS";
+const GROUPED_NOTIFICATION_UPDATED_EVENT_SUFFIX = "_UPDATED";
 const NOTIFICATION_EVENT_NAMES = [
   "NOTIFICATION_CREATED",
   "ORDER_COMPLETED",
@@ -25,107 +29,117 @@ const NOTIFICATION_EVENT_NAMES = [
   "POST_LIKED",
   "REPLY_LIKED",
   "FOLLOW_CREATED",
+  "NOTIFICATION_MOCK_ORDER_COMPLETED",
+  "NOTIFICATION_TRADE_ORDER_COMPLETED",
+  "NOTIFICATION_CONTEST_ORDER_COMPLETED",
+  "NOTIFICATION_COMMUNITY_POST_COMMENT_CREATED",
+  "NOTIFICATION_COMMUNITY_REPLY_COMMENT_CREATED",
+  "NOTIFICATION_COMMUNITY_POST_LIKED",
+  "NOTIFICATION_COMMUNITY_POST_LIKED_CREATED",
+  "NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED",
+  "NOTIFICATION_COMMUNITY_REPLY_LIKED",
+  "NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED",
+  "NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED",
+  "NOTIFICATION_COMMUNITY_FOLLOW_CREATED",
 ];
 
 export default function SSEProvider({ children }: Props) {
   const isLogin = useAuthStore((state) => state.isLogin);
+  const hasHydratedAuth = useAuthStore((state) => state.hasHydrated);
+  const isAuthResolved = useAuthStore((state) => state.isAuthResolved);
   const hydrateStatus = useNotificationStore((state) => state.hydrateStatus);
-  const syncLatestNotifications = useNotificationStore(
-    (state) => state.syncLatestNotifications
-  );
   const receiveNotification = useNotificationStore((state) => state.receiveNotification);
   const resetNotifications = useNotificationStore((state) => state.reset);
 
   useEffect(() => {
+    if (!hasHydratedAuth || !isAuthResolved) {
+      return;
+    }
+
     if (!isLogin) {
       resetNotifications();
       return;
     }
 
     const eventSource = subscribeNotifications();
-    let isMounted = true;
-    let intervalId: number | null = null;
-    let hasBootstrappedNotifications = false;
 
-    const refreshStatus = async () => {
-      try {
-        const status = await getNotificationStatus();
-
-        if (isMounted) {
-          hydrateStatus(status);
-        }
-      } catch (error) {
-        console.error("알림 상태 조회 실패", error);
-      }
-    };
-
-    const syncLatestFromList = async (treatNewAsLive: boolean) => {
-      try {
-        const latestResponse = await getNotifications({
-          size: NOTIFICATION_POLL_SIZE,
-        });
-
-        if (!isMounted) {
-          return;
-        }
-
-        syncLatestNotifications(latestResponse, { treatNewAsLive });
-      } catch (error) {
-        console.error("최신 알림 목록 동기화 실패", error);
-      }
-    };
-
-    const bootstrapNotifications = async () => {
-      await refreshStatus();
-      await syncLatestFromList(false);
-      hasBootstrappedNotifications = true;
-    };
-
-    const handleWindowFocus = () => {
-      if (!hasBootstrappedNotifications) {
-        return;
-      }
-
-      void syncLatestFromList(true);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && hasBootstrappedNotifications) {
-        void syncLatestFromList(true);
-      }
-    };
-
-    const handleIncomingNotification = (event: Event) => {
+    const handleIncomingNotification = (
+      event: Event,
+      sourceEventName?: string
+    ) => {
       if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
         return;
       }
 
       try {
         const notification = JSON.parse(event.data) as NotificationItem;
+
+        if (
+          sourceEventName?.endsWith(GROUPED_NOTIFICATION_UPDATED_EVENT_SUFFIX) &&
+          !notification.lastEventAt
+        ) {
+          notification.lastEventAt = new Date().toISOString();
+        }
+
         receiveNotification(notification);
       } catch (error) {
         console.error("알림 SSE 데이터 파싱 실패", error);
       }
     };
 
-    void bootstrapNotifications();
-    intervalId = window.setInterval(() => {
-      if (!hasBootstrappedNotifications) {
+    const handleStatusEvent = (event: Event) => {
+      if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
         return;
       }
 
-      void syncLatestFromList(true);
-    }, NOTIFICATION_POLL_INTERVAL_MS);
+      try {
+        const status = JSON.parse(event.data) as NotificationStatusResponse;
+        hydrateStatus(status);
+      } catch (error) {
+        console.error("알림 STATUS SSE 데이터 파싱 실패", error);
+      }
+    };
 
-    window.addEventListener("focus", handleWindowFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const handleForwardedSseEvent = (
+      eventName: ForwardedNotificationEventName,
+      event: Event
+    ) => {
+      if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
+        return;
+      }
+
+      dispatchNotificationSseBridgeEvent(eventName, event.data);
+    };
+
+    const forwardedSseListeners = FORWARDED_NOTIFICATION_EVENT_NAMES.map(
+      (eventName) => ({
+        eventName,
+        listener: (event: Event) => {
+          handleForwardedSseEvent(eventName, event);
+        },
+      })
+    );
+    const notificationEventListeners = NOTIFICATION_EVENT_NAMES.map(
+      (eventName) => ({
+        eventName,
+        listener: (event: Event) => {
+          handleIncomingNotification(event, eventName);
+        },
+      })
+    );
+
+    eventSource.addEventListener(NOTIFICATION_STATUS_EVENT_NAME, handleStatusEvent);
 
     eventSource.onmessage = (event) => {
       handleIncomingNotification(event);
     };
 
-    NOTIFICATION_EVENT_NAMES.forEach((eventName) => {
-      eventSource.addEventListener(eventName, handleIncomingNotification);
+    notificationEventListeners.forEach(({ eventName, listener }) => {
+      eventSource.addEventListener(eventName, listener);
+    });
+
+    forwardedSseListeners.forEach(({ eventName, listener }) => {
+      eventSource.addEventListener(eventName, listener);
     });
 
     eventSource.onerror = (error) => {
@@ -135,25 +149,26 @@ export default function SSEProvider({ children }: Props) {
     };
 
     return () => {
-      isMounted = false;
-      hasBootstrappedNotifications = false;
-      if (intervalId !== null) {
-        window.clearInterval(intervalId);
-      }
-      window.removeEventListener("focus", handleWindowFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       eventSource.onmessage = null;
-      NOTIFICATION_EVENT_NAMES.forEach((eventName) => {
-        eventSource.removeEventListener(eventName, handleIncomingNotification);
+      eventSource.removeEventListener(
+        NOTIFICATION_STATUS_EVENT_NAME,
+        handleStatusEvent
+      );
+      notificationEventListeners.forEach(({ eventName, listener }) => {
+        eventSource.removeEventListener(eventName, listener);
+      });
+      forwardedSseListeners.forEach(({ eventName, listener }) => {
+        eventSource.removeEventListener(eventName, listener);
       });
       eventSource.close();
     };
   }, [
+    hasHydratedAuth,
     hydrateStatus,
+    isAuthResolved,
     isLogin,
     receiveNotification,
     resetNotifications,
-    syncLatestNotifications,
   ]);
 
   return children;

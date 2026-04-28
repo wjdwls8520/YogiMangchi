@@ -61,6 +61,86 @@ const getPayloadString = (
   return typeof value === "string" && value.trim() ? value : null;
 };
 
+const getPayloadStringListFirst = (
+  payload: NotificationPayload | null | undefined,
+  ...keys: string[]
+) => {
+  const record = getPayloadRecord(payload);
+
+  for (const key of keys) {
+    const value = record?.[key];
+
+    if (!Array.isArray(value)) {
+      continue;
+    }
+
+    for (const item of value) {
+      if (typeof item === "string" && item.trim()) {
+        return item.trim();
+      }
+
+      if (item && typeof item === "object") {
+        const itemRecord = item as Record<string, unknown>;
+
+        if (
+          typeof itemRecord.nickname === "string" &&
+          itemRecord.nickname.trim()
+        ) {
+          return itemRecord.nickname.trim();
+        }
+
+        if (
+          typeof itemRecord.nickName === "string" &&
+          itemRecord.nickName.trim()
+        ) {
+          return itemRecord.nickName.trim();
+        }
+
+        if (
+          typeof itemRecord.memberNickname === "string" &&
+          itemRecord.memberNickname.trim()
+        ) {
+          return itemRecord.memberNickname.trim();
+        }
+
+        if (typeof itemRecord.name === "string" && itemRecord.name.trim()) {
+          return itemRecord.name.trim();
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
+const getPayloadNestedString = (
+  payload: NotificationPayload | null | undefined,
+  recordKeys: string[],
+  valueKeys: string[]
+) => {
+  const record = getPayloadRecord(payload);
+
+  for (const recordKey of recordKeys) {
+    const nestedValue = record?.[recordKey];
+
+    if (!nestedValue || typeof nestedValue !== "object") {
+      continue;
+    }
+
+    const nestedRecord = nestedValue as Record<string, unknown>;
+
+    for (const valueKey of valueKeys) {
+      const value = nestedRecord[valueKey];
+
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+  }
+
+  return null;
+};
+
 const getPayloadNumber = (
   payload: NotificationPayload | null | undefined,
   key: string
@@ -69,6 +149,33 @@ const getPayloadNumber = (
   const value = record?.[key];
 
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const getPayloadNumericValue = (
+  payload: NotificationPayload | null | undefined,
+  ...keys: string[]
+) => {
+  for (const key of keys) {
+    const numberValue = getPayloadNumber(payload, key);
+
+    if (numberValue !== null) {
+      return numberValue;
+    }
+
+    const stringValue = getPayloadString(payload, key);
+
+    if (!stringValue) {
+      continue;
+    }
+
+    const parsedValue = Number(stringValue);
+
+    if (Number.isFinite(parsedValue)) {
+      return parsedValue;
+    }
+  }
+
+  return null;
 };
 
 const normalizeNotificationText = (value: string | null) => {
@@ -105,10 +212,54 @@ const getDisplayTarget = (notification: NotificationItem) => {
 const getActorName = (notification: NotificationItem) => {
   return (
     getPayloadString(notification.payload, "actorNickname") ??
+    getPayloadString(notification.payload, "actorNickName") ??
+    getPayloadString(notification.payload, "latestActorNickname") ??
+    getPayloadString(notification.payload, "recentActorNickname") ??
+    getPayloadString(notification.payload, "firstActorNickname") ??
+    getPayloadString(notification.payload, "senderNickname") ??
+    getPayloadString(notification.payload, "senderNickName") ??
+    getPayloadString(notification.payload, "likerNickname") ??
+    getPayloadString(notification.payload, "likerNickName") ??
+    getPayloadString(notification.payload, "fromNickname") ??
+    getPayloadString(notification.payload, "triggerMemberNickname") ??
+    getPayloadString(notification.payload, "representativeNickname") ??
+    getPayloadString(notification.payload, "representativeActorNickname") ??
     getPayloadString(notification.payload, "nickname") ??
+    getPayloadString(notification.payload, "nickName") ??
     getPayloadString(notification.payload, "memberNickname") ??
+    getPayloadString(notification.payload, "memberNickName") ??
     getPayloadString(notification.payload, "writerNickname") ??
+    getPayloadString(notification.payload, "writerNickName") ??
     getPayloadString(notification.payload, "actorName") ??
+    getPayloadNestedString(
+      notification.payload,
+      [
+        "actor",
+        "latestActor",
+        "recentActor",
+        "firstActor",
+        "sender",
+        "liker",
+        "member",
+        "triggerMember",
+        "representativeActor",
+        "writer",
+      ],
+      ["nickname", "nickName", "memberNickname", "memberNickName", "name"]
+    ) ??
+    getPayloadStringListFirst(
+      notification.payload,
+      "actorsPreview",
+      "actorNicknames",
+      "memberNicknames",
+      "likerNicknames",
+      "userNicknames",
+      "actorNames",
+      "memberNames",
+      "actors",
+      "members",
+      "likers"
+    ) ??
     "다른 회원"
   );
 };
@@ -122,6 +273,40 @@ const getPostTitle = (notification: NotificationItem) => {
     getPayloadString(notification.payload, "articleTitle") ??
     getPayloadString(notification.payload, "boardTitle")
   );
+};
+
+const isGroupedLikeNotification = (notification: NotificationItem) => {
+  return (
+    notification.type === "POST_LIKED" || notification.type === "REPLY_LIKED"
+  );
+};
+
+const getGroupedLikeCount = (notification: NotificationItem) => {
+  if (!isGroupedLikeNotification(notification)) {
+    return null;
+  }
+
+  return getPayloadNumericValue(
+    notification.payload,
+    "groupCount",
+    "totalActorCount",
+    "likeGroupCount",
+    "aggregatedCount",
+    "actorCount",
+    "memberCount",
+    "likeCount",
+    "count"
+  );
+};
+
+const getGroupedLikeAdditionalActorCount = (notification: NotificationItem) => {
+  const groupedLikeCount = getGroupedLikeCount(notification);
+
+  if (groupedLikeCount === null || groupedLikeCount <= 1) {
+    return 0;
+  }
+
+  return groupedLikeCount - 1;
 };
 
 const getOrderSideLabel = (notification: NotificationItem) => {
@@ -156,18 +341,24 @@ const getOrderSideTone = (
 
 const getOrderQuantity = (notification: NotificationItem) => {
   return (
-    getPayloadNumber(notification.payload, "quantity") ??
-    getPayloadNumber(notification.payload, "filledQuantity") ??
-    getPayloadNumber(notification.payload, "orderQuantity")
+    getPayloadNumericValue(
+      notification.payload,
+      "quantity",
+      "filledQuantity",
+      "orderQuantity"
+    )
   );
 };
 
 const getOrderAmount = (notification: NotificationItem) => {
   return (
-    getPayloadNumber(notification.payload, "executedAmount") ??
-    getPayloadNumber(notification.payload, "settlementAmount") ??
-    getPayloadNumber(notification.payload, "totalAmount") ??
-    getPayloadNumber(notification.payload, "orderAmount")
+    getPayloadNumericValue(
+      notification.payload,
+      "executedAmount",
+      "settlementAmount",
+      "totalAmount",
+      "orderAmount"
+    )
   );
 };
 
@@ -181,6 +372,7 @@ const getPostTitleSummary = (notification: NotificationItem) => {
 
 const getRawContent = (notification: NotificationItem) => {
   const rawContent =
+    getPayloadString(notification.payload, "replyContentPreview") ??
     getPayloadString(notification.payload, "content") ??
     getPayloadString(notification.payload, "replyContent") ??
     getPayloadString(notification.payload, "commentContent") ??
@@ -201,10 +393,48 @@ export const getNotificationStatusLabel = (notification: NotificationItem) => {
   return notification.isRead ? "읽음" : "안 읽음";
 };
 
+export const getNotificationActivityValue = (notification: NotificationItem) => {
+  return notification.lastEventAt ?? notification.createdAt;
+};
+
+export const getNotificationActivityTime = (notification: NotificationItem) => {
+  return new Date(getNotificationActivityValue(notification)).getTime();
+};
+
+export const sortNotificationsByNewestActivity = (
+  notifications: NotificationItem[]
+) => {
+  return [...notifications].sort((a, b) => {
+    const bTime = getNotificationActivityTime(b);
+    const aTime = getNotificationActivityTime(a);
+
+    return bTime - aTime;
+  });
+};
+
+export const hasNewerNotificationActivity = (
+  currentNotification: NotificationItem,
+  nextNotification: NotificationItem
+) => {
+  return (
+    getNotificationActivityTime(nextNotification) >
+    getNotificationActivityTime(currentNotification)
+  );
+};
+
 export const isTradeNotification = (notification: NotificationItem) => {
   return (
     notification.type === "ORDER_COMPLETED" ||
     notification.type === "ORDER_CANCELED"
+  );
+};
+
+export const isCommentNotification = (
+  notification: Pick<NotificationItem, "type">
+) => {
+  return (
+    notification.type === "POST_COMMENT_CREATED" ||
+    notification.type === "REPLY_COMMENT_CREATED"
   );
 };
 
@@ -227,6 +457,13 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
   const actorName = getActorName(notification);
   const contentSummary = getContentSummary(notification);
   const postTitleSummary = getPostTitleSummary(notification);
+  const groupedLikeAdditionalActorCount =
+    getGroupedLikeAdditionalActorCount(notification);
+  const groupedLikeTotalCount = groupedLikeAdditionalActorCount + 1;
+  const groupedLikeActorLabel =
+    actorName === "다른 회원"
+      ? `회원 ${formatNotificationCount(groupedLikeTotalCount)}명`
+      : `${actorName}님 외 ${groupedLikeAdditionalActorCount}명`;
 
   switch (notification.type) {
     case "ORDER_COMPLETED":
@@ -251,13 +488,29 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
         : `${actorName}님이 내 글에 댓글을 남겼습니다.`;
     case "POST_LIKED":
       if (postTitleSummary) {
+        if (groupedLikeAdditionalActorCount > 0) {
+          return `${groupedLikeActorLabel}이 내 글 "${postTitleSummary}"을 좋아합니다.`;
+        }
+
         return `${actorName}님이 내 글 "${postTitleSummary}"을 좋아합니다.`;
+      }
+
+      if (groupedLikeAdditionalActorCount > 0) {
+        return `${groupedLikeActorLabel}이 내 게시글을 좋아합니다.`;
       }
 
       return `${actorName}님이 내 게시글을 좋아합니다.`;
     case "REPLY_LIKED":
       if (postTitleSummary) {
+        if (groupedLikeAdditionalActorCount > 0) {
+          return `${groupedLikeActorLabel}이 글 "${postTitleSummary}"의 내 댓글을 좋아합니다.`;
+        }
+
         return `${actorName}님이 글 "${postTitleSummary}"의 내 댓글을 좋아합니다.`;
+      }
+
+      if (groupedLikeAdditionalActorCount > 0) {
+        return `${groupedLikeActorLabel}이 내 댓글을 좋아합니다.`;
       }
 
       return `${actorName}님이 내 댓글을 좋아합니다.`;
@@ -316,6 +569,7 @@ export const getNotificationDetailFields = (notification: NotificationItem) => {
   const rawContent = getRawContent(notification);
   const orderQuantity = getOrderQuantity(notification);
   const orderAmount = getOrderAmount(notification);
+  const groupedLikeCount = getGroupedLikeCount(notification);
 
   switch (notification.type) {
     case "ORDER_COMPLETED":
@@ -343,10 +597,19 @@ export const getNotificationDetailFields = (notification: NotificationItem) => {
       ].filter((field): field is NotificationDetailField => field !== null);
     case "POST_LIKED":
     case "REPLY_LIKED":
+      return [
+        createDetailField("사용자", actorName),
+        createDetailField(
+          "반응 수",
+          groupedLikeCount !== null ? `${formatNotificationCount(groupedLikeCount)}명` : null,
+          "center"
+        ),
+        createDetailField("글 제목", postTitle),
+        createDetailField("내용", rawContent),
+      ].filter((field): field is NotificationDetailField => field !== null);
     case "FOLLOW_CREATED":
       return [
         createDetailField("사용자", actorName),
-        createDetailField("글 제목", postTitle),
       ].filter((field): field is NotificationDetailField => field !== null);
     default:
       return [

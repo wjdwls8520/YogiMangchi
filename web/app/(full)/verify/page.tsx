@@ -17,8 +17,8 @@ import {
   verifyEmailVerificationCode,
 } from "@/lib/api/member";
 import { FetchClientError } from "@/lib/api/client";
-import { subscribeAlarms } from "@/lib/api/notifications";
 import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils/phone";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -42,7 +42,6 @@ export default function VerifyDetailPage() {
   const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);
   const { alert, toast } = useFeedback();
-  const emailEventSourceRef = useRef<EventSource | null>(null);
   const sendCodeTimeoutRef = useRef<number | null>(null);
 
   const [phone, setPhone] = useState("");
@@ -107,62 +106,56 @@ export default function VerifyDetailPage() {
   };
 
   useEffect(() => {
-    const eventSource = subscribeAlarms();
-    emailEventSourceRef.current = eventSource;
+    const handleEmailSent = (event: Event) => {
+      const detail =
+        event instanceof CustomEvent && typeof event.detail === "string"
+          ? event.detail
+          : "";
 
-    const handleEmailSent = (event: MessageEvent) => {
       clearSendCodeTimeout();
       setIsSendingCode(false);
       setIsEmailCodeSent(true);
       setIsEmailVerified(false);
       setEmailCode("");
       toast({
-        title:
-          typeof event.data === "string" && event.data
-            ? event.data
-            : "이메일이 발송되었습니다.",
+        title: detail || "이메일이 발송되었습니다.",
         tone: "success",
       });
     };
 
-    const handleEmailSendFailed = (event: MessageEvent) => {
+    const handleEmailSendFailed = (event: Event) => {
+      const detail =
+        event instanceof CustomEvent && typeof event.detail === "string"
+          ? event.detail
+          : "";
+
       clearSendCodeTimeout();
       setIsSendingCode(false);
       toast({
-        title:
-          typeof event.data === "string" && event.data
-            ? event.data
-            : "이메일 발송에 실패했습니다. 다시 시도해 주세요.",
+        title: detail || "이메일 발송에 실패했습니다. 다시 시도해 주세요.",
         tone: "error",
       });
     };
 
-    eventSource.addEventListener("EMAIL_SENT", handleEmailSent as EventListener);
-    eventSource.addEventListener(
-      "EMAIL_SEND_FAILED",
-      handleEmailSendFailed as EventListener
+    window.addEventListener(
+      getNotificationSseBridgeEventName("EMAIL_SENT"),
+      handleEmailSent
     );
-
-    eventSource.onerror = () => {
-      if (eventSource.readyState === EventSource.CLOSED) {
-        emailEventSourceRef.current = null;
-      }
-    };
+    window.addEventListener(
+      getNotificationSseBridgeEventName("EMAIL_SEND_FAILED"),
+      handleEmailSendFailed
+    );
 
     return () => {
       clearSendCodeTimeout();
-      eventSource.removeEventListener(
-        "EMAIL_SENT",
-        handleEmailSent as EventListener
+      window.removeEventListener(
+        getNotificationSseBridgeEventName("EMAIL_SENT"),
+        handleEmailSent
       );
-      eventSource.removeEventListener(
-        "EMAIL_SEND_FAILED",
-        handleEmailSendFailed as EventListener
+      window.removeEventListener(
+        getNotificationSseBridgeEventName("EMAIL_SEND_FAILED"),
+        handleEmailSendFailed
       );
-      eventSource.close();
-      if (emailEventSourceRef.current === eventSource) {
-        emailEventSourceRef.current = null;
-      }
     };
   }, [toast]);
 
