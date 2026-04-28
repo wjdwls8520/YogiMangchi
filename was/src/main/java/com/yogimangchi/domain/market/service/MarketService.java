@@ -23,4 +23,9 @@ public class MarketService {
                 .map(MarketSymbolResponseDto::from)
                 .toList();
     }
+    @Transactional(readOnly = true)
+    public List<MarketSymbolResponseDto> getActiveFutures() {
+        // Repository에서 엔티티 리스트를 가져와서 DTO 리스트로 변환
+        return marketSymbolRepository.findActiveFuturesSymbolsByType();
+    }
 }

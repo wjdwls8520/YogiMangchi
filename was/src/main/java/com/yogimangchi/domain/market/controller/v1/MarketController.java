@@ -31,7 +31,7 @@ public class MarketController {
     @Operation(summary = "선물 마켓 심볼 조회", description = "선물 거래가 가능한 코인 목록(메뉴판)을 반환합니다.")
     @GetMapping("/futures/symbols")
     public ResponseEntity<List<MarketSymbolResponseDto>> getFutureSymbols() {
-        List<MarketSymbolResponseDto> symbols = marketService.getActiveSymbols(MarketType.FUTURE);
+        List<MarketSymbolResponseDto> symbols = marketService.getActiveFutures();
         return ResponseEntity.ok(symbols);
     }
 }
