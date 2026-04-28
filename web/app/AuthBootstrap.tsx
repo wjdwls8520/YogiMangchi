@@ -13,17 +13,25 @@ const AUTH_SYNC_FLAG = "needs-auth-sync";
 // 앱 시작 시 저장된 로그인 상태를 기준으로 서버 세션을 1회 동기화합니다.
 export default function AuthBootstrap() {
   const isLogin = useAuthStore((state) => state.isLogin);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
+  const setAuthResolved = useAuthStore((state) => state.setAuthResolved);
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
     const needsAuthSync = window.sessionStorage.getItem(AUTH_SYNC_FLAG) === "1";
 
     if (!isLogin && !needsAuthSync) {
+      setAuthResolved(true);
       return;
     }
 
     let isMounted = true;
+    setAuthResolved(false);
 
     const syncAuth = async () => {
       try {
@@ -52,6 +60,10 @@ export default function AuthBootstrap() {
         if (isMounted) {
           logout();
         }
+      } finally {
+        if (isMounted) {
+          setAuthResolved(true);
+        }
       }
     };
 
@@ -60,7 +72,7 @@ export default function AuthBootstrap() {
     return () => {
       isMounted = false;
     };
-  }, [isLogin, login, logout]);
+  }, [hasHydrated, isLogin, login, logout, setAuthResolved]);
 
   return null;
 }

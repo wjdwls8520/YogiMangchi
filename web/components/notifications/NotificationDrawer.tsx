@@ -3,16 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cs";
 import {
+  getNotificationActivityTime,
+  getNotificationActivityValue,
   formatNotificationCount,
   formatNotificationDescription,
   formatNotificationRelativeTime,
   formatNotificationTitle,
   getNotificationTradeMeta,
   getNotificationCategoryLabel,
+  isCommentNotification,
+  sortNotificationsByNewestActivity,
 } from "@/lib/utils/notification";
 import { getNotificationTradeToneStyles } from "./notificationTradeTone";
 import type { NotificationItem } from "@/types/notification";
-import { Bell, ChevronRight, RefreshCcw, X } from "lucide-react";
+import { Bell, ChevronRight, CornerDownRight, RefreshCcw, X } from "lucide-react";
 
 interface NotificationDrawerProps {
   notifications: NotificationItem[];
@@ -35,12 +39,7 @@ const mergeNotificationsByNewest = (...groups: NotificationItem[][]) => {
     merged.set(notification.notificationId, notification);
   });
 
-  return Array.from(merged.values()).sort((a, b) => {
-    const bTime = new Date(b.createdAt).getTime();
-    const aTime = new Date(a.createdAt).getTime();
-
-    return bTime - aTime;
-  });
+  return sortNotificationsByNewestActivity(Array.from(merged.values()));
 };
 
 export default function NotificationDrawer({
@@ -66,11 +65,12 @@ export default function NotificationDrawer({
   const [highlightedNotificationIds, setHighlightedNotificationIds] = useState<number[]>([]);
   const pendingNotificationsRef = useRef<NotificationItem[]>([]);
   const previousNotificationsRef = useRef<NotificationItem[]>([]);
-  const pendingNotificationIdSet = new Set(
-    pendingNotifications.map((notification) => notification.notificationId)
-  );
   const visibleNotifications = notifications.filter(
-    (notification) => !pendingNotificationIdSet.has(notification.notificationId)
+    (notification) =>
+      !pendingNotifications.some(
+        (pendingNotification) =>
+          pendingNotification.notificationId === notification.notificationId
+      )
   );
 
   useEffect(() => {
@@ -88,20 +88,37 @@ export default function NotificationDrawer({
       return;
     }
 
-    const pendingNotificationIdSet = new Set(
-      pendingNotificationsRef.current.map((notification) => notification.notificationId)
+    const previousNotificationMap = new Map(
+      previousNotificationsRef.current.map((notification) => [
+        notification.notificationId,
+        notification,
+      ])
     );
-    const previousNotificationIdSet = new Set(
-      previousNotificationsRef.current.map((notification) => notification.notificationId)
+    const pendingNotificationMap = new Map(
+      pendingNotificationsRef.current.map((notification) => [
+        notification.notificationId,
+        notification,
+      ])
     );
-    const knownNotificationIdSet = new Set([
-      ...previousNotificationIdSet,
-      ...pendingNotificationIdSet,
-    ]);
     const leadingPendingNotifications: NotificationItem[] = [];
 
     for (const notification of notifications) {
-      if (knownNotificationIdSet.has(notification.notificationId)) {
+      const previousNotification = previousNotificationMap.get(
+        notification.notificationId
+      );
+      const pendingNotification = pendingNotificationMap.get(
+        notification.notificationId
+      );
+      const knownActivityTime = Math.max(
+        previousNotification
+          ? getNotificationActivityTime(previousNotification)
+          : Number.NEGATIVE_INFINITY,
+        pendingNotification
+          ? getNotificationActivityTime(pendingNotification)
+          : Number.NEGATIVE_INFINITY
+      );
+
+      if (knownActivityTime >= getNotificationActivityTime(notification)) {
         break;
       }
 
@@ -280,9 +297,12 @@ function NotificationListItem({
   const title = formatNotificationTitle(notification);
   const description = formatNotificationDescription(notification);
   const categoryLabel = getNotificationCategoryLabel(notification.category);
-  const timeLabel = formatNotificationRelativeTime(notification.createdAt);
+  const timeLabel = formatNotificationRelativeTime(
+    getNotificationActivityValue(notification)
+  );
   const { sideLabel, tone } = getNotificationTradeMeta(notification);
   const toneStyles = getNotificationTradeToneStyles(tone);
+  const shouldShowCommentIcon = isCommentNotification(notification);
 
   const isUnread = !notification.isRead;
 
@@ -358,9 +378,15 @@ function NotificationListItem({
           </p>
 
           {description ? (
-            <p className="mt-1 text-left text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
-              {description}
-            </p>
+            <div className="mt-1 flex items-start gap-1.5 text-left text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
+              {shouldShowCommentIcon ? (
+                <CornerDownRight
+                  className="mt-[2px] h-3.5 w-3.5 shrink-0"
+                  strokeWidth={2}
+                />
+              ) : null}
+              <span className="min-w-0">{description}</span>
+            </div>
           ) : null}
         </div>
       </button>

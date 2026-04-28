@@ -54,6 +54,7 @@ export interface NotificationListParams {
 export interface NotificationToastItem {
   id: string;
   notificationId: number;
+  type: NotificationType;
   title: string;
   description?: string;
   createdAt: string;
