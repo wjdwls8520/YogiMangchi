@@ -3,6 +3,7 @@ package com.yogimangchi.domain.chartapi.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yogimangchi.domain.chartapi.dto.BinanceFuturesStreamMessage;
 import com.yogimangchi.domain.chartapi.repository.FuturesPriceRepository;
+import com.yogimangchi.domain.futures.limitTradeEngine.FuturesLimitOrderCoordinator;
 import com.yogimangchi.domain.futures.liquidation.FuturesLiquidationCoordinator;
 import com.yogimangchi.domain.market.repository.FuturesSymbolPolicyRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class BinanceFuturesApiService {
     private final FuturesSymbolPolicyRepository futuresSymbolPolicyRepository;
     private final FuturesPriceRepository futuresPriceRepository;
     private final FuturesLiquidationCoordinator futuresLiquidationCoordinator;
+    private final FuturesLimitOrderCoordinator futuresLimitOrderCoordinator;
     private final ObjectMapper objectMapper;
 
     private final WebSocketClient webSocketClient = new ReactorNettyWebSocketClient();
@@ -102,8 +104,10 @@ public class BinanceFuturesApiService {
             String stream = message.getStream();
 
             if (stream.endsWith("@ticker")) {
-                futuresPriceRepository.saveTickerPrice(symbol, message.getData().getLastPrice());
-                log.debug("[선물 ticker] {} = {}", symbol, message.getData().getLastPrice());
+                String tickerPrice = message.getData().getLastPrice();
+                futuresPriceRepository.saveTickerPrice(symbol, tickerPrice);
+                futuresLimitOrderCoordinator.onPriceTick(symbol, new BigDecimal(tickerPrice));
+                log.debug("[선물 ticker] {} = {}", symbol, tickerPrice);
 
             } else if (stream.endsWith("@markPrice")) {
                 String markPrice = message.getData().getMarkPrice();
