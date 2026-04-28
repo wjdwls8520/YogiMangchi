@@ -13,7 +13,7 @@ import { useModalStore } from "@/stores/useModalStore";
 import { usePostStore } from "@/stores/usePostStore";
 import { CircleAlert, ImagePlus, X } from "lucide-react";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 
 type UploadFile = {
@@ -37,7 +37,6 @@ export default function WriteModal() {
 
     const userInfo = useAuthStore((state) => state.user);  
     const params = useParams();
-    const pathname = usePathname();
     const router = useRouter();
     const isOpen = useModalStore((state) => state.writeModal.isOpen);
     const mode = useModalStore((state) => state.writeModal.mode);
@@ -45,7 +44,7 @@ export default function WriteModal() {
     const close = useModalStore((state) => state.closeWrite);
     const { alert, toast } = useFeedback();
 
-    const { addPost, removePost, replacePost, reconcilePost } = usePostStore();
+    const { replacePost } = usePostStore();
 
     const modalProps = {
         title: mode === "edit" ? "글 수정" : "글쓰기",
@@ -128,7 +127,7 @@ export default function WriteModal() {
 
     const categoryParam = params.category;
     const category = Array.isArray(categoryParam) ? categoryParam[0] : categoryParam;
-    const isDetailPage = Boolean(category && /^\/community\/[^/]+\/[^/]+$/.test(pathname));
+    const fallbackCategory = category ?? "latest";
 
     const previewFiles: PreviewFileItem[] = [
         ...serverFiles.map((file) => ({
@@ -170,27 +169,22 @@ export default function WriteModal() {
         );
     };
 
-    const handleCreate = async (tempPost: Post, formData: FormData) => {
-        addPost(tempPost);
-
+    const handleCreate = async (formData: FormData) => {
         try {
             const createdPostPayload = await createPost(formData);
             const createdPost = extractPostPayload(createdPostPayload);
 
-            if (createdPost) {
-                reconcilePost(
-                    tempPost.id,
-                    mergeServerFilesWithPreview(createdPost, tempPost.files)
-                );
+            if (!createdPost) {
+                await alert("게시글은 작성되었지만 상세 페이지로 이동할 수 없습니다.");
+                return null;
             }
 
-            return true;
+            return createdPost;
         } catch (error) {
-            removePost(tempPost.id);
             await alert(
                 getApiErrorMessage(error, "게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.")
             );
-            return false;
+            return null;
         }
     };
 
@@ -234,42 +228,6 @@ export default function WriteModal() {
             return;
         }
         
-        // 임시 글 먼저 추가
-        const tempPost: Post = {
-            id: selectedPost?.id ?? Date.now(),
-            title: form.title.trim(),
-            content: form.content.trim(),
-            memberId: userInfo?.memberId ?? 0,
-            likeCount: 0,
-            likedByMe: false,
-            replyCount: 0,
-            reportCount: 0,
-            reportedByMe: false,
-            nickname: userInfo?.nickname ?? "",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            profileImg: '',
-            files: [
-                // 기존 서버 파일 (삭제되지 않은 것만)
-                ...serverFiles.map(file => ({
-                    ...file,
-                    previewUrl: file.path,
-                })),
-                // 새로 첨부한 파일
-                ...uploadFiles.map((file, index) => ({
-                    id: Date.now() + index,
-                    originalname: file.file.name,
-                    size: file.file.size,
-                    path: '',
-                    contentType: file.file.type,
-                    createdAt: '',
-                    postId: selectedPost?.id ?? 0,
-                    previewUrl: URL.createObjectURL(file.file),
-                }))
-            ]
-        };
-
-
         const formData = new FormData();
         
         formData.append('title', form.title.trim());
@@ -281,20 +239,62 @@ export default function WriteModal() {
         setIsSubmitting(true);
 
         try {
-            const isSuccess =
-                mode === "edit"
-                    ? await handleEdit(tempPost, formData)
-                    : await handleCreate(tempPost, formData);
-
-            if (!isSuccess) {
-                return;
-            }
-
             if (mode === "edit") {
+                const tempPost: Post = {
+                    id: selectedPost?.id ?? Date.now(),
+                    title: form.title.trim(),
+                    content: form.content.trim(),
+                    memberId: userInfo?.memberId ?? 0,
+                    likeCount: selectedPost?.likeCount ?? 0,
+                    likedByMe: selectedPost?.likedByMe ?? false,
+                    replyCount: selectedPost?.replyCount ?? 0,
+                    reportCount: selectedPost?.reportCount ?? 0,
+                    reportedByMe: selectedPost?.reportedByMe ?? false,
+                    nickname: userInfo?.nickname ?? "",
+                    createdAt: selectedPost?.createdAt ?? new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    profileImg: selectedPost?.profileImg ?? '',
+                    profileImgUrl: selectedPost?.profileImgUrl,
+                    files: [
+                        // 기존 서버 파일 (삭제되지 않은 것만)
+                        ...serverFiles.map(file => ({
+                            ...file,
+                            previewUrl: file.path,
+                        })),
+                        // 새로 첨부한 파일
+                        ...uploadFiles.map((file, index) => ({
+                            id: Date.now() + index,
+                            originalname: file.file.name,
+                            size: file.file.size,
+                            path: '',
+                            contentType: file.file.type,
+                            createdAt: '',
+                            postId: selectedPost?.id ?? 0,
+                            previewUrl: file.preview,
+                        }))
+                    ]
+                };
+
+                const isSuccess = await handleEdit(tempPost, formData);
+
+                if (!isSuccess) {
+                    return;
+                }
+
                 toast({
                     title: "게시글이 수정되었습니다.",
                     tone: "success",
                 });
+            } else {
+                const createdPost = await handleCreate(formData);
+
+                if (!createdPost) {
+                    return;
+                }
+
+                close();
+                router.push(`/community/${fallbackCategory}/${createdPost.id}`);
+                return;
             }
 
             setForm({
@@ -304,10 +304,6 @@ export default function WriteModal() {
             setUploadFiles([]);
             setDeleteFileIds([]);
             close();
-
-            if (mode === "create" && isDetailPage && category) {
-                router.push(`/community/${category}`);
-            }
         } finally {
             setIsSubmitting(false);
         }

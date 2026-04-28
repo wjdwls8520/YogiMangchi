@@ -15,6 +15,9 @@ interface PostsState {
   // 첫 화면에서 보여줄 배열
   setPosts: (newPosts: Post[]) => void;
 
+  // 최신 목록을 다시 조회했을 때 기존 목록을 교체
+  replacePosts: (newPosts: Post[]) => void;
+
   // 게시글 작성 (맨 앞에 추가)
   addPost: (post: Post) => void;
 
@@ -50,6 +53,11 @@ export const usePostStore = create<PostsState>((set) => ({
             [...posts, ...localOnlyPosts].map((post) => [post.id, post])
           )
         };
+      }),
+
+    replacePosts: (posts: Post[]) =>
+      set({
+        postsMap: new Map(posts.map((post) => [post.id, post])),
       }),
 
     // 무한스크롤 시 스크롤 여부 업데이트
