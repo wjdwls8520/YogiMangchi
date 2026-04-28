@@ -119,8 +119,8 @@
 - payload 구조 변경 완료
   - `groupCount`
   - `actorsPreview`
-  - 게시글 좋아요는 `postId`
-  - 댓글 좋아요는 `postId`, `replyId`
+  - 게시글 좋아요는 `postId`, `postTitle`
+  - 댓글 좋아요는 `postId`, `replyId`, `postTitle`, `replyContentPreview`
 - `deleteReadNotifications()`도 `checked` 기준으로만 group state 정리하도록 반영 완료
 
 ## 확정된 정책
@@ -341,6 +341,7 @@
   - `NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED`
   - `groupCount`
   - `actorsPreview`
+  - `postTitle`
   수신 확인
 - 검증 완료 포인트:
   - `check` 전까지 같은 target 좋아요가 같은 notification row update 되는 것 확인
