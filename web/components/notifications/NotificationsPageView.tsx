@@ -18,6 +18,7 @@ import {
   deleteReadNotifications,
   deleteSelectedNotifications,
   getNotifications,
+  readAllNotifications,
   readNotification,
   readSelectedNotifications,
 } from "@/lib/api/notifications";
@@ -187,6 +188,7 @@ export default function NotificationsPageView() {
   const markNotificationsAsRead = useNotificationStore(
     (state) => state.markNotificationsAsRead
   );
+  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
   const removeNotificationsFromStore = useNotificationStore(
     (state) => state.removeNotifications
   );
@@ -206,6 +208,7 @@ export default function NotificationsPageView() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isReadingSelected, setIsReadingSelected] = useState(false);
+  const [isReadingAll, setIsReadingAll] = useState(false);
   const [isDeletingRead, setIsDeletingRead] = useState(false);
   const [isDeletingSelected, setIsDeletingSelected] = useState(false);
   const [readingNotificationIds, setReadingNotificationIds] = useState<number[]>([]);
@@ -243,7 +246,7 @@ export default function NotificationsPageView() {
             <span className="inline-flex items-center justify-center gap-1.5">
               <span>{tab.label}</span>
               {unreadCount > 0 ? (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#0058FF]/10 px-1.5 text-[10px] font-bold tabular-nums text-[#0058FF] dark:bg-[#3B82F6]/15 dark:text-[#60A5FA]">
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-primary/10 px-1.5 text-xs font-bold tabular-nums text-brand-primary dark:bg-brand-primary/10 dark:text-blue-400">
                   {formatNotificationCount(unreadCount)}
                 </span>
               ) : null}
@@ -652,6 +655,7 @@ export default function NotificationsPageView() {
   );
   const readNotifications = notifications.filter((notification) => notification.isRead);
   const selectedNotificationCount = selectedNotificationIds.length;
+  const hasUnreadNotifications = unreadCount > 0 || hasAnyUnreadCounts(tabUnreadCounts);
 
   const handleReadSelected = async () => {
     if (isReadingSelected || unreadSelectedNotificationIds.length === 0) {
@@ -685,6 +689,33 @@ export default function NotificationsPageView() {
       console.error("알림 선택 읽음 처리 실패", error);
     } finally {
       setIsReadingSelected(false);
+    }
+  };
+
+  const handleReadAll = async () => {
+    if (isReadingAll || !hasUnreadNotifications) {
+      return;
+    }
+
+    setIsReadingAll(true);
+
+    try {
+      await readAllNotifications();
+
+      setNotificationListState((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => ({
+          ...item,
+          isRead: true,
+        })),
+      }));
+      setTabUnreadCounts(createEmptyTabUnreadCounts());
+      markAllAsRead();
+      setSelectedNotificationIds([]);
+    } catch (error) {
+      console.error("알림 전체 읽음 처리 실패", error);
+    } finally {
+      setIsReadingAll(false);
     }
   };
 
@@ -895,7 +926,7 @@ export default function NotificationsPageView() {
             <button
               type="button"
               onClick={handleRevealPendingNotifications}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#0058FF]/10 px-3 text-center text-[12px] font-bold text-[#0058FF] transition-colors hover:bg-[#0058FF]/15 dark:bg-[#3B82F6]/15 dark:text-[#60A5FA] dark:hover:bg-[#3B82F6]/20"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-brand-primary/10 px-3 text-center text-xs font-bold text-brand-primary transition-colors hover:bg-brand-primary/20 dark:bg-brand-primary/10 dark:text-blue-400 dark:hover:bg-blue-500/20"
             >
               <span>{`새로운 알림 ${formatNotificationCount(
                 pendingNotificationCount
@@ -924,13 +955,13 @@ export default function NotificationsPageView() {
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
                 <div
                   className={cn(
                     "flex h-4 w-4 items-center justify-center rounded border transition-colors",
                     isAllSelected
-                      ? "border-[#0058FF] bg-[#0058FF]"
+                      ? "border-brand-primary bg-brand-primary"
                       : "border-gray-300 dark:border-zinc-600"
                   )}
                 >
@@ -943,7 +974,7 @@ export default function NotificationsPageView() {
 
               <div className="h-3.5 w-px bg-gray-200 dark:bg-zinc-700" />
 
-              <span className="text-center text-[12px] font-semibold text-gray-400 dark:text-gray-500">
+              <span className="text-center text-xs font-semibold text-gray-400 dark:text-gray-500">
                 {selectedNotificationCount}개 선택
               </span>
             </>
@@ -957,6 +988,12 @@ export default function NotificationsPageView() {
             disabled={unreadSelectedNotificationIds.length === 0 || isReadingSelected}
             icon={<Check className="h-3.5 w-3.5" strokeWidth={2.2} />}
             label={isReadingSelected ? "처리 중..." : "선택읽음"}
+          />
+          <ActionButton
+            onClick={() => void handleReadAll()}
+            disabled={!hasUnreadNotifications || isReadingAll}
+            icon={<Check className="h-3.5 w-3.5" strokeWidth={2.2} />}
+            label={isReadingAll ? "처리 중..." : "전체읽음"}
           />
           <ActionButton
             onClick={() => void handleDeleteSelected()}
@@ -984,10 +1021,10 @@ export default function NotificationsPageView() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-50 dark:bg-zinc-800/80">
             <Bell className="h-7 w-7 text-gray-300 dark:text-zinc-600" strokeWidth={1.8} />
           </div>
-          <p className="mt-5 text-[15px] font-semibold text-gray-500 dark:text-gray-400">
+          <p className="mt-5 text-sm font-semibold text-gray-500 dark:text-gray-400">
             도착한 알림이 없습니다
           </p>
-          <p className="mt-1.5 text-[13px] leading-[20px] text-gray-400 dark:text-gray-500">
+          <p className="mt-1.5 text-sm leading-5 text-gray-400 dark:text-gray-500">
             새로운 알림이 도착하면 이 페이지에서 확인할 수 있어요.
           </p>
         </div>
@@ -1020,7 +1057,7 @@ export default function NotificationsPageView() {
             type="button"
             onClick={() => void handleLoadMore()}
             disabled={isLoadingMore}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-[13px] font-semibold text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
           >
             {isLoadingMore ? (
               "불러오는 중..."
@@ -1057,7 +1094,7 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
         variant === "danger"
           ? "text-red-400 hover:bg-red-50 hover:text-red-500 dark:text-red-400/80 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-zinc-800 dark:hover:text-gray-300"
@@ -1123,12 +1160,12 @@ function NotificationsPageItem({
       className={cn(
         "group relative transition-all duration-300",
         !isLast && "border-b border-gray-50 dark:border-zinc-800/60",
-        isHighlighted && "bg-[#0058FF]/[0.06] dark:bg-[#0058FF]/[0.08]"
+        isHighlighted && "bg-brand-primary/5 dark:bg-brand-primary/10"
       )}
     >
       {/* Unread left accent */}
       {isUnread ? (
-        <div className={cn("absolute left-0 top-0 h-full w-[3px]", toneStyles.accent)} />
+        <div className={cn("absolute left-0 top-0 h-full w-1", toneStyles.accent)} />
       ) : null}
 
       <div
@@ -1144,9 +1181,9 @@ function NotificationsPageItem({
         >
           <div
             className={cn(
-              "flex h-[18px] w-[18px] items-center justify-center rounded border-[1.5px] transition-all",
+              "flex h-4 w-4 items-center justify-center rounded border transition-all",
               isSelected
-                ? "border-[#0058FF] bg-[#0058FF]"
+                ? "border-brand-primary bg-brand-primary"
                 : "border-gray-300 hover:border-gray-400 dark:border-zinc-600 dark:hover:border-zinc-500"
             )}
             onClick={() => onToggleSelection(notification.notificationId)}
@@ -1171,14 +1208,14 @@ function NotificationsPageItem({
           <div className="flex items-center gap-2">
             {/* Unread dot */}
             {isUnread ? (
-              <div className={cn("h-[6px] w-[6px] shrink-0 rounded-full", toneStyles.dot)} />
+              <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", toneStyles.dot)} />
             ) : null}
 
             <span
               className={cn(
-                "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide",
                 isUnread
-                  ? "bg-[#0058FF]/10 text-[#0058FF] dark:bg-[#3B82F6]/15 dark:text-[#60A5FA]"
+                  ? "bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/10 dark:text-blue-400"
                   : "bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500"
               )}
             >
@@ -1188,7 +1225,7 @@ function NotificationsPageItem({
             {sideLabel ? (
               <span
                 className={cn(
-                  "rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                  "rounded-md px-2 py-0.5 text-xs font-bold tracking-wide",
                   toneStyles.badge
                 )}
               >
@@ -1196,14 +1233,14 @@ function NotificationsPageItem({
               </span>
             ) : null}
 
-            <span className="ml-auto shrink-0 text-[11px] tabular-nums text-gray-400 dark:text-gray-600">
+            <span className="ml-auto shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-600">
               {timeLabel}
             </span>
           </div>
 
           <h2
             className={cn(
-              "mt-2 text-left text-[14px] leading-[22px]",
+              "mt-2 text-left text-sm leading-5",
               isUnread
                 ? "font-bold text-gray-900 dark:text-white"
                 : "font-medium text-gray-500 dark:text-gray-400"
@@ -1213,10 +1250,10 @@ function NotificationsPageItem({
           </h2>
 
           {description ? (
-            <div className="mt-1 flex items-start gap-1.5 text-left text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
+            <div className="mt-1 flex items-start gap-1.5 text-left text-xs leading-5 text-gray-400 dark:text-gray-500">
               {shouldShowCommentIcon ? (
                 <CornerDownRight
-                  className="mt-[2px] h-3.5 w-3.5 shrink-0"
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
                   strokeWidth={2}
                 />
               ) : null}
@@ -1225,7 +1262,7 @@ function NotificationsPageItem({
           ) : null}
 
           {navigationTarget ? (
-            <p className="mt-2 text-left text-[12px] font-semibold text-[#0058FF] opacity-0 transition-opacity group-hover:opacity-100 dark:text-[#60A5FA]">
+            <p className="mt-2 text-left text-xs font-semibold text-brand-primary opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-400">
               {navigationTarget.label} →
             </p>
           ) : null}
@@ -1247,13 +1284,13 @@ function NotificationsPageSkeleton() {
             index < 4 && "border-b border-gray-50 dark:border-zinc-800/60"
           )}
         >
-          <div className="mt-0.5 h-[18px] w-[18px] shrink-0 animate-pulse rounded border border-gray-200 dark:border-zinc-700" />
+          <div className="mt-0.5 h-4 w-4 shrink-0 animate-pulse rounded border border-gray-200 dark:border-zinc-700" />
           <div className="flex-1 space-y-2.5">
             <div className="flex items-center gap-2">
-              <div className="h-[18px] w-14 animate-pulse rounded-md bg-gray-100 dark:bg-zinc-800" />
+              <div className="h-4 w-14 animate-pulse rounded-md bg-gray-100 dark:bg-zinc-800" />
               <div className="ml-auto h-3 w-12 animate-pulse rounded-md bg-gray-100 dark:bg-zinc-800" />
             </div>
-            <div className="h-[18px] w-4/5 animate-pulse rounded-md bg-gray-100 dark:bg-zinc-800" />
+            <div className="h-4 w-4/5 animate-pulse rounded-md bg-gray-100 dark:bg-zinc-800" />
             <div className="h-3 w-1/3 animate-pulse rounded-md bg-gray-50 dark:bg-zinc-800/50" />
           </div>
         </div>
