@@ -163,6 +163,20 @@ public class FuturesPosition {
         this.liquidationPrice = calculateLiquidationPrice(this.positionSide, this.entryPrice, newLeverage);
     }
 
+    public BigDecimal calculateCloseMargin(BigDecimal closeQuantity) {
+        if (closeQuantity.compareTo(this.filledQuantity) == 0) {
+            return this.totalMargin;
+        }
+        return this.totalMargin.multiply(calculateCloseRatio(closeQuantity)).setScale(8, RoundingMode.HALF_UP);
+    }
+
+    public BigDecimal calculateCloseNotional(BigDecimal closeQuantity) {
+        if (closeQuantity.compareTo(this.filledQuantity) == 0) {
+            return this.notionalAmount;
+        }
+        return this.notionalAmount.multiply(calculateCloseRatio(closeQuantity)).setScale(8, RoundingMode.HALF_UP);
+    }
+
     // 청산 시 포지션 수치 차감
     public void reduce(BigDecimal closeQuantity, BigDecimal closeMargin, BigDecimal closeNotional, BigDecimal pnl) {
         // 수량 / 증거금 / 명목금액 차감
@@ -176,7 +190,13 @@ public class FuturesPosition {
         // 잔여 수량이 0이면 포지션 종료 처리
         if (this.filledQuantity.compareTo(BigDecimal.ZERO) == 0) {
             this.positionStatus = PositionStatus.CLOSE;
+            this.totalMargin = BigDecimal.ZERO;
+            this.notionalAmount = BigDecimal.ZERO;
         }
         // 수량이 남아있으면 entryPrice·leverage·liquidationPrice 변동 없음 (진입가 불변 원칙)
+    }
+
+    private BigDecimal calculateCloseRatio(BigDecimal closeQuantity) {
+        return closeQuantity.divide(this.filledQuantity, 8, RoundingMode.HALF_UP);
     }
 }
