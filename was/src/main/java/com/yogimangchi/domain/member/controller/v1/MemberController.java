@@ -5,7 +5,9 @@ import com.yogimangchi.domain.member.dto.request.UpdateVerifiedInfoRequestDto;
 import com.yogimangchi.domain.member.dto.response.MemberProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.MyProfileInfoDto;
 import com.yogimangchi.domain.member.dto.response.NicknameDuplicationDto;
+import com.yogimangchi.domain.member.dto.response.ProfilePortfolioResponseDto;
 import com.yogimangchi.domain.member.dto.response.VerifiedInfoResponseDto;
+import com.yogimangchi.domain.member.service.MemberPortfolioService;
 import com.yogimangchi.domain.member.service.MemberService;
 import com.yogimangchi.global.auth.jwt.service.AuthCookieService;
 import com.yogimangchi.global.validator.NicknameValidator;
@@ -32,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MemberController {
 
     private final MemberService memberService;
+    private final MemberPortfolioService memberPortfolioService;
     private final AuthCookieService authCookieService;
 
     @Operation(
@@ -75,6 +78,34 @@ public class MemberController {
         MemberProfileInfoDto memberData = memberService.getMemberProfile(loginMemberId, memberId);
 
         return ResponseEntity.ok(memberData);
+    }
+
+    @Operation(
+            summary = "내 프로필 포트폴리오 조회",
+            description = "내 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 총자산, 손익, 수익률, 보유 종목 목록과 updatedAt 을 함께 반환합니다."
+    )
+    @GetMapping("/me/portfolio")
+    public ResponseEntity<ProfilePortfolioResponseDto> getMyProfilePortfolio(
+            @AuthenticationPrincipal Long loginMemberId
+    ) {
+        if (loginMemberId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        ProfilePortfolioResponseDto portfolio = memberPortfolioService.getMyProfilePortfolio(loginMemberId);
+        return ResponseEntity.ok(portfolio);
+    }
+
+    @Operation(
+            summary = "다른 멤버 프로필 포트폴리오 조회",
+            description = "다른 멤버 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 응답 규격은 내 프로필 포트폴리오와 동일합니다."
+    )
+    @GetMapping("/{memberId}/portfolio")
+    public ResponseEntity<ProfilePortfolioResponseDto> getMemberPortfolio(
+            @PathVariable Long memberId
+    ) {
+        ProfilePortfolioResponseDto portfolio = memberPortfolioService.getMemberProfilePortfolio(memberId);
+        return ResponseEntity.ok(portfolio);
     }
 
     @Operation(

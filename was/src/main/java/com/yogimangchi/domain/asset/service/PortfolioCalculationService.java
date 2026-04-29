@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.asset.service;
 
+import com.yogimangchi.domain.asset.dto.response.AssetPortfolioDetailResponseDto;
 import com.yogimangchi.domain.asset.dto.response.HoldingResponseDto;
-import com.yogimangchi.domain.asset.dto.response.PortfolioResponseDto;
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
@@ -24,9 +24,13 @@ public class PortfolioCalculationService {
 
     private final ChartPriceRepository chartPriceRepository;
 
-    // 각 지갑과 보유 코인을 합산 하여 자산 조회
+    /**
+     * 자산 상세 API와 프로필 API가 함께 재사용하는 공용 포트폴리오 계산 메서드다.
+     * 지갑 현금 잔고, 보유 코인, 실시간 가격을 합쳐 총자산/손익/비중 응답을 만든다.
+     * holdingRatio 는 "코인 내부 비중"이 아니라 "현금을 포함한 총 자산 대비 코인 비중" 기준으로 계산한다.
+     */
     @Transactional(readOnly = true)
-    public PortfolioResponseDto calculatePortfolio(String displayAssetTypeName, List<Assets> wallets, List<Holding> holdings) {
+    public AssetPortfolioDetailResponseDto calculatePortfolio(String displayAssetTypeName, List<Assets> wallets, List<Holding> holdings) {
 
         BigDecimal totalCashBalance = BigDecimal.ZERO;
         BigDecimal totalLockedMoney = BigDecimal.ZERO;
@@ -84,16 +88,24 @@ public class PortfolioCalculationService {
             totalBuyAmount = totalBuyAmount.add(buyAmount);
         }
 
-        // 포트폴리오 코인의 전체 비중(%) 계산 및 DTO 변환
+        BigDecimal totalAsset = totalCashAsset.add(totalCoinValue);
+        BigDecimal totalProfit = totalAsset.subtract(totalSeedMoney);
+
+        BigDecimal totalRoi = BigDecimal.ZERO;
+        if (totalSeedMoney.compareTo(BigDecimal.ZERO) > 0) {
+            totalRoi = totalProfit.multiply(new BigDecimal("100")).divide(totalSeedMoney, 2, RoundingMode.HALF_UP);
+        }
+
+        // 총 자산 기준 코인 비중(%) 계산 및 DTO 변환
         List<HoldingResponseDto> holdingResponseDtos = new ArrayList<>();
         for (HoldingCalc calc : holdingCalcs) {
             BigDecimal holdingRatio = BigDecimal.ZERO;
 
-            // 내 전체 코인 자산 중 이 코인이 차지하는 비중(%)
-            if (totalCoinValue.compareTo(BigDecimal.ZERO) > 0) {
+            // 내 총 자산 중 이 코인이 차지하는 비중(%)
+            if (totalAsset.compareTo(BigDecimal.ZERO) > 0) {
                 holdingRatio = calc.coinTotalValue()
                         .multiply(new BigDecimal("100"))
-                        .divide(totalCoinValue, 2, RoundingMode.HALF_UP);
+                        .divide(totalAsset, 2, RoundingMode.HALF_UP);
             }
 
             holdingResponseDtos.add(new HoldingResponseDto(
@@ -103,16 +115,7 @@ public class PortfolioCalculationService {
             ));
         }
 
-        // 최종 계좌 총계산 (두 지갑을 더한 전체 자산)
-        BigDecimal totalAsset = totalCashAsset.add(totalCoinValue);
-        BigDecimal totalProfit = totalAsset.subtract(totalSeedMoney);
-
-        BigDecimal totalRoi = BigDecimal.ZERO;
-        if (totalSeedMoney.compareTo(BigDecimal.ZERO) > 0) {
-            totalRoi = totalProfit.multiply(new BigDecimal("100")).divide(totalSeedMoney, 2, RoundingMode.HALF_UP);
-        }
-
-        return new PortfolioResponseDto(
+        return new AssetPortfolioDetailResponseDto(
                 displayAssetTypeName, 
                 holdingResponseDtos.size(),
                 totalSeedMoney,

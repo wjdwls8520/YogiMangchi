@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.asset.controller.v1.mock;
 
 import com.yogimangchi.domain.asset.dto.response.MockAssetStatusResponseDto;
-import com.yogimangchi.domain.asset.dto.response.PortfolioResponseDto;
+import com.yogimangchi.domain.asset.dto.response.AssetPortfolioDetailResponseDto;
 import com.yogimangchi.domain.asset.service.mock.MockAssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/asset/mock")
 @RequiredArgsConstructor
-@Tag(name = "99-02-01-Mock Asset", description = "모의투자 전용 API")
+@Tag(name = "99-02-01-Mock Asset", description = "모의투자 자산탭 전용 API")
 public class MockAssetController {
 
     private final MockAssetService mockAssetService;
@@ -43,10 +43,13 @@ public class MockAssetController {
         return ResponseEntity.ok("모의투자를 포기했습니다. 새롭게 참가하기를 진행해주세요.");
     }
 
-    @Operation(summary = "모의투자 포트폴리오 조회", description = "현재 모의투자 지갑의 현금 잔고와 보유 코인 목록, 실시간 수익률을 조회합니다.")
+    @Operation(
+            summary = "모의투자 자산탭 포트폴리오 상세 조회",
+            description = "자산탭에서 사용하는 상세 포트폴리오 응답입니다. 현금 잔고, 잠긴 금액, 보유 코인 목록과 실시간 손익/수익률을 함께 조회합니다."
+    )
     @GetMapping("/portfolio")
-    public ResponseEntity<PortfolioResponseDto> getMyPortfolio(@AuthenticationPrincipal Long memberId) {
-        PortfolioResponseDto responseDto = mockAssetService.getMyMockPortfolio(memberId);
+    public ResponseEntity<AssetPortfolioDetailResponseDto> getMyPortfolio(@AuthenticationPrincipal Long memberId) {
+        AssetPortfolioDetailResponseDto responseDto = mockAssetService.getMyMockPortfolio(memberId);
         return ResponseEntity.ok(responseDto);
     }
 }
