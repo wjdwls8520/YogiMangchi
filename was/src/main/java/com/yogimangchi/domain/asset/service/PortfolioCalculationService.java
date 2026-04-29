@@ -15,7 +15,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,6 +30,7 @@ public class PortfolioCalculationService {
      * 자산 상세 API와 프로필 API가 함께 재사용하는 공용 포트폴리오 계산 메서드다.
      * 지갑 현금 잔고, 보유 코인, 실시간 가격을 합쳐 총자산/손익/비중 응답을 만든다.
      * holdingRatio 는 "코인 내부 비중"이 아니라 "현금을 포함한 총 자산 대비 코인 비중" 기준으로 계산한다.
+     * 실시간 가격은 종목별로 반복 조회하지 않고 한 번에 모아 읽어, 이번 요청 안에서는 같은 가격 집합으로 계산한다.
      */
     @Transactional(readOnly = true)
     public AssetPortfolioDetailResponseDto calculatePortfolio(String displayAssetTypeName, List<Assets> wallets, List<Holding> holdings) {
@@ -45,6 +48,16 @@ public class PortfolioCalculationService {
         BigDecimal totalCashAsset = totalCashBalance.add(totalLockedMoney);
         BigDecimal totalCoinValue = BigDecimal.ZERO;
         BigDecimal totalBuyAmount = BigDecimal.ZERO;
+        Map<String, ChartPriceDto> latestPricesBySymbol = chartPriceRepository.findAllBySymbols(
+                        holdings.stream()
+                                .map(Holding::getSymbol)
+                                .distinct()
+                                .toList()
+                ).stream()
+                .collect(Collectors.toMap(
+                        price -> price.symbol().toUpperCase(),
+                        Function.identity()
+                ));
 
         // 내부 구조체 (계산 중간 단계를 캐시하기 위함)
         record HoldingCalc(String symbol, BigDecimal totalQuantity, BigDecimal availableQuantity, BigDecimal lockedQuantity,
@@ -55,12 +68,12 @@ public class PortfolioCalculationService {
         List<HoldingCalc> holdingCalcs = new ArrayList<>();
 
         for (Holding holding : holdings) {
-            // 현재 가격 조회
-            Optional<ChartPriceDto> priceOpt = chartPriceRepository.findBySymbol(holding.getSymbol());
-            boolean isPriceStale = priceOpt.isEmpty();
-            BigDecimal currentPrice = priceOpt
-                    .map(dto -> new BigDecimal(dto.price()))
-                    .orElse(holding.getAverageBuyPrice());
+            // 이번 요청에서 사용할 가격 집합을 먼저 확보해 두고 그 기준으로 계산한다.
+            ChartPriceDto priceDto = latestPricesBySymbol.get(holding.getSymbol().toUpperCase());
+            boolean isPriceStale = priceDto == null;
+            BigDecimal currentPrice = priceDto != null
+                    ? new BigDecimal(priceDto.price())
+                    : holding.getAverageBuyPrice();
 
             BigDecimal availableQuantity = holding.getQuantity();
             BigDecimal lockedQuantity = holding.getLockedQuantity();

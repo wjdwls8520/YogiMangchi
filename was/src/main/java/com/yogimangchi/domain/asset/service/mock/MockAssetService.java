@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -114,8 +115,9 @@ public class MockAssetService {
     /**
      * 현재 로그인 회원의 활성 MOCK 지갑을 기준으로 자산탭용 상세 포트폴리오를 계산한다.
      * 실제 금액/수익률 계산은 공용 PortfolioCalculationService 에 위임한다.
+     * 같은 요청 안에서 wallet/holdings 조회 기준이 흔들리지 않도록 repeatable read 로 읽는다.
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AssetPortfolioDetailResponseDto getMyMockPortfolio(Long memberId) {
         // 사용자 확인
         memberReader.getFindMember(memberId);

@@ -61,6 +61,14 @@ public class MemberException extends RuntimeException {
         );
     }
 
+    public static MemberException memberNotFound() {
+        return new MemberException(
+                HttpStatus.NOT_FOUND,
+                "MEMBER_NOT_FOUND",
+                "존재하지 않거나 탈퇴한 회원입니다."
+        );
+    }
+
     public static MemberException notVerifiedUser() {
         return new MemberException(
                 HttpStatus.FORBIDDEN,

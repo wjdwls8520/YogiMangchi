@@ -8,14 +8,17 @@ import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.asset.service.PortfolioCalculationService;
 import com.yogimangchi.domain.member.dto.response.ProfilePortfolioResponseDto;
-import com.yogimangchi.global.support.MemberReader;
+import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.global.exception.member.MemberException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -24,7 +27,7 @@ public class MemberPortfolioService {
 
     private static final String ACTIVE_STATUS = "ACTIVE";
 
-    private final MemberReader memberReader;
+    private final MemberRepository memberRepository;
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
     private final PortfolioCalculationService portfolioCalculationService;
@@ -32,20 +35,23 @@ public class MemberPortfolioService {
     /**
      * 내 프로필 화면에서 사용하는 포트폴리오 조회 진입점이다.
      * 인증된 사용자인지 확인한 뒤 활성 MOCK 지갑 기준으로 프로필 응답을 만든다.
+     * 회원은 존재하지만 아직 MOCK 지갑이 없으면 예외 대신 empty 를 반환해 컨트롤러가 204 로 응답하게 한다.
      */
-    @Transactional(readOnly = true)
-    public ProfilePortfolioResponseDto getMyProfilePortfolio(Long loginMemberId) {
-        memberReader.getAuthenticated(loginMemberId);
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Optional<ProfilePortfolioResponseDto> getMyProfilePortfolio(Long loginMemberId) {
+        memberRepository.findActiveById(loginMemberId)
+                .orElseThrow(MemberException::memberNotFound);
         return getMockProfilePortfolio(loginMemberId);
     }
 
     /**
      * 다른 회원 프로필 화면에서 사용하는 포트폴리오 조회 진입점이다.
-     * 대상 회원 존재 여부를 확인한 뒤 동일한 프로필 포트폴리오 규격으로 응답한다.
+     * 대상 회원이 없거나 탈퇴한 경우는 404, 회원은 있지만 MOCK 지갑이 없으면 204 의미로 분리한다.
      */
-    @Transactional(readOnly = true)
-    public ProfilePortfolioResponseDto getMemberProfilePortfolio(Long memberId) {
-        memberReader.getFindMember(memberId);
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Optional<ProfilePortfolioResponseDto> getMemberProfilePortfolio(Long memberId) {
+        memberRepository.findActiveById(memberId)
+                .orElseThrow(MemberException::memberNotFound);
         return getMockProfilePortfolio(memberId);
     }
 
@@ -53,9 +59,13 @@ public class MemberPortfolioService {
      * 활성 MOCK 지갑과 보유 종목을 읽어 프로필용 DTO 로 변환한다.
      * 계산 자체는 자산 상세 계산 로직을 재사용하고, 프로필에 필요한 필드만 다시 담아 반환한다.
      */
-    private ProfilePortfolioResponseDto getMockProfilePortfolio(Long memberId) {
-        Assets activeWallet = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, ACTIVE_STATUS)
-                .orElseThrow(() -> new IllegalArgumentException("활성화된 모의투자 지갑을 찾을 수 없습니다."));
+    private Optional<ProfilePortfolioResponseDto> getMockProfilePortfolio(Long memberId) {
+        Optional<Assets> activeWalletOpt = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, ACTIVE_STATUS);
+        if (activeWalletOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Assets activeWallet = activeWalletOpt.get();
 
         List<Holding> holdings = holdingRepository.findAllByAssets(activeWallet);
         AssetPortfolioDetailResponseDto portfolio = portfolioCalculationService.calculatePortfolio(
@@ -64,7 +74,7 @@ public class MemberPortfolioService {
                 holdings
         );
 
-        return new ProfilePortfolioResponseDto(
+        return Optional.of(new ProfilePortfolioResponseDto(
                 portfolio.assetType(),
                 portfolio.holdingCount(),
                 portfolio.seedMoney(),
@@ -76,7 +86,7 @@ public class MemberPortfolioService {
                 portfolio.totalRoi(),
                 resolveUpdatedAt(activeWallet, holdings),
                 portfolio.holdings()
-        );
+        ));
     }
 
     /**
