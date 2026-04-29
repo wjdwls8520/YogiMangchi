@@ -81,8 +81,16 @@ public class FuturesLiquidationBootstrapService {
         // DB에서 OPEN 포지션이 존재하는 심볼 목록 조회 ( 중복 제거 )
         List<String> symbols = futuresPositionRepository.findDistinctOpenPositionSymbols();
 
-        // 각 심볼을 Registry에 등록 (보유자 수는 1로 세팅)
-        symbols.forEach(liquidationRegistry::register);
+        // 심볼별 실제 OPEN 포지션 수만큼 register — 정확한 카운트 복원 필수
+        // 예) BTC LONG 포지션 보유자 A·B·C 3명 → register 3회 → count=3
+        // count=1로 복원하면 A가 청산할 때 deregister → count=0 → 항목 제거
+        // B·C는 포지션이 있음에도 Registry에서 사라져 강제청산 감시가 중단됨
+        for (String symbol : symbols) {
+            int count = futuresPositionRepository.countOpenBySymbol(symbol);
+            for (int i = 0; i < count; i++) {
+                liquidationRegistry.register(symbol);
+            }
+        }
 
         // 감시할 심볼이 있으면 스케줄러 시작
         liquidationScheduler.refreshSchedule();

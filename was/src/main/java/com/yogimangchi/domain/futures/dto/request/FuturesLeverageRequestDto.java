@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.futures.dto.request;
 
+import com.yogimangchi.domain.futures.enums.PositionSide;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,10 @@ public record FuturesLeverageRequestDto(
         @Schema(description = "레버리지를 설정할 심볼", example = "BTCUSDT")
         @NotBlank
         String symbol,
+
+        @Schema(description = "포지션 방향 (LONG / SHORT) — 방향별 독립 설정", example = "LONG")
+        @NotNull
+        PositionSide positionSide,
 
         @Schema(description = "설정할 레버리지 배수 (최소 1배)", example = "10")
         @NotNull

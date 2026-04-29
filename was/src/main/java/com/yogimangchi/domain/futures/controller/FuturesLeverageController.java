@@ -2,6 +2,7 @@ package com.yogimangchi.domain.futures.controller;
 
 import com.yogimangchi.domain.futures.dto.request.FuturesLeverageRequestDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesLeverageResponseDto;
+import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.service.FuturesLeverageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,9 +30,10 @@ public class FuturesLeverageController {
     @GetMapping("/leverage")
     public ResponseEntity<FuturesLeverageResponseDto> getLeverage(
             @AuthenticationPrincipal Long memberId,
-            @RequestParam @NotBlank String symbol
+            @RequestParam @NotBlank String symbol,
+            @RequestParam PositionSide positionSide
     ) {
-        return ResponseEntity.ok(futuresLeverageService.getLeverage(memberId, null, symbol));
+        return ResponseEntity.ok(futuresLeverageService.getLeverage(memberId, null, symbol, positionSide));
     }
 
     @Operation(

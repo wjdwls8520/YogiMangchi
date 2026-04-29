@@ -42,22 +42,46 @@ public class FuturesLiquidationExecutionService {
     @Transactional
     public void executeLiquidation(Long positionId, BigDecimal markPrice) {
 
-        // 포지션 조회 (비관적 락 — 동시 청산 요청 중복 방지)
-        FuturesPosition position = futuresPositionRepository.findByIdForUpdate(positionId).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
+        // Step 1: 락 없이 포지션 조회 — 지갑 ID 확보 및 초기 상태 확인용
+        // (락 순서: 지갑 → 포지션. 시장가/지정가 청산과 동일하게 유지해야 데드락 방지)
+        FuturesPosition positionNoLock = futuresPositionRepository.findById(positionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
 
-        // 이미 청산된 포지션이면 스킵 ( 다른 스레드가 먼저 처리했을 경우 방어 )
-        if (position.getPositionStatus() != PositionStatus.OPEN) {
-            log.info("[강제청산 스킵] positionId={}, status={}", positionId, position.getPositionStatus());
+        if (positionNoLock.getPositionStatus() != PositionStatus.OPEN) {
+            log.info("[강제청산 스킵] positionId={}, status={}", positionId, positionNoLock.getPositionStatus());
             return;
         }
 
-        // 지갑 조회 ( 비관적 락 - 잔고 동시 수정 방지 )
-        Assets wallet = assetRepository.findByIdForUpdate(position.getAssets().getId())
+        // Step 2: 지갑 락 먼저 — 모든 청산 경로에서 지갑 → 포지션 순서로 락을 획득해야 데드락이 발생하지 않음
+        Assets wallet = assetRepository.findByIdForUpdate(positionNoLock.getAssets().getId())
                 .orElseThrow(() -> new IllegalArgumentException("지갑을 찾을 수 없습니다."));
+
+        // Step 3: 포지션 락
+        FuturesPosition position = futuresPositionRepository.findByIdForUpdate(positionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
+
+        // Step 4: 락 획득 후 OPEN 상태 재확인 — 락 대기 중 다른 스레드가 먼저 청산을 완료했을 가능성 방어
+        if (position.getPositionStatus() != PositionStatus.OPEN) {
+            log.info("[강제청산 스킵 — 락 후 재확인] positionId={}, status={}", positionId, position.getPositionStatus());
+            return;
+        }
+
+        // Step 5: 강제청산 조건 재검증 — 락 대기 중 가격이 회복되어 청산 조건이 해소됐을 가능성 방어
+        // LONG:  markPrice ≤ liquidationPrice 이면 청산 (진입가 대비 하락)
+        // SHORT: markPrice ≥ liquidationPrice 이면 청산 (진입가 대비 상승)
+        boolean stillTriggered = switch (position.getPositionSide()) {
+            case LONG  -> markPrice.compareTo(position.getLiquidationPrice()) <= 0;
+            case SHORT -> markPrice.compareTo(position.getLiquidationPrice()) >= 0;
+        };
+        if (!stillTriggered) {
+            log.info("[강제청산 조건 해소] positionId={}, side={}, markPrice={}, liqPrice={}",
+                    positionId, position.getPositionSide(), markPrice, position.getLiquidationPrice());
+            return;
+        }
 
         BigDecimal closeQuantity = position.getFilledQuantity(); // 전량 청산이므로 현재 보유 수량 전부를 청산 수량으로 사용
         BigDecimal closeNotional = position.getNotionalAmount(); // 전량 청산이므로 진입 기준 명목금액 전체를 제거
-        BigDecimal closeMargin   = position.getTotalMargin();  // 청산 증거금 = 포지션에 투입된 총 증거금 전액 (전량 청산이므로 전부 회수 대상)
+        BigDecimal closeMargin   = position.getTotalMargin();    // 청산 증거금 = 포지션에 투입된 총 증거금 전액 (전량 청산이므로 전부 회수 대상)
 
         // 실현손익 계산
         // LONG  = (청산가 - 진입가) × 수량

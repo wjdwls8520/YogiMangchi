@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.futures.dto.response;
 
+import com.yogimangchi.domain.futures.enums.PositionSide;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
@@ -9,13 +10,16 @@ public record FuturesLeverageResponseDto(
         @Schema(description = "심볼", example = "BTCUSDT")
         String symbol,
 
+        @Schema(description = "포지션 방향 (LONG / SHORT)", example = "LONG")
+        PositionSide positionSide,
+
         @Schema(description = "현재 설정된 레버리지 배수", example = "10")
         int leverage,
 
         @Schema(description = "이 지갑 타입에서 이 심볼에 허용되는 최대 레버리지 배수", example = "100")
         int maxLeverage,
 
-        @Schema(description = "해당 심볼에 거래가능한 명목금액 (증거금 * 레버리지)", example = "100000")
+        @Schema(description = "해당 심볼·방향에 거래가능한 명목금액 (증거금 * 레버리지)", example = "100000")
         BigDecimal availableOrderNotionalAmount
 ) {
 }

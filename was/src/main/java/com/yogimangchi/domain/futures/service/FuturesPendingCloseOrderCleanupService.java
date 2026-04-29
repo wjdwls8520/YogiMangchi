@@ -2,6 +2,7 @@ package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.entity.FuturesOrder;
+import com.yogimangchi.domain.futures.enums.OrderStatus;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.event.LimitOrderRemovedEvent;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
@@ -48,6 +49,10 @@ public class FuturesPendingCloseOrderCleanupService {
             return;
         }
 
+        // 최신 주문부터 취소 — 먼저 등록한 주문을 보호하기 위함
+        // 예) 포지션 10개 중 5개 부분청산 → 잔여 5개. PENDING CLOSE 합계 10개일 때
+        //     오래된 주문(A:3개)을 살리고, 최신 주문(B:7개)부터 취소하면 A가 살아남아 잔여 포지션을 커버
+        //     반대로 오래된 것부터 취소하면 A도 B도 모두 취소되어 잔여 포지션 미커버
         pendingCloseOrders.sort(
                 Comparator.comparing(FuturesOrder::getCreatedAt)
                         .thenComparing(FuturesOrder::getId)
@@ -57,11 +62,16 @@ public class FuturesPendingCloseOrderCleanupService {
         BigDecimal overflowQuantity = totalPendingQuantity.subtract(remainingQuantity);
         BigDecimal canceledQuantity = BigDecimal.ZERO;
 
+        LocalDateTime canceledAt = LocalDateTime.now();
         for (FuturesOrder pendingCloseOrder : pendingCloseOrders) {
             if (canceledQuantity.compareTo(overflowQuantity) >= 0) {
                 break;
             }
-            pendingCloseOrder.cancel(LocalDateTime.now());
+            // Coordinator가 동시에 체결 처리했을 수 있으므로 PENDING 상태 재확인
+            if (pendingCloseOrder.getOrderStatus() != OrderStatus.PENDING) {
+                continue;
+            }
+            pendingCloseOrder.cancel(canceledAt);
             canceledQuantity = canceledQuantity.add(pendingCloseOrder.getOrderQuantity());
             eventPublisher.publishEvent(new LimitOrderRemovedEvent(symbol));
         }
@@ -70,6 +80,10 @@ public class FuturesPendingCloseOrderCleanupService {
     private void cancelOrders(List<FuturesOrder> orders, String symbol) {
         LocalDateTime canceledAt = LocalDateTime.now();
         for (FuturesOrder order : orders) {
+            // Coordinator가 동시에 체결 처리했을 수 있으므로 PENDING 상태 재확인
+            if (order.getOrderStatus() != OrderStatus.PENDING) {
+                continue;
+            }
             order.cancel(canceledAt);
             eventPublisher.publishEvent(new LimitOrderRemovedEvent(symbol));
         }

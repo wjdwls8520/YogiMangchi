@@ -87,12 +87,16 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
     );
 
     // 강제청산 Coordinator — 심볼의 모든 OPEN 포지션 조회 (청산가 비교용, 락 없음)
-    @Query("""                                                                                                                                                         
-          SELECT fp                                                                                                                                                  
-          FROM FuturesPosition fp                                                                                                                                    
-          WHERE fp.symbol = :symbol                                                                                                                                  
+    @Query("""
+          SELECT fp
+          FROM FuturesPosition fp
+          WHERE fp.symbol = :symbol
             AND fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN
           """)
     List<FuturesPosition> findAllOpenBySymbol(@Param("symbol") String symbol);
+
+    // 강제청산 부트스트랩 — 심볼별 OPEN 포지션 수 조회 (Registry 카운트 정확 복원용)
+    @Query("SELECT COUNT(fp) FROM FuturesPosition fp WHERE fp.symbol = :symbol AND fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN")
+    int countOpenBySymbol(@Param("symbol") String symbol);
 
 }

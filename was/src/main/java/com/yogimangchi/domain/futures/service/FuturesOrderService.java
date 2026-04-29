@@ -57,8 +57,8 @@ public class FuturesOrderService {
                 ? futuresWalletReader.getTradableRealWallet(memberId)
                 : futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
 
-        // 심볼 검증 + 적용 레버리지 조회
-        int leverage = futuresLeverageService.getLeverage(memberId, contestSeasonId, symbol).leverage();
+        // 심볼 검증 + 포지션 방향별 레버리지 조회
+        int leverage = futuresLeverageService.getLeverage(memberId, contestSeasonId, symbol, request.positionSide()).leverage();
 
         // 현재 선물 체결 기준가 조회
         BigDecimal orderPrice = futuresCurrentPriceService.getCurrentPrice(symbol);
