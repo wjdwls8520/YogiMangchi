@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/v1/member")
 @RequiredArgsConstructor
@@ -82,7 +84,7 @@ public class MemberController {
 
     @Operation(
             summary = "내 프로필 포트폴리오 조회",
-            description = "내 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 총자산, 손익, 수익률, 보유 종목 목록과 updatedAt 을 함께 반환합니다."
+            description = "내 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 총자산, 손익, 수익률, 보유 종목 목록과 updatedAt 을 함께 반환합니다. 회원은 존재하지만 아직 MOCK 지갑이 없으면 204 No Content 를 반환합니다."
     )
     @GetMapping("/me/portfolio")
     public ResponseEntity<ProfilePortfolioResponseDto> getMyProfilePortfolio(
@@ -92,20 +94,24 @@ public class MemberController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        ProfilePortfolioResponseDto portfolio = memberPortfolioService.getMyProfilePortfolio(loginMemberId);
-        return ResponseEntity.ok(portfolio);
+        Optional<ProfilePortfolioResponseDto> portfolio = memberPortfolioService.getMyProfilePortfolio(loginMemberId);
+        return portfolio
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @Operation(
             summary = "다른 멤버 프로필 포트폴리오 조회",
-            description = "다른 멤버 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 응답 규격은 내 프로필 포트폴리오와 동일합니다."
+            description = "다른 멤버 프로필 화면에서 사용하는 현재 활성 MOCK 포트폴리오를 조회합니다. 대상 회원이 없거나 탈퇴한 경우 404, 회원은 존재하지만 아직 MOCK 지갑이 없으면 204 No Content 를 반환합니다."
     )
     @GetMapping("/{memberId}/portfolio")
     public ResponseEntity<ProfilePortfolioResponseDto> getMemberPortfolio(
             @PathVariable Long memberId
     ) {
-        ProfilePortfolioResponseDto portfolio = memberPortfolioService.getMemberProfilePortfolio(memberId);
-        return ResponseEntity.ok(portfolio);
+        Optional<ProfilePortfolioResponseDto> portfolio = memberPortfolioService.getMemberProfilePortfolio(memberId);
+        return portfolio
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @Operation(
