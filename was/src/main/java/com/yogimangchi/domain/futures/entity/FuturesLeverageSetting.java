@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.futures.entity;
 
 import com.yogimangchi.domain.asset.entity.Assets;
+import com.yogimangchi.domain.futures.enums.PositionSide;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -16,9 +17,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "futures_leverage_setting",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"assets_id", "symbol"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"assets_id", "symbol", "position_side"})
 )
-@Comment("선물 지갑별 심볼별 레버리지 설정 (유저가 직접 변경, 기본값 1배)")
+@Comment("선물 지갑별 심볼별 포지션 방향별 레버리지 설정 (유저가 직접 변경, 기본값 1배)")
 public class FuturesLeverageSetting {
 
     @Id
@@ -34,6 +35,11 @@ public class FuturesLeverageSetting {
     @Comment("레버리지 설정 대상 심볼 - 예: BTCUSDT")
     private String symbol;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "position_side", nullable = false, length = 5)
+    @Comment("포지션 방향 (LONG / SHORT) — 방향별 독립 레버리지 설정")
+    private PositionSide positionSide;
+
     @Column(nullable = false)
     @Comment("현재 설정된 레버리지 배수 (기본 1배)")
     private int leverage;
@@ -46,10 +52,11 @@ public class FuturesLeverageSetting {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static FuturesLeverageSetting createDefault(Assets assets, String symbol) {
+    public static FuturesLeverageSetting createDefault(Assets assets, String symbol, PositionSide positionSide) {
         FuturesLeverageSetting setting = new FuturesLeverageSetting();
         setting.assets = assets;
         setting.symbol = symbol;
+        setting.positionSide = positionSide;
         setting.leverage = 1;
         return setting;
     }

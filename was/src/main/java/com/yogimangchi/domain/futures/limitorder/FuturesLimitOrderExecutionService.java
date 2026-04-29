@@ -82,9 +82,9 @@ public class FuturesLimitOrderExecutionService {
         BigDecimal executionPrice = order.getOrderPrice();    // 지정가 = 체결가
         BigDecimal quantity = order.getOrderQuantity();
 
-        // 체결 시점 레버리지 조회 (지갑+심볼 기준, 설정 없으면 기본값 1)
+        // 체결 시점 방향별 레버리지 조회 (지갑+심볼+방향 기준, 설정 없으면 기본값 1)
         // 주문 등록 시 증거금은 이미 해당 레버리지로 계산되어 지갑에서 차감된 상태
-        int leverage = futuresLeverageSettingRepository.findByAssetsAndSymbol(wallet, symbol)
+        int leverage = futuresLeverageSettingRepository.findByAssetsAndSymbolAndPositionSide(wallet, symbol, positionSide)
                 .map(FuturesLeverageSetting::getLeverage)
                 .orElse(1);
 
@@ -140,8 +140,14 @@ public class FuturesLimitOrderExecutionService {
                 .orElseThrow(() -> new IllegalArgumentException("청산할 OPEN 포지션이 없습니다."));
 
         // 청산 수량 검증
+        // 동시 청산(시장가/강제청산)으로 포지션이 이미 줄어든 경우 — Cleanup 서비스가 이 주문을 취소했어야 하지만
+        // 락 경쟁으로 타이밍이 어긋났을 수 있으므로 여기서도 방어적으로 주문을 취소하고 종료
         if (closeQuantity.compareTo(position.getFilledQuantity()) > 0) {
-            throw new IllegalArgumentException("청산 수량이 보유 수량을 초과합니다.");
+            log.warn("[지정가 CLOSE 수량 초과 — 주문 취소] orderId={}, closeQty={}, positionQty={}",
+                    order.getId(), closeQuantity, position.getFilledQuantity());
+            order.cancel(LocalDateTime.now());
+            eventPublisher.publishEvent(new LimitOrderRemovedEvent(symbol));
+            return;
         }
 
         // 청산 비율 기준으로 증거금 / 명목금액 산출 (부분 청산 대응)

@@ -2,13 +2,13 @@ package com.yogimangchi.domain.futures.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.enums.AssetType;
-import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.futures.dto.request.FuturesLeverageRequestDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesLeverageResponseDto;
 import com.yogimangchi.domain.futures.entity.FuturesOrder;
 import com.yogimangchi.domain.futures.entity.FuturesPosition;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
+import com.yogimangchi.domain.futures.entity.FuturesLeverageSetting;
 import com.yogimangchi.domain.futures.repository.FuturesLeverageSettingRepository;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
@@ -33,13 +33,14 @@ public class FuturesLeverageService {
     private final FuturesLeverageSettingRepository futuresLeverageSettingRepository;
     private final FuturesPositionRepository futuresPositionRepository;
     private final FuturesOrderRepository futuresOrderRepository;
-    private final ChartPriceRepository chartPriceRepository;
+    private final FuturesCurrentPriceService futuresCurrentPriceService;
 
     private static final BigDecimal TRADE_FEE = new BigDecimal("0.0005");
 
     @Transactional
     public FuturesLeverageResponseDto setLeverage(Long memberId, Long contestSeasonId, FuturesLeverageRequestDto request) {
         String symbol = request.symbol().trim().toUpperCase();
+        PositionSide positionSide = request.positionSide();
 
         // 쓰기 트랜잭션 — 비관적 락으로 지갑 조회
         Assets wallet = (contestSeasonId == null)
@@ -69,10 +70,14 @@ public class FuturesLeverageService {
 
         int newLeverage = request.leverage();
 
-        // OPEN 포지션과 PENDING LIMIT OPEN 주문이 있으면 레버리지 변경 검증 및 마진 동기화
+        // 요청 방향의 OPEN 포지션만 조회 — 방향별 독립 레버리지이므로 해당 방향만 업데이트
         List<FuturesPosition> openPositions = futuresPositionRepository
-                .findAllByAssetsAndSymbolAndPositionStatusForUpdate(wallet, symbol, PositionStatus.OPEN);
-        List<FuturesOrder> pendingOpenOrders = futuresOrderRepository.findAllPendingLimitOpenOrders(wallet, symbol);
+                .findByAssetsAndSymbolAndPositionSideWherePositionStatusForUpdate(wallet, symbol, positionSide, PositionStatus.OPEN)
+                .map(List::of)
+                .orElse(List.of());
+
+        // 요청 방향의 PENDING LIMIT OPEN 주문만 조회
+        List<FuturesOrder> pendingOpenOrders = futuresOrderRepository.findAllPendingLimitOpenOrders(wallet, symbol, positionSide);
 
         BigDecimal totalMarginDiff = BigDecimal.ZERO;
         BigDecimal currentPrice = null;
@@ -84,13 +89,10 @@ public class FuturesLeverageService {
 
             if (newLeverage > position.getLeverage()) {
                 if (currentPrice == null) {
-                    currentPrice = new BigDecimal(
-                            chartPriceRepository.findBySymbol(symbol)
-                                    .orElseThrow(() -> new IllegalArgumentException("현재 해당 코인의 시세를 확인할 수 없습니다."))
-                                    .price()
-                    );
+                    // 선물 ticker → mark price → spot 순으로 fallback 조회
+                    currentPrice = futuresCurrentPriceService.getCurrentPrice(symbol);
                 }
-                validateLiquidationSafety(position.getPositionSide(), currentPrice, position.getEntryPrice(), newLeverage);
+                validateLiquidationSafety(positionSide, currentPrice, position.getEntryPrice(), newLeverage);
             }
 
             BigDecimal newTotalMargin = position.getNotionalAmount()
@@ -132,17 +134,17 @@ public class FuturesLeverageService {
         }
 
         // 행이 없으면 INSERT, 있으면 UPDATE — 단일 원자 연산으로 경쟁 조건 방지
-        futuresLeverageSettingRepository.upsertLeverage(wallet.getId(), symbol, newLeverage);
+        futuresLeverageSettingRepository.upsertLeverage(wallet.getId(), symbol, positionSide.name(), newLeverage);
 
         BigDecimal availableOrderNotionalAmount = wallet.getCurrentMoney()
                 .multiply(BigDecimal.valueOf(newLeverage))
                 .divide(BigDecimal.ONE.add(TRADE_FEE.multiply(BigDecimal.valueOf(newLeverage))), 4, RoundingMode.HALF_DOWN);
 
-        return new FuturesLeverageResponseDto(symbol, newLeverage, maxLeverage, availableOrderNotionalAmount);
+        return new FuturesLeverageResponseDto(symbol, positionSide, newLeverage, maxLeverage, availableOrderNotionalAmount);
     }
 
     @Transactional(readOnly = true)
-    public FuturesLeverageResponseDto getLeverage(Long memberId, Long contestSeasonId, String symbol) {
+    public FuturesLeverageResponseDto getLeverage(Long memberId, Long contestSeasonId, String symbol, PositionSide positionSide) {
         String upperSymbol = symbol.trim().toUpperCase();
 
         // 읽기 트랜잭션 — 락 없이 지갑 조회
@@ -158,17 +160,17 @@ public class FuturesLeverageService {
                 ? policy.getContestMaxLeverage()
                 : policy.getMaxLeverage();
 
-        // 설정이 없으면 DB에 저장하지 않고 기본값 1 반환
+        // 방향별 설정이 없으면 DB에 저장하지 않고 기본값 1 반환
         int leverage = futuresLeverageSettingRepository
-                .findByAssetsAndSymbol(wallet, upperSymbol)
-                .map(setting -> setting.getLeverage())
+                .findByAssetsAndSymbolAndPositionSide(wallet, upperSymbol, positionSide)
+                .map(FuturesLeverageSetting::getLeverage)
                 .orElse(1);
 
         BigDecimal availableOrderNotionalAmount = wallet.getCurrentMoney()
                 .multiply(BigDecimal.valueOf(leverage))
                 .divide(BigDecimal.ONE.add(TRADE_FEE.multiply(BigDecimal.valueOf(leverage))), 4, RoundingMode.HALF_DOWN);
 
-        return new FuturesLeverageResponseDto(upperSymbol, leverage, maxLeverage, availableOrderNotionalAmount);
+        return new FuturesLeverageResponseDto(upperSymbol, positionSide, leverage, maxLeverage, availableOrderNotionalAmount);
     }
 
     // 레버리지 올릴 때 — 새 청산가가 현재가에 도달하는지 검증

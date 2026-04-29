@@ -70,8 +70,8 @@ public class FuturesLimitOrderService {
             throw new IllegalArgumentException("최소 주문 금액이 '10YD' 보다 낮습니다.");
         }
 
-        // 레버리지 조회 (설정 없으면 기본값 1)
-        int leverage = futuresLeverageSettingRepository.findByAssetsAndSymbol(wallet, symbol)
+        // 방향별 레버리지 조회 (설정 없으면 기본값 1)
+        int leverage = futuresLeverageSettingRepository.findByAssetsAndSymbolAndPositionSide(wallet, symbol, request.positionSide())
                 .map(FuturesLeverageSetting::getLeverage)
                 .orElse(1);
 
@@ -114,8 +114,10 @@ public class FuturesLimitOrderService {
                 ? futuresWalletReader.getReadableRealWallet(memberId)
                 : futuresWalletReader.getReadableContestWallet(memberId, contestSeasonId);
 
-        // 청산 대상 포지션 조회 및 검증
-        FuturesPosition position = futuresPositionRepository.findById(request.positionId())
+        // 청산 대상 포지션 조회 (비관적 락 — 동시 이중 등록 방지)
+        // 락 없이 조회하면 두 요청이 동시에 totalPendingCloseQty=0 을 읽어 수량 초과 등록 가능
+        // 락을 통해 직렬화하면 두 번째 요청이 첫 번째 커밋 결과를 반드시 읽게 됨
+        FuturesPosition position = futuresPositionRepository.findByIdForUpdate(request.positionId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 포지션입니다."));
 
         if (!position.getAssets().getId().equals(wallet.getId())) {

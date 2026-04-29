@@ -54,16 +54,19 @@ public interface FuturesOrderRepository extends JpaRepository<FuturesOrder, Long
             @Param("positionSide") PositionSide positionSide
     );
 
+    // 레버리지 변경 시 — 특정 방향의 PENDING LIMIT OPEN 주문 조회 (방향별 증거금 재계산용)
     @Query("""
             SELECT fo FROM FuturesOrder fo
             WHERE fo.assets = :assets
               AND fo.symbol = :symbol
+              AND fo.positionSide = :positionSide
               AND fo.positionAction = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN
               AND fo.orderType = com.yogimangchi.domain.futures.enums.OrderType.LIMIT
               AND fo.orderStatus = com.yogimangchi.domain.futures.enums.OrderStatus.PENDING
             """)
     List<FuturesOrder> findAllPendingLimitOpenOrders(
             @Param("assets") Assets assets,
-            @Param("symbol") String symbol
+            @Param("symbol") String symbol,
+            @Param("positionSide") PositionSide positionSide
     );
 }
