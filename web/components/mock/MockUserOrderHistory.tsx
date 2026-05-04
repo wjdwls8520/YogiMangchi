@@ -74,16 +74,6 @@ const getCursorPage = <T,>(payload: unknown): CursorPage<T> => {
   };
 };
 
-const getArrayContent = <T,>(payload: unknown): T[] => {
-  if (Array.isArray(payload)) return payload as T[];
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.data)) return payload.data as T[];
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  return [];
-};
-
 const extractErrorMessage = (payload: unknown) => {
   if (!isRecord(payload)) return "";
 
@@ -103,6 +93,9 @@ const isNoMockWalletMessage = (message: string) => {
     message.includes("참가하기를 먼저 진행해주세요.")
   );
 };
+
+const FILLED_ORDER_PAGE_SIZE = 10;
+const OPEN_ORDER_PAGE_SIZE = 5;
 
 export default function MockUserOrderHistory() {
   const { alert, confirm, toast } = useFeedback();
@@ -157,6 +150,20 @@ export default function MockUserOrderHistory() {
     }));
   }, []);
 
+  const mapOpenOrderRows = useCallback((orders: OpenOrderItem[]) => {
+    return orders.map((item) => ({
+      id: item.orderId,
+      date: item.orderedAt,
+      symbol: item.symbol,
+      side: item.side,
+      quantity: item.orderQuantity,
+      price: item.orderPrice ?? item.avgFilledPrice,
+      totalAmount: item.orderAmount ?? item.executedAmount,
+      fee: item.totalFee,
+      status: item.orderStatus,
+    }));
+  }, []);
+
   useEffect(() => {
     if (!hasLoadedPortfolio) {
       return;
@@ -185,10 +192,11 @@ export default function MockUserOrderHistory() {
         let url = "";
 
         if (historyTab === "unfilled") {
+          params.set("size", String(OPEN_ORDER_PAGE_SIZE));
           url = `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`;
         } else {
           params.set("status", "COMPLETED");
-          params.set("size", "10");
+          params.set("size", String(FILLED_ORDER_PAGE_SIZE));
           url = `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`;
         }
 
@@ -230,21 +238,11 @@ export default function MockUserOrderHistory() {
         }
 
         if (historyTab === "unfilled") {
-          const orders = getArrayContent<OpenOrderItem>(payload);
+          const page = getCursorPage<OpenOrderItem>(payload);
 
-          setRows(
-            orders.map((item) => ({
-              id: item.orderId,
-              date: item.orderedAt,
-              symbol: item.symbol,
-              side: item.side,
-              quantity: item.orderQuantity,
-              price: item.orderPrice ?? item.avgFilledPrice,
-              totalAmount: item.orderAmount ?? item.executedAmount,
-              fee: item.totalFee,
-              status: item.orderStatus,
-            }))
-          );
+          setRows(mapOpenOrderRows(page.content));
+          setNextCursorId(page.nextCursorId);
+          setHasNext(page.hasNext);
         } else {
           const page = getCursorPage<OpenOrderItem>(payload);
 
@@ -277,12 +275,13 @@ export default function MockUserOrderHistory() {
     loadMockWallet,
     buildBaseParams,
     mapHistoryRows,
+    mapOpenOrderRows,
   ]);
 
   useEffect(() => {
-    if (historyTab !== "filled") return;
     if (isLoading || isFetchingMore) return;
     if (!hasNext || nextCursorId === null) return;
+    if (!scrollContainerRef.current) return;
     if (!loadMoreRef.current) return;
 
     const observer = new IntersectionObserver(
@@ -296,12 +295,27 @@ export default function MockUserOrderHistory() {
         const loadMoreRows = async () => {
           try {
             const params = buildBaseParams();
-            params.set("status", "COMPLETED");
-            params.set("size", "10");
+            params.set(
+              "size",
+              String(
+                historyTab === "unfilled"
+                  ? OPEN_ORDER_PAGE_SIZE
+                  : FILLED_ORDER_PAGE_SIZE
+              )
+            );
             params.set("cursorId", String(nextCursorId));
 
+            if (historyTab === "filled") {
+              params.set("status", "COMPLETED");
+            }
+
+            const path =
+              historyTab === "unfilled"
+                ? "spot/mock/orders/open"
+                : "spot/mock/orders";
+
             const response = await fetch(
-              `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`,
+              `http://localhost:8080/api/v1/${path}?${params.toString()}`,
               {
                 method: "GET",
                 credentials: "include",
@@ -312,7 +326,9 @@ export default function MockUserOrderHistory() {
 
             if (!response.ok) {
               console.error(
-                "체결 주문 추가 조회 실패:",
+                historyTab === "unfilled"
+                  ? "미체결 주문 추가 조회 실패:"
+                  : "체결 주문 추가 조회 실패:",
                 extractErrorMessage(payload) || "요청 실패"
               );
               setHasNext(false);
@@ -321,11 +337,21 @@ export default function MockUserOrderHistory() {
 
             const page = getCursorPage<OpenOrderItem>(payload);
 
-            setRows((prev) => [...prev, ...mapHistoryRows(page.content)]);
+            setRows((prev) => [
+              ...prev,
+              ...(historyTab === "unfilled"
+                ? mapOpenOrderRows(page.content)
+                : mapHistoryRows(page.content)),
+            ]);
             setNextCursorId(page.nextCursorId);
             setHasNext(page.hasNext);
           } catch (error) {
-            console.error("체결 주문 추가 조회 실패:", error);
+            console.error(
+              historyTab === "unfilled"
+                ? "미체결 주문 추가 조회 실패:"
+                : "체결 주문 추가 조회 실패:",
+              error
+            );
             setHasNext(false);
           } finally {
             setIsFetchingMore(false);
@@ -336,7 +362,7 @@ export default function MockUserOrderHistory() {
       },
       {
         root: scrollContainerRef.current,
-        rootMargin: "120px 0px",
+        rootMargin: historyTab === "unfilled" ? "0px" : "120px 0px",
       }
     );
 
@@ -354,6 +380,7 @@ export default function MockUserOrderHistory() {
     isFetchingMore,
     buildBaseParams,
     mapHistoryRows,
+    mapOpenOrderRows,
   ]);
 
   const handleCancelOrder = async (orderId: number) => {
@@ -396,9 +423,9 @@ export default function MockUserOrderHistory() {
       errorMessage={errorMessage}
       hasLoadedPortfolio={hasLoadedPortfolio}
       isParticipated={isParticipated}
-      hasNext={historyTab === "filled" ? hasNext : false}
-      isFetchingMore={historyTab === "filled" ? isFetchingMore : false}
-      loadMoreRef={historyTab === "filled" ? loadMoreRef : undefined}
+      hasNext={hasNext}
+      isFetchingMore={isFetchingMore}
+      loadMoreRef={loadMoreRef}
       scrollContainerRef={scrollContainerRef}
       onHistoryTabChange={setHistoryTab}
       onOrderTypeChange={setSelectedOrderType}

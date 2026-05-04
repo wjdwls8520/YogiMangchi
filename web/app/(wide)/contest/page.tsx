@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Tabs, { type TabOption } from "@/components/ui/Tabs";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
@@ -315,6 +316,7 @@ const fetchContestPageData = async ({
 };
 
 export default function ContestMainPage() {
+  const router = useRouter();
   const { alert, toast } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({
     loginRedirectMode: "push",
@@ -476,6 +478,7 @@ export default function ContestMainPage() {
         contests={ongoingContests}
         selectedContestId={selectedActiveId}
         onSelectContest={setSelectedActiveId}
+        onMoveTrading={(contestId) => router.push(`/contest/${contestId}/trading`)}
       />
 
       <section className="space-y-6">

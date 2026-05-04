@@ -11,7 +11,9 @@ import { useTickerStore } from "@/stores/useTickerStore";
 import {
   getBinanceKlineApiUrl,
   getBinanceWsBaseUrl,
+  type MarketType,
 } from "@/lib/utils/market";
+import { cn } from "@/lib/utils/cs";
 
 const timeframeOptions = [
   { label: "1분", value: "1m" },
@@ -35,10 +37,53 @@ const formatChartPrice = (value: number) => {
   });
 };
 
-export default function CoinChart() {
+const closeChartSocket = (socket: WebSocket | null) => {
+  if (!socket) {
+    return;
+  }
+
+  socket.onopen = null;
+  socket.onmessage = null;
+  socket.onerror = null;
+  socket.onclose = null;
+
+  if (
+    socket.readyState === WebSocket.CONNECTING ||
+    socket.readyState === WebSocket.OPEN
+  ) {
+    socket.close();
+  }
+};
+
+const mergeByTime = <T extends { time: Time }>(current: T[], incoming: T[]) => {
+  const dataByTime = new Map<Time, T>();
+
+  for (const item of [...current, ...incoming]) {
+    dataByTime.set(item.time, item);
+  }
+
+  return Array.from(dataByTime.values()).sort(
+    (a, b) => Number(a.time) - Number(b.time)
+  );
+};
+
+type CoinChartProps = {
+  className?: string;
+  chartAreaClassName?: string;
+  marketTypeOverride?: MarketType;
+};
+
+export default function CoinChart({
+  className,
+  chartAreaClassName,
+  marketTypeOverride,
+}: CoinChartProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
+  const effectiveMarketType = marketTypeOverride ?? selectedMarketType;
+  const coinMetaListRef = useRef(coinMetaList);
+  coinMetaListRef.current = coinMetaList;
   const meta = coinMetaList.find(c => c.symbol === selectedCoin) || { 
     displayNameKr: selectedCoin, 
     symbol: selectedCoin 
@@ -52,11 +97,13 @@ export default function CoinChart() {
   const [showMA, setShowMA] = useState(false);
   const [showMarkers, setShowMarkers] = useState(false);
   const [isPercent, setIsPercent] = useState(false);
-  const [isDark, setIsDark] = useState(false); 
+  const [isDark, setIsDark] = useState(true); 
   const [showPriceLine, setShowPriceLine] = useState(false); 
   const [showTooltip, setShowTooltip] = useState(true); 
 
   const [dataTick, setDataTick] = useState(0);
+  const [isChartDataLoading, setIsChartDataLoading] = useState(true);
+  const [chartDataErrorMessage, setChartDataErrorMessage] = useState("");
 
   const chartRef = useRef<any>(null);
   const seriesRef = useRef<any>({});
@@ -71,6 +118,7 @@ export default function CoinChart() {
   const isLoadingMoreRef = useRef(false); // 데이터 중복 호출 방지
   const noMoreDataRef = useRef(false); // 태초의 데이터까지 다 불러왔는지 확인
   const logicalRangeListenerRef = useRef<any>(null); // 차트 스크롤 감지 리스너
+  const shouldScrollToRealtimeRef = useRef(false);
 
   const chartTypeRef = useRef(chartType);
   const showMARef = useRef(showMA);
@@ -118,10 +166,10 @@ export default function CoinChart() {
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
+      layout: { background: { type: ColorType.Solid, color: '#0B0E11' }, textColor: '#B7BDC6' },
       width: chartContainerRef.current.clientWidth,
-      height: 500,
-      grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
+      height: chartContainerRef.current.clientHeight || 400,
+      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)' }, horzLines: { color: 'rgba(255, 255, 255, 0.04)' } },
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
       },
@@ -176,17 +224,29 @@ export default function CoinChart() {
 
     const handleResize = () => { 
       if (chartRef.current && chartContainerRef.current) {
-        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth }); 
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        }); 
       }
     };
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(handleResize)
+        : null;
+
+    if (resizeObserver) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+
     window.addEventListener('resize', handleResize);
 
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener('resize', handleResize);
-      if (wsRef.current) {
-        if (wsRef.current.readyState === 0) wsRef.current.onopen = () => wsRef.current!.close();
-        else if (wsRef.current.readyState === 1) wsRef.current.close();
-      }
+      closeChartSocket(wsRef.current);
+      wsRef.current = null;
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
@@ -197,15 +257,117 @@ export default function CoinChart() {
   // 2. 초기 데이터 페칭 및 무한 스크롤 로직
   useEffect(() => {
     if (!chartRef.current) return;
-    let isFetching = true;
+    let isActive = true;
+
+    const currentMeta = coinMetaListRef.current.find(c => c.symbol === selectedCoin);
+    const binanceSymbol = (currentMeta?.binanceRequestSymbol || selectedCoin);
 
     // 코인이나 시간대가 바뀌면 무한스크롤 상태 초기화
     isLoadingMoreRef.current = false;
     noMoreDataRef.current = false;
+    shouldScrollToRealtimeRef.current = true;
+    dataRef.current = [];
+    volumesRef.current = [];
+    setIsChartDataLoading(true);
+    setChartDataErrorMessage("");
+    setDataTick(prev => prev + 1);
 
-    if (wsRef.current) {
-      if (wsRef.current.readyState === 1) wsRef.current.close();
-    }
+    closeChartSocket(wsRef.current);
+    wsRef.current = null;
+
+    const applyRealtimeKline = (kline: any) => {
+      if (!chartRef.current) return;
+
+      const time = (kline.t / 1000) as Time;
+      const open = parseFloat(kline.o);
+      const close = parseFloat(kline.c);
+      const newCandle = {
+        time,
+        open,
+        high: parseFloat(kline.h),
+        low: parseFloat(kline.l),
+        close,
+      };
+      const newVolume = {
+        time,
+        value: parseFloat(kline.v),
+        color: close >= open
+          ? 'rgba(251, 44, 54, 0.3)'
+          : 'rgba(0, 88, 255, 0.3)',
+      };
+
+      if (
+        !Number.isFinite(newCandle.open) ||
+        !Number.isFinite(newCandle.high) ||
+        !Number.isFinite(newCandle.low) ||
+        !Number.isFinite(newCandle.close) ||
+        !Number.isFinite(newVolume.value)
+      ) {
+        return;
+      }
+
+      const currentCandles = dataRef.current;
+      const currentVolumes = volumesRef.current;
+      const lastCandle = currentCandles[currentCandles.length - 1];
+
+      if (lastCandle && time < lastCandle.time) return;
+
+      if (lastCandle && lastCandle.time === time) {
+        currentCandles[currentCandles.length - 1] = newCandle;
+        currentVolumes[currentVolumes.length - 1] = newVolume;
+      } else {
+        currentCandles.push(newCandle);
+        currentVolumes.push(newVolume);
+      }
+
+      try {
+        seriesRef.current.volume.update(newVolume);
+
+        const type = chartTypeRef.current;
+        if (type === "candle" || type === "bar") {
+          seriesRef.current[type].update(newCandle);
+        }
+        if (type === "line" || type === "area" || type === "baseline") {
+          seriesRef.current[type].update({ time, value: close });
+        }
+
+        if (showMARef.current && currentCandles.length >= 20) {
+          let sum = 0;
+          for (let i = currentCandles.length - 20; i < currentCandles.length; i++) {
+            sum += currentCandles[i].close;
+          }
+          seriesRef.current.ma20.update({ time, value: sum / 20 });
+        }
+      } catch {}
+    };
+
+    const wsBaseUrl = getBinanceWsBaseUrl(effectiveMarketType);
+    const socket = new WebSocket(
+      `${wsBaseUrl}/ws/${binanceSymbol.toLowerCase()}@kline_${timeframe}`
+    );
+    wsRef.current = socket;
+    socket.onopen = () => {
+      if (!isActive) return;
+      setChartDataErrorMessage("");
+    };
+    socket.onmessage = (event) => {
+      if (!isActive) return;
+
+      try {
+        const payload = JSON.parse(event.data);
+        const kline = payload.k;
+
+        if (kline) {
+          applyRealtimeKline(kline);
+        }
+      } catch (error) {
+        console.error("차트 실시간 데이터 파싱 실패:", error);
+      }
+    };
+    socket.onerror = () => {
+      if (!isActive) return;
+      setChartDataErrorMessage("차트 실시간 연결이 불안정합니다.");
+    };
 
     // 🌟 [무한 스크롤 1] 왼쪽 끝에 도달했을 때 과거 데이터를 가져오는 함수
     const fetchMoreHistoricalData = async () => {
@@ -219,8 +381,8 @@ export default function CoinChart() {
         // endTime 파라미터로 가장 오래된 시간의 "이전" 1000개를 달라고 요청합니다.
         const res = await fetch(
           getBinanceKlineApiUrl({
-            marketType: selectedMarketType,
-            symbol: selectedCoin,
+            marketType: effectiveMarketType,
+            symbol: binanceSymbol,
             timeframe,
             endTime: oldestTime - 1,
             limit: 1000,
@@ -239,6 +401,7 @@ export default function CoinChart() {
         dataRef.current = [...candles, ...dataRef.current];
         volumesRef.current = [...volumes, ...volumesRef.current];
 
+        shouldScrollToRealtimeRef.current = false;
         setDataTick(prev => prev + 1); // 차트 리렌더링 트리거
       } catch (err) {
         console.error("과거 데이터 로딩 에러:", err);
@@ -266,73 +429,66 @@ export default function CoinChart() {
     // 처음 접속 시 최초 1000개 로딩
     fetch(
       getBinanceKlineApiUrl({
-        marketType: selectedMarketType,
-        symbol: selectedCoin,
+        marketType: effectiveMarketType,
+        symbol: binanceSymbol,
         timeframe,
         limit: 1000,
       })
     )
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("캔들 API 응답이 올바르지 않습니다.");
+        }
+
+        return res.json();
+      })
       .then((data) => {
-        if (!isFetching) return;
+        if (!isActive) return;
+
+        if (!Array.isArray(data)) {
+          throw new Error("캔들 데이터 형식이 올바르지 않습니다.");
+        }
 
         const { candles, volumes } = formatData(data);
-        dataRef.current = candles; 
-        volumesRef.current = volumes;
+        dataRef.current = mergeByTime(dataRef.current, candles);
+        volumesRef.current = mergeByTime(volumesRef.current, volumes);
         
         if(candles.length > 0) {
           seriesRef.current.baseline.applyOptions({ baseValue: { type: 'price', price: candles[0].close } });
         }
         
+        shouldScrollToRealtimeRef.current = true;
         setDataTick(prev => prev + 1);
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
 
-        const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
-        wsRef.current = new WebSocket(
-          `${wsBaseUrl}/ws/${selectedCoin.toLowerCase()}@kline_${timeframe}`
+        console.error("차트 데이터 로딩 실패:", error);
+        if (dataRef.current.length === 0) {
+          dataRef.current = [];
+          volumesRef.current = [];
+        }
+        setChartDataErrorMessage(
+          "차트 데이터를 불러오지 못했습니다. Binance 연결 상태를 확인해 주세요."
         );
-        wsRef.current.onmessage = (event) => {
-          if (!chartRef.current) return;
-
-          const kline = JSON.parse(event.data).k;
-          const time = (kline.t / 1000) as Time;
-          const open = parseFloat(kline.o);
-          const close = parseFloat(kline.c);
-          
-          const newCandle = { time, open, high: parseFloat(kline.h), low: parseFloat(kline.l), close };
-          const newVolume = { time, value: parseFloat(kline.v), color: close >= open ? 'rgba(251, 44, 54, 0.3)' : 'rgba(0, 88, 255, 0.3)' };
-          
-          const currentCandles = dataRef.current;
-          const currentVolumes = volumesRef.current;
-          const lastCandle = currentCandles[currentCandles.length - 1];
-
-          if (lastCandle && time < lastCandle.time) return;
-
-          if (lastCandle && lastCandle.time === time) {
-            currentCandles[currentCandles.length - 1] = newCandle;
-            currentVolumes[currentVolumes.length - 1] = newVolume;
-          } else {
-            currentCandles.push(newCandle);
-            currentVolumes.push(newVolume);
-          }
-          
-          try {
-            seriesRef.current.volume.update(newVolume);
-            
-            const type = chartTypeRef.current;
-            if (type === "candle" || type === "bar") seriesRef.current[type].update(newCandle);
-            if (type === "line" || type === "area" || type === "baseline") seriesRef.current[type].update({ time, value: close });
-
-            if (showMARef.current && currentCandles.length >= 20) {
-              let sum = 0;
-              for (let i = currentCandles.length - 20; i < currentCandles.length; i++) { sum += currentCandles[i].close; }
-              seriesRef.current.ma20.update({ time, value: sum / 20 });
-            }
-          } catch {}
-        };
+        setDataTick(prev => prev + 1);
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsChartDataLoading(false);
+        }
       });
 
-    return () => { isFetching = false; };
-  }, [timeframe, selectedCoin, selectedMarketType]);
+    return () => {
+      isActive = false;
+      closeChartSocket(socket);
+      if (wsRef.current === socket) {
+        wsRef.current = null;
+      }
+    };
+  }, [timeframe, selectedCoin, effectiveMarketType]);
 
   // 3. UI 업데이트 훅
   useEffect(() => {
@@ -372,6 +528,11 @@ export default function CoinChart() {
       }
 
       chartRef.current.priceScale('right').applyOptions({ mode: isPercent ? PriceScaleMode.Percentage : PriceScaleMode.Normal });
+
+      if (shouldScrollToRealtimeRef.current) {
+        chartRef.current.timeScale().scrollToRealTime();
+        shouldScrollToRealtimeRef.current = false;
+      }
     } catch {}
   }, [chartType, showMA, showMarkers, isPercent, showPriceLine, dataTick]); 
 
@@ -379,8 +540,8 @@ export default function CoinChart() {
   useEffect(() => {
     if(!chartRef.current) return;
     const darkTheme = {
-      layout: { background: { type: ColorType.Solid, color: '#181A20' }, textColor: '#B7BDC6' },
-      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.05)' }, horzLines: { color: 'rgba(255, 255, 255, 0.05)' } },
+      layout: { background: { type: ColorType.Solid, color: '#0B0E11' }, textColor: '#B7BDC6' },
+      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)' }, horzLines: { color: 'rgba(255, 255, 255, 0.04)' } },
     };
     const lightTheme = {
       layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
@@ -392,25 +553,28 @@ export default function CoinChart() {
   return (
     <section 
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
-      className={`w-full p-6 border transition-colors ${isDark ? 'bg-[#181A20] border-[#2B3139]' : 'bg-white border-gray-100'} flex flex-col gap-4 relative`}
+      className={cn(
+        "relative flex w-full flex-col gap-2 border p-4 transition-colors",
+        isDark ? "border-[#2B3139] bg-[#181A20]" : "border-gray-100 bg-white",
+        className
+      )}
     >
       <h2 className="sr-only">{meta.displayNameKr} 차트</h2>
 
-      <header className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-[#2B3139]' : 'border-gray-100'}`}>
+      <header className={`flex flex-wrap items-center justify-between`}>
         
         <div className="flex flex-wrap items-center gap-4">
           
-          <nav aria-label="시간대 선택" className="flex rounded-lg shadow-sm">
+          <nav aria-label="시간대 선택" className="flex gap-1">
             {timeframeOptions.map((opt, i) => (
               <button
                 key={opt.value}
                 onClick={() => setTimeframe(opt.value)}
                 aria-pressed={timeframe === opt.value}
-                className={`px-3 py-1.5 text-sm font-medium border focus:z-10 transition-colors
-                  ${i === 0 ? 'rounded-l-lg' : ''} ${i === timeframeOptions.length - 1 ? 'rounded-r-lg' : ''} ${i !== 0 ? '-ml-px' : ''} 
-                  ${timeframe === opt.value 
-                    ? (isDark ? 'bg-[#2B3139] text-white border-gray-500 z-10' : 'bg-blue-50 text-[#0058FF] border-[#0058FF] z-10') 
-                    : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')
+                className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                  ${timeframe === opt.value
+                    ? (isDark ? "bg-white/20 text-white shadow-sm" : "bg-blue-100 text-[#0058FF] shadow-sm")
+                    : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")
                   }
                 `}
               >
@@ -419,17 +583,16 @@ export default function CoinChart() {
             ))}
           </nav>
 
-          <nav aria-label="차트 종류 선택" className="flex rounded-lg shadow-sm">
+          <nav aria-label="차트 종류 선택" className="flex gap-1">
             {chartTypeOptions.map((opt, i) => (
               <button
                 key={opt.value}
                 onClick={() => setChartType(opt.value)}
                 aria-pressed={chartType === opt.value}
-                className={`px-3 py-1.5 text-sm font-medium border focus:z-10 transition-colors
-                  ${i === 0 ? 'rounded-l-lg' : ''} ${i === chartTypeOptions.length - 1 ? 'rounded-r-lg' : ''} ${i !== 0 ? '-ml-px' : ''} 
-                  ${chartType === opt.value 
-                    ? (isDark ? 'bg-[#2B3139] text-white border-gray-500 z-10' : 'bg-gray-100 text-gray-900 border-gray-300 z-10 font-bold') 
-                    : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')
+                className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                  ${chartType === opt.value
+                    ? (isDark ? "bg-white/20 text-white shadow-sm" : "bg-gray-200 text-gray-900 shadow-sm")
+                    : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")
                   }
                 `}
               >
@@ -440,13 +603,13 @@ export default function CoinChart() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div role="group" aria-label="차트 기능 토글" className="flex rounded-lg shadow-sm">
+          <div role="group" aria-label="차트 기능 토글" className="flex gap-1">
             
             <button 
               onClick={() => setShowPriceLine(!showPriceLine)} 
               aria-pressed={showPriceLine}
-              className={`px-3 py-1.5 text-sm font-medium border rounded-l-lg focus:z-10 transition-colors 
-                ${showPriceLine ? 'bg-[#00C087] text-white border-[#00C087] z-10' : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                ${showPriceLine ? "bg-[#00C087] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
               `}
             >
               평단가
@@ -455,8 +618,8 @@ export default function CoinChart() {
             <button 
               onClick={() => setShowMA(!showMA)} 
               aria-pressed={showMA}
-              className={`px-3 py-1.5 text-sm font-medium border -ml-px focus:z-10 transition-colors 
-                ${showMA ? 'bg-[#F5A623] text-white border-[#F5A623] z-10' : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                ${showMA ? "bg-[#F5A623] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
               `}
             >
               MA20
@@ -465,8 +628,8 @@ export default function CoinChart() {
             <button 
               onClick={() => setShowMarkers(!showMarkers)} 
               aria-pressed={showMarkers}
-              className={`px-3 py-1.5 text-sm font-medium border -ml-px focus:z-10 transition-colors 
-                ${showMarkers ? 'bg-[#0058FF] text-white border-[#0058FF] z-10' : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                ${showMarkers ? "bg-[#0058FF] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
               `}
             >
               마커
@@ -475,8 +638,8 @@ export default function CoinChart() {
             <button 
               onClick={() => setShowTooltip(!showTooltip)} 
               aria-pressed={showTooltip}
-              className={`px-3 py-1.5 text-sm font-medium border -ml-px focus:z-10 transition-colors 
-                ${showTooltip ? 'bg-[#8B5CF6] text-white border-[#8B5CF6] z-10' : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                ${showTooltip ? "bg-[#8B5CF6] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
               `}
             >
               툴팁
@@ -485,8 +648,8 @@ export default function CoinChart() {
             <button 
               onClick={() => setIsPercent(!isPercent)} 
               aria-pressed={isPercent}
-              className={`px-3 py-1.5 text-sm font-medium border rounded-r-lg -ml-px focus:z-10 transition-colors 
-                ${isPercent ? 'bg-gray-800 text-white border-gray-800 z-10' : (isDark ? 'bg-[#181A20] text-gray-400 border-gray-700 hover:bg-[#2B3139]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
+                ${isPercent ? "bg-[#9B51E0] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
               `}
             >
               {isPercent ? "% 비율" : "$ 가격"}
@@ -494,24 +657,36 @@ export default function CoinChart() {
             
           </div>
 
-          <button 
+          {/* <button 
             onClick={() => setIsDark(!isDark)}
             aria-label={isDark ? "라이트 모드로 전환" : "다크 모드로 전환"}
             className={`p-2 text-xl rounded-full transition-all border ${isDark ? 'bg-[#2B3139] border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
             title="테마 변경"
           >
             {isDark ? "☀️" : "🌙"}
-          </button>
+          </button> */}
         </div>
 
       </header>
       
-      <div 
-        ref={chartContainerRef} 
-        role="img"
-        aria-label={`${meta.displayNameKr} ${timeframe} 기준 차트 시각화 영역`}
-        className="w-full h-[500px] relative" 
-      />
+      <div className={cn("relative h-[500px] w-full", chartAreaClassName)}>
+        <div
+          ref={chartContainerRef}
+          role="img"
+          aria-label={`${meta.displayNameKr} ${timeframe} 기준 차트 시각화 영역`}
+          className="h-full w-full"
+        />
+        {isChartDataLoading ? (
+          <div className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${isDark ? 'bg-[#0B0E11]/70 text-gray-500' : 'bg-white/70 text-gray-400'}`}>
+            차트 데이터를 불러오는 중입니다.
+          </div>
+        ) : null}
+        {chartDataErrorMessage ? (
+          <div className={`absolute inset-0 flex items-center justify-center px-4 text-center text-sm font-bold ${isDark ? 'bg-[#0B0E11]/80 text-gray-500' : 'bg-white/80 text-gray-500'}`}>
+            {chartDataErrorMessage}
+          </div>
+        ) : null}
+      </div>
 
       <div 
         ref={tooltipRef} 

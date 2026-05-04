@@ -20,6 +20,7 @@ import {
   getDefaultQuoteAssetLabel,
   getDisplaySymbolLabel,
 } from "@/lib/utils/market-display";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 
 
@@ -163,6 +164,8 @@ const DEFAULT_TRADE_LIST_FILTERS: TradeListFilters = {
   endDate: "",
   size: 5,
 };
+
+const OPEN_ORDER_PAGE_SIZE = 5;
 
 const createDefaultOrderFilters = (): TradeListFilters => ({
   ...DEFAULT_TRADE_LIST_FILTERS,
@@ -470,6 +473,10 @@ export default function AssetsPage() {
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
   const [openOrders, setOpenOrders] = useState<OpenOrderItem[]>([]);
+  const [openOrdersNextCursorId, setOpenOrdersNextCursorId] = useState<
+    number | null
+  >(null);
+  const [openOrdersHasNext, setOpenOrdersHasNext] = useState(false);
   const [orderHistories, setOrderHistories] = useState<OrderHistoryItem[]>([]);
   const [tradeHistories, setTradeHistories] = useState<TradeHistoryItem[]>([]);
   // 주문내역 / 거래내역은 각각 커서를 따로 관리해야 무한스크롤이 꼬이지 않습니다.
@@ -479,6 +486,8 @@ export default function AssetsPage() {
   const [tradesHasNext, setTradesHasNext] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingTrades, setIsLoadingTrades] = useState(false);
+  const [isFetchingMoreOpenOrders, setIsFetchingMoreOpenOrders] =
+    useState(false);
   const [isFetchingMoreOrders, setIsFetchingMoreOrders] = useState(false);
   const [isFetchingMoreTrades, setIsFetchingMoreTrades] = useState(false);
   const [ordersErrorMessage, setOrdersErrorMessage] = useState("");
@@ -493,6 +502,7 @@ export default function AssetsPage() {
   const [orderSymbolInput, setOrderSymbolInput] = useState("");
   const [tradeSymbolInput, setTradeSymbolInput] = useState("");
   const [isSymbolInputFocused, setIsSymbolInputFocused] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -601,6 +611,9 @@ export default function AssetsPage() {
               : portfolioMessage || "모의투자 포트폴리오를 불러오지 못했습니다."
           );
           setOpenOrders([]);
+          setOpenOrdersNextCursorId(null);
+          setOpenOrdersHasNext(false);
+          setIsFetchingMoreOpenOrders(false);
           setOrderHistories([]);
           setTradeHistories([]);
           setOrdersNextCursorId(null);
@@ -616,6 +629,9 @@ export default function AssetsPage() {
         setMockPortfolio(null);
         setMockErrorMessage("모의투자 포트폴리오를 불러오지 못했습니다.");
         setOpenOrders([]);
+        setOpenOrdersNextCursorId(null);
+        setOpenOrdersHasNext(false);
+        setIsFetchingMoreOpenOrders(false);
         setOrderHistories([]);
         setTradeHistories([]);
         setOrdersNextCursorId(null);
@@ -626,7 +642,7 @@ export default function AssetsPage() {
 
       try {
         const openOrdersResponse = await fetch(
-          "http://localhost:8080/api/v1/spot/mock/orders/open?assetType=MOCK",
+          `http://localhost:8080/api/v1/spot/mock/orders/open?assetType=MOCK&size=${OPEN_ORDER_PAGE_SIZE}`,
           {
             method: "GET",
             credentials: "include",
@@ -642,14 +658,25 @@ export default function AssetsPage() {
 
         if (openOrdersResponse.ok) {
           const openOrdersJson = await getJson(openOrdersResponse);
-          setOpenOrders(getArrayContent<OpenOrderItem>(openOrdersJson));
+          const page = getCursorPage<OpenOrderItem>(openOrdersJson);
+
+          setOpenOrders(page.content);
+          setOpenOrdersNextCursorId(page.nextCursorId);
+          setOpenOrdersHasNext(page.hasNext);
+          setIsFetchingMoreOpenOrders(false);
         } else {
           setOpenOrders([]);
+          setOpenOrdersNextCursorId(null);
+          setOpenOrdersHasNext(false);
+          setIsFetchingMoreOpenOrders(false);
         }
       } catch (error) {
         if (!isActive) return;
         console.error("미체결 주문 조회 실패:", error);
         setOpenOrders([]);
+        setOpenOrdersNextCursorId(null);
+        setOpenOrdersHasNext(false);
+        setIsFetchingMoreOpenOrders(false);
       }
 
       if (isActive) {
@@ -662,7 +689,7 @@ export default function AssetsPage() {
     return () => {
       isActive = false;
     };
-  }, [assetTab, router]);
+  }, [assetTab, router, refreshTrigger]);
 
   useEffect(() => {
     if (assetTab !== "mock" || detailTab !== "orders" || !mockPortfolio) return;
@@ -728,7 +755,7 @@ export default function AssetsPage() {
     return () => {
       isActive = false;
     };
-  }, [assetTab, detailTab, mockPortfolio, orderFilters, router, marketSymbols]);
+  }, [assetTab, detailTab, mockPortfolio, orderFilters, router, marketSymbols, refreshTrigger]);
 
   useEffect(() => {
     if (assetTab !== "mock" || detailTab !== "trades" || !mockPortfolio) return;
@@ -794,13 +821,49 @@ export default function AssetsPage() {
     return () => {
       isActive = false;
     };
-  }, [assetTab, detailTab, mockPortfolio, router, tradeFilters, marketSymbols]);
+  }, [assetTab, detailTab, mockPortfolio, router, tradeFilters, marketSymbols, refreshTrigger]);
+
+  // SSE 이벤트를 리스닝하여 주문 체결 시 데이터를 갱신합니다.
+  useEffect(() => {
+    const handleSseRefresh = () => {
+      setRefreshTrigger((prev) => prev + 1);
+    };
+
+    const events = [
+      getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED"),
+      getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED"),
+      getNotificationSseBridgeEventName("NOTIFICATION_CONTEST_ORDER_COMPLETED"),
+    ];
+
+    events.forEach((eventName) => {
+      window.addEventListener(eventName, handleSseRefresh);
+    });
+
+    return () => {
+      events.forEach((eventName) => {
+        window.removeEventListener(eventName, handleSseRefresh);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (assetTab !== "mock") return;
-    if (detailTab !== "orders" && detailTab !== "trades") return;
+    if (
+      detailTab !== "open" &&
+      detailTab !== "orders" &&
+      detailTab !== "trades"
+    ) {
+      return;
+    }
     if (!scrollContainerRef.current) return;
     if (!loadMoreRef.current) return;
+
+    const canLoadOpenOrders =
+      detailTab === "open" &&
+      openOrdersHasNext &&
+      !isLoadingMock &&
+      !isFetchingMoreOpenOrders &&
+      openOrdersNextCursorId !== null;
 
     const canLoadOrders =
       detailTab === "orders" &&
@@ -816,7 +879,7 @@ export default function AssetsPage() {
       !isFetchingMoreTrades &&
       tradesNextCursorId !== null;
 
-    if (!canLoadOrders && !canLoadTrades) return;
+    if (!canLoadOpenOrders && !canLoadOrders && !canLoadTrades) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -825,6 +888,57 @@ export default function AssetsPage() {
         if (!entry?.isIntersecting) return;
 
         // 테이블 맨 아래가 보이면 다음 커서로 이어서 불러옵니다.
+        if (detailTab === "open" && openOrdersNextCursorId !== null) {
+          setIsFetchingMoreOpenOrders(true);
+
+          const loadMoreOpenOrders = async () => {
+            try {
+              const params = new URLSearchParams();
+              params.set("assetType", "MOCK");
+              params.set("size", String(OPEN_ORDER_PAGE_SIZE));
+              params.set("cursorId", String(openOrdersNextCursorId));
+
+              const response = await fetch(
+                `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`,
+                {
+                  method: "GET",
+                  credentials: "include",
+                }
+              );
+
+              if (response.status === 401 || response.status === 403) {
+                router.replace("/login");
+                return;
+              }
+
+              const json = await getJson(response);
+
+              if (!response.ok) {
+                console.error(
+                  "미체결내역 추가 조회 실패:",
+                  extractErrorMessage(json) || "요청 실패"
+                );
+                setOpenOrdersHasNext(false);
+                return;
+              }
+
+              const page = getCursorPage<OpenOrderItem>(json);
+
+              setOpenOrders((prev) => [...prev, ...page.content]);
+              setOpenOrdersNextCursorId(page.nextCursorId);
+              setOpenOrdersHasNext(page.hasNext);
+            } catch (error) {
+              console.error("미체결내역 추가 조회 실패:", error);
+              setOpenOrdersHasNext(false);
+            } finally {
+              setIsFetchingMoreOpenOrders(false);
+            }
+          };
+
+          void loadMoreOpenOrders();
+          return;
+        }
+
         if (detailTab === "orders" && ordersNextCursorId !== null) {
           setIsFetchingMoreOrders(true);
 
@@ -932,7 +1046,7 @@ export default function AssetsPage() {
       },
       {
         root: scrollContainerRef.current,
-        rootMargin: "80px 0px",
+        rootMargin: detailTab === "open" ? "0px" : "80px 0px",
       }
     );
 
@@ -944,12 +1058,16 @@ export default function AssetsPage() {
   }, [
     assetTab,
     detailTab,
+    openOrdersHasNext,
+    openOrdersNextCursorId,
     ordersHasNext,
     ordersNextCursorId,
     tradesHasNext,
     tradesNextCursorId,
+    isLoadingMock,
     isLoadingOrders,
     isLoadingTrades,
+    isFetchingMoreOpenOrders,
     isFetchingMoreOrders,
     isFetchingMoreTrades,
     orderFilters,
@@ -1260,6 +1378,8 @@ export default function AssetsPage() {
       ? isFetchingMoreOrders
       : detailTab === "trades"
       ? isFetchingMoreTrades
+      : detailTab === "open"
+      ? isFetchingMoreOpenOrders
       : false;
 
   const canLoadMoreCurrentTab =
@@ -1267,6 +1387,8 @@ export default function AssetsPage() {
       ? ordersHasNext
       : detailTab === "trades"
       ? tradesHasNext
+      : detailTab === "open"
+      ? openOrdersHasNext
       : false;
 
   const isFilterableDetailTab = detailTab === "orders" || detailTab === "trades";
@@ -1565,7 +1687,9 @@ export default function AssetsPage() {
             <EmptyState className="py-24" text={detailTable.emptyText} />
           ) : (
             <>
-              {detailTab === "orders" || detailTab === "trades" ? (
+              {detailTab === "open" ||
+              detailTab === "orders" ||
+              detailTab === "trades" ? (
                 <div
                   ref={scrollContainerRef}
                   className="max-h-[410px] overflow-y-auto"

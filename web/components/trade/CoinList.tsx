@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Search, Star  } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
@@ -13,10 +13,12 @@ type SortKey = "displayNameKr" | "price" | "change" | "volume";
 type CoinTab = "all" | "have" | "favorite";
 
 type CoinListProps = {
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
   availableMarketTypes?: MarketType[];
   holdingSymbols?: string[];
   isParticipated?: boolean;
+  headerAction?: ReactNode;
+  headerActionPosition?: "left" | "right";
 };
 
 export default function CoinList({
@@ -24,6 +26,8 @@ export default function CoinList({
   availableMarketTypes = ["spot"],
   holdingSymbols = [],
   isParticipated = false,
+  headerAction,
+  headerActionPosition = "right",
 }: CoinListProps) {
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
@@ -149,12 +153,14 @@ export default function CoinList({
       return "목록을 불러오는 중입니다...";
     }
 
-    if (coinTab === "have" && mode !== "mock") {
+    if (coinTab === "have" && mode === "trade") {
       return "실전 보유 자산은 아직 연결 전입니다.";
     }
 
     if (coinTab === "have" && !isParticipated) {
-      return "모의투자 계좌를 생성하면 보유 목록이 표시됩니다.";
+      return mode === "contest"
+        ? "대회 계좌가 활성화되면 보유 목록이 표시됩니다."
+        : "모의투자 계좌를 생성하면 보유 목록이 표시됩니다.";
     }
 
     if (coinTab === "have") {
@@ -167,16 +173,24 @@ export default function CoinList({
   return (
     <aside className="w-full h-full min-h-0 bg-white border border-gray-200 flex flex-col shrink-0 overflow-hidden">
       <div className="p-4 border-b border-gray-200">
-        <div className="mb-4">
-          <Tabs
-            activeTab={selectedMarketType}
-            onChange={(value) => setSelectedMarketType(value as MarketType)}
-            fullWidth={true}
-            tabs={availableMarketTypes.map((marketType) => ({
-              label: getMarketLabel(marketType),
-              value: marketType,
-            }))}
-          />
+        <div className="mb-4 flex items-center gap-2">
+          {headerAction && headerActionPosition === "left" ? (
+            <div className="shrink-0">{headerAction}</div>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <Tabs
+              activeTab={selectedMarketType}
+              onChange={(value) => setSelectedMarketType(value as MarketType)}
+              fullWidth={true}
+              tabs={availableMarketTypes.map((marketType) => ({
+                label: getMarketLabel(marketType),
+                value: marketType,
+              }))}
+            />
+          </div>
+          {headerAction && headerActionPosition === "right" ? (
+            <div className="shrink-0">{headerAction}</div>
+          ) : null}
         </div>
 
         <div className="relative mb-4">

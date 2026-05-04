@@ -45,3 +45,26 @@ export const getBinanceKlineApiUrl = ({
 
   return `${baseUrl}?${params.toString()}`;
 };
+
+export const getBinance24hrTickerApiUrl = (marketType: MarketType) => {
+  return marketType === "spot"
+    ? "https://api.binance.com/api/v3/ticker/24hr"
+    : "https://fapi.binance.com/fapi/v1/ticker/24hr";
+};
+
+export const getBinanceRecentTradesApiUrl = ({
+  marketType,
+  symbol,
+  limit = 20,
+}: {
+  marketType: MarketType;
+  symbol: string;
+  limit?: number;
+}) => {
+  const baseUrl =
+    marketType === "spot"
+      ? "https://api.binance.com/api/v3/trades"
+      : "https://fapi.binance.com/fapi/v1/trades";
+
+  return `${baseUrl}?symbol=${symbol}&limit=${limit}`;
+};

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { getBinanceWsBaseUrl } from "@/lib/utils/market";
+import { cn } from "@/lib/utils/cs";
 
 type OrderBookLevel = {
   price: number;
@@ -59,10 +60,15 @@ const getBarWidth = (qty: number, maxQty: number) => {
   return `${Math.max((qty / maxQty) * 100, 6)}%`;
 };
 
-export default function OrderBook() {
+type OrderBookProps = {
+  className?: string;
+};
+
+export default function OrderBook({ className }: OrderBookProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
+  const setSelectedOrderPrice = useTickerStore((state) => state.setSelectedOrderPrice);
 
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
@@ -99,7 +105,7 @@ export default function OrderBook() {
       setBids(nextBids);
       setIsLoading(false);
       pendingDepthRef.current = null;
-    }, 2000);
+    }, 500);
 
     ws.onmessage = (event) => {
       try {
@@ -148,12 +154,22 @@ export default function OrderBook() {
 
   if (isLoading && asks.length === 0 && bids.length === 0) {
     return (
-      <div className="lg:col-span-4 bg-white border border-gray-200 h-[600px] animate-pulse" />
+      <div
+        className={cn(
+          "h-[600px] animate-pulse border border-gray-200 bg-white lg:col-span-4",
+          className
+        )}
+      />
     );
   }
 
   return (
-    <div className="h-[520px] md:col-span-1 lg:col-span-3 bg-white border border-gray-200 flex flex-col lg:h-full overflow-hidden">
+    <div
+      className={cn(
+        "flex h-[520px] flex-col overflow-hidden border border-gray-200 bg-white md:col-span-1 lg:col-span-3 lg:h-full",
+        className
+      )}
+    >
       <div className="grid grid-cols-2 p-4 pr-6 border-b border-gray-200 font-black text-xs bg-gray-50/50">
         <span>호가</span>
         <span className="text-right">수량</span>
@@ -169,6 +185,7 @@ export default function OrderBook() {
             {displayAsks.map((level) => (
               <div
                 key={`ask-${level.price}`}
+                onClick={() => setSelectedOrderPrice(level.price)}
                 className="flex justify-between items-center h-10 px-4 relative border-b border-gray-100 hover:bg-blue-50/10 cursor-pointer"
               >
                 <div
@@ -205,6 +222,7 @@ export default function OrderBook() {
             {bids.map((level) => (
               <div
                 key={`bid-${level.price}`}
+                onClick={() => setSelectedOrderPrice(level.price)}
                 className="flex justify-between items-center h-10 px-4 relative border-b border-gray-100 hover:bg-red-50/10 cursor-pointer"
               >
                 <div

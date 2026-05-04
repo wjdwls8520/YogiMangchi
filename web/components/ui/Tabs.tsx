@@ -16,6 +16,7 @@ interface TabsProps {
   tabClassName?: string;         // 개별 탭 버튼 커스텀용
   fullWidth?: boolean;           // true면 탭들이 1/n로 꽉 차게 늘어남
   activeColor?: string; // 컴포넌트 전체의 기본 색상
+  size?: "sm" | "md"; // 탭 크기 옵션 추가
 }
 
 export default function Tabs({
@@ -26,6 +27,7 @@ export default function Tabs({
   tabClassName = "",
   fullWidth = false,
   activeColor = "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300", // 기본값은 검정
+  size = "md",
 }: TabsProps) {
   
   return (
@@ -43,15 +45,18 @@ export default function Tabs({
             onClick={() => onChange(tab.value)}
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
             className={`
-              relative pb-3 transition-all duration-200
+              relative transition-all duration-200
+              ${size === "sm" ? "pb-1.5 text-[12px]" : "pb-3"}
               ${
                 fullWidth
                   ? "flex-1 text-center"
-                  : "min-w-[112px] whitespace-nowrap text-center last:mr-0"
+                  : size === "sm" 
+                    ? "min-w-[64px] whitespace-nowrap text-center px-3"
+                    : "min-w-[112px] whitespace-nowrap text-center"
               }
               ${isActive 
-                ? `font-black border-b-[3px] ${currentTabColor}`
-                : "font-bold text-gray-400 border-b-[3px] border-transparent hover:text-gray-600"
+                ? `font-black ${size === "sm" ? "border-b-2" : "border-b-[3px]"} ${currentTabColor}`
+                : `font-bold text-gray-400 ${size === "sm" ? "border-b-2" : "border-b-[3px]"} border-transparent hover:text-gray-600`
               }
               ${tabClassName}
             `}
