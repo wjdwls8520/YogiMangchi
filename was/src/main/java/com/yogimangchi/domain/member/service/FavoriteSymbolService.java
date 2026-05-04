@@ -6,6 +6,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.MemberFavoriteSymbol;
 import com.yogimangchi.domain.member.repository.MemberFavoriteSymbolRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.global.exception.market.MarketException;
 import com.yogimangchi.global.exception.member.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,7 +37,7 @@ public class FavoriteSymbolService {
 
         // 2. 심볼 엔티티 조회 (유효한 코인인지 검증)
         if (!marketSymbolRepository.existsById(symbol)) {
-            throw new IllegalArgumentException("존재하지 않는 마켓 심볼입니다.");
+            throw MarketException.symbolNotFound();
         }
 
         // 3. PostgreSQL 네이티브 쿼리로 INSERT 시도 (중복 시 DB 레벨에서 무시되어 멱등성 보장 및 롤백 방지)
@@ -46,9 +47,8 @@ public class FavoriteSymbolService {
     // 즐겨찾기 삭제 로직
     @Transactional
     public void removeFavorite(Long memberId, String symbol) {
-        // 데이터가 존재할 때만 삭제 처리 (없어도 무시하여 멱등성 보장)
-        favoriteSymbolRepository.findByMemberIdAndMarketSymbolSymbol(memberId, symbol)
-                .ifPresent(favoriteSymbolRepository::delete);
+        // 단건 DELETE 쿼리를 직접 수행하여 네트워크 I/O 최소화 (없어도 무시되어 멱등성 보장)
+        favoriteSymbolRepository.deleteFavoriteSymbol(memberId, symbol);
     }
 
     // 즐겨찾기 목록 조회 로직
