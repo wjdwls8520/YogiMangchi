@@ -101,7 +101,7 @@ public class Assets {
         this.contestSeason = contestSeason;
     }
 
-    // 새 지갑 발급
+    // 새 모의투자 지갑 발급
     public static Assets createNewWallet(Member member, AssetType type, BigDecimal initialMoney, int retryCount, LocalDateTime expiredAt) {
         return Assets.builder()
                 .member(member)
@@ -110,6 +110,21 @@ public class Assets {
                 .currentMoney(initialMoney)
                 .lockedMoney(BigDecimal.ZERO)
                 .status("ACTIVE")
+                .retryCount(retryCount)
+                .expiredAt(expiredAt)
+                .contestSeason(null)
+                .build();
+    }
+
+    // 새 비활성 지갑 발급 (본투자 초기화용)
+    public static Assets createInactiveWallet(Member member, AssetType type, BigDecimal initialMoney, int retryCount, LocalDateTime expiredAt) {
+        return Assets.builder()
+                .member(member)
+                .type(type)
+                .seedMoney(initialMoney)
+                .currentMoney(initialMoney)
+                .lockedMoney(BigDecimal.ZERO)
+                .status("INACTIVE")
                 .retryCount(retryCount)
                 .expiredAt(expiredAt)
                 .contestSeason(null)
@@ -136,6 +151,11 @@ public class Assets {
                 .expiredAt(expiredAt)
                 .contestSeason(contestSeason)
                 .build();
+    }
+
+    // 상태 변경 로직
+    public void activate() {
+        this.status = "ACTIVE";
     }
 
     // 금액 증가 반영

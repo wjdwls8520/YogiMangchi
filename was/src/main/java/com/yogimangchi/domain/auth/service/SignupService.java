@@ -1,19 +1,27 @@
 package com.yogimangchi.domain.auth.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.yogimangchi.domain.asset.entity.Assets;
+import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.auth.dto.SignupInfoResponse;
 import com.yogimangchi.domain.auth.dto.SignupRequest;
 import com.yogimangchi.domain.auth.dto.SignupResponse;
 import com.yogimangchi.domain.auth.dto.SignupTokenPayload;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.OAuthAccount;
+import com.yogimangchi.domain.member.entity.UserQuest;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
+import com.yogimangchi.domain.member.repository.UserQuestRepository;
 import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +30,8 @@ public class SignupService {
     private final SignupTokenService signupTokenService;
     private final MemberRepository memberRepository;
     private final OAuthAccountRepository oAuthAccountRepository;
+    private final UserQuestRepository userQuestRepository;
+    private final AssetRepository assetRepository;
 
     @Transactional(readOnly = true)
     public SignupInfoResponse getSignupInfo(String signupToken) {
@@ -77,6 +87,32 @@ public class SignupService {
         );
 
         saveOAuthAccountOrThrowDuplicate(oAuthAccount);
+        
+        // 1. 유저 퀘스트 초기화 및 저장
+        UserQuest userQuest = UserQuest.createInitialQuest(savedMember);
+        userQuestRepository.save(userQuest);
+
+        // 2. 본투자 지갑(현물/선물) 초기화 및 저장 (INACTIVE 상태)
+        LocalDateTime defaultExpiredAt = LocalDateTime.of(2099, 12, 31, 23, 59, 59);
+        
+        Assets spotWallet = Assets.createInactiveWallet(
+                savedMember, 
+                AssetType.TRADE_SPOT, 
+                new BigDecimal("10000"), // 현물 초기 자본금 10,000 요기달러
+                0, 
+                defaultExpiredAt
+        );
+        assetRepository.save(spotWallet);
+
+        Assets futureWallet = Assets.createInactiveWallet(
+                savedMember, 
+                AssetType.TRADE_FUTURE, 
+                BigDecimal.ZERO, // 선물 초기 자본금 0 요기달러
+                0, 
+                defaultExpiredAt
+        );
+        assetRepository.save(futureWallet);
+
         signupTokenService.removeSignupToken(signupRequest.signupToken());
 
         return new SignupResponse(savedMember.getId(), savedMember.getNickname());
