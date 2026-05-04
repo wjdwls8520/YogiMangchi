@@ -150,7 +150,7 @@ public class FuturesLiquidationCoordinator {
                 // 포지션별 독립 트랜잭션으로 청산 — 하나 실패해도 나머지 계속 처리
                 for (Long positionId : triggeredIds) {
                     try {
-                        liquidationExecutionService.executeLiquidation(positionId, window.latestPrice());
+                        liquidationExecutionService.executeLiquidation(positionId, window.minPrice(), window.maxPrice());
                     } catch (Exception e) {
                         log.error("[강제청산 실패] symbol={}, positionId={}, message={}",
                                 symbol, positionId, e.getMessage(), e);
