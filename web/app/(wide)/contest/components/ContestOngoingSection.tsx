@@ -7,6 +7,7 @@ type ContestOngoingSectionProps = {
   contests: OngoingContest[];
   selectedContestId: number;
   onSelectContest: (contestId: number) => void;
+  onMoveTrading?: (contestId: number) => void;
 };
 
 const getRemainingLabel = (targetDateAt?: string) => {
@@ -51,6 +52,7 @@ export default function ContestOngoingSection({
   contests,
   selectedContestId,
   onSelectContest,
+  onMoveTrading,
 }: ContestOngoingSectionProps) {
   const activeContest = contests.find((contest) => contest.id === selectedContestId);
   const primaryLabel = activeContest?.primaryLabel ?? "나의 순위";
@@ -106,7 +108,7 @@ export default function ContestOngoingSection({
               onClick={() => onSelectContest(contest.id)}
               className={`w-full rounded-2xl p-5 text-left transition-all ${
                 selectedContestId === contest.id
-                  ? "translate-x-2 bg-gray-900 text-white"
+                  ? "bg-gray-900 text-white shadow-sm ring-1 ring-gray-900"
                   : "bg-gray-50 text-gray-400 hover:bg-gray-100"
               }`}
             >
@@ -130,6 +132,7 @@ export default function ContestOngoingSection({
 
                 <button
                   type="button"
+                  onClick={() => activeContest && onMoveTrading?.(activeContest.id)}
                   className="rounded-2xl bg-blue-600 px-8 py-4 text-lg font-black text-white transition-all hover:scale-105 hover:bg-blue-700"
                 >
                   투자 바로가기

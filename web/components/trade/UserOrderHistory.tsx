@@ -244,15 +244,17 @@ export default function UserOrderHistory({
             </tbody>
           </table>
 
-          {historyTab === "filled" && rows.length > 0 ? (
+          {rows.length > 0 && (isFetchingMore || hasNext) ? (
             <div className="py-4">
-            {isFetchingMore ? (
-              <p className="text-center text-xxs font-bold text-gray-400">
-                체결 주문을 더 불러오는 중...
-              </p>
-            ) : hasNext ? (
-              <div ref={loadMoreRef} className="h-6" aria-hidden="true" />
-            ) : null}
+              {isFetchingMore ? (
+                <p className="text-center text-xxs font-bold text-gray-400">
+                  {historyTab === "unfilled"
+                    ? "미체결 주문을 더 불러오는 중..."
+                    : "체결 주문을 더 불러오는 중..."}
+                </p>
+              ) : hasNext ? (
+                <div ref={loadMoreRef} className="h-6" aria-hidden="true" />
+              ) : null}
             </div>
           ) : null}
         </div>

@@ -3,6 +3,7 @@ import type { MarketType } from "@/lib/utils/market";
 
 // 1. 백엔드에서 주는 코인 기본 정보 타입
 export interface CoinMeta {
+  binanceRequestSymbol?: string;
   symbol: string;
   displayNameKr: string;
   displayNameEn: string;
@@ -37,6 +38,9 @@ interface TickerStore {
   updateTicker: (symbol: string, data: Partial<RealtimeData>) => void;
   updateTickerBatch: (updates: Record<string, Partial<RealtimeData>>) => void;
   clearTickers: () => void;
+  // 호가/체결 클릭 시 오더패널에 가격 전달
+  selectedOrderPrice: number | null;
+  setSelectedOrderPrice: (price: number | null) => void;
 }
 
 // 4. 스토어 생성!
@@ -89,4 +93,7 @@ export const useTickerStore = create<TickerStore>((set) => ({
       return { tickers: nextTickers };
     }),
   clearTickers: () => set({ tickers: {} }),
+
+  selectedOrderPrice: null,
+  setSelectedOrderPrice: (price) => set({ selectedOrderPrice: price }),
 }));
