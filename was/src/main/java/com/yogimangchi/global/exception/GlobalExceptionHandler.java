@@ -1,9 +1,10 @@
-package com.yogimangchi.global.exception;
+package com.yogimangchi.global.exception;
 
 import com.yogimangchi.global.exception.asset.AssetException;
 import com.yogimangchi.global.exception.contest.ContestException;
 import com.yogimangchi.global.exception.member.MemberException;
 import com.yogimangchi.global.exception.notification.NotificationException;
+import com.yogimangchi.global.exception.market.MarketException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -124,6 +125,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MemberException.class)
     public ResponseEntity<ErrorResponse> handleMemberException(MemberException e) {
+        return ResponseEntity.status(e.getStatus())
+                .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
+    }
+
+    // 마켓 도메인 예외 처리
+    @ExceptionHandler(MarketException.class)
+    public ResponseEntity<ErrorResponse> handleMarketException(MarketException e) {
         return ResponseEntity.status(e.getStatus())
                 .body(ErrorResponse.of(e.getStatus().value(), e.getCode(), e.getMessage()));
     }
