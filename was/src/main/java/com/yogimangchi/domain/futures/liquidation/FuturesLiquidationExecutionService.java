@@ -40,7 +40,7 @@ public class FuturesLiquidationExecutionService {
 
     // 포지션 1개 강제청산 — Coordinator에서 포지션ID 단위로 호출
     @Transactional
-    public void executeLiquidation(Long positionId, BigDecimal markPrice) {
+    public void executeLiquidation(Long positionId, BigDecimal windowMinPrice, BigDecimal windowMaxPrice) {
 
         // Step 1: 락 없이 포지션 조회 — 지갑 ID 확보 및 초기 상태 확인용
         // (락 순서: 지갑 → 포지션. 시장가/지정가 청산과 동일하게 유지해야 데드락 방지)
@@ -66,16 +66,16 @@ public class FuturesLiquidationExecutionService {
             return;
         }
 
-        // Step 5: 강제청산 조건 재검증 — 락 대기 중 가격이 회복되어 청산 조건이 해소됐을 가능성 방어
-        // LONG:  markPrice ≤ liquidationPrice 이면 청산 (진입가 대비 하락)
-        // SHORT: markPrice ≥ liquidationPrice 이면 청산 (진입가 대비 상승)
+        // Step 5: 강제청산 조건 재검증 — 트리거 당시의 가격 범위(min/max)로 재판단
+        // LONG:  minPrice ≤ liquidationPrice 이면 청산 (구간 내 최저가가 청산가 이하)
+        // SHORT: maxPrice ≥ liquidationPrice 이면 청산 (구간 내 최고가가 청산가 이상)
         boolean stillTriggered = switch (position.getPositionSide()) {
-            case LONG  -> markPrice.compareTo(position.getLiquidationPrice()) <= 0;
-            case SHORT -> markPrice.compareTo(position.getLiquidationPrice()) >= 0;
+            case LONG  -> windowMinPrice.compareTo(position.getLiquidationPrice()) <= 0;
+            case SHORT -> windowMaxPrice.compareTo(position.getLiquidationPrice()) >= 0;
         };
         if (!stillTriggered) {
-            log.info("[강제청산 조건 해소] positionId={}, side={}, markPrice={}, liqPrice={}",
-                    positionId, position.getPositionSide(), markPrice, position.getLiquidationPrice());
+            log.info("[강제청산 조건 해소] positionId={}, side={}, windowMin={}, windowMax={}, liqPrice={}",
+                    positionId, position.getPositionSide(), windowMinPrice, windowMaxPrice, position.getLiquidationPrice());
             return;
         }
 
@@ -118,7 +118,7 @@ public class FuturesLiquidationExecutionService {
         // FuturesLiquidationEventListener.onPositionClosed() 에서 AFTER_COMMIT으로 처리됨
         eventPublisher.publishEvent(new PositionClosedEvent(position.getSymbol()));
 
-        log.info("[강제청산 완료] positionId={}, symbol={}, markPrice={}, pnl={}",
-                positionId, position.getSymbol(), markPrice, realizedPnl);
+        log.info("[강제청산 완료] positionId={}, symbol={}, windowMin={}, windowMax={}, pnl={}",
+                positionId, position.getSymbol(), windowMinPrice, windowMaxPrice, realizedPnl);
     }
 }

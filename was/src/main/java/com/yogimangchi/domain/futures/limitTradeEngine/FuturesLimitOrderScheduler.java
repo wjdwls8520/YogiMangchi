@@ -28,6 +28,7 @@ public class FuturesLimitOrderScheduler {
     public synchronized void refreshSchedule() {
         if(limitOrderRegistry.getWatchedSymbols().isEmpty()) {
             stopReplayTask();
+            return;
         }
         if(replayTask != null && !replayTask.isDone() && !replayTask.isCancelled()) {
             return;
