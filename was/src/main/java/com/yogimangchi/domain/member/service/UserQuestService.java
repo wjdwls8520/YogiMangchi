@@ -71,8 +71,11 @@ public class UserQuestService {
             quest.increaseCount();
         }
 
-        // 해금 조건 검사: 카운트 3회 이상 & 인증 회원(VERIFIED_USER)
-        if (quest.canUnlock() && isVerifiedUser(quest.getMember())) {
+        boolean isAdmin = quest.getMember().getRole() == MemberRole.ADMIN;
+        boolean isQualifiedUser = quest.canUnlock() && isVerifiedUser(quest.getMember());
+
+        // 해금 조건 검사: 어드민(프리패스)이거나, (카운트 3회 이상 & 인증 회원)인 경우
+        if (isAdmin || isQualifiedUser) {
             unlockRealInvestment(quest);
         } else {
             // 상태만 저장
