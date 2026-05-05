@@ -488,7 +488,7 @@ export default function CoinChart({
         wsRef.current = null;
       }
     };
-  }, [timeframe, selectedCoin, effectiveMarketType]);
+  }, [timeframe, selectedCoin, effectiveMarketType, coinMetaList]);
 
   // 3. UI 업데이트 훅
   useEffect(() => {
