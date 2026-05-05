@@ -2,6 +2,7 @@ package com.yogimangchi.domain.spot.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
+import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.notification.service.NotificationService;
@@ -9,6 +10,7 @@ import com.yogimangchi.domain.spot.constant.TradeFeePolicy;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.entity.TradeHistory;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
+import com.yogimangchi.domain.spot.event.SpotOrderExecutedEvent;
 import com.yogimangchi.domain.spot.matching.LimitOrderSignalRegistry;
 import com.yogimangchi.domain.spot.repository.OrderRepository;
 import com.yogimangchi.domain.spot.repository.TradeHistoryRepository;
@@ -16,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class LimitOrderExecutionService {
     private final TradeHistoryRepository tradeHistoryRepository;
     private final LimitOrderSignalRegistry limitOrderSignalRegistry;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 지정가 주문 체결 실행
     @Transactional
@@ -122,6 +126,11 @@ public class LimitOrderExecutionService {
 
         // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
         notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
+
+        // [이벤트 발행 최적화] 모의투자(MOCK) 체결일 때만 퀘스트 달성 이벤트를 발행합니다.
+        if (wallet.getType() == AssetType.MOCK) {
+            eventPublisher.publishEvent(new SpotOrderExecutedEvent(wallet.getMember().getId(), wallet.getType()));
+        }
     }
 
     // 지정가 매도 주문 체결
@@ -171,5 +180,10 @@ public class LimitOrderExecutionService {
 
         // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
         notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
+
+        // [이벤트 발행 최적화] 모의투자(MOCK) 체결일 때만 퀘스트 달성 이벤트를 발행합니다.
+        if (wallet.getType() == AssetType.MOCK) {
+            eventPublisher.publishEvent(new SpotOrderExecutedEvent(wallet.getMember().getId(), wallet.getType()));
+        }
     }
 }
