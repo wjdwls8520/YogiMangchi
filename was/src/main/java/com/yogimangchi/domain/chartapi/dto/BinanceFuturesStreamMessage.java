@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.chartapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,6 +18,7 @@ public class BinanceFuturesStreamMessage {
 
     @Getter
     @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true) // 추가 필수! (DTO에 없는 필드는 무시함)
     public static class StreamData {
 
         // 이벤트 타입 — "24hrTicker"
