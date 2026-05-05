@@ -6,12 +6,18 @@ import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.community.dto.result.PostLikeCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyCreatedResultDto;
 import com.yogimangchi.domain.community.dto.result.ReplyLikeCreatedResultDto;
+import com.yogimangchi.domain.futures.entity.FuturesOrder;
+import com.yogimangchi.domain.futures.enums.OrderType;
+import com.yogimangchi.domain.futures.enums.PositionSide;
+import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.market.entity.MarketSymbol;
 import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.dto.result.FollowCreatedResultDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.FollowCreatedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.FuturesLiquidationCompletedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.FuturesOrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.NotificationActorPreviewPayload;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.PostCommentCreatedNotificationPayload;
@@ -463,6 +469,138 @@ public class NotificationService {
         notificationTask.run();
     }
 
+    // 선물주문 체결시 클라이언트로 보내질 페이로드 값 ( json으로 공통적으로 응답하는 값 밑에 트레이드 전용 페이로드 값이 작성됩니다. )
+    // ( 비즈니스 로직을 분리하고 싶으면 TransactionSynchronizationManager가 아닌 @TransactionalEventListener를 사용하여 분리시도 )
+    public void notifyFuturesOrderCompleted(Member receiver, AssetType assetType, FuturesOrder futuresOrder, BigDecimal realizedPnl) {
+        // 혹시나 모를 상황에 서버가 다운 될 수 있음을 방어함
+        if (receiver == null || receiver.getId() == null || futuresOrder == null || futuresOrder.getId() == null) {
+            log.warn("주문 체결 알림 생성을 건너뜁니다. receiver={}, order={}", receiver, futuresOrder);
+            return;
+        }
+
+        // 알람 내용 및 포지션 생성에 필요한 필드
+        // *값을 미리 꺼내두는 이유 : 트랜잭션 종류 후에는 지연로딩(LAZY)으로 연관 엔티티 접근 불가
+        Long receiverId = receiver.getId();                             // 알람을 받는 멤버 id
+        Long orderId = futuresOrder.getId();
+        String symbol = futuresOrder.getSymbol();
+        PositionStatus positionStatus = futuresOrder.getPositionAction();
+        OrderType orderType = futuresOrder.getOrderType();              // MARKET, LIMIT
+        PositionSide positionSide = futuresOrder.getPositionSide();     // LONG, SHORT
+        BigDecimal price = futuresOrder.getAvgFilledPrice();            // 이 주문에서 체결된 [코인] 가격의 평균
+        BigDecimal quantity = futuresOrder.getFilledQuantity();         // 누적 체결된 [코인] 수량
+        BigDecimal executedAmount = futuresOrder.getExecutedAmount();   // 레버리지를 포함한 포지션 전체 가격중 체결된 가격
+        BigDecimal totalFee = futuresOrder.getTotalFee();               // 누적 체결된 수수료
+        LocalDateTime executedAt = futuresOrder.getExecutedAt();        // 주문의 최종 체결 완료 시각
+
+        BigDecimal executedMargin = futuresOrder.getOrderMargin();      // 체결 증거금(마진) 금액
+
+        log.info("주문 체결 알림 예약. receiverId={}, orderId={}, assetType={}, symbol={}",
+                receiverId, orderId, assetType, symbol);
+
+        // 커밋 후 실행할 알림 로직을 Runnable(나중에 이 코드를 실행해줘)에 담아둔다.
+        // 람다식 () -> {} 는 new Runnable() { public void run() {} } 의 축약형
+        // *값을 미리 꺼내두는 이유 : 트랜잭션 종류 후에는 지연로딩(LAZY)으로 연관 엔티티 접근 불가
+        Runnable notificationTask = () -> {
+            try {
+                // 선물 주문 체결 알림을 DB에 저장하고 SSE로 전송하는 메서드 호출.
+                // 파파라미터를 직접 넘기는 이유: Runnable 실행 시점엔 트랜잭션이 이미 끝났으므로
+                // futuresOrder.getXxx() 같은 엔티티 접근이 불가능해서 미리 꺼낸 값을 사용한다.
+                saveAndSendFuturesOrderCompleted(
+                        receiverId,     // 알림 받을 멤버 ID (wallet.getMember().getId())
+                        assetType,      // TRADE or CONTEST (wallet.getType())
+                        orderId,        // 체결된 선물 주문 ID
+                        symbol,         // 코인 심볼 (예: BTCUSDT)
+                        orderType,      // MARKET or LIMIT
+                        positionSide,   // LONG or SHORT
+                        positionStatus, // OPEN(진입) or CLOSE(청산)
+                        price,          // 체결 평균가 (avgFilledPrice)
+                        quantity,       // 체결 수량 (filledQuantity)
+                        executedAmount, // 레버리지 포함 체결 명목금액
+                        executedMargin, // 체결 증거금(마진) 금액
+                        totalFee,       // 누적 거래 수수료
+                        realizedPnl,    // 실현손익 (진입은 null, 청산은 확정 손익)
+                        executedAt      // 체결 완료 시각
+                );
+            } catch (Exception e) {
+                // 알림 실패가 주문 체결 결과에 영향을 주면 안 되므로 예외를 던지지 않고 로그만 남긴다.
+                log.error("선물 주문 체결 알림 처리 중 예외. receiverId={}, orderId={}", receiverId, orderId, e);
+            }
+        };
+
+        // 현재 스레드에 활성화된 프랜잭션이 있는지 확인한다.
+        // 시장가: HTTP 요청 스레드의 @Transactional 안에서 호출되므로 true, 지정가: LimitOrderScheduler 백그라운드 스레드의 @Transactional 안에서 호출되므로 true.
+        // *TransactionSynchronizationManager.isActualTransactionActive() = 스프링 클래스로 트랜잭션이 존재하는지 여부를 확인 할 수 있음
+        if( TransactionSynchronizationManager.isActualTransactionActive()
+                // *TransactionSynchronizationManager.isSynchronizationActive() = afterCommit 같은 콜백을 등록할 수 있는 상태인지 확인합니다. ( 특수한 트랜잭션의 경우 동기화가 비활성화된 경우가 있음 )
+                && TransactionSynchronizationManager.isSynchronizationActive() ) { // 안전장치용
+
+            // 트랜잭션 존재 여부가 true?, DB 커밋이 확정된 후에만 알림을 보냄
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() { // afterCommit 콜백으로 등록,
+                @Override
+                public void afterCommit() {
+                    // 커밋 완료 시점에 위에서 만든 Runnable을 실행한다.
+                    // 별도 스레드가 아니라 커밋한 그 스레드에서 동기적으로 실행된다.
+                    notificationTask.run();
+                }
+            });
+            // afterCommit에 등록했으므로 여기서 return, 아래 즉시 실행 코드는 건너뜀.
+            return;
+        }
+        // 트랜잭션 없이 호출된 경우 — 알림을 보내지 않고 경고 로그만 남김
+        log.warn("선물 주문 체결 알림이 트랜잭션 없이 호출되었습니다. orderId={}", orderId);
+    }
+
+    // 강제청산이 완료되었을 때 클라이언트에 전송할 알람
+    public void notifyFuturesLiquidationCompleted(
+            Member receiver,
+            AssetType assetType,
+            String symbol,
+            PositionSide positionSide,
+            BigDecimal liquidationPrice,
+            BigDecimal closeQuantity,
+            BigDecimal realizedPnl
+    ) {
+        if (receiver == null || receiver.getId() == null) {
+            log.warn("강제청산 알림 생성을 건너뜁니다. receiver={}", receiver);
+            return;
+        }
+
+        Long receiverId = receiver.getId();
+
+        Runnable notificationTask = () -> {
+            try {
+                saveAndSendFuturesLiquidationCompleted(
+                        receiverId,
+                        assetType,
+                        symbol,
+                        positionSide,
+                        liquidationPrice,
+                        closeQuantity,
+                        realizedPnl
+                );
+            } catch (Exception e) {
+                log.error("강제청산 알림 처리 중 예외. receiverId={}, symbol={}", receiverId, symbol, e);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notificationTask.run();
+                }
+            });
+            return;
+        }
+
+        log.warn("강제청산 알림이 트랜잭션 없이 호출되었습니다. symbol={}", symbol);
+    }
+
+
+
+
+
     private NotificationDispatchResultDto createGroupedLikeNotification(
             Member receiver,
             Member actor,
@@ -707,6 +845,137 @@ public class NotificationService {
                 ),
                 tradeSseEventType.name()
         );
+    }
+
+    // 선물 미체결주문 체결 완료시 페이로드 조립 메서드
+    private void saveAndSendFuturesOrderCompleted(
+            Long receiverId,
+            AssetType assetType,
+            Long orderId,
+            String symbol,
+            OrderType orderType,
+            PositionSide positionSide,
+            PositionStatus positionAction,
+            BigDecimal price,
+            BigDecimal quantity,
+            BigDecimal executedAmount,
+            BigDecimal executedMargin,
+            BigDecimal totalFee,
+            BigDecimal realizedPnl,
+            LocalDateTime executedAt
+    ) {
+        // 수신자 조회 — 탈퇴 또는 비활성 회원이면 알림을 보내지 않는다
+        Member notificationReceiver = memberRepository.findActiveById(receiverId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("선물 주문 체결 알림 수신 회원을 찾을 수 없습니다. receiverId={}, orderId={}", receiverId, orderId);
+            return;
+        }
+
+        // 심볼 한국어 이름 조회 — 없으면 심볼 그대로 사용 (예: BTCUSDT → 비트코인)
+        String displayNameKr = marketSymbolRepository.findById(symbol)
+                .map(MarketSymbol::getDisplayNameKr)
+                .orElse(symbol);
+
+        // AssetType 기반으로 표시명, 알림 카테고리, SSE 이벤트명 결정
+        String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
+        NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
+        TradeSseEventType tradeSseEventType = resolveTradeSseEventType(assetType);
+
+        // 프론트에 전달할 선물 주문 체결 정보 페이로드 조립
+        FuturesOrderCompletedNotificationPayload payload = new FuturesOrderCompletedNotificationPayload(
+                orderId,
+                assetType,
+                assetTypeDisplayName,
+                symbol,
+                displayNameKr,
+                orderType,
+                positionSide,
+                positionAction,
+                price,
+                quantity,
+                executedAmount,
+                executedMargin,
+                totalFee,
+                realizedPnl,
+                executedAt
+        );
+
+        log.info("선물 주문 체결 알림 payload 생성 완료. orderId={}, assetTypeDisplayName={}, positionSide={}, positionAction={}",
+                orderId, assetTypeDisplayName, positionSide, positionAction);
+
+        // REQUIRES_NEW 트랜잭션으로 알림 DB 저장 후 SSE 이벤트 전송
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        notificationCategory,
+                        NotificationType.ORDER_COMPLETED,
+                        serializePayload(payload)
+                ),
+                tradeSseEventType.name()
+        );
+    }
+
+    // 선물 강제청산 완료시 페이로드 조립 메서드
+    private void saveAndSendFuturesLiquidationCompleted(
+            Long receiverId,
+            AssetType assetType,
+            String symbol,
+            PositionSide positionSide,
+            BigDecimal liquidationPrice,
+            BigDecimal closeQuantity,
+            BigDecimal realizedPnl
+    ) {
+        Member notificationReceiver = memberRepository.findActiveById(receiverId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("강제청산 알림 수신 회원을 찾을 수 없습니다. receiverId={}, symbol={}", receiverId, symbol);
+            return;
+        }
+
+        String displayNameKr = marketSymbolRepository.findById(symbol)
+                .map(MarketSymbol::getDisplayNameKr)
+                .orElse(symbol);
+
+        String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
+        NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
+        TradeSseEventType tradeSseEventType = resolveLiquidationSseEventType(assetType);
+
+        FuturesLiquidationCompletedNotificationPayload payload = new FuturesLiquidationCompletedNotificationPayload(
+                assetType,
+                assetTypeDisplayName,
+                symbol,
+                displayNameKr,
+                positionSide,
+                liquidationPrice,
+                closeQuantity,
+                realizedPnl
+        );
+
+        log.info("강제청산 알림 payload 생성 완료. receiverId={}, symbol={}, side={}, pnl={}",
+                receiverId, symbol, positionSide, realizedPnl);
+
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        notificationCategory,
+                        NotificationType.LIQUIDATION_COMPLETED,
+                        serializePayload(payload)
+                ),
+                tradeSseEventType.name()
+        );
+    }
+
+    private TradeSseEventType resolveLiquidationSseEventType(AssetType assetType) {
+        return switch (assetType) {
+            case TRADE_FUTURE -> TradeSseEventType.NOTIFICATION_TRADE_LIQUIDATION_COMPLETED;
+            case CONTEST -> TradeSseEventType.NOTIFICATION_CONTEST_LIQUIDATION_COMPLETED;
+            default -> throw new IllegalArgumentException("강제청산 알림을 지원하지 않는 자산 유형입니다: " + assetType);
+        };
     }
 
     private void saveAndSend(Notification notification, String eventName) {

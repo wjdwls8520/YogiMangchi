@@ -7,6 +7,7 @@ import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.event.PositionClosedEvent;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.service.FuturesPendingCloseOrderCleanupService;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,6 +38,7 @@ public class FuturesLiquidationExecutionService {
     private final AssetRepository assetRepository;
     private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationService notificationService;
 
     // 포지션 1개 강제청산 — Coordinator에서 포지션ID 단위로 호출
     @Transactional
@@ -84,9 +86,9 @@ public class FuturesLiquidationExecutionService {
         BigDecimal closeMargin   = position.getTotalMargin();    // 청산 증거금 = 포지션에 투입된 총 증거금 전액 (전량 청산이므로 전부 회수 대상)
 
         // 실현손익 계산 — 정산 기준가로 liquidationPrice 사용
-        // markPrice 기준으로 하면 시스템이 늦게 발견했을 때 settlement가 음수가 될 수 있음
+        // 선물 @ticker 가격 기준으로 하면 시스템이 늦게 발견했을 때 settlement가 음수가 될 수 있음
         // liquidationPrice는 수수료를 포함해 설계되어 있어 이 가격 기준 settlement > 0 항상 보장
-        // (markPrice는 Step 5 재검증에만 사용됨)
+        // (선물 @ticker 가격은 Coordinator의 청산 트리거 조건 판단에만 사용됨)
         // LONG  = (청산가 - 진입가) × 수량
         // SHORT = (진입가 - 청산가) × 수량
         BigDecimal realizedPnl = switch (position.getPositionSide()) {
@@ -111,8 +113,16 @@ public class FuturesLiquidationExecutionService {
                 wallet, position.getSymbol(), position.getPositionSide(), position.getFilledQuantity()
         );
 
-        // [알림] SSE로 강제청산 완료됨을 wallet.getMember().getId() 대상으로 알리는 로직
-        // 강제청산은 유저가 요청하지 않은 이벤트이므로 알림 우선순위가 높음
+        // 트랜잭션 종료 후 LAZY 접근 불가 — 값을 미리 추출
+        notificationService.notifyFuturesLiquidationCompleted(
+                wallet.getMember(),
+                wallet.getType(),
+                position.getSymbol(),
+                position.getPositionSide(),
+                position.getLiquidationPrice(),
+                closeQuantity,
+                realizedPnl
+        );
 
         // 트랜잭션 커밋 완료 후 Registry deregister — 롤백 시 인메모리 불일치 방지
         // FuturesLiquidationEventListener.onPositionClosed() 에서 AFTER_COMMIT으로 처리됨

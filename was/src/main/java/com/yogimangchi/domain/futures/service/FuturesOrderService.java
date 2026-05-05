@@ -18,6 +18,7 @@ import com.yogimangchi.domain.futures.event.PositionOpenedEvent;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.support.FuturesWalletReader;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,8 @@ public class FuturesOrderService {
     private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final FuturesPositionService futuresPositionService;
     private final ApplicationEventPublisher eventPublisher;
+
+    private final NotificationService notificationService;
 
     // 시장가, 지정가 수수료
     private final static BigDecimal MARKET_TRADE_FEE = new BigDecimal("0.0005");
@@ -103,7 +106,9 @@ public class FuturesOrderService {
             eventPublisher.publishEvent(new PositionOpenedEvent(symbol));
         }
 
-        // [알림] SSE로 선물 시장가 진입 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
+        // [알림] SSE로 선물 시장가 진입 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직  ( 시장가는 주문 즉시 체결됨으로 체결알람을 주문알람에서 작성하였음 )
+        // 진입 — 포지션을 여는 것이므로 확정된 손익 없음
+        notificationService.notifyFuturesOrderCompleted(wallet.getMember(), wallet.getType(), futuresOrder, null);
 
         return new FuturesMarketOrderResponseDto(
                 FuturesOrderResultDto.from(futuresOrder),
@@ -188,7 +193,8 @@ public class FuturesOrderService {
         }
 
         // [알림] SSE로 선물 시장가 청산 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
-        // isFullyClosed == true 이면 완전 청산 메시지, false 이면 부분 청산 메시지로 구분 가능
+        // 청산 — 포지션이 종료되며 손익이 확정되므로 realizedPnl 전달
+        notificationService.notifyFuturesOrderCompleted(wallet.getMember(), wallet.getType(), futuresOrder, thisCloseRealizedPnl);
 
         return new FuturesMarketOrderResponseDto(
                 FuturesOrderResultDto.from(futuresOrder),

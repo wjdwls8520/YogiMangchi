@@ -15,6 +15,7 @@ import com.yogimangchi.domain.futures.repository.FuturesLeverageSettingRepositor
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.service.FuturesPendingCloseOrderCleanupService;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,6 +45,7 @@ public class FuturesLimitOrderExecutionService {
     private final FuturesLeverageSettingRepository futuresLeverageSettingRepository;
     private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationService notificationService;
 
     // 지정가(maker) 수수료율 — 시장가(taker) 0.0005 보다 낮음
     private static final BigDecimal LIMIT_TRADE_FEE = new BigDecimal("0.0003");
@@ -114,6 +116,8 @@ public class FuturesLimitOrderExecutionService {
         order.fill(LocalDateTime.now());
 
         // [알림] SSE로 지정가 진입 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
+        // 진입 — 포지션을 여는 것이므로 확정된 손익 없음
+        notificationService.notifyFuturesOrderCompleted(wallet.getMember(), wallet.getType(), order, null);
 
         // 커밋 확정 후 Registry 동기화 (롤백 시 인메모리 불일치 방지)
         eventPublisher.publishEvent(new LimitOrderRemovedEvent(symbol));
@@ -187,7 +191,8 @@ public class FuturesLimitOrderExecutionService {
         boolean isFullyClosed = position.getFilledQuantity().compareTo(BigDecimal.ZERO) == 0;
 
         // [알림] SSE로 지정가 청산 주문 체결됨을 wallet.getMember().getId() 대상으로 알리는 로직
-        // isFullyClosed == true 이면 완전 청산, false 이면 부분 청산으로 구분 가능
+        // 청산 — 포지션이 종료되며 손익이 확정되므로 realizedPnl 전달
+        notificationService.notifyFuturesOrderCompleted(wallet.getMember(), wallet.getType(), order, realizedPnl);
 
         // 커밋 확정 후 Registry 동기화
         eventPublisher.publishEvent(new LimitOrderRemovedEvent(symbol));

@@ -1,6 +1,6 @@
 package com.yogimangchi.domain.futures.liquidation;
 
-import com.yogimangchi.domain.chartapi.repository.FuturesPriceRepository;
+import com.yogimangchi.domain.futures.service.FuturesCurrentPriceService;
 import com.yogimangchi.domain.futures.entity.FuturesPosition;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
@@ -28,11 +28,11 @@ import java.util.concurrent.Executors;
  *
  * 역할
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *  BinanceChartApiService 에서 틱이 들어오면 이 클래스의 onPriceTick() 이 호출된다.
+ *  BinanceFuturesApiService 에서 선물 @ticker 틱이 들어오면 이 클래스의 onPriceTick() 이 호출된다.
  *  Registry를 통해 해당 심볼에 감시 대상 포지션이 있는지 확인하고,
  *  있으면 비동기 스레드풀에 강제청산 처리를 위임한다.
  *
- *  LimitOrderMatchCoordinator(현물 지정가 체결)와 동일한 구조이며, 강제청산 전용이다.
+ *  FuturesLimitOrderCoordinator(선물 지정가 체결)와 동일한 구조이며, 강제청산 전용이다.
  *
  * 처리 흐름
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -48,7 +48,7 @@ import java.util.concurrent.Executors;
  *
  *  3. processSymbol(symbol) — 스레드풀 내부에서 실행
  *      → Registry에서 drainPriceWindow() 로 누적 가격 범위 꺼냄
- *      → 범위가 없으면 ChartPriceRepository에서 최신 저장가로 보정 (틱 누락 방어)
+ *      → 범위가 없으면 선물 @ticker 캐시에서 최신 저장가로 보정 (틱 누락 방어)
  *      → DB에서 해당 심볼의 OPEN 포지션 목록 조회
  *      → 각 포지션의 liquidationPrice 와 가격 범위를 비교
  *          LONG  포지션: minPrice <= liquidationPrice 이면 강제청산 트리거
@@ -82,13 +82,13 @@ public class FuturesLiquidationCoordinator {
 
     private final FuturesLiquidationRegistry liquidationRegistry; // 감시 중인 심볼 관리 — isWatched, markProcessing, priceWindow 등 인메모리 상태 담당
     private final FuturesPositionRepository futuresPositionRepository; // DB에서 OPEN 포지션 목록 조회 — 청산가 비교 대상 포지션을 가져올 때 사용
-    private final FuturesPriceRepository futuresPriceRepository;  // 마지막으로 저장된 마크프라이스 조회 — WebSocket 재연결 중 틱 누락 시 보정용
+    private final FuturesCurrentPriceService futuresCurrentPriceService;  // 마지막으로 저장된 선물 @ticker 가격 조회 — WebSocket 재연결 중 틱 누락 시 보정용
     private final FuturesLiquidationExecutionService liquidationExecutionService;  // 실제 청산 실행 — 포지션/지갑 락 획득 후 정산금액 계산 및 상태 변경 담당
 
     // 심볼별 강제청산을 병렬 처리하는 스레드풀 (최대 4개 심볼 동시 처리)
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
 
-    // BinanceFuturesApiService에서 마크프라이스 틱마다 호출 — 가격 누적 및 처리 트리거
+    // BinanceFuturesApiService에서 선물 @ticker 틱마다 호출 — 가격 누적 및 처리 트리거
     public void onPriceTick(String symbol, BigDecimal price) {
         // 처리 중에 들어오는 틱도 놓치지 않도록 윈도우에 누적
         liquidationRegistry.updatePriceWindow(symbol, price);
@@ -126,13 +126,13 @@ public class FuturesLiquidationCoordinator {
                 LiquidationPriceWindow priceWindow = liquidationRegistry.drainPriceWindow(symbol);
 
                 if (priceWindow == null) {
-                    // 틱 누락 시 마지막 저장된 마크프라이스로 보정 (WebSocket 재연결 중 방어)
-                    String latest = futuresPriceRepository.findMarkPriceBySymbol(symbol).orElse(null);
+                    // 틱 누락 시 마지막으로 저장된 선물 @ticker 가격으로 보정 (WebSocket 재연결 중 방어)
+                    BigDecimal latest = futuresCurrentPriceService.findCurrentPrice(symbol).orElse(null);
                     if (latest == null) {
                         // 보정할 가격도 없으면 처리 불가 — 다음 틱 또는 스케줄러 재진입 대기
                         break;
                     }
-                    priceWindow = LiquidationPriceWindow.single(new BigDecimal(latest));
+                    priceWindow = LiquidationPriceWindow.single(latest);
                 }
 
                 // DB에서 이 심볼의 OPEN 포지션 전체 조회

@@ -11,6 +11,9 @@ public enum NotificationType {
     @Schema(description = "주문 취소 알림")
     ORDER_CANCELED,
 
+    @Schema(description = "강제 청산 알림")
+    LIQUIDATION_COMPLETED,
+
     @Schema(description = "게시글 댓글 생성 알림")
     POST_COMMENT_CREATED,
 
