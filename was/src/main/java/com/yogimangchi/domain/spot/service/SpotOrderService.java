@@ -2,6 +2,7 @@ package com.yogimangchi.domain.spot.service;
 
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.asset.entity.Holding;
+import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
@@ -15,6 +16,7 @@ import com.yogimangchi.domain.spot.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.entity.TradeHistory;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
+import com.yogimangchi.domain.spot.event.SpotOrderExecutedEvent;
 import com.yogimangchi.domain.spot.matching.LimitOrderScheduler;
 import com.yogimangchi.domain.spot.matching.LimitOrderSignalRegistry;
 import com.yogimangchi.domain.spot.repository.OrderRepository;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +49,7 @@ public class SpotOrderService {
     private final NotificationService notificationService;
     private final LimitOrderScheduler limitOrderScheduler;
     private final LimitOrderSignalRegistry limitOrderSignalRegistry;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void createMarketOrder(Long memberId, MarketOrderRequestDto request) {
@@ -250,6 +254,11 @@ public class SpotOrderService {
 
         log.info("[매수 완료] 유저: {}, 코인: {}, 총지출: {}, 체결원금: {}, 수수료: {}, 체결수량: {}",
                 wallet.getMember().getId(), request.symbol(), orderAmount, executedAmount, fee, quantityToBuy);
+
+        // [이벤트 발행 최적화] 모의투자(MOCK) 체결일 때만 퀘스트 달성 이벤트를 발행하여 불필요한 이벤트 생성을 차단합니다.
+        if (wallet.getType() == AssetType.MOCK) {
+            eventPublisher.publishEvent(new SpotOrderExecutedEvent(wallet.getMember().getId(), wallet.getType()));
+        }
     }
 
     private void processMarketSell(Assets wallet, MarketOrderRequestDto request, BigDecimal currentPrice) {
@@ -306,6 +315,11 @@ public class SpotOrderService {
 
         log.info("[매도 완료] 유저: {}, 코인: {}, 수량: {}, 체결원금: {}, 수수료: {}, 실수령액: {}",
                 wallet.getMember().getId(), request.symbol(), sellQuantity, executedAmount, fee, settlementAmount);
+
+        // [이벤트 발행 최적화] 모의투자(MOCK) 체결일 때만 퀘스트 달성 이벤트를 발행하여 불필요한 이벤트 생성을 차단합니다.
+        if (wallet.getType() == AssetType.MOCK) {
+            eventPublisher.publishEvent(new SpotOrderExecutedEvent(wallet.getMember().getId(), wallet.getType()));
+        }
     }
 
     private void releaseLockedMoney(Order order) {

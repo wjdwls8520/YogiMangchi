@@ -8,6 +8,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.entity.OAuthAccount;
 import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
+import com.yogimangchi.domain.member.event.MemberVerifiedEvent;
 import com.yogimangchi.global.exception.member.MemberException;
 import com.yogimangchi.global.support.MemberReader;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static com.yogimangchi.domain.member.service.EmailVerificationConstants.*;
 
@@ -31,6 +33,7 @@ public class EmailVerificationService {
     private final MemberReader memberReader;
     private final OAuthAccountRepository oAuthAccountRepository;
     private final EmailVerificationAsyncService emailVerificationAsyncService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // OAuth 이메일 조회
     public OAuthEmailResponseDto getOAuthEmail(Long memberId) {
@@ -120,10 +123,16 @@ public class EmailVerificationService {
                 @Override
                 public void afterCommit() {
                     stringRedisTemplate.delete(EMAIL_VERIFIED_PREFIX + memberId);
+                    
+                    // [이벤트 발행] 인증 완료 시 퀘스트 해금 조건을 다시 한번 체크하기 위해 이벤트를 발행합니다.
+                    eventPublisher.publishEvent(new MemberVerifiedEvent(memberId));
                 }
             });
         } else {
             stringRedisTemplate.delete(EMAIL_VERIFIED_PREFIX + memberId);
+            
+            // [이벤트 발행] 트랜잭션 동기화가 불가능할 때도 안전하게 이벤트를 발행합니다.
+            eventPublisher.publishEvent(new MemberVerifiedEvent(memberId));
         }
     }
 

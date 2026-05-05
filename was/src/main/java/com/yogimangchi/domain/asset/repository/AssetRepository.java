@@ -7,6 +7,7 @@ import com.yogimangchi.domain.member.entity.Member;
 import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -38,6 +39,9 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
             @Param("assetType") AssetType assetType,
             @Param("status") String status
     );
+
+    // 복수의 타입으로 사용자의 지갑 목록 조회 (해금 처리용)
+    List<Assets> findAllByMemberIdAndTypeIn(Long memberId, List<AssetType> types);
 
     // 주문 취소/체결 정산 시 금액 일관성을 위해 지갑을 락 조회
     @Lock(LockModeType.PESSIMISTIC_WRITE)
