@@ -86,9 +86,9 @@ public class FuturesLiquidationExecutionService {
         BigDecimal closeMargin   = position.getTotalMargin();    // 청산 증거금 = 포지션에 투입된 총 증거금 전액 (전량 청산이므로 전부 회수 대상)
 
         // 실현손익 계산 — 정산 기준가로 liquidationPrice 사용
-        // markPrice 기준으로 하면 시스템이 늦게 발견했을 때 settlement가 음수가 될 수 있음
+        // 선물 @ticker 가격 기준으로 하면 시스템이 늦게 발견했을 때 settlement가 음수가 될 수 있음
         // liquidationPrice는 수수료를 포함해 설계되어 있어 이 가격 기준 settlement > 0 항상 보장
-        // (markPrice는 Step 5 재검증에만 사용됨)
+        // (선물 @ticker 가격은 Coordinator의 청산 트리거 조건 판단에만 사용됨)
         // LONG  = (청산가 - 진입가) × 수량
         // SHORT = (진입가 - 청산가) × 수량
         BigDecimal realizedPnl = switch (position.getPositionSide()) {

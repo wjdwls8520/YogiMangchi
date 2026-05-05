@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -81,18 +80,19 @@ public class BinanceFuturesApiService {
                 .then(Mono.error(new IllegalStateException("Binance 선물 웹소켓 연결 종료")));
     }
 
-    // 선물 ticker + markPrice combined stream URL 생성
-    // 예: wss://fstream.binance.com/stream?streams=btcusdt@ticker/btcusdt@markPrice/ethusdt@ticker/...
+    // 선물 ticker stream URL 생성
+    // 예: wss://fstream.binance.com/stream?streams=btcusdt@ticker/ethusdt@ticker/...
     private String buildCombinedStreamUrl(List<String> symbols) {
         String streams = symbols.stream()
                 .map(String::toLowerCase)
-                .flatMap(symbol -> Stream.of(symbol + "@ticker", symbol + "@markPrice"))
+                .map(symbol -> symbol + "@ticker")
                 .collect(Collectors.joining("/"));
 
         return FUTURES_WEBSOCKET_BASE_URL + "/stream?streams=" + streams;
     }
 
     private void handleMessage(String payload) {
+        log.info("[선물 WebSocket 수신] len={}", payload == null ? "null" : payload.length());
         try {
             BinanceFuturesStreamMessage message = objectMapper.readValue(payload, BinanceFuturesStreamMessage.class);
 
@@ -105,18 +105,18 @@ public class BinanceFuturesApiService {
 
             if (stream.endsWith("@ticker")) {
                 String tickerPrice = message.getData().getLastPrice();
+                if (tickerPrice == null || tickerPrice.isBlank()) {
+                    log.warn("[선물 ticker] lastPrice가 null — symbol={}, payload={}", symbol, payload);
+                    return;
+                }
                 futuresPriceRepository.saveTickerPrice(symbol, tickerPrice);
+                // 선물 @ticker 가격으로 지정가 체결 + 강제청산 모두 판단
                 futuresLimitOrderCoordinator.onPriceTick(symbol, new BigDecimal(tickerPrice));
+                futuresLiquidationCoordinator.onPriceTick(symbol, new BigDecimal(tickerPrice));
                 log.debug("[선물 ticker] {} = {}", symbol, tickerPrice);
 
-            } else if (stream.endsWith("@markPrice")) {
-                String markPrice = message.getData().getMarkPrice();
-                futuresPriceRepository.saveMarkPrice(symbol, markPrice);
-                futuresLiquidationCoordinator.onPriceTick(symbol, new BigDecimal(markPrice));
-                log.debug("[선물 markPrice] {} = {}", symbol, markPrice);
-
             } else {
-                log.debug("[선물 unknown stream] stream={}, payload={}", stream, payload);
+                log.warn("[선물 unknown stream] stream={}, payload={}", stream, payload);
             }
 
         } catch (Exception e) {
