@@ -8,6 +8,7 @@ import UserOrderHistory, {
 } from "@/components/trade/UserOrderHistory";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { cancelOrder } from "@/lib/api/trade";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { useMockWalletStore } from "@/stores/useMockWalletStore";
 
 type OpenOrderItem = {
@@ -120,6 +121,21 @@ export default function MockUserOrderHistory() {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // SSE 체결 알림 수신 시 목록 리프레시
+  useEffect(() => {
+    const eventName = getNotificationSseBridgeEventName(
+      "NOTIFICATION_MOCK_ORDER_COMPLETED"
+    );
+
+    const handleOrderCompleted = () => {
+      console.log("Real-time Mock Order List Refreshing...");
+      setRefreshKey((prev) => prev + 1);
+    };
+
+    window.addEventListener(eventName, handleOrderCompleted);
+    return () => window.removeEventListener(eventName, handleOrderCompleted);
+  }, []);
 
   const buildBaseParams = useCallback(() => {
     const params = new URLSearchParams();

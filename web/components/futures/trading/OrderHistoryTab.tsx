@@ -1,24 +1,21 @@
 "use client";
 
-import ContestFuturesOrderList from "./ContestFuturesOrderList";
+import FuturesOrderList from "./FuturesOrderList";
 
 type OrderHistoryTabProps = {
-  contestSeasonId: number;
+  contestSeasonId?: number | null;
   activityVersion: number;
 };
 
-const ORDER_HISTORY_PAGE_SIZE = 10;
-
 export default function OrderHistoryTab({
-  contestSeasonId,
+  contestSeasonId = null,
   activityVersion,
 }: OrderHistoryTabProps) {
   return (
-    <ContestFuturesOrderList
+    <FuturesOrderList
       contestSeasonId={contestSeasonId}
       activityVersion={activityVersion}
       mode="orders"
-      pageSize={ORDER_HISTORY_PAGE_SIZE}
     />
   );
 }

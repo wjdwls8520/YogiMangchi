@@ -15,8 +15,8 @@ import type {
   FuturesPositionSide,
 } from "@/types/futures";
 
-type ContestFuturesActivitySectionProps = {
-  contestSeasonId: number;
+export type FuturesActivitySectionProps = {
+  contestSeasonId?: number | null;
   activityVersion: number;
   openPositions: FuturesPositionItem[];
   closingPositionId: number | null;
@@ -42,8 +42,8 @@ type ContestFuturesActivitySectionProps = {
 
 type ActivityTab = "pending" | "open" | "orders" | "trades";
 
-export default function ContestFuturesActivitySection({
-  contestSeasonId,
+export default function FuturesActivitySection({
+  contestSeasonId = null,
   activityVersion,
   openPositions,
   closingPositionId,
@@ -53,7 +53,7 @@ export default function ContestFuturesActivitySection({
   onCancelLimitOrder,
   onClosePosition,
   onSubmitLimitCloseOrder,
-}: ContestFuturesActivitySectionProps) {
+}: FuturesActivitySectionProps) {
   const [activeTab, setActiveTab] = useState<ActivityTab>("pending");
 
   const openPositionCountLabel = useMemo(

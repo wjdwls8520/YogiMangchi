@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import LeverageModal from "@/components/contest/trading/LeverageModal";
+import LeverageModal from "@/components/futures/trading/LeverageModal";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
@@ -24,7 +24,7 @@ import type {
 type OrderMainTab = "open" | "close";
 type OrderExecutionType = "MARKET" | "LIMIT";
 
-type ContestFuturesOrderPanelProps = {
+export type FuturesOrderPanelProps = {
   walletStatus: ContestFuturesWalletStatus;
   leverageInfo: FuturesLeverageInfo | null;
   leverageInfoByKey: Record<string, FuturesLeverageInfo>;
@@ -48,13 +48,14 @@ type ContestFuturesOrderPanelProps = {
   onSubmitLimitOpenOrder: (params: ContestFuturesLimitOpenOrderParams) => Promise<unknown>;
   onClosePosition: (params: { positionId: number; closeQuantity: number }) => Promise<FuturesMarketOrderResponse>;
   onSubmitLimitCloseOrder: (params: ContestFuturesLimitCloseOrderParams) => Promise<FuturesLimitOrderResponse>;
+  disabledMessage?: string;
 };
 
 /* ────────────────── constants ────────────────── */
 
 const TRADE_FEE_RATE = 0.0005;
 const LIMIT_TRADE_FEE_RATE = 0.0003;
-const LIQUIDATION_FEE_RATE = 0.0005; // 백엔드 청산가 마진 버퍼
+const LIQUIDATION_FEE_RATE = 0.0005; 
 const MIN_ORDER_NOTIONAL_AMOUNT = 10;
 const ORDER_RATIO_OPTIONS = [
   { label: "10%", ratio: 0.1 },
@@ -84,7 +85,7 @@ const getLeverageKey = (symbol: string, side: FuturesPositionSide) =>
 
 /* ────────────────── component ────────────────── */
 
-export default function ContestFuturesOrderPanel({
+export default function FuturesOrderPanel({
   walletStatus,
   leverageInfo,
   leverageInfoByKey,
@@ -104,7 +105,8 @@ export default function ContestFuturesOrderPanel({
   onSubmitLimitOpenOrder,
   onClosePosition,
   onSubmitLimitCloseOrder,
-}: ContestFuturesOrderPanelProps) {
+  disabledMessage = "현재 거래가 가능한 상태가 아닙니다.",
+}: FuturesOrderPanelProps) {
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
   const coinMetaList = useTickerStore((s) => s.coinMetaList);
   const realtime = useTickerStore((s) => s.tickers[s.selectedCoin]);
@@ -187,7 +189,7 @@ export default function ContestFuturesOrderPanel({
   const handleOpenRatio = (ratio: number) => { if (maxQty > 0) setOrderQuantity(toInputValue(maxQty * ratio)); };
 
   const handleOpenSubmit = async (side: FuturesPositionSide) => {
-    if (!isTradingEnabled) { await alert("현재 거래 가능한 대회 기간이 아닙니다."); return; }
+    if (!isTradingEnabled) { await alert(disabledMessage); return; }
     if (!(await requireVerifiedUser())) return;
     if (!getSideLeverageInfo(side)) { await alert(`${side} 레버리지 정보를 확인한 뒤 다시 시도해 주세요.`); return; }
     if (!isRealtimeReady) { await alert("실시간 시세 연결 후 다시 시도해 주세요."); return; }
@@ -224,7 +226,7 @@ export default function ContestFuturesOrderPanel({
 
   const handleCloseSubmit = async () => {
     if (!selectedPosition) { await alert("청산할 포지션을 선택해 주세요."); return; }
-    if (!isTradingEnabled) { await alert("현재 거래 가능한 대회 기간이 아닙니다."); return; }
+    if (!isTradingEnabled) { await alert(disabledMessage); return; }
     if (!(await requireVerifiedUser())) return;
     const qty = numCloseQty > 0 ? numCloseQty : closeableQty;
     if (qty <= 0) { await alert("청산 수량을 입력해 주세요."); return; }

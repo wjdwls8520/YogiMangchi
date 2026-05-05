@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
+import { useTickerStore } from "@/stores/useTickerStore";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import {
   cancelReportedPost,
   cancelReportedReply,
@@ -156,6 +159,89 @@ const isNoMockWalletMessage = (message: string) => {
   );
 };
 
+const getProfitColorClass = (value?: number | null) => {
+  if ((value ?? 0) > 0) return "text-red-500 font-black";
+  if ((value ?? 0) < 0) return "text-blue-500 font-black";
+  return "text-gray-900 font-black";
+};
+
+const getSideColorClass = (side: "BUY" | "SELL") => {
+  return side === "BUY" ? "text-red-500 font-black" : "text-blue-500 font-black";
+};
+
+/**
+ * 특정 심볼의 실시간 시세를 구독하여 해당 셀만 업데이트하는 컴포넌트
+ */
+function TickerCell({ 
+  symbol, 
+  fallbackPrice, 
+  quantity, 
+  buyAmount, 
+  type = "price" 
+}: { 
+  symbol: string; 
+  fallbackPrice: number; 
+  quantity: number; 
+  buyAmount: number;
+  type?: "price" | "value" | "profit" | "roi";
+}) {
+  const realtimePrice = useTickerStore((state) => state.tickers[symbol]?.price ?? fallbackPrice);
+  
+  if (type === "price") return <>{formatNumber(realtimePrice)}</>;
+  
+  const value = quantity * realtimePrice;
+  if (type === "value") return <span className="font-bold text-gray-900">{formatNumber(value)}</span>;
+  
+  const profit = value - buyAmount;
+  if (type === "profit") return <span className={getProfitColorClass(profit)}>{formatSignedNumber(profit)}</span>;
+  
+  const roi = buyAmount > 0 ? (profit / buyAmount) * 100 : 0;
+  if (type === "roi") return <span className={getProfitColorClass(profit)}>{formatSignedPercent(roi)}</span>;
+
+  return null;
+}
+
+/**
+ * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
+ */
+function RealtimeAssetSummary({ 
+  portfolio, 
+  title,
+  className
+}: { 
+  portfolio: MockPortfolio; 
+  title: string;
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+  
+  // 시세 기반 실시간 계산
+  let totalCoinValue = 0;
+  let totalBuyAmount = 0;
+
+  portfolio.holdings.forEach((holding) => {
+    const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
+    totalCoinValue += holding.quantity * realtimePrice;
+    totalBuyAmount += holding.buyAmount;
+  });
+
+  const totalProfit = totalCoinValue - totalBuyAmount;
+  const totalRoi = totalBuyAmount > 0 ? (totalProfit / totalBuyAmount) * 100 : 0;
+  const totalAsset = portfolio.cashBalance + totalCoinValue;
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance: portfolio.cashBalance,
+    totalAsset,
+    totalBuyAmount,
+    totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
 export default function MePage() {
   const router = useRouter();
   const { alert, confirm, toast } = useFeedback();
@@ -202,6 +288,43 @@ export default function MePage() {
   const [followMembersErrorMessage, setFollowMembersErrorMessage] = useState("");
   const [nextFollowMembersCursorId, setNextFollowMembersCursorId] = useState<number | null>(null);
   const [hasNextFollowMembers, setHasNextFollowMembers] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // 실시간 시세 웹소켓 연결
+  useBinanceWebSocket();
+
+  // 실시간 갱신 로직은 이제 개별 컴포넌트 내부로 이동하거나 
+  // 필요한 최소 단위로 쪼개어 처리합니다.
+  const [realtimeMockSummary, setRealtimeMockSummary] = useState<{
+    totalAsset: number;
+    totalProfit: number;
+    totalRoi: number;
+    totalCoinValue: number;
+  } | null>(null);
+
+  // SSE 체결 알림 수신 시 데이터 리프레시
+  useEffect(() => {
+    const handleTradeCompleted = () => {
+      console.log("Real-time Me Dashboard Refreshing...");
+      setRefreshKey((prev) => prev + 1);
+    };
+
+    const events = [
+      "NOTIFICATION_MOCK_ORDER_COMPLETED",
+      "NOTIFICATION_TRADE_ORDER_COMPLETED",
+      "NOTIFICATION_CONTEST_ORDER_COMPLETED",
+    ];
+
+    const unsubs = events.map((event) => {
+      const eventName = getNotificationSseBridgeEventName(event as any);
+      window.addEventListener(eventName, handleTradeCompleted);
+      return () => window.removeEventListener(eventName, handleTradeCompleted);
+    });
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -352,7 +475,7 @@ export default function MePage() {
     };
 
     void loadMockData();
-  }, [isMounted, logout, memberProfile, portfolioTab, router]);
+  }, [isMounted, logout, memberProfile, portfolioTab, router, refreshKey]);
 
   useEffect(() => {
     if (!isMounted || !memberProfile) return;
@@ -790,20 +913,21 @@ export default function MePage() {
     if (portfolioTab !== "mock" || !mockPortfolio) return [];
 
     const holdingsData = mockPortfolio.holdings
-      .filter((item) => item.coinTotalValue > 0)
-      .map((item, index) => ({
-        name: getBaseAssetLabel(item.symbol, marketSymbols),
-        value:
-          mockPortfolio.totalAsset > 0
-            ? (item.coinTotalValue / mockPortfolio.totalAsset) * 100
-            : 0,
-        color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
-      }));
+      .filter((item) => item.quantity > 0)
+      .map((item, index) => {
+        // 차트의 안정성을 위해 실시간 시세 대신 포트폴리오 로드 시점의 가격 사용
+        const price = item.currentPrice;
+        const totalValue = item.quantity * price;
+
+        return {
+          name: getBaseAssetLabel(item.symbol, marketSymbols),
+          value: mockPortfolio.totalAsset > 0 ? (totalValue / mockPortfolio.totalAsset) * 100 : 0,
+          color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
+        };
+      });
 
     const cashRatio =
-      mockPortfolio.totalAsset > 0
-        ? (mockPortfolio.cashBalance / mockPortfolio.totalAsset) * 100
-        : 0;
+      mockPortfolio.totalAsset > 0 ? (mockPortfolio.cashBalance / mockPortfolio.totalAsset) * 100 : 0;
 
     if (cashRatio > 0) {
       holdingsData.unshift({
@@ -868,31 +992,6 @@ export default function MePage() {
   const user = memberProfile;
   const isGeneralUser = user.role === "USER";
 
-  const summary: AssetSummary =
-    portfolioTab === "mock" && mockPortfolio
-      ? {
-          title: "모의투자 자산",
-          cashBalance: mockPortfolio.cashBalance,
-          totalAsset: mockPortfolio.totalAsset,
-          totalBuyAmount: mockPortfolio.totalBuyAmount,
-          totalCoinValue: mockPortfolio.totalCoinValue,
-          totalProfit: mockPortfolio.totalProfit,
-          totalRoi: mockPortfolio.totalRoi,
-        }
-      : {
-          title:
-            portfolioTab === "trade"
-              ? "트레이딩 자산"
-              : portfolioTab === "contest"
-                ? "대회 자산"
-                : "모의투자 자산",
-          cashBalance: 0,
-          totalAsset: 0,
-          totalBuyAmount: 0,
-          totalCoinValue: 0,
-          totalProfit: 0,
-          totalRoi: 0,
-        };
 
   const renderCommunityTabContent = (tab: CommunityTab) => (
     <ProfileCommunitySection
@@ -970,6 +1069,8 @@ export default function MePage() {
                       outerRadius={100}
                       paddingAngle={5}
                       dataKey="value"
+                      animationDuration={400}
+                      animationEasing="ease-out"
                     >
                       {pieData.map((entry, i) => (
                         <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
@@ -981,7 +1082,17 @@ export default function MePage() {
                         style={{ fontSize: "12px", fontWeight: "bold" }}
                       />
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      formatter={(value) => {
+                        const parsedValue = Array.isArray(value)
+                          ? Number(value[0])
+                          : Number(value ?? 0);
+                        const safeValue = Number.isFinite(parsedValue) ? parsedValue : 0;
+
+                        return [`${safeValue.toFixed(2)}%`, "비중"];
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1080,7 +1191,29 @@ export default function MePage() {
             }
           />
 
-          <AssetSummaryCard summary={summary} />
+          {mockPortfolio ? (
+            <RealtimeAssetSummary 
+              portfolio={mockPortfolio} 
+              title="모의투자 자산"
+            />
+          ) : (
+            <AssetSummaryCard
+              summary={{
+                title:
+                  portfolioTab === "trade"
+                    ? "트레이딩 자산"
+                    : portfolioTab === "contest"
+                      ? "대회 자산"
+                      : "모의투자 자산",
+                cashBalance: 0,
+                totalAsset: 0,
+                totalBuyAmount: 0,
+                totalCoinValue: 0,
+                totalProfit: 0,
+                totalRoi: 0,
+              }}
+            />
+          )}
 
           <Button
             variant="white"
@@ -1157,8 +1290,6 @@ function HoldingRow({
   marketSymbols: MarketSymbolMeta[];
   quoteAssetName: string;
 }) {
-  const isLoss = item.profit < 0;
-  const color = isLoss ? "text-blue-500" : "text-red-500";
   const baseAssetName = getBaseAssetLabel(item.symbol, marketSymbols);
   const displaySymbol = getDisplaySymbolLabel(item.symbol, marketSymbols);
 
@@ -1180,14 +1311,14 @@ function HoldingRow({
         </div>
 
         <div className="text-right">
-          <p className={`text-sm font-black ${color}`}>
-            {formatSignedNumber(item.profit)}
+          <p className="text-sm">
+            <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />
             {quoteAssetName ? (
               <span className="text-xxs ml-1">{quoteAssetName}</span>
             ) : null}
           </p>
-          <p className={`text-xxs font-black ${color}`}>
-            {formatSignedPercent(item.roi)}
+          <p className="text-xxs">
+            <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />
           </p>
         </div>
       </div>
@@ -1200,7 +1331,7 @@ function HoldingRow({
         />
         <DataBox
           label="평가금액"
-          value={formatNumber(item.coinTotalValue)}
+          value={<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />}
           unit={quoteAssetName}
         />
         <DataBox
@@ -1232,7 +1363,7 @@ function DataBox({
       <p className="text-xxs text-gray-400 font-bold mb-1 uppercase">
         {label}
       </p>
-      <p className="text-xxs font-black text-gray-800">
+      <p className="text-xxs font-black text-gray-800 flex items-center gap-1">
         {value}
         {unit ? (
           <span className="text-xxs text-gray-400 font-medium ml-1">{unit}</span>

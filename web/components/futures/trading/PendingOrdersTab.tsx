@@ -1,9 +1,9 @@
 "use client";
 
-import ContestFuturesOrderList from "./ContestFuturesOrderList";
+import FuturesOrderList from "./FuturesOrderList";
 
 type PendingOrdersTabProps = {
-  contestSeasonId: number;
+  contestSeasonId?: number | null;
   activityVersion: number;
   cancelingOrderId: number | null;
   isTradingEnabled: boolean;
@@ -13,14 +13,14 @@ type PendingOrdersTabProps = {
 const PENDING_ORDER_PAGE_SIZE = 5;
 
 export default function PendingOrdersTab({
-  contestSeasonId,
+  contestSeasonId = null,
   activityVersion,
   cancelingOrderId,
   isTradingEnabled,
   onCancelLimitOrder,
 }: PendingOrdersTabProps) {
   return (
-    <ContestFuturesOrderList
+    <FuturesOrderList
       contestSeasonId={contestSeasonId}
       activityVersion={activityVersion}
       mode="pending"

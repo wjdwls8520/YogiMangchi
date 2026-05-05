@@ -9,8 +9,8 @@ import MainCandleChart from "@/components/trade/CoinChart";
 import OrderBook from "@/components/trade/OrderBook";
 import RecentTrades from "@/components/trade/RecentTrades";
 import CoinList from "@/components/trade/CoinList";
-import ContestFuturesActivitySection from "@/components/contest/trading/ContestFuturesActivitySection";
-import ContestFuturesOrderPanel from "@/components/contest/trading/ContestFuturesOrderPanel";
+import FuturesActivitySection from "@/components/futures/trading/FuturesActivitySection";
+import FuturesOrderPanel from "@/components/futures/trading/FuturesOrderPanel";
 import { useContestFuturesTradingSession } from "@/hooks/useContestFuturesTradingSession";
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
 import { cn } from "@/lib/utils/cs";
@@ -175,7 +175,7 @@ export default function ContestTradingPage() {
 
           {/* Activity (Positions) Area (Row 2, Col 1-2) */}
           <section className="col-start-1 col-end-3 row-start-2 row-end-3 bg-[#161A1E] border-t-4 border-[#0B0E11] border-r border-white/5 min-h-0 overflow-hidden">
-             <ContestFuturesActivitySection
+             <FuturesActivitySection
                 contestSeasonId={contestSeasonId}
                 activityVersion={activityVersion}
                 openPositions={openPositions}
@@ -194,7 +194,7 @@ export default function ContestTradingPage() {
 
           {/* Order Panel (Row 1-2, Col 3) */}
           <aside className="col-start-3 col-end-4 row-start-1 row-end-3 bg-[#161A1E] min-h-0 min-w-0 overflow-y-auto">
-            <ContestFuturesOrderPanel
+             <FuturesOrderPanel
               walletStatus={walletStatus}
               leverageInfo={leverageInfo}
               leverageInfoByKey={leverageInfoByKey}
@@ -214,6 +214,7 @@ export default function ContestTradingPage() {
               onSubmitOpenOrder={submitOpenOrder}
               onClosePosition={submitCloseOrder}
               onSubmitLimitCloseOrder={submitLimitCloseOrder}
+              disabledMessage={pageErrorMessage}
             />
           </aside>
         </div>
