@@ -16,6 +16,7 @@ import com.yogimangchi.domain.member.dto.result.FollowCreatedResultDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.notification.dto.payload.FollowCreatedNotificationPayload;
+import com.yogimangchi.domain.notification.dto.payload.FuturesLiquidationCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.FuturesOrderCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.NotificationActorPreviewPayload;
 import com.yogimangchi.domain.notification.dto.payload.OrderCompletedNotificationPayload;
@@ -549,6 +550,56 @@ public class NotificationService {
         log.warn("선물 주문 체결 알림이 트랜잭션 없이 호출되었습니다. orderId={}", orderId);
     }
 
+    // 강제청산이 완료되었을 때 클라이언트에 전송할 알람
+    public void notifyFuturesLiquidationCompleted(
+            Member receiver,
+            AssetType assetType,
+            String symbol,
+            PositionSide positionSide,
+            BigDecimal liquidationPrice,
+            BigDecimal closeQuantity,
+            BigDecimal realizedPnl
+    ) {
+        if (receiver == null || receiver.getId() == null) {
+            log.warn("강제청산 알림 생성을 건너뜁니다. receiver={}", receiver);
+            return;
+        }
+
+        Long receiverId = receiver.getId();
+
+        Runnable notificationTask = () -> {
+            try {
+                saveAndSendFuturesLiquidationCompleted(
+                        receiverId,
+                        assetType,
+                        symbol,
+                        positionSide,
+                        liquidationPrice,
+                        closeQuantity,
+                        realizedPnl
+                );
+            } catch (Exception e) {
+                log.error("강제청산 알림 처리 중 예외. receiverId={}, symbol={}", receiverId, symbol, e);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notificationTask.run();
+                }
+            });
+            return;
+        }
+
+        log.warn("강제청산 알림이 트랜잭션 없이 호출되었습니다. symbol={}", symbol);
+    }
+
+
+
+
 
     private NotificationDispatchResultDto createGroupedLikeNotification(
             Member receiver,
@@ -796,6 +847,7 @@ public class NotificationService {
         );
     }
 
+    // 선물 미체결주문 체결 완료시 페이로드 조립 메서드
     private void saveAndSendFuturesOrderCompleted(
             Long receiverId,
             AssetType assetType,
@@ -864,6 +916,66 @@ public class NotificationService {
                 ),
                 tradeSseEventType.name()
         );
+    }
+
+    // 선물 강제청산 완료시 페이로드 조립 메서드
+    private void saveAndSendFuturesLiquidationCompleted(
+            Long receiverId,
+            AssetType assetType,
+            String symbol,
+            PositionSide positionSide,
+            BigDecimal liquidationPrice,
+            BigDecimal closeQuantity,
+            BigDecimal realizedPnl
+    ) {
+        Member notificationReceiver = memberRepository.findActiveById(receiverId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("강제청산 알림 수신 회원을 찾을 수 없습니다. receiverId={}, symbol={}", receiverId, symbol);
+            return;
+        }
+
+        String displayNameKr = marketSymbolRepository.findById(symbol)
+                .map(MarketSymbol::getDisplayNameKr)
+                .orElse(symbol);
+
+        String assetTypeDisplayName = resolveAssetTypeDisplayName(assetType);
+        NotificationCategory notificationCategory = resolveNotificationCategory(assetType);
+        TradeSseEventType tradeSseEventType = resolveLiquidationSseEventType(assetType);
+
+        FuturesLiquidationCompletedNotificationPayload payload = new FuturesLiquidationCompletedNotificationPayload(
+                assetType,
+                assetTypeDisplayName,
+                symbol,
+                displayNameKr,
+                positionSide,
+                liquidationPrice,
+                closeQuantity,
+                realizedPnl
+        );
+
+        log.info("강제청산 알림 payload 생성 완료. receiverId={}, symbol={}, side={}, pnl={}",
+                receiverId, symbol, positionSide, realizedPnl);
+
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        notificationCategory,
+                        NotificationType.LIQUIDATION_COMPLETED,
+                        serializePayload(payload)
+                ),
+                tradeSseEventType.name()
+        );
+    }
+
+    private TradeSseEventType resolveLiquidationSseEventType(AssetType assetType) {
+        return switch (assetType) {
+            case TRADE_FUTURE -> TradeSseEventType.NOTIFICATION_TRADE_LIQUIDATION_COMPLETED;
+            case CONTEST -> TradeSseEventType.NOTIFICATION_CONTEST_LIQUIDATION_COMPLETED;
+            default -> throw new IllegalArgumentException("강제청산 알림을 지원하지 않는 자산 유형입니다: " + assetType);
+        };
     }
 
     private void saveAndSend(Notification notification, String eventName) {

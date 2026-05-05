@@ -7,6 +7,7 @@ import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.event.PositionClosedEvent;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import com.yogimangchi.domain.futures.service.FuturesPendingCloseOrderCleanupService;
+import com.yogimangchi.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,6 +38,7 @@ public class FuturesLiquidationExecutionService {
     private final AssetRepository assetRepository;
     private final FuturesPendingCloseOrderCleanupService futuresPendingCloseOrderCleanupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationService notificationService;
 
     // 포지션 1개 강제청산 — Coordinator에서 포지션ID 단위로 호출
     @Transactional
@@ -111,8 +113,16 @@ public class FuturesLiquidationExecutionService {
                 wallet, position.getSymbol(), position.getPositionSide(), position.getFilledQuantity()
         );
 
-        // [알림] SSE로 강제청산 완료됨을 wallet.getMember().getId() 대상으로 알리는 로직
-        // 강제청산은 유저가 요청하지 않은 이벤트이므로 알림 우선순위가 높음
+        // 트랜잭션 종료 후 LAZY 접근 불가 — 값을 미리 추출
+        notificationService.notifyFuturesLiquidationCompleted(
+                wallet.getMember(),
+                wallet.getType(),
+                position.getSymbol(),
+                position.getPositionSide(),
+                position.getLiquidationPrice(),
+                closeQuantity,
+                realizedPnl
+        );
 
         // 트랜잭션 커밋 완료 후 Registry deregister — 롤백 시 인메모리 불일치 방지
         // FuturesLiquidationEventListener.onPositionClosed() 에서 AFTER_COMMIT으로 처리됨

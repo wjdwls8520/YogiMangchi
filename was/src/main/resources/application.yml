@@ -23,7 +23,7 @@ spring:
       ddl-auto: update
     #서버실행시 코인data.sql실행
     defer-datasource-initialization: true
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
