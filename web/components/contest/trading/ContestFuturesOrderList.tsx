@@ -502,7 +502,7 @@ export default function ContestFuturesOrderList({
           {formatQuantity(order.filledQuantity)}
         </td>
         <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
-          {formatMoney(order.notionalAmount)}
+          {formatMoney((order.executedPrice ?? 0) * (order.filledQuantity ?? 0))}
         </td>
         <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
           {formatMoney(order.orderMargin)}

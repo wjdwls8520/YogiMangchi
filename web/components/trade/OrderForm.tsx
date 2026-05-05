@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Info } from "lucide-react";
 import Tabs from "@/components/ui/Tabs";
@@ -12,7 +12,7 @@ import { useRequireLogin } from "@/hooks/useWithAuth";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-type OrderType = "limit" | "market" | "auto";
+type OrderType = "limit" | "market";
 type OrderTab = "buy" | "sell";
 type OrderMode = "mock" | "trade";
 type OrderResult = {
@@ -129,9 +129,21 @@ function OrderFormBody({
   const { isLogin, user } = useAuthStore();
   const { alert, toast } = useFeedback();
   const requireLogin = useRequireLogin({ redirectMode: "push" });
+  const selectedOrderPrice = useTickerStore((state) => state.selectedOrderPrice);
+  const setSelectedOrderPrice = useTickerStore(
+    (state) => state.setSelectedOrderPrice
+  );
+
+  useEffect(() => {
+    if (selectedOrderPrice !== null) {
+      setOrderPrice(toInputValue(selectedOrderPrice, 8));
+      onChangeOrderType("limit");
+      setSelectedOrderPrice(null);
+    }
+  }, [selectedOrderPrice, setSelectedOrderPrice, onChangeOrderType]);
 
   const [orderPrice, setOrderPrice] = useState(
-    orderType === "limit" ? toInputValue(currentPrice, 2) : ""
+    orderType === "limit" ? toInputValue(currentPrice, 8) : ""
   );
   const [orderQty, setOrderQty] = useState("");
   const [orderAmount, setOrderAmount] = useState("");
@@ -149,11 +161,11 @@ function OrderFormBody({
   const numericAmount = Number(orderAmount);
   const expectedBuyQuantity =
     currentPrice > 0 && Number.isFinite(numericAmount) && numericAmount > 0
-      ? numericAmount / currentPrice
+      ? (numericAmount * (1 - MARKET_FEE_RATE)) / currentPrice
       : 0;
   const expectedSellAmount =
     currentPrice > 0 && Number.isFinite(numericQty) && numericQty > 0
-      ? numericQty * currentPrice
+      ? numericQty * currentPrice * (1 - MARKET_FEE_RATE)
       : 0;
 
   const availableDisplayValue = orderTab === "buy" ? usdtBalance : availableHolding;
@@ -163,16 +175,16 @@ function OrderFormBody({
     Number.isFinite(numericQty) && numericQty > 0
       ? numericPrice * numericQty
       : 0;
+  const expectedLimitTotalCost = expectedLimitAmount * (1 + LIMIT_FEE_RATE);
   const isDisabled = isSubmitting || isLoadingPortfolio;
   const limitBuyPriceError =
-    !isMarketOrder && orderTab === "buy" && Number.isFinite(numericPrice) && numericPrice > 0
-      ? !Number.isFinite(numericQty) || numericQty <= 0
-        ? numericPrice > usdtBalance
-          ? "주문 가능 금액을 초과했습니다."
-          : ""
-        : expectedLimitAmount > usdtBalance
-          ? "주문 가능 금액을 초과했습니다."
-          : ""
+    !isMarketOrder &&
+    orderTab === "buy" &&
+    Number.isFinite(numericPrice) &&
+    numericPrice > 0 &&
+    numericQty > 0 &&
+    expectedLimitTotalCost > usdtBalance
+      ? "주문 가능 금액을 초과했습니다."
       : "";
 
   const buttonText =
@@ -202,7 +214,7 @@ function OrderFormBody({
     const maxQty =
       orderTab === "buy"
         ? numericPrice > 0
-          ? usdtBalance / numericPrice
+          ? usdtBalance / (numericPrice * (1 + LIMIT_FEE_RATE))
           : 0
         : availableHolding;
 
@@ -254,8 +266,8 @@ function OrderFormBody({
         return;
       }
 
-      if (orderTab === "buy" && expectedLimitAmount > usdtBalance) {
-        await alert("주문 가능 금액이 부족합니다.");
+      if (orderTab === "buy" && expectedLimitTotalCost > usdtBalance) {
+        await alert("주문 가능 금액이 부족합니다. (수수료 포함)");
         return;
       }
 
@@ -397,7 +409,6 @@ function OrderFormBody({
         tabs={[
           { label: "지정", value: "limit" as const },
           { label: "시장", value: "market" as const },
-          { label: "자동", value: "auto" as const },
         ]}
       />
 
@@ -515,13 +526,13 @@ function OrderFormBody({
           </div>
         ) : (
           <div className="flex justify-between items-center gap-11">
-            <span className="text-xs font-bold text-gray-500">주문금액</span>
+            <span className="text-xs font-bold text-gray-500">주문금액(수수료 포함)</span>
             <div className="relative flex-1">
               <Input
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
-                value={toInputValue(expectedLimitAmount, 2)}
+                value={toInputValue(expectedLimitTotalCost, 2)}
                 readOnly={true}
                 className="w-full bg-white border-gray-200 rounded-none h-10 text-right font-bold pr-10"
               />

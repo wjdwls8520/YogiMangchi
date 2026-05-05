@@ -39,8 +39,8 @@ const mergeUniqueTrades = (incoming: TradeItem[], current: TradeItem[]) => {
 
 const formatPrice = (value: number) => {
   return value.toLocaleString(undefined, {
-    minimumFractionDigits: value < 1 ? 4 : 2,
-    maximumFractionDigits: value < 1 ? 6 : 4,
+    minimumFractionDigits: value < 1 ? 2 : 2,
+    maximumFractionDigits: value < 1 ? 8 : 4,
   });
 };
 

@@ -53,6 +53,8 @@ type ContestFuturesOrderPanelProps = {
 /* ────────────────── constants ────────────────── */
 
 const TRADE_FEE_RATE = 0.0005;
+const LIMIT_TRADE_FEE_RATE = 0.0003;
+const LIQUIDATION_FEE_RATE = 0.0005; // 백엔드 청산가 마진 버퍼
 const MIN_ORDER_NOTIONAL_AMOUNT = 10;
 const ORDER_RATIO_OPTIONS = [
   { label: "10%", ratio: 0.1 },
@@ -161,15 +163,26 @@ export default function ContestFuturesOrderPanel({
 
   /* ═══════ OPEN tab logic ═══════ */
   const isLimit = execType === "LIMIT";
+  const currentFeeRate = isLimit ? LIMIT_TRADE_FEE_RATE : TRADE_FEE_RATE;
+  
   const numPrice = Number(orderPrice);
   const numQty = Number(orderQuantity);
   const refPrice = isLimit && Number.isFinite(numPrice) && numPrice > 0 ? numPrice : currentPrice;
-  const maxNotional = currentLeverage > 0 ? (availableBalance * currentLeverage) / (1 + TRADE_FEE_RATE * currentLeverage) : 0;
+  
+  const maxNotional = currentLeverage > 0 ? (availableBalance * currentLeverage) / (1 + currentFeeRate * currentLeverage) : 0;
   const maxQty = refPrice > 0 ? maxNotional / refPrice : 0;
+  
   const estNotional = Number.isFinite(numQty) && numQty > 0 ? numQty * refPrice : 0;
   const estMargin = currentLeverage > 0 ? estNotional / currentLeverage : 0;
-  const estFee = estNotional * TRADE_FEE_RATE;
+  const estFee = estNotional * currentFeeRate;
   const estRequired = estMargin + estFee;
+
+  // 예상 청산가 계산 (Isolated 기준)
+  const estLiquidationPrice = (estNotional > 0 && currentLeverage > 0)
+    ? positionSide === "LONG"
+      ? refPrice * (1 - 1 / currentLeverage + LIQUIDATION_FEE_RATE)
+      : refPrice * (1 + 1 / currentLeverage - LIQUIDATION_FEE_RATE)
+    : null;
 
   const handleOpenRatio = (ratio: number) => { if (maxQty > 0) setOrderQuantity(toInputValue(maxQty * ratio)); };
 
@@ -221,6 +234,17 @@ export default function ContestFuturesOrderPanel({
       if (isCloseLimit) {
         const cp = Number(closePrice);
         if (!cp || cp <= 0) { await alert("지정가를 입력해 주세요."); return; }
+        
+        // 가격 방향 검증 (익절만 허용)
+        if (selectedPosition.positionSide === "LONG" && cp <= currentPrice) {
+          await alert("LONG 청산 지정가는 현재가보다 높아야 합니다. (익절)");
+          return;
+        }
+        if (selectedPosition.positionSide === "SHORT" && cp >= currentPrice) {
+          await alert("SHORT 청산 지정가는 현재가보다 낮아야 합니다. (익절)");
+          return;
+        }
+
         await onSubmitLimitCloseOrder({ positionId: selectedPosition.positionId, closeQuantity: qty, orderPrice: cp });
         toast({ title: `${formatFuturesPositionSide(selectedPosition.positionSide)} 지정가 청산 주문 등록`, tone: "success" });
       } else {
@@ -337,7 +361,8 @@ export default function ContestFuturesOrderPanel({
           <div className="space-y-[6px] text-[12px] pt-1">
             <div className="flex justify-between"><span className="text-gray-500">명목가치</span><span className="text-white">{estNotional > 0 ? formatAssetNumber(estNotional) : "--"} {meta.quoteAsset}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">비용</span><span className="text-white">{estRequired > 0 ? formatAssetNumber(estRequired) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">수수료 ({(TRADE_FEE_RATE * 100).toFixed(2)}%)</span><span className="text-white">{estFee > 0 ? formatAssetNumber(estFee) : "--"} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">수수료 ({(currentFeeRate * 100).toFixed(2)}%)</span><span className="text-white">{estFee > 0 ? formatAssetNumber(estFee) : "--"} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">예상 청산가</span><span className="text-[#F6465D] font-bold">{estLiquidationPrice ? formatAssetNumber(estLiquidationPrice) : "--"} {meta.quoteAsset}</span></div>
             <div className="flex justify-between pt-1 border-t border-white/5"><span className="text-gray-500">주문 가능</span><span className="text-white">{formatAssetNumber(availableBalance)} {meta.quoteAsset}</span></div>
           </div>
 
