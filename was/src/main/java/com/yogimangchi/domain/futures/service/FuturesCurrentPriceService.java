@@ -37,13 +37,13 @@ public class FuturesCurrentPriceService {
 
         Optional<String> markPrice = futuresPriceRepository.findMarkPriceBySymbol(upperSymbol);
         if (markPrice.isPresent()) {
-            log.warn("[선물 현재가 fallback] ticker cache miss, markPrice 사용 symbol={}", upperSymbol);
+            log.warn("[선물 현재가 fallback] ticker cache miss, markPrice 사용 symbol={} price={}", upperSymbol, markPrice.get());
             return markPrice.map(BigDecimal::new);
         }
 
         return chartPriceRepository.findBySymbol(upperSymbol)
                 .map(chartPrice -> {
-                    log.warn("[선물 현재가 fallback] futures cache miss, chart price 사용 symbol={}", upperSymbol);
+                    log.warn("[선물 현재가 fallback] futures cache miss, chart price 사용 symbol={} price={}", upperSymbol, chartPrice.price());
                     return new BigDecimal(chartPrice.price());
                 });
     }

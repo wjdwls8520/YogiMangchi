@@ -41,7 +41,7 @@ import org.hibernate.annotations.UpdateTimestamp;
                 )
         }
 )
-@Schema(description = "알림 중복 방지 상태 엔티티")
+@Schema(description = "[좋아요, 팔로우] 알림 중복 방지 상태 엔티티")
 public class NotificationDedupeState {
 
     @Id
