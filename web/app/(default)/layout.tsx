@@ -2,6 +2,7 @@
 import React from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import QuestInitializer from "@/components/quest/QuestInitializer";
 
 export default function StandardLayout({
   children,
@@ -16,6 +17,7 @@ export default function StandardLayout({
         {children}
       </main>
       <Footer />
+      <QuestInitializer />
     </div>
   );
 }

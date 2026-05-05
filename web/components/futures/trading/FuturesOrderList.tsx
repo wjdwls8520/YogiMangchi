@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import { getContestFuturesOrders } from "@/lib/api/contest-futures";
+import { getFuturesOrders } from "@/lib/api/futures";
 import { cn } from "@/lib/utils/cs";
 import { formatDateTime } from "@/lib/utils/date";
 import {
@@ -19,12 +20,12 @@ import type {
   FuturesOrderStatus,
 } from "@/types/futures";
 
-type ContestFuturesOrderListMode = "pending" | "orders" | "trades";
+type FuturesOrderListMode = "pending" | "orders" | "trades";
 
-type ContestFuturesOrderListProps = {
-  contestSeasonId: number;
+export type FuturesOrderListProps = {
+  contestSeasonId?: number | null;
   activityVersion: number;
-  mode: ContestFuturesOrderListMode;
+  mode: FuturesOrderListMode;
   pageSize?: number;
   cancelingOrderId?: number | null;
   isTradingEnabled?: boolean;
@@ -34,7 +35,7 @@ type ContestFuturesOrderListProps = {
 const DEFAULT_PAGE_SIZE = 20;
 
 const MODE_CONFIG: Record<
-  ContestFuturesOrderListMode,
+  FuturesOrderListMode,
   {
     loadingText: string;
     emptyText: string;
@@ -92,15 +93,15 @@ const getStatusClassName = (orderStatus?: FuturesOrderStatus | null) => {
   return "bg-gray-500/15 text-gray-400";
 };
 
-export default function ContestFuturesOrderList({
-  contestSeasonId,
+export default function FuturesOrderList({
+  contestSeasonId = null,
   activityVersion,
   mode,
   pageSize = DEFAULT_PAGE_SIZE,
   cancelingOrderId = null,
   isTradingEnabled = false,
   onCancelLimitOrder,
-}: ContestFuturesOrderListProps) {
+}: FuturesOrderListProps) {
   const config = MODE_CONFIG[mode];
   const { alert, toast } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({
@@ -134,11 +135,15 @@ export default function ContestFuturesOrderList({
       }
 
       try {
-        const response = await getContestFuturesOrders(contestSeasonId, {
+        const filters = {
           cursorId,
           ...config.filters,
           size: pageSize,
-        });
+        };
+
+        const response = contestSeasonId
+          ? await getContestFuturesOrders(contestSeasonId, filters)
+          : await getFuturesOrders(filters);
 
         if (append) {
           setItems((prev) => {
@@ -214,7 +219,7 @@ export default function ContestFuturesOrderList({
     }
 
     if (!isTradingEnabled) {
-      await alert("현재는 주문을 취소할 수 있는 대회 기간이 아닙니다.");
+      await alert("현재는 주문을 취소할 수 있는 상태가 아닙니다.");
       return;
     }
 

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import Button from "./ui/Button";
 import { X } from "lucide-react";
 
@@ -17,6 +17,14 @@ interface ModalProps {
 }
 
 export default function Modal({ props, children } :ModalProps) {
+    // 모달 오픈 시 배경 스크롤 방지
+    useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
 
     // dim 영역 클릭 시 modal 꺼짐
     const onDimClick = (e: React.MouseEvent<HTMLDivElement>) => {

@@ -439,6 +439,24 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
     };
   }, [contestSeasonId, refreshBaseData]);
 
+  useEffect(() => {
+    if (!Number.isFinite(contestSeasonId) || contestSeasonId <= 0) {
+      return;
+    }
+
+    const eventName = getNotificationSseBridgeEventName(
+      "NOTIFICATION_CONTEST_ORDER_COMPLETED"
+    );
+
+    const handleOrderCompleted = () => {
+      console.log("Real-time Contest Trade Completed! Refreshing data...");
+      void refreshBaseData({ silentLeverage: true });
+    };
+
+    window.addEventListener(eventName, handleOrderCompleted);
+    return () => window.removeEventListener(eventName, handleOrderCompleted);
+  }, [contestSeasonId, refreshBaseData]);
+
   const updateLeverage = useCallback(
     async (leverage: number) => {
       if (!selectedCoin) {

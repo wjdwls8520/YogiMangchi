@@ -8,6 +8,8 @@ import {
 } from "@/lib/utils/notification-sse";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useMockWalletStore } from "@/stores/useMockWalletStore";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { ReactNode, useEffect } from "react";
 import type {
   NotificationItem,
@@ -148,7 +150,20 @@ export default function SSEProvider({ children }: Props) {
       }
     };
 
+    // 🌟 모의투자 체결 시 전역 자산 정보(WalletStore) 리프레시
+    const handleMockOrderCompleted = () => {
+      const { ownerMemberId, loadMockWallet } = useMockWalletStore.getState();
+      if (ownerMemberId) {
+        console.log("Real-time Mock Trade Completed! Refreshing wallet...");
+        void loadMockWallet(ownerMemberId, true);
+      }
+    };
+
+    const mockOrderCompletedEvent = getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED");
+    window.addEventListener(mockOrderCompletedEvent, handleMockOrderCompleted);
+
     return () => {
+      window.removeEventListener(mockOrderCompletedEvent, handleMockOrderCompleted);
       eventSource.onmessage = null;
       eventSource.removeEventListener(
         NOTIFICATION_STATUS_EVENT_NAME,

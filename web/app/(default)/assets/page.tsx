@@ -14,6 +14,8 @@ import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Select from "@/components/ui/Select";
 import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
+import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
+import { useTickerStore } from "@/stores/useTickerStore";
 import { formatDateTime } from "@/lib/utils/date";
 import {
   getBaseAssetLabel,
@@ -450,6 +452,80 @@ const getSideColorClass = (side: "BUY" | "SELL") => {
   return side === "BUY" ? "text-red-500 font-black" : "text-blue-500 font-black";
 };
 
+/**
+ * 특정 심볼의 실시간 시세를 구독하여 해당 셀만 업데이트하는 컴포넌트
+ */
+function TickerCell({ 
+  symbol, 
+  fallbackPrice, 
+  quantity, 
+  buyAmount, 
+  type = "price" 
+}: { 
+  symbol: string; 
+  fallbackPrice: number; 
+  quantity: number; 
+  buyAmount: number;
+  type?: "price" | "value" | "profit" | "roi" | "ratio" | "totalAsset";
+  currentTotalAsset?: number;
+}) {
+  const realtimePrice = useTickerStore((state) => state.tickers[symbol]?.price ?? fallbackPrice);
+  
+  if (type === "price") return <>{formatAssetNumber(realtimePrice)}</>;
+  
+  const value = quantity * realtimePrice;
+  if (type === "value") return <span className="font-bold text-gray-900">{formatAssetNumber(value)}</span>;
+  
+  const profit = value - buyAmount;
+  if (type === "profit") return <span className={getProfitColorClass(profit)}>{formatSignedAssetNumber(profit)}</span>;
+  
+  const roi = buyAmount > 0 ? (profit / buyAmount) * 100 : 0;
+  if (type === "roi") return <span className={getProfitColorClass(profit)}>{formatSignedPercent(roi)}</span>;
+
+  return null;
+}
+
+/**
+ * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
+ */
+function RealtimeAssetSummary({ 
+  portfolio, 
+  title,
+  className
+}: { 
+  portfolio: MockPortfolio; 
+  title: string;
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+  
+  // 시세 기반 실시간 계산
+  let totalCoinValue = 0;
+  let totalBuyAmount = 0;
+
+  portfolio.holdings.forEach((holding) => {
+    const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
+    totalCoinValue += holding.quantity * realtimePrice;
+    totalBuyAmount += holding.buyAmount;
+  });
+
+  const totalProfit = totalCoinValue - totalBuyAmount;
+  const totalRoi = totalBuyAmount > 0 ? (totalProfit / totalBuyAmount) * 100 : 0;
+  const totalAsset = portfolio.cashBalance + totalCoinValue;
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance: portfolio.cashBalance,
+    totalAsset,
+    totalBuyAmount,
+    totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
 const cell = (value: ReactNode, className = ""): DetailTableCell => ({
   value,
   className,
@@ -506,32 +582,70 @@ export default function AssetsPage() {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const nextAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
-    const nextDetailTab = isDetailTab(searchDetailTab)
-      ? searchDetailTab
-      : "holdings";
+  // 실시간 시세 웹소켓 연결
+  useBinanceWebSocket();
 
-    setAssetTab((prev) => (prev === nextAssetTab ? prev : nextAssetTab));
-    setDetailTab((prev) => (prev === nextDetailTab ? prev : nextDetailTab));
+  // 실시간 갱신 로직은 이제 개별 컴포넌트 내부로 이동하거나 
+  // 필요한 최소 단위로 쪼개어 처리합니다.
+  const [realtimeMockSummary, setRealtimeMockSummary] = useState<{
+    totalAsset: number;
+    totalProfit: number;
+    totalRoi: number;
+    totalCoinValue: number;
+  } | null>(null);
+
+  // 시세 변화 시 자산 요약 정보를 업데이트하는 로직은
+  // 성능을 위해 메모이제이션되거나 전용 컴포넌트에서 처리하도록 구조를 변경합니다.
+  // (여기서는 일단 무한 루프 방지 및 전체 리렌더링 차단을 위해 구독을 제거합니다)
+
+  // SSE 체결 알림 수신 시 모든 자산 데이터 리프레시
+  useEffect(() => {
+    const handleTradeCompleted = () => {
+      console.log("Real-time Assets Refreshing...");
+      setRefreshTrigger((prev) => prev + 1);
+    };
+
+    const events = [
+      "NOTIFICATION_MOCK_ORDER_COMPLETED",
+      "NOTIFICATION_TRADE_ORDER_COMPLETED",
+      "NOTIFICATION_CONTEST_ORDER_COMPLETED",
+    ];
+
+    const unsubs = events.map((event) => {
+      const eventName = getNotificationSseBridgeEventName(event as any);
+      window.addEventListener(eventName, handleTradeCompleted);
+      return () => window.removeEventListener(eventName, handleTradeCompleted);
+    });
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, []);
+
+  // URL 쿼리 파라미터 변화 감지 및 내부 상태 동기화 (뒤로가기/앞으로가기 대응)
+  useEffect(() => {
+    const urlAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
+    const urlDetailTab = isDetailTab(searchDetailTab) ? searchDetailTab : "holdings";
+
+    // 현재 상태와 URL이 다를 때만 업데이트하여 루프 방지
+    if (assetTab !== urlAssetTab) setAssetTab(urlAssetTab);
+    if (detailTab !== urlDetailTab) setDetailTab(urlDetailTab);
   }, [searchAssetTab, searchDetailTab]);
 
-  useEffect(() => {
-    const currentAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
-    const currentDetailTab = isDetailTab(searchDetailTab)
-      ? searchDetailTab
-      : "holdings";
+  // 탭 변경 시 상태와 URL을 동시에 업데이트하는 도우미 함수
+  const handleAssetTabChange = (value: AssetTab) => {
+    setAssetTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("assetTab", value);
+    router.replace(`/assets?${params.toString()}`, { scroll: false });
+  };
 
-    if (assetTab === currentAssetTab && detailTab === currentDetailTab) {
-      return;
-    }
-
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("assetTab", assetTab);
-    nextParams.set("detailTab", detailTab);
-
-    router.replace(`/assets?${nextParams.toString()}`, { scroll: false });
-  }, [assetTab, detailTab, router, searchAssetTab, searchDetailTab, searchParams]);
+  const handleDetailTabChange = (value: DetailTab) => {
+    setDetailTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("detailTab", value);
+    router.replace(`/assets?${params.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -1079,21 +1193,24 @@ export default function AssetsPage() {
   const pieData = useMemo(() => {
     if (assetTab !== "mock" || !mockPortfolio) return [];
 
+    const totalAsset = realtimeMockSummary?.totalAsset ?? mockPortfolio.totalAsset;
+
     const holdingsData = mockPortfolio.holdings
-      .filter((item) => item.coinTotalValue > 0)
-      .map((item, index) => ({
-        name: getBaseAssetLabel(item.symbol, marketSymbols),
-        value:
-          mockPortfolio.totalAsset > 0
-            ? (item.coinTotalValue / mockPortfolio.totalAsset) * 100
-            : 0,
-        color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
-      }));
+      .filter((item) => item.quantity > 0)
+      .map((item, index) => {
+        // 차트의 안정성을 위해 실시간 시세 대신 포트폴리오 로드 시점의 가격 사용
+        const price = item.currentPrice;
+        const totalValue = item.quantity * price;
+
+        return {
+          name: getBaseAssetLabel(item.symbol, marketSymbols),
+          value: mockPortfolio.totalAsset > 0 ? (totalValue / mockPortfolio.totalAsset) * 100 : 0,
+          color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
+        };
+      });
 
     const cashRatio =
-      mockPortfolio.totalAsset > 0
-        ? (mockPortfolio.cashBalance / mockPortfolio.totalAsset) * 100
-        : 0;
+      totalAsset > 0 ? (mockPortfolio.cashBalance / totalAsset) * 100 : 0;
 
     if (cashRatio > 0) {
       holdingsData.unshift({
@@ -1106,31 +1223,6 @@ export default function AssetsPage() {
     return holdingsData.filter((item) => item.value > 0);
   }, [assetTab, marketSymbols, mockPortfolio]);
 
-  const summary: AssetSummary =
-    assetTab === "mock" && mockPortfolio
-      ? {
-          title: "모의투자 자산",
-          cashBalance: mockPortfolio.cashBalance,
-          totalAsset: mockPortfolio.totalAsset,
-          totalBuyAmount: mockPortfolio.totalBuyAmount,
-          totalCoinValue: mockPortfolio.totalCoinValue,
-          totalProfit: mockPortfolio.totalProfit,
-          totalRoi: mockPortfolio.totalRoi,
-        }
-      : {
-          title:
-            assetTab === "trade"
-              ? "트레이딩 자산"
-              : assetTab === "contest"
-              ? "대회 자산"
-              : "모의투자 자산",
-          cashBalance: 0,
-          totalAsset: 0,
-          totalBuyAmount: 0,
-          totalCoinValue: 0,
-          totalProfit: 0,
-          totalRoi: 0,
-        };
   const defaultQuoteAssetLabel = getDefaultQuoteAssetLabel(marketSymbols);
   const withQuoteAssetHeader = useCallback(
     (label: string) =>
@@ -1159,28 +1251,36 @@ export default function AssetsPage() {
           "text-right",
           "text-right",
         ],
-        rows: (mockPortfolio?.holdings ?? []).map((item) => [
-          cell(
-            getAssetCellValue(
-              getBaseAssetLabel(item.symbol, marketSymbols),
-              item.symbol,
-              marketSymbols
+        rows: (mockPortfolio?.holdings ?? []).map((item) => {
+          return [
+            cell(
+              getAssetCellValue(
+                getBaseAssetLabel(item.symbol, marketSymbols),
+                item.symbol,
+                marketSymbols
+              ),
+              "text-center"
             ),
-            "text-center"
-          ),
-          cell(formatNumber(item.quantity), "text-right"),
-          cell(formatNumber(item.averageBuyPrice), "text-right"),
-          cell(formatNumber(item.currentPrice), "text-right"),
-          cell(formatNumber(item.coinTotalValue), "text-right font-bold"),
-          cell(
-            formatSignedNumber(item.profit),
-            `text-right ${getProfitColorClass(item.profit)}`
-          ),
-          cell(
-            formatSignedPercent(item.roi),
-            `text-right ${getProfitColorClass(item.profit)}`
-          ),
-        ]),
+            cell(formatNumber(item.quantity), "text-right"),
+            cell(formatNumber(item.averageBuyPrice), "text-right"),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="price" />, 
+              "text-right"
+            ),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />, 
+              "text-right font-bold"
+            ),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, 
+              "text-right"
+            ),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, 
+              "text-right"
+            ),
+          ];
+        }),
         emptyText: "보유 중인 자산이 없습니다.",
       };
     }
@@ -1203,27 +1303,32 @@ export default function AssetsPage() {
           "text-right",
           "text-right",
         ],
-        rows: (mockPortfolio?.holdings ?? []).map((item) => [
-          cell(
-            getAssetCellValue(
-              getBaseAssetLabel(item.symbol, marketSymbols),
-              item.symbol,
-              marketSymbols
+        rows: (mockPortfolio?.holdings ?? []).map((item) => {
+          return [
+            cell(
+              getAssetCellValue(
+                getBaseAssetLabel(item.symbol, marketSymbols),
+                item.symbol,
+                marketSymbols
+              ),
+              "text-center"
             ),
-            "text-center"
-          ),
-          cell(formatNumber(item.buyAmount), "text-right"),
-          cell(formatNumber(item.coinTotalValue), "text-right"),
-          cell(
-            formatSignedNumber(item.profit),
-            `text-right ${getProfitColorClass(item.profit)}`
-          ),
-          cell(
-            formatSignedPercent(item.roi),
-            `text-right ${getProfitColorClass(item.profit)}`
-          ),
-          cell(`${item.holdingRatio.toFixed(2)}%`, "text-right"),
-        ]),
+            cell(formatNumber(item.buyAmount), "text-right"),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />, 
+              "text-right"
+            ),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, 
+              "text-right"
+            ),
+            cell(
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, 
+              "text-right"
+            ),
+            cell(formatNumber(item.holdingRatio) + "%", "text-right"),
+          ];
+        }),
         emptyText: "손익현황을 표시할 자산이 없습니다.",
       };
     }
@@ -1486,14 +1591,41 @@ export default function AssetsPage() {
           { label: "모의투자", value: "mock" },
         ]}
         activeTab={assetTab}
-        onChange={(value) => setAssetTab(value as AssetTab)}
+        onChange={(value) => handleAssetTabChange(value as AssetTab)}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
-        <AssetSummaryCard
-          summary={summary}
-          className="lg:col-span-4"
-        />
+        {mockPortfolio ? (
+          <RealtimeAssetSummary 
+            portfolio={mockPortfolio} 
+            className="lg:col-span-4"
+            title={
+              assetTab === "trade"
+                ? "트레이딩 자산"
+                : assetTab === "contest"
+                ? "대회 자산"
+                : "모의투자 자산"
+            }
+          />
+        ) : (
+          <AssetSummaryCard
+            className="lg:col-span-4"
+            summary={{
+              title:
+                assetTab === "trade"
+                  ? "트레이딩 자산"
+                  : assetTab === "contest"
+                  ? "대회 자산"
+                  : "모의투자 자산",
+              cashBalance: 0,
+              totalAsset: 0,
+              totalBuyAmount: 0,
+              totalCoinValue: 0,
+              totalProfit: 0,
+              totalRoi: 0,
+            }}
+          />
+        )}
 
         <section className="lg:col-span-8 rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
           {assetTab !== "mock" ? (
@@ -1516,6 +1648,8 @@ export default function AssetsPage() {
                       paddingAngle={3}
                       dataKey="value"
                       stroke="none"
+                      animationDuration={400}
+                      animationEasing="ease-out"
                     >
                       {pieData.map((entry, i) => (
                         <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
@@ -1576,7 +1710,7 @@ export default function AssetsPage() {
             { id: "open", label: "미체결내역", content: null },
           ]}
           activeId={detailTab}
-          onChange={(id) => setDetailTab(id as DetailTab)}
+          onChange={(id) => handleDetailTabChange(id as DetailTab)}
         >
         {assetTab === "mock" && isFilterableDetailTab ? (
           <div className=" mb-5">
