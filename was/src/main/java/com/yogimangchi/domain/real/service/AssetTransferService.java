@@ -18,6 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
+import com.yogimangchi.domain.real.dto.request.TransferHistorySearchCondition;
+import com.yogimangchi.domain.real.dto.response.TransferHistoryResponseDto;
+import com.yogimangchi.domain.real.dto.response.TransferableAmountResponseDto;
+import com.yogimangchi.global.dto.CursorResponseDto;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,6 +33,49 @@ public class AssetTransferService {
     private final AssetRepository assetRepository;
     private final TransferHistoryRepository transferHistoryRepository;
     private final MemberReader memberReader;
+
+    // 사용자의 이체 내역을 커서 기반 무한 스크롤로 조회합니다.
+    @Transactional(readOnly = true)
+    public CursorResponseDto<TransferHistoryResponseDto> getTransferHistories(Long memberId, TransferHistorySearchCondition condition) {
+        // 1. Repository에서 조건에 맞는 내역을 (요청 size + 1)개 조회합니다. (N+1은 fetchJoin으로 방어됨)
+        List<TransferHistory> histories = transferHistoryRepository.findTransferHistories(memberId, condition);
+
+        // 2. 다음 페이지(hasNext)가 존재하는지 판단합니다.
+        int requestSize = condition.getOrDefaultSize();
+        boolean hasNext = histories.size() > requestSize;
+
+        // 3. 실제 반환할 데이터만 서브리스트로 추출합니다.
+        List<TransferHistory> content = hasNext ? histories.subList(0, requestSize) : histories;
+
+        // 4. 엔티티를 정적 팩토리 메서드를 사용해 DTO로 변환합니다.
+        List<TransferHistoryResponseDto> dtoList = content.stream()
+                .map(TransferHistoryResponseDto::from)
+                .collect(Collectors.toList());
+
+        // 5. 다음 커서 ID를 추출합니다.
+        Long nextCursorId = null;
+        if (hasNext && !dtoList.isEmpty()) {
+            nextCursorId = dtoList.get(dtoList.size() - 1).id();
+        }
+
+        return new CursorResponseDto<>(dtoList, nextCursorId, hasNext);
+    }
+
+    // 선택한 지갑의 최대 이체 가능 금액을 조회합니다.
+    @Transactional(readOnly = true)
+    public TransferableAmountResponseDto getTransferableAmount(Long memberId, AssetType assetType) {
+        // 1. 본투자 지갑인지 검증합니다.
+        if (!isRealTradingWallet(assetType)) {
+            throw new IllegalArgumentException("본투자 지갑만 조회 가능합니다.");
+        }
+
+        // 2. 지갑 정보를 조회합니다. (락 없이 읽기 전용으로 조회)
+        Assets asset = assetRepository.findByMemberIdAndTypeAndStatus(memberId, assetType, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("활성화된 지갑을 찾을 수 없습니다."));
+
+        // 3. 정적 팩토리 메서드를 통해 가용/잠금 금액을 계산하여 DTO로 반환합니다.
+        return TransferableAmountResponseDto.from(asset);
+    }
 
     // 현물과 선물 본투자 지갑 간의 자산을 이체합니다. 데드락 방지 락과 멱등성 검증이 포함되어 있습니다.
     @Transactional
