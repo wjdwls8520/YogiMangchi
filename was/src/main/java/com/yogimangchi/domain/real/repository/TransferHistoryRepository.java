@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface TransferHistoryRepository extends JpaRepository<TransferHistory, Long> {
+public interface TransferHistoryRepository extends JpaRepository<TransferHistory, Long>, TransferHistoryRepositoryCustom {
 
     // 멱등성 검증용 requestId 조회
     Optional<TransferHistory> findByRequestId(String requestId);
