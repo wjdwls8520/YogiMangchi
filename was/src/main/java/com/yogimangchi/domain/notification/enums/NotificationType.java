@@ -27,5 +27,8 @@ public enum NotificationType {
     REPLY_LIKED,
 
     @Schema(description = "팔로우 생성 알림")
-    FOLLOW_CREATED
+    FOLLOW_CREATED,
+
+    @Schema(description = "자산 이체 완료 알림")
+    ASSET_TRANSFER_COMPLETED
 }

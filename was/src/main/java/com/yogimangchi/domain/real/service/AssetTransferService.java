@@ -21,9 +21,11 @@ import java.math.BigDecimal;
 import com.yogimangchi.domain.real.dto.request.TransferHistorySearchCondition;
 import com.yogimangchi.domain.real.dto.response.TransferHistoryResponseDto;
 import com.yogimangchi.domain.real.dto.response.TransferableAmountResponseDto;
+import com.yogimangchi.domain.real.event.AssetTransferCompletedEvent;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Slf4j
 @Service
@@ -33,6 +35,7 @@ public class AssetTransferService {
     private final AssetRepository assetRepository;
     private final TransferHistoryRepository transferHistoryRepository;
     private final MemberReader memberReader;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 사용자의 이체 내역을 커서 기반 무한 스크롤로 조회합니다.
     @Transactional(readOnly = true)
@@ -154,6 +157,10 @@ public class AssetTransferService {
             log.warn("[이체 중복 요청 차단] memberId={}, requestId={}", memberId, request.requestId());
             throw new IllegalArgumentException("이미 처리 진행 중이거나 완료된 이체 요청입니다.");
         }
+
+        // 8. 자산 이체 완료 이벤트 발행 (알림 발송을 위해)
+        // 트랜잭션 커밋 완료 후 @TransactionalEventListener에 의해 비동기로 처리됨
+        eventPublisher.publishEvent(new AssetTransferCompletedEvent(memberId, history.getId()));
 
         log.info("[자산 이체 성공] memberId={}, type={}, amount={}", memberId, transferType, request.amount());
     }

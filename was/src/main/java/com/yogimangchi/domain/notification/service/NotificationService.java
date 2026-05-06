@@ -15,6 +15,7 @@ import com.yogimangchi.domain.market.repository.MarketSymbolRepository;
 import com.yogimangchi.domain.member.dto.result.FollowCreatedResultDto;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.member.repository.MemberRepository;
+import com.yogimangchi.domain.notification.dto.payload.AssetTransferCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.FollowCreatedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.FuturesLiquidationCompletedNotificationPayload;
 import com.yogimangchi.domain.notification.dto.payload.FuturesOrderCompletedNotificationPayload;
@@ -40,6 +41,8 @@ import com.yogimangchi.domain.notification.repository.NotificationGroupStateRepo
 import com.yogimangchi.domain.notification.repository.NotificationRepository;
 import com.yogimangchi.domain.notification.repository.NotificationStateRepository;
 import com.yogimangchi.domain.notification.support.NotificationPreviewUtils;
+import com.yogimangchi.domain.real.entity.TransferHistory;
+import com.yogimangchi.domain.real.repository.TransferHistoryRepository;
 import com.yogimangchi.domain.spot.dto.response.CursorResponseDto;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.global.exception.notification.NotificationException;
@@ -78,6 +81,7 @@ public class NotificationService {
     private final NotificationDedupeStateRepository notificationDedupeStateRepository;
     private final NotificationGroupStateRepository notificationGroupStateRepository;
     private final NotificationStateRepository notificationStateRepository;
+    private final TransferHistoryRepository transferHistoryRepository;
     private final ObjectMapper objectMapper;
     private final PlatformTransactionManager transactionManager;
     private final MemberReader memberReader;
@@ -967,6 +971,48 @@ public class NotificationService {
                         serializePayload(payload)
                 ),
                 tradeSseEventType.name()
+        );
+    }
+
+    // 자산 이체 완료 알림 DB 저장 및 SSE 전송
+    @Transactional(readOnly = true)
+    public void saveAndSendAssetTransferCompleted(Long memberId, Long transferHistoryId) {
+        Member notificationReceiver = memberRepository.findActiveById(memberId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("자산 이체 알림 수신 회원을 찾을 수 없습니다. memberId={}", memberId);
+            return;
+        }
+
+        TransferHistory history = transferHistoryRepository.findByIdWithAssets(transferHistoryId)
+                .orElse(null);
+
+        if (history == null) {
+            log.warn("자산 이체 내역을 찾을 수 없습니다. transferHistoryId={}", transferHistoryId);
+            return;
+        }
+
+        AssetTransferCompletedNotificationPayload payload = new AssetTransferCompletedNotificationPayload(
+                history.getId(),
+                history.getFromAsset().getType(),
+                history.getToAsset().getType(),
+                history.getAmount(),
+                history.getTransferType(),
+                history.getCreatedAt()
+        );
+
+        log.info("자산 이체 알림 payload 생성 완료. memberId={}, transferHistoryId={}", memberId, transferHistoryId);
+
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        NotificationCategory.TRADE,
+                        NotificationType.ASSET_TRANSFER_COMPLETED,
+                        serializePayload(payload)
+                ),
+                TradeSseEventType.NOTIFICATION_ASSET_TRANSFER_COMPLETED.name()
         );
     }
 
