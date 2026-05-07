@@ -185,7 +185,7 @@ export default function MockOrderForm() {
     <section className="flex flex-col bg-[#161A1E] text-white h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
-        <span className="text-xs font-black text-white/40 uppercase tracking-widest">Spot Order</span>
+        <span className="text-xs font-black text-white/40">Spot Order</span>
         <div className="flex items-center gap-1.5 text-[11px] font-bold">
           <span className="text-gray-500">Fee</span>
           <span className="text-[#F0B90B]">{(currentFeeRate * 100).toFixed(2)}%</span>

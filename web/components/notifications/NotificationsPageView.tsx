@@ -1163,11 +1163,6 @@ function NotificationsPageItem({
         isHighlighted && "bg-brand-primary/5 dark:bg-brand-primary/10"
       )}
     >
-      {/* Unread left accent */}
-      {isUnread ? (
-        <div className={cn("absolute left-0 top-0 h-full w-1", toneStyles.accent)} />
-      ) : null}
-
       <div
         className={cn(
           "flex items-start gap-4 px-5 py-4",
@@ -1215,8 +1210,8 @@ function NotificationsPageItem({
               className={cn(
                 "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wide",
                 isUnread
-                  ? "bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/10 dark:text-blue-400"
-                  : "bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500"
+                  ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  : "bg-gray-50 text-gray-400 dark:bg-zinc-900 dark:text-gray-600"
               )}
             >
               {categoryLabel}

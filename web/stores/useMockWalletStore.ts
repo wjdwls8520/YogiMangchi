@@ -35,6 +35,7 @@ interface MockWalletResult {
 export interface MockHolding {
   symbol: string;
   quantity: number;
+  availableQuantity: number;
   averageBuyPrice: number;
   currentPrice: number;
   buyAmount: number;
@@ -255,6 +256,7 @@ const extractHoldings = (payload: unknown): MockHolding[] => {
       return {
         symbol,
         quantity,
+        availableQuantity: extractNumber(holding.availableQuantity) ?? quantity,
         averageBuyPrice: extractNumber(holding.averageBuyPrice) ?? 0,
         currentPrice: extractNumber(holding.currentPrice) ?? 0,
         buyAmount: extractNumber(holding.buyAmount) ?? 0,

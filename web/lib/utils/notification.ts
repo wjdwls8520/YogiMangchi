@@ -19,13 +19,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 const SIDE_LABELS: Record<string, string> = {
   BUY: "매수",
   SELL: "매도",
-  LONG: "롱",
-  SHORT: "숏",
+  LONG: "Long",
+  SHORT: "Short",
 };
 
 const TYPE_LABELS: Record<string, string> = {
   ORDER_COMPLETED: "주문 체결",
   ORDER_CANCELED: "주문 취소",
+  LIQUIDATION_COMPLETED: "강제청산",
+  ASSET_TRANSFER_COMPLETED: "자산 이체",
   POST_COMMENT_CREATED: "게시글 댓글",
   REPLY_COMMENT_CREATED: "답글",
   POST_LIKED: "게시글 좋아요",
@@ -318,22 +320,57 @@ const getOrderSideLabel = (notification: NotificationItem) => {
     return null;
   }
 
-  return SIDE_LABELS[rawSide] ?? rawSide;
+  const sideLabel = SIDE_LABELS[rawSide] ?? rawSide;
+  const assetType = getPayloadString(notification.payload, "assetType");
+  const hasFuturesPayload =
+    !!getPayloadString(notification.payload, "positionSide") ||
+    !!getPayloadString(notification.payload, "positionAction");
+
+  const isFutures =
+    notification.category === "CONTEST" ||
+    (assetType && assetType.includes("FUTURE")) ||
+    hasFuturesPayload;
+
+  if (isFutures) {
+    const status =
+      getPayloadString(notification.payload, "positionAction") ??
+      getPayloadString(notification.payload, "positionStatus");
+
+    if (status === "OPEN") return `${sideLabel} / Open`;
+    if (status === "CLOSE") return `${sideLabel} / Close`;
+  }
+
+  return sideLabel;
 };
 
 const getOrderSideTone = (
   notification: NotificationItem
 ): NotificationTradeTone => {
+  const type = notification.type;
+
+  if (type.includes("LIQUIDATION_COMPLETED")) {
+    return "warning";
+  }
+
+  if (type.includes("ASSET_TRANSFER_COMPLETED")) {
+    return "info";
+  }
+
   const rawSide =
     getPayloadString(notification.payload, "side") ??
     getPayloadString(notification.payload, "positionSide");
 
+  const assetType = getPayloadString(notification.payload, "assetType");
+  const isFutures =
+    notification.category === "CONTEST" ||
+    (assetType && assetType.includes("FUTURE"));
+
   if (rawSide === "BUY" || rawSide === "LONG") {
-    return "buy";
+    return isFutures ? "long" : "buy";
   }
 
   if (rawSide === "SELL" || rawSide === "SHORT") {
-    return "sell";
+    return isFutures ? "short" : "sell";
   }
 
   return null;
@@ -423,9 +460,12 @@ export const hasNewerNotificationActivity = (
 };
 
 export const isTradeNotification = (notification: NotificationItem) => {
+  const type = notification.type;
   return (
-    notification.type === "ORDER_COMPLETED" ||
-    notification.type === "ORDER_CANCELED"
+    type.includes("ORDER_COMPLETED") ||
+    type.includes("ORDER_CANCELED") ||
+    type.includes("LIQUIDATION_COMPLETED") ||
+    type.includes("ASSET_TRANSFER_COMPLETED")
   );
 };
 
@@ -465,11 +505,22 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
       ? `회원 ${formatNotificationCount(groupedLikeTotalCount)}명`
       : `${actorName}님 외 ${groupedLikeAdditionalActorCount}명`;
 
-  switch (notification.type) {
-    case "ORDER_COMPLETED":
-      return [target, "주문 체결되었습니다."].filter(Boolean).join(" ");
-    case "ORDER_CANCELED":
-      return [target, "주문 취소되었습니다."].filter(Boolean).join(" ");
+  const type = notification.type;
+
+  if (type.includes("ORDER_COMPLETED")) {
+    return [target, "주문 체결되었습니다."].filter(Boolean).join(" ");
+  }
+  if (type.includes("ORDER_CANCELED")) {
+    return [target, "주문 취소되었습니다."].filter(Boolean).join(" ");
+  }
+  if (type.includes("LIQUIDATION_COMPLETED")) {
+    return `⚠️ [청산 알림] ${target} 포지션이 강제 청산되었습니다.`;
+  }
+  if (type.includes("ASSET_TRANSFER_COMPLETED")) {
+    return "🔄 자산 이체가 완료되었습니다.";
+  }
+
+  switch (type) {
     case "POST_COMMENT_CREATED":
       if (postTitleSummary) {
         return `${actorName}님이 내 글 "${postTitleSummary}"에 댓글을 남겼습니다.`;
@@ -526,13 +577,27 @@ export const formatNotificationDescription = (notification: NotificationItem) =>
   const orderAmount = getOrderAmount(notification);
   const contentSummary = getContentSummary(notification);
 
-  if (notification.type === "ORDER_COMPLETED" || notification.type === "ORDER_CANCELED") {
+  const type = notification.type;
+
+  if (type.includes("ORDER_COMPLETED") || type.includes("ORDER_CANCELED")) {
     return [
       orderQuantity !== null ? `수량 ${formatAssetNumber(orderQuantity)}` : null,
       orderAmount !== null ? `금액 ${formatAssetNumber(orderAmount)}` : null,
     ]
       .filter(Boolean)
       .join(" · ");
+  }
+
+  if (type.includes("LIQUIDATION_COMPLETED")) {
+    const pnl = getPayloadNumericValue(notification.payload, "pnl", "realizedPnl");
+    return pnl !== null ? `실현 손익: ${formatAssetNumber(pnl)}` : "담보 부족으로 인한 강제 청산";
+  }
+
+  if (type.includes("ASSET_TRANSFER_COMPLETED")) {
+    const from = getPayloadString(notification.payload, "fromAccount", "from");
+    const to = getPayloadString(notification.payload, "toAccount", "to");
+    const amount = getPayloadNumericValue(notification.payload, "amount");
+    return `${from} ➔ ${to} (${amount !== null ? formatAssetNumber(amount) : ""})`;
   }
 
   if (
@@ -571,23 +636,26 @@ export const getNotificationDetailFields = (notification: NotificationItem) => {
   const orderAmount = getOrderAmount(notification);
   const groupedLikeCount = getGroupedLikeCount(notification);
 
-  switch (notification.type) {
-    case "ORDER_COMPLETED":
-    case "ORDER_CANCELED":
-      return [
-        createDetailField("종목", target),
-        createDetailField("주문 방향", sideLabel, "center"),
-        createDetailField(
-          "수량",
-          orderQuantity !== null ? formatAssetNumber(orderQuantity) : null,
-          "right"
-        ),
-        createDetailField(
-          "금액",
-          orderAmount !== null ? formatAssetNumber(orderAmount) : null,
-          "right"
-        ),
-      ].filter((field): field is NotificationDetailField => field !== null);
+  const type = notification.type;
+
+  if (type.includes("ORDER_COMPLETED") || type.includes("ORDER_CANCELED")) {
+    return [
+      createDetailField("종목", target),
+      createDetailField("주문 방향", sideLabel, "center"),
+      createDetailField(
+        "수량",
+        orderQuantity !== null ? formatAssetNumber(orderQuantity) : null,
+        "right"
+      ),
+      createDetailField(
+        "금액",
+        orderAmount !== null ? formatAssetNumber(orderAmount) : null,
+        "right"
+      ),
+    ].filter((field): field is NotificationDetailField => field !== null);
+  }
+
+  switch (type) {
     case "POST_COMMENT_CREATED":
     case "REPLY_COMMENT_CREATED":
       return [

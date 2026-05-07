@@ -35,10 +35,6 @@ export default function NotificationToastStack({
             role="status"
             aria-live="polite"
           >
-            {toast.tradeSideLabel ? (
-              <div className={cn("absolute left-0 top-0 h-full w-[3px]", toneStyles.accent)} />
-            ) : null}
-
             <div className="flex items-start gap-3 p-4">
               <div
                 className={cn(
