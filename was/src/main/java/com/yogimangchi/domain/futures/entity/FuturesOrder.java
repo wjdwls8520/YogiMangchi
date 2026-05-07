@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "futures_order")
+// 지정가 체결 매칭용 부분 인덱스는 FuturesOrderIndexInitializer 에서 ApplicationReadyEvent 시점에 생성
+// (PostgreSQL 의 WHERE 조건 부분 인덱스는 JPA @Index 어노테이션으로 표현 불가하므로 JdbcTemplate 직접 실행 방식 사용 — 현물 SpotOrderIndexInitializer 와 동일 패턴)
 public class FuturesOrder {
 
     @Id

@@ -60,6 +60,17 @@ public class FuturesLiquidationRegistry {
                 .incrementAndGet(); // 반환된 AtomicInteger 객체에 "숫자 1 올리고(increment), 그 결과값을 가져와(get)", =  포지션을 잡은 사람이 생겼으니 카운트를 올리는 동작이죠.
     }
 
+    // Bootstrap 전용 — 서버 재시작 시 심볼별 OPEN 포지션 카운트 일괄 복원
+    // (개별 register 반복 호출 대신 한 번에 누적, count <= 0 이면 무시)
+    public void registerCount(String symbol, int count) {
+        if (count <= 0) {
+            return;
+        }
+        holderCounts
+                .computeIfAbsent(normalize(symbol), k -> new AtomicInteger(0))
+                .addAndGet(count);
+    }
+
     // 포지션 청산 시 호출 — 보유자 수 -1, 0이 되면 Map에서 제거
     public void deregister(String symbol) {
         String key = normalize(symbol);

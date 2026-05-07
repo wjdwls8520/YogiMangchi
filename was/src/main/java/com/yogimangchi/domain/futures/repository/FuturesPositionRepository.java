@@ -4,6 +4,7 @@ import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.entity.FuturesPosition;
 import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.enums.PositionStatus;
+import com.yogimangchi.domain.futures.repository.query.FuturesPositionRepositoryCustom;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -15,7 +16,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
-public interface FuturesPositionRepository extends JpaRepository<FuturesPosition, Long> {
+public interface FuturesPositionRepository extends JpaRepository<FuturesPosition, Long>, FuturesPositionRepositoryCustom {
 
     // 주문 체결 시 — 특정 방향의 OPEN 포지션 단건 조회 (비관적 락)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -75,28 +76,11 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             Pageable pageable
     );
 
-    // 강제청산 부트스트랩 — 서버 재시작 시 OPEN 포지션이 존재하는 심볼 목록 복원 (서버 실행시 한번 동작하는 쿼리라서 캐싱하지 않음)
-    @Query("SELECT DISTINCT fp.symbol FROM FuturesPosition fp WHERE fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN")
-    List<String> findDistinctOpenPositionSymbols();
-
     // 지갑 상태 조회 — 해당 지갑의 OPEN 포지션 증거금 합산 (사용 중인 마진 총액)
     @Query("SELECT COALESCE(SUM(fp.totalMargin), 0) FROM FuturesPosition fp WHERE fp.assets = :assets AND fp.positionStatus = :positionStatus")
     java.math.BigDecimal sumTotalMarginByAssetsAndPositionStatus(
             @Param("assets") Assets assets,
             @Param("positionStatus") PositionStatus positionStatus
     );
-
-    // 강제청산 Coordinator — 심볼의 모든 OPEN 포지션 조회 (청산가 비교용, 락 없음)
-    @Query("""
-          SELECT fp
-          FROM FuturesPosition fp
-          WHERE fp.symbol = :symbol
-            AND fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN
-          """)
-    List<FuturesPosition> findAllOpenBySymbol(@Param("symbol") String symbol);
-
-    // 강제청산 부트스트랩 — 심볼별 OPEN 포지션 수 조회 (Registry 카운트 정확 복원용)
-    @Query("SELECT COUNT(fp) FROM FuturesPosition fp WHERE fp.symbol = :symbol AND fp.positionStatus = com.yogimangchi.domain.futures.enums.PositionStatus.OPEN")
-    int countOpenBySymbol(@Param("symbol") String symbol);
 
 }

@@ -1,8 +1,6 @@
 package com.yogimangchi.domain.futures.liquidation;
 
 import com.yogimangchi.domain.futures.service.FuturesCurrentPriceService;
-import com.yogimangchi.domain.futures.entity.FuturesPosition;
-import com.yogimangchi.domain.futures.enums.PositionSide;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +11,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -80,8 +79,11 @@ public class FuturesLiquidationCoordinator {
     //   → 심볼별 강제청산 작업을 비동기로 처리하는 스레드풀
     //   → 4개 스레드 = 동시에 최대 4개 심볼을 병렬 처리 가능
 
+    // 심볼별 한 번에 조회할 청산 후보 최대 개수 (지정가 매칭과 동일)
+    private static final int LIQUIDATION_BATCH_SIZE = 100;
+
     private final FuturesLiquidationRegistry liquidationRegistry; // 감시 중인 심볼 관리 — isWatched, markProcessing, priceWindow 등 인메모리 상태 담당
-    private final FuturesPositionRepository futuresPositionRepository; // DB에서 OPEN 포지션 목록 조회 — 청산가 비교 대상 포지션을 가져올 때 사용
+    private final FuturesPositionRepository futuresPositionRepository; // DB에서 청산 트리거 후보 ID 인덱스 시크 조회 (LONG/SHORT 분리)
     private final FuturesCurrentPriceService futuresCurrentPriceService;  // 마지막으로 저장된 선물 @ticker 가격 조회 — WebSocket 재연결 중 틱 누락 시 보정용
     private final FuturesLiquidationExecutionService liquidationExecutionService;  // 실제 청산 실행 — 포지션/지갑 락 획득 후 정산금액 계산 및 상태 변경 담당
 
@@ -135,17 +137,10 @@ public class FuturesLiquidationCoordinator {
                     priceWindow = LiquidationPriceWindow.single(latest);
                 }
 
-                // DB에서 이 심볼의 OPEN 포지션 전체 조회
-                List<FuturesPosition> openPositions = futuresPositionRepository.findAllOpenBySymbol(symbol);
-
+                // 가격 범위 조건으로 청산 대상 ID만 DB 인덱스 시크 조회
+                // (전체 엔티티 로드 없이 ID만 — 메모리/GC 부담 최소화)
                 final LiquidationPriceWindow window = priceWindow;
-                // 청산 조건에 해당하는 포지션 ID 수집
-                // LONG  : 최저가 <= 청산가 (가격이 청산가 아래로 내려옴)
-                // SHORT : 최고가 >= 청산가 (가격이 청산가 위로 올라옴)
-                List<Long> triggeredIds = openPositions.stream()
-                        .filter(p -> isLiquidationTriggered(p, window))
-                        .map(FuturesPosition::getId)
-                        .toList();
+                List<Long> triggeredIds = findLiquidationCandidateIds(symbol, window);
 
                 // 포지션별 독립 트랜잭션으로 청산 — 하나 실패해도 나머지 계속 처리
                 for (Long positionId : triggeredIds) {
@@ -175,19 +170,21 @@ public class FuturesLiquidationCoordinator {
         }
     }
 
-    // 청산 트리거 조건 판단
-    private boolean isLiquidationTriggered(FuturesPosition position, LiquidationPriceWindow window) {
-        BigDecimal liquidationPrice = position.getLiquidationPrice();
-        if (liquidationPrice == null) {
-            return false;
-        }
-        if (position.getPositionSide() == PositionSide.LONG) {
-            // LONG: 최저가가 청산가 이하로 내려오면 청산
-            return window.minPrice().compareTo(liquidationPrice) <= 0;
-        } else {
-            // SHORT: 최고가가 청산가 이상으로 올라오면 청산
-            return window.maxPrice().compareTo(liquidationPrice) >= 0;
-        }
+    // 청산 후보 ID 조회 — LONG/SHORT 트리거를 두 개의 인덱스 쿼리로 분리
+    // LONG  (가격 하락 → 청산): liquidationPrice >= minPrice
+    // SHORT (가격 상승 → 청산): liquidationPrice <= maxPrice
+    private List<Long> findLiquidationCandidateIds(String symbol, LiquidationPriceWindow window) {
+        List<Long> longCandidates = futuresPositionRepository.findLongLiquidationCandidates(
+                symbol, window.minPrice(), LIQUIDATION_BATCH_SIZE
+        );
+        List<Long> shortCandidates = futuresPositionRepository.findShortLiquidationCandidates(
+                symbol, window.maxPrice(), LIQUIDATION_BATCH_SIZE
+        );
+
+        // 진입 순서 보장 — ID 오름차순 정렬
+        return Stream.concat(longCandidates.stream(), shortCandidates.stream())
+                .sorted()
+                .toList();
     }
 
     // 서버 종료 시 스레드풀 정리 (graceful shutdown 보장)

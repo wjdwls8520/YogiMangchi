@@ -27,6 +27,17 @@ public class FuturesLimitOrderRegistry {
                 .incrementAndGet();
     }
 
+    // Bootstrap 전용 — 서버 재시작 시 심볼별 PENDING 카운트 일괄 복원
+    // (개별 register 반복 호출 대신 한 번에 누적, count <= 0 이면 무시)
+    public void registerCount(String symbol, int count) {
+        if (count <= 0) {
+            return;
+        }
+        holderCounts
+                .computeIfAbsent(normalize(symbol), k -> new AtomicInteger(0))
+                .addAndGet(count);
+    }
+
     // 지정가 주문 체결/취소 시 호출 — 보유자 수 -1, 0이 되면 항목 제거
     public void deregister(String symbol) {
         String key = normalize(symbol);

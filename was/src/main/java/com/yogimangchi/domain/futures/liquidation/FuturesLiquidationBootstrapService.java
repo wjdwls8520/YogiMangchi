@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.futures.liquidation;
 
+import com.yogimangchi.domain.futures.dto.query.FuturesOpenPositionSymbolCountDto;
 import com.yogimangchi.domain.futures.repository.FuturesPositionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,23 +79,26 @@ public class FuturesLiquidationBootstrapService {
     @Transactional(readOnly = true)
     public void restoreOpenPositionSymbols() {
 
-        // DB에서 OPEN 포지션이 존재하는 심볼 목록 조회 ( 중복 제거 )
-        List<String> symbols = futuresPositionRepository.findDistinctOpenPositionSymbols();
+        // 단일 GROUP BY 쿼리로 심볼별 OPEN 포지션 카운트 일괄 조회
+        // (이전: distinct 심볼 조회 + 심볼당 COUNT 쿼리 = N+1)
+        List<FuturesOpenPositionSymbolCountDto> counts =
+                futuresPositionRepository.findOpenPositionCountsGroupBySymbol();
 
-        // 심볼별 실제 OPEN 포지션 수만큼 register — 정확한 카운트 복원 필수
-        // 예) BTC LONG 포지션 보유자 A·B·C 3명 → register 3회 → count=3
-        // count=1로 복원하면 A가 청산할 때 deregister → count=0 → 항목 제거
-        // B·C는 포지션이 있음에도 Registry에서 사라져 강제청산 감시가 중단됨
-        for (String symbol : symbols) {
-            int count = futuresPositionRepository.countOpenBySymbol(symbol);
-            for (int i = 0; i < count; i++) {
-                liquidationRegistry.register(symbol);
-            }
+        if (counts.isEmpty()) {
+            log.info("[강제청산 부트스트랩] 복원할 OPEN 포지션 없음");
+            return;
+        }
+
+        // 심볼별 카운트 일괄 누적 — register 반복 호출 대신 단일 addAndGet
+        for (FuturesOpenPositionSymbolCountDto dto : counts) {
+            liquidationRegistry.registerCount(dto.symbol(), dto.count().intValue());
         }
 
         // 감시할 심볼이 있으면 스케줄러 시작
         liquidationScheduler.refreshSchedule();
 
-        log.info("[강제청산 부트스트랩] OPEN 포지션 심볼 {}개 복원: {}", symbols.size(), symbols);
+        log.info("[강제청산 부트스트랩] OPEN 포지션 심볼 {}개 복원: {}",
+                counts.size(),
+                counts.stream().map(FuturesOpenPositionSymbolCountDto::symbol).toList());
     }
 }

@@ -20,23 +20,6 @@ public interface FuturesOrderRepository extends JpaRepository<FuturesOrder, Long
     @Query("SELECT fo FROM FuturesOrder fo WHERE fo.id = :orderId")
     Optional<FuturesOrder> findByIdForUpdate(@Param("orderId") Long orderId);
 
-    // 지정가 Coordinator — 심볼의 PENDING 지정가 주문 전체 조회 (락 없음, 체결 조건 비교용)
-    @Query("""
-            SELECT fo FROM FuturesOrder fo
-            WHERE fo.symbol = :symbol
-              AND fo.orderType = com.yogimangchi.domain.futures.enums.OrderType.LIMIT
-              AND fo.orderStatus = com.yogimangchi.domain.futures.enums.OrderStatus.PENDING
-            """)
-    List<FuturesOrder> findAllPendingLimitOrdersBySymbol(@Param("symbol") String symbol);
-
-    // 지정가 Bootstrap — 서버 재시작 시 PENDING 주문이 있는 심볼 목록 복원
-    @Query("""
-            SELECT DISTINCT fo.symbol FROM FuturesOrder fo
-            WHERE fo.orderType = com.yogimangchi.domain.futures.enums.OrderType.LIMIT
-              AND fo.orderStatus = com.yogimangchi.domain.futures.enums.OrderStatus.PENDING
-            """)
-    List<String> findDistinctPendingLimitOrderSymbols();
-
     // 지정가 CLOSE 이중등록 방지 / 강제청산 후 일괄취소 —
     // 특정 지갑·심볼·방향의 PENDING 상태 지정가 CLOSE 주문 전체 조회
     @Query("""

@@ -1,8 +1,5 @@
 package com.yogimangchi.domain.futures.limitTradeEngine;
 
-import com.yogimangchi.domain.futures.entity.FuturesOrder;
-import com.yogimangchi.domain.futures.enums.PositionSide;
-import com.yogimangchi.domain.futures.enums.PositionStatus;
 import com.yogimangchi.domain.futures.limitorder.FuturesLimitOrderExecutionService;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import com.yogimangchi.domain.futures.service.FuturesCurrentPriceService;
@@ -15,11 +12,15 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class FuturesLimitOrderCoordinator {
+
+    // 심볼별 한 번에 조회할 체결 후보 최대 개수 (현물과 동일)
+    private static final int MATCH_BATCH_SIZE = 100;
 
     private final FuturesLimitOrderRegistry limitOrderRegistry;
     private final FuturesOrderRepository futuresOrderRepository;
@@ -74,16 +75,9 @@ public class FuturesLimitOrderCoordinator {
                     priceWindow = FuturesLimitOrderPriceWindow.single(latest);
                 }
 
-                // DB에서 이 심볼의 PENDING 지정가 주문 전체 조회
-                List<FuturesOrder> pendingOrders = futuresOrderRepository.findAllPendingLimitOrdersBySymbol(symbol);
-
-                final FuturesLimitOrderPriceWindow window = priceWindow;
-
-                // 체결 조건에 해당하는 주문 ID 수집
-                List<Long> triggeredIds = pendingOrders.stream()
-                        .filter(order -> isTriggered(order, window))
-                        .map(FuturesOrder::getId)
-                        .toList();
+                // 가격 범위 조건으로 체결 대상 ID만 DB에서 인덱스 시크 조회
+                // (전체 엔티티 로드 없이 ID만 — 메모리/GC 부담 최소화)
+                List<Long> triggeredIds = findExecutableOrderIds(symbol, priceWindow);
 
                 // 주문별 독립 트랜잭션으로 체결 — 하나 실패해도 나머지 계속 처리
                 for (Long orderId : triggeredIds) {
@@ -112,25 +106,21 @@ public class FuturesLimitOrderCoordinator {
         }
     }
 
-    // 체결 트리거 조건 판단
-    // LONG  OPEN  : 가격이 지정가 이하로 내려오면 체결 (싸게 매수)
-    // SHORT OPEN  : 가격이 지정가 이상으로 올라오면 체결 (비싸게 매도)
-    // LONG  CLOSE : 가격이 목표가 이상으로 올라오면 체결 (익절 매도)
-    // SHORT CLOSE : 가격이 목표가 이하로 내려오면 체결 (익절 매수)
-    private boolean isTriggered(FuturesOrder order, FuturesLimitOrderPriceWindow window) {
-        BigDecimal orderPrice = order.getOrderPrice();
-        PositionSide side = order.getPositionSide();
-        PositionStatus action = order.getPositionAction();
+    // 체결 대상 주문 ID 조회 — 4가지 트리거 조건을 두 개의 인덱스 쿼리로 통합
+    // 하한 트리거 (가격 하락 → 체결): LONG OPEN ∪ SHORT CLOSE — orderPrice >= minPrice
+    // 상한 트리거 (가격 상승 → 체결): SHORT OPEN ∪ LONG CLOSE — orderPrice <= maxPrice
+    private List<Long> findExecutableOrderIds(String symbol, FuturesLimitOrderPriceWindow window) {
+        List<Long> lower = futuresOrderRepository.findExecutableLowerTriggerOrderIds(
+                symbol, window.minPrice(), MATCH_BATCH_SIZE
+        );
+        List<Long> upper = futuresOrderRepository.findExecutableUpperTriggerOrderIds(
+                symbol, window.maxPrice(), MATCH_BATCH_SIZE
+        );
 
-        if (side == PositionSide.LONG && action == PositionStatus.OPEN) {
-            return window.minPrice().compareTo(orderPrice) <= 0;
-        } else if (side == PositionSide.SHORT && action == PositionStatus.OPEN) {
-            return window.maxPrice().compareTo(orderPrice) >= 0;
-        } else if (side == PositionSide.LONG && action == PositionStatus.CLOSE) {
-            return window.maxPrice().compareTo(orderPrice) >= 0;
-        } else {
-            return window.minPrice().compareTo(orderPrice) <= 0; // SHORT CLOSE
-        }
+        // 주문 등록 순서 보장 — ID 오름차순 정렬
+        return Stream.concat(lower.stream(), upper.stream())
+                .sorted()
+                .toList();
     }
 
     // 서버 종료 시 스레드풀 정리 — graceful shutdown 보장

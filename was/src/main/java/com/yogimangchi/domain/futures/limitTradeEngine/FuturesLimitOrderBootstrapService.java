@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.futures.limitTradeEngine;
 
+import com.yogimangchi.domain.futures.dto.query.FuturesPendingSymbolCountDto;
 import com.yogimangchi.domain.futures.repository.FuturesOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,8 +14,8 @@ import java.util.List;
  * 서버 재시작 시 인메모리 Registry 복원 서비스
  *
  * 서버가 내려간 사이에도 DB에는 PENDING 지정가 주문이 남아있다.
- * ApplicationReadyEvent 시점에 DB를 조회해 해당 심볼들을 Registry에 다시 등록하고
- * 스케줄러를 가동해 체결 감시를 재개한다.
+ * ApplicationReadyEvent 시점에 단일 GROUP BY 쿼리로 심볼별 PENDING 카운트를
+ * 일괄 조회해 Registry 에 복원하고 스케줄러를 가동해 체결 감시를 재개한다.
  */
 @Slf4j
 @Service
@@ -28,22 +29,21 @@ public class FuturesLimitOrderBootstrapService {
     // 서버 기동 완료 후 PENDING 지정가 주문 심볼 복원
     @EventListener(ApplicationReadyEvent.class)
     public void restoreOnStartup() {
-        List<String> pendingSymbols = futuresOrderRepository.findDistinctPendingLimitOrderSymbols();
+        // 단일 쿼리로 (symbol, count) 튜플만 조회 — 엔티티 로드 없음
+        List<FuturesPendingSymbolCountDto> counts =
+                futuresOrderRepository.findPendingLimitOrderCountsGroupBySymbol();
 
-        if (pendingSymbols.isEmpty()) {
+        if (counts.isEmpty()) {
             log.info("[지정가 Bootstrap] 복원할 PENDING 주문 없음");
             return;
         }
 
-        // 심볼별 PENDING 주문 수 만큼 register — 정확한 카운트 복원은 주문 수 기준으로 재조회
-        for (String symbol : pendingSymbols) {
-            int count = futuresOrderRepository.findAllPendingLimitOrdersBySymbol(symbol).size();
-            for (int i = 0; i < count; i++) {
-                limitOrderRegistry.register(symbol);
-            }
+        for (FuturesPendingSymbolCountDto dto : counts) {
+            limitOrderRegistry.registerCount(dto.symbol(), dto.count().intValue());
         }
 
         limitOrderScheduler.refreshSchedule();
-        log.info("[지정가 Bootstrap] 복원 완료 — symbols={}", pendingSymbols);
+        log.info("[지정가 Bootstrap] 복원 완료 — symbols={}",
+                counts.stream().map(FuturesPendingSymbolCountDto::symbol).toList());
     }
 }
