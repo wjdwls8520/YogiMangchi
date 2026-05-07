@@ -88,9 +88,6 @@ public class LimitOrderMatchCoordinator {
                     }
                 }
 
-                // 체결 후 남은 미체결 주문 존재 여부 동기화
-                signalRegistry.syncOpenSymbol(symbol, orderRepository.existsOpenLimitOrderBySymbol(symbol));
-
                 if (!signalRegistry.hasOpenLimitOrder(symbol) || !signalRegistry.hasPendingPriceWindow(symbol)) {
                     break;
                 }

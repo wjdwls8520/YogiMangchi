@@ -17,8 +17,7 @@ public class LimitOrderBootstrapService {
 
     // 서버 재기동 시 열린 지정가 주문 심볼 복구
     public void loadOpenSymbols() {
-        orderRepository.findDistinctOpenLimitSymbols()
-                .forEach(signalRegistry::registerOpenSymbol);
+        signalRegistry.initializeCounts(orderRepository.countOpenLimitOrdersPerSymbol());
         limitOrderScheduler.refreshSchedule();
     }
 

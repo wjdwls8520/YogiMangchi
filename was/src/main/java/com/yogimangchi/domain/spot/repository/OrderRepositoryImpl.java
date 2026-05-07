@@ -17,6 +17,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.yogimangchi.domain.asset.entity.QAssets.assets;
 import static com.yogimangchi.domain.market.entity.QMarketSymbol.marketSymbol;
@@ -179,11 +181,10 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     }
 
     @Override
-    public List<String> findDistinctOpenLimitSymbols() {
-        // 서버 기동 시 복구할 열린 심볼 목록 조회
+    public Map<String, Long> countOpenLimitOrdersPerSymbol() {
+        // 서버 기동 시 복구할 심볼별 미체결 지정가 주문 개수 조회
         return queryFactory
-                .select(order.symbol)
-                .distinct()
+                .select(order.symbol, order.count())
                 .from(order)
                 .join(order.assets, assets)
                 .where(
@@ -192,7 +193,13 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                         limitOrderType(),
                         openStatus()
                 )
-                .fetch();
+                .groupBy(order.symbol)
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(
+                        tuple -> tuple.get(order.symbol),
+                        tuple -> tuple.get(order.count())
+                ));
     }
 
     private BooleanExpression assetTypeEq(AssetType assetType) {

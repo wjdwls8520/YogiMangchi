@@ -6,6 +6,7 @@ import com.yogimangchi.domain.spot.dto.query.OrderQueryDto;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public interface OrderRepositoryCustom {
 
@@ -24,6 +25,6 @@ public interface OrderRepositoryCustom {
     // 심볼 기준 미체결 지정가 주문 존재 여부 확인 메서드
     boolean existsOpenLimitOrderBySymbol(String symbol);
 
-    // 열린 지정가 주문 심볼 목록 조회 메서드
-    List<String> findDistinctOpenLimitSymbols();
+    // 서버 기동 시 복구할 심볼별 미체결 지정가 주문 개수 조회
+    Map<String, Long> countOpenLimitOrdersPerSymbol();
 }

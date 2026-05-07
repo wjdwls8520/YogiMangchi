@@ -10,6 +10,7 @@ import com.yogimangchi.domain.spot.constant.TradeFeePolicy;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.entity.TradeHistory;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
+import com.yogimangchi.domain.spot.event.SpotLimitOrderCountEvent;
 import com.yogimangchi.domain.spot.event.SpotOrderExecutedEvent;
 import com.yogimangchi.domain.spot.matching.LimitOrderSignalRegistry;
 import com.yogimangchi.domain.spot.repository.OrderRepository;
@@ -32,7 +33,6 @@ public class LimitOrderExecutionService {
     private final AssetRepository assetRepository;
     private final HoldingRepository holdingRepository;
     private final TradeHistoryRepository tradeHistoryRepository;
-    private final LimitOrderSignalRegistry limitOrderSignalRegistry;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -121,8 +121,8 @@ public class LimitOrderExecutionService {
                 history.getExecutedAt()
         );
 
-        // 미체결 심볼 상태를 갱신한다.
-        limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        // 체결 완료 이벤트를 발행하여 메모리 카운트를 감소시킨다. (AFTER_COMMIT 시 처리)
+        eventPublisher.publishEvent(new SpotLimitOrderCountEvent(order.getSymbol(), false));
 
         // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
         notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
@@ -175,8 +175,8 @@ public class LimitOrderExecutionService {
                 history.getExecutedAt()
         );
 
-        // 미체결 심볼 상태를 갱신한다.
-        limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        // 체결 완료 이벤트를 발행하여 메모리 카운트를 감소시킨다. (AFTER_COMMIT 시 처리)
+        eventPublisher.publishEvent(new SpotLimitOrderCountEvent(order.getSymbol(), false));
 
         // 지정가 체결이 모두 반영된 뒤 커밋 후 알림 발송을 예약한다.
         notificationService.notifyOrderCompleted(wallet.getMember(), wallet.getType(), order);
