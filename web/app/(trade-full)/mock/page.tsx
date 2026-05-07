@@ -7,9 +7,9 @@ import CoinHeader from "@/components/trade/CoinHeader";
 import MainCandleChart from "@/components/trade/CoinChart";
 import OrderBook from "@/components/trade/OrderBook";
 import RecentTrades from "@/components/trade/RecentTrades";
-import MockCoinList from "@/components/mock/MockCoinList";
-import MockOrderForm from "@/components/mock/MockOrderForm";
-import MockUserOrderHistory from "@/components/mock/MockUserOrderHistory";
+import CoinList from "@/components/trade/CoinList";
+import OrderForm from "@/components/trade/OrderForm";
+import UserOrderHistory from "@/components/trade/UserOrderHistory";
 import MockNoticeBar from "@/components/mock/MockNoticeBar";
 import Tabs from "@/components/ui/Tabs";
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils/cs";
 
 export default function MockTradingPage() {
   const isParticipated = useMockWalletStore((state) => state.isParticipated);
+  const holdings = useMockWalletStore((state) => state.holdings);
   const [isCoinListCollapsed, setIsCoinListCollapsed] = useState(true);
   const [activeInfoTab, setActiveInfoTab] = useState("orderbook");
 
@@ -73,7 +74,12 @@ export default function MockTradingPage() {
         {/* Left Sidebar */}
         <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-[360px] overflow-hidden flex flex-col")}>
           <div className="flex-1 overflow-auto bg-[#161A1E]">
-             <MockCoinList />
+             <CoinList 
+               mode="mock"
+               availableMarketTypes={["spot"]}
+               holdingSymbols={holdings.map((item) => item.symbol)}
+               isParticipated={isParticipated}
+             />
           </div>
         </aside>
 
@@ -121,12 +127,12 @@ export default function MockTradingPage() {
 
           {/* Activity Section */}
           <section className="col-start-1 col-end-3 row-start-2 row-end-3 bg-[#161A1E] border-t-4 border-[#0B0E11] border-r border-white/5 min-h-0 overflow-hidden">
-             <MockUserOrderHistory />
+             <UserOrderHistory mode="mock" />
           </section>
 
           {/* Order Panel */}
           <aside className="col-start-3 col-end-4 row-start-1 row-end-3 bg-[#161A1E] min-h-0 min-w-0 overflow-y-auto relative">
-              <MockOrderForm />
+              <OrderForm mode="mock" />
           </aside>
         </div>
       </div>
