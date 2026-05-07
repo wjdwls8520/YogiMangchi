@@ -313,10 +313,6 @@ function NotificationListItem({
         isHighlighted ? toneStyles.highlightSurface : isUnread && toneStyles.unreadSurface
       )}
     >
-      {isUnread ? (
-        <div className={cn("absolute left-0 top-0 h-full w-[3px]", toneStyles.accent)} />
-      ) : null}
-
       <button
         type="button"
         onClick={() => onMoveNotification(notification)}
@@ -340,8 +336,8 @@ function NotificationListItem({
                 className={cn(
                   "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                   isUnread
-                    ? "bg-[#0058FF]/10 text-[#0058FF] dark:bg-[#3B82F6]/15 dark:text-[#60A5FA]"
-                    : "bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-gray-500"
+                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    : "bg-gray-50 text-gray-400 dark:bg-zinc-900 dark:text-gray-600"
                 )}
               >
                 {categoryLabel}

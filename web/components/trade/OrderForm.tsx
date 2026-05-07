@@ -221,7 +221,7 @@ export default function OrderForm({
     <section className="flex flex-col bg-[#161A1E] text-white h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
-        <span className="text-xs font-black text-white/40 uppercase tracking-widest">
+        <span className="text-xs text-white/40 font-black">
           {mode === "mock" ? "Mock Order" : "Spot Order"}
         </span>
         <div className="flex items-center gap-1.5 text-[11px] font-bold">

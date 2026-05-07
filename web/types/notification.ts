@@ -10,6 +10,8 @@ export type NotificationCategory =
 export type NotificationType =
   | "ORDER_COMPLETED"
   | "ORDER_CANCELED"
+  | "LIQUIDATION_COMPLETED"
+  | "ASSET_TRANSFER_COMPLETED"
   | "POST_COMMENT_CREATED"
   | "REPLY_COMMENT_CREATED"
   | "POST_LIKED"
@@ -18,7 +20,14 @@ export type NotificationType =
   | string;
 
 export type NotificationPayload = Record<string, unknown>;
-export type NotificationTradeTone = "buy" | "sell" | null;
+export type NotificationTradeTone =
+  | "buy"
+  | "sell"
+  | "long"
+  | "short"
+  | "warning"
+  | "info"
+  | null;
 
 export interface NotificationItem {
   notificationId: number;
