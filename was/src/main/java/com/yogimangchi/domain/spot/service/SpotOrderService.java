@@ -16,6 +16,7 @@ import com.yogimangchi.domain.spot.dto.request.MarketOrderRequestDto;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.entity.TradeHistory;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
+import com.yogimangchi.domain.spot.event.SpotLimitOrderCountEvent;
 import com.yogimangchi.domain.spot.event.SpotOrderExecutedEvent;
 import com.yogimangchi.domain.spot.matching.LimitOrderScheduler;
 import com.yogimangchi.domain.spot.matching.LimitOrderSignalRegistry;
@@ -48,7 +49,6 @@ public class SpotOrderService {
     private final MarketSymbolRepository marketSymbolRepository;
     private final NotificationService notificationService;
     private final LimitOrderScheduler limitOrderScheduler;
-    private final LimitOrderSignalRegistry limitOrderSignalRegistry;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -136,7 +136,7 @@ public class SpotOrderService {
         }
 
         orderRepository.save(Order.createLimitOrder(wallet, symbol, side, request.price(), request.quantity()));
-        limitOrderSignalRegistry.registerOpenSymbol(symbol);
+        eventPublisher.publishEvent(new SpotLimitOrderCountEvent(symbol, true));
         limitOrderScheduler.refreshSchedule();
     }
 
@@ -160,7 +160,7 @@ public class SpotOrderService {
         }
 
         order.cancelOrder(LocalDateTime.now());
-        limitOrderSignalRegistry.syncOpenSymbol(order.getSymbol(), orderRepository.existsOpenLimitOrderBySymbol(order.getSymbol()));
+        eventPublisher.publishEvent(new SpotLimitOrderCountEvent(order.getSymbol(), false));
         limitOrderScheduler.refreshSchedule();
     }
 
@@ -176,7 +176,6 @@ public class SpotOrderService {
         }
 
         LocalDateTime canceledAt = LocalDateTime.now();
-        Set<String> affectedSymbols = new HashSet<>();
 
         for (Order order : openOrders) {
             if ("BUY".equals(order.getSide())) {
@@ -186,12 +185,10 @@ public class SpotOrderService {
             }
 
             order.cancelOrder(canceledAt);
-            affectedSymbols.add(order.getSymbol());
+            // 각 주문 취소 시마다 카운트 감소 이벤트 발행
+            eventPublisher.publishEvent(new SpotLimitOrderCountEvent(order.getSymbol(), false));
         }
 
-        for (String symbol : affectedSymbols) {
-            limitOrderSignalRegistry.syncOpenSymbol(symbol, orderRepository.existsOpenLimitOrderBySymbol(symbol));
-        }
         limitOrderScheduler.refreshSchedule();
     }
 
