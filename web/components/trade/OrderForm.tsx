@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useMockWalletStore } from "@/stores/useMockWalletStore";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireLogin } from "@/hooks/useWithAuth";
 import { cn } from "@/lib/utils/cs";
 
-/* ────────────────── types ────────────────── */
+/* ────────────────── Types ────────────────── */
 
-type OrderType = "limit" | "market";
-type OrderTab = "buy" | "sell";
+type OrderExecutionType = "MARKET" | "LIMIT";
+type OrderMainTab = "buy" | "sell";
 type OrderMode = "mock" | "trade";
 
 type OrderResult = {
@@ -27,33 +28,27 @@ type OrderHolding = {
   availableQuantity?: number;
 };
 
-type MarketOrderSubmitParams = {
+type OrderSubmitParams = {
   memberId: number;
   symbol: string;
   side: "BUY" | "SELL";
+  price?: number;
   quantity?: number;
   totalAmount?: number;
 };
 
-type LimitOrderSubmitParams = {
-  memberId: number;
-  symbol: string;
-  side: "BUY" | "SELL";
-  price: number;
-  quantity: number;
-};
-
 export type OrderFormProps = {
   mode?: OrderMode;
+  // Optional props for external data control (mostly for trade mode)
   isParticipated?: boolean;
   isLoadingPortfolio?: boolean;
   usdtBalance?: number;
   holdings?: OrderHolding[];
-  onSubmitMarketOrder?: (params: MarketOrderSubmitParams) => Promise<OrderResult>;
-  onSubmitLimitOrder?: (params: LimitOrderSubmitParams) => Promise<OrderResult>;
+  onSubmitMarketOrder?: (params: OrderSubmitParams) => Promise<OrderResult>;
+  onSubmitLimitOrder?: (params: OrderSubmitParams) => Promise<OrderResult>;
 };
 
-/* ────────────────── constants ────────────────── */
+/* ────────────────── Constants ────────────────── */
 
 const MARKET_FEE_RATE = 0.0005;
 const LIMIT_FEE_RATE = 0.0003;
@@ -65,7 +60,7 @@ const ORDER_RATIO_OPTIONS = [
   { label: "100%", ratio: 1 },
 ];
 
-/* ────────────────── helpers ────────────────── */
+/* ────────────────── Helpers ────────────────── */
 
 const sanitizeDecimalInput = (value: string) => {
   const normalized = value.replace(/,/g, "").replace(/[^\d.]/g, "");
@@ -76,30 +71,36 @@ const sanitizeDecimalInput = (value: string) => {
 const toInputValue = (v: number, d = 8) =>
   Number.isFinite(v) && v > 0 ? v.toFixed(d).replace(/\.?0+$/, "") : "";
 
-/* ────────────────── component ────────────────── */
+/* ────────────────── Component ────────────────── */
 
 export default function OrderForm({
   mode = "trade",
-  isParticipated = false,
-  isLoadingPortfolio = false,
-  usdtBalance = 0,
-  holdings = [],
-  onSubmitMarketOrder,
-  onSubmitLimitOrder,
+  ...props
 }: OrderFormProps) {
   const router = useRouter();
   const { isLogin, user } = useAuthStore();
   const { alert, toast } = useFeedback();
   const requireLogin = useRequireLogin({ redirectMode: "push" });
 
+  // Ticker Store
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
   const coinMetaList = useTickerStore((s) => s.coinMetaList);
   const realtime = useTickerStore((s) => s.tickers[s.selectedCoin]);
   const selectedOrderPrice = useTickerStore((s) => s.selectedOrderPrice);
   const setSelectedOrderPrice = useTickerStore((s) => s.setSelectedOrderPrice);
 
-  const [orderTab, setOrderTab] = useState<OrderTab>("buy");
-  const [execType, setExecType] = useState<OrderType>("market");
+  // Mock Wallet Store (Used only in mock mode unless props are provided)
+  const mockStore = useMockWalletStore();
+  
+  // Decide which data to use (Props vs Store)
+  const isMock = mode === "mock";
+  const isParticipated = props.isParticipated ?? (isMock ? mockStore.isParticipated : false);
+  const isLoadingPortfolio = props.isLoadingPortfolio ?? (isMock ? mockStore.isLoadingPortfolio : false);
+  const usdtBalance = props.usdtBalance ?? (isMock ? mockStore.usdtBalance : 0);
+  const holdings = props.holdings ?? (isMock ? mockStore.holdings : []);
+  
+  const [orderTab, setOrderTab] = useState<OrderMainTab>("buy");
+  const [execType, setExecType] = useState<OrderExecutionType>("MARKET");
   const [orderPrice, setOrderPrice] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
   const [orderAmount, setOrderAmount] = useState(""); // For market buy
@@ -111,7 +112,7 @@ export default function OrderForm({
     const priceStr = toInputValue(selectedOrderPrice);
     if (!priceStr) return;
 
-    setExecType("limit");
+    setExecType("LIMIT");
     setOrderPrice(priceStr);
     setSelectedOrderPrice(null);
   }, [selectedOrderPrice, setSelectedOrderPrice]);
@@ -120,13 +121,13 @@ export default function OrderForm({
   if (!meta) return <div className="h-full animate-pulse bg-[#161A1E]" />;
 
   const currentPrice = realtime?.price ?? 0;
-  const isLimit = execType === "limit";
+  const isLimit = execType === "LIMIT";
   const isBuy = orderTab === "buy";
-  const isDark = true; // Trading pages are dark
-
+  
   const selectedHolding = holdings.find((item) => item.symbol === selectedCoin);
   const availableHolding = selectedHolding?.availableQuantity ?? selectedHolding?.quantity ?? 0;
 
+  // Calculations
   const numPrice = Number(orderPrice);
   const numQty = Number(orderQuantity);
   const numAmount = Number(orderAmount);
@@ -134,23 +135,27 @@ export default function OrderForm({
   const refPrice = isLimit && numPrice > 0 ? numPrice : currentPrice;
   const currentFeeRate = isLimit ? LIMIT_FEE_RATE : MARKET_FEE_RATE;
 
-  // Expected values
+  // Buy Max
+  const maxBuyNotional = usdtBalance / (1 + currentFeeRate);
+  const maxBuyQty = refPrice > 0 ? maxBuyNotional / refPrice : 0;
+  
+  // Market Buy expected qty
   const expectedBuyQuantity = (isBuy && !isLimit && currentPrice > 0 && numAmount > 0)
     ? (numAmount * (1 - currentFeeRate)) / currentPrice
     : 0;
 
+  // Sell expected amount
   const expectedSellAmount = (!isBuy && currentPrice > 0 && numQty > 0)
     ? numQty * currentPrice * (1 - currentFeeRate)
     : 0;
 
+  // Limit required amount
   const expectedLimitAmount = (isLimit && numPrice > 0 && numQty > 0) ? numPrice * numQty : 0;
   const estRequired = expectedLimitAmount * (1 + currentFeeRate);
 
   const handleRatio = (ratio: number) => {
     if (isBuy) {
       if (isLimit) {
-        const maxBuyNotional = usdtBalance / (1 + currentFeeRate);
-        const maxBuyQty = refPrice > 0 ? maxBuyNotional / refPrice : 0;
         setOrderQuantity(toInputValue(maxBuyQty * ratio));
       } else {
         setOrderAmount(toInputValue(usdtBalance * ratio, 2));
@@ -170,49 +175,74 @@ export default function OrderForm({
       if (!(await requireLogin())) return;
     }
 
-    if (mode === "mock" && !isParticipated) {
+    if (isMock && !isParticipated) {
       await alert("먼저 모의투자 계좌를 생성해 주세요.");
       return;
     }
 
     const side = isBuy ? "BUY" : "SELL";
-    const memberId = user?.memberId;
+    const memberId = user?.memberId || mockStore.ownerMemberId;
     if (!memberId) return;
 
     setIsSubmitting(true);
     try {
-      let result: OrderResult;
       if (isLimit) {
         if (!numPrice || numPrice <= 0) throw new Error("가격을 입력해 주세요.");
         if (!numQty || numQty <= 0) throw new Error("수량을 입력해 주세요.");
         if (expectedLimitAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
+        if (isBuy && estRequired > usdtBalance) throw new Error("가용 자금이 부족합니다.");
+        if (!isBuy && numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
+
+        if (isMock) {
+          await mockStore.executeLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
+        } else if (props.onSubmitLimitOrder) {
+          const res = await props.onSubmitLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
+          if (!res.success) throw new Error(res.message || "주문 실패");
+        }
         
-        result = await onSubmitLimitOrder!({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
+        toast({ title: "지정가 주문 완료", tone: "success" });
       } else {
+        // Market
         if (isBuy) {
           if (!numAmount || numAmount <= 0) throw new Error("금액을 입력해 주세요.");
-          result = await onSubmitMarketOrder!({ memberId, symbol: selectedCoin, side, totalAmount: numAmount });
+          if (numAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
+          if (numAmount > usdtBalance) throw new Error("가용 자금이 부족합니다.");
         } else {
           if (!numQty || numQty <= 0) throw new Error("수량을 입력해 주세요.");
-          result = await onSubmitMarketOrder!({ memberId, symbol: selectedCoin, side, quantity: numQty });
+          if (expectedSellAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
+          if (numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
         }
-      }
 
-      if (result.success) {
-        toast({ title: isLimit ? "지정가 주문 완료" : "시장가 주문 완료", tone: "success" });
-        setOrderAmount("");
-        setOrderQuantity("");
-      } else {
-        throw new Error(result.message || "주문 실패");
+        if (isMock) {
+          await mockStore.executeMarketOrder(
+            isBuy 
+              ? { memberId, symbol: selectedCoin, side, totalAmount: numAmount }
+              : { memberId, symbol: selectedCoin, side, quantity: numQty }
+          );
+        } else if (props.onSubmitMarketOrder) {
+          const res = await props.onSubmitMarketOrder(
+            isBuy 
+              ? { memberId, symbol: selectedCoin, side, totalAmount: numAmount }
+              : { memberId, symbol: selectedCoin, side, quantity: numQty }
+          );
+          if (!res.success) throw new Error(res.message || "주문 실패");
+        }
+        
+        toast({ title: "시장가 주문 완료", tone: "success" });
       }
+      
+      setOrderAmount("");
+      setOrderQuantity("");
     } catch (e: any) {
-      await alert(e.message);
+      await alert(e.message || "주문 실패");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const isFormDisabled = isSubmitting || isLoadingPortfolio || currentPrice <= 0;
+  
+  /* ═══════ UI pieces ═══════ */
   const inputCls = "flex items-center bg-[#1E2329] rounded border border-transparent focus-within:border-[#F0B90B]/50 px-3 py-[6px] transition-colors";
   const labelCls = "text-[12px] font-medium text-gray-500 w-14 shrink-0";
   const fieldCls = "flex-1 bg-transparent text-right text-[13px] text-white outline-none font-bold";
@@ -221,8 +251,8 @@ export default function OrderForm({
     <section className="flex flex-col bg-[#161A1E] text-white h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
-        <span className="text-xs text-white/40 font-black">
-          {mode === "mock" ? "Mock Order" : "Spot Order"}
+        <span className="text-xs font-black text-white/40">
+          {isMock ? "Mock Order" : "Spot Order"}
         </span>
         <div className="flex items-center gap-1.5 text-[11px] font-bold">
           <span className="text-gray-500">Fee</span>
@@ -249,8 +279,8 @@ export default function OrderForm({
       <div className="px-4 pt-4 pb-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
         {/* Execution Type */}
         <div className="flex gap-5 text-[13px] font-bold">
-          <button onClick={() => setExecType("market")} className={!isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>시장가</button>
-          <button onClick={() => setExecType("limit")} className={isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>지정가</button>
+          <button onClick={() => setExecType("MARKET")} className={!isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>시장가</button>
+          <button onClick={() => setExecType("LIMIT")} className={isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>지정가</button>
         </div>
 
         {/* Price */}

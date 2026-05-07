@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCcw, ArrowLeftRight } from "lucide-react";
 import CoinHeader from "@/components/trade/CoinHeader";
 import MainCandleChart from "@/components/trade/CoinChart";
 import OrderBook from "@/components/trade/OrderBook";
@@ -20,6 +20,7 @@ import { formatAssetNumber } from "@/lib/utils/number";
 import Tabs from "@/components/ui/Tabs";
 import TradingLockedOverlay from "@/components/quest/TradingLockedOverlay";
 import { useQuestStore } from "@/stores/useQuestStore";
+import AssetTransferModal from "@/components/asset/AssetTransferModal";
 
 type MarketMode = "spot" | "futures";
 
@@ -34,6 +35,7 @@ export default function IntegratedTradingPage() {
   const [marketMode, setMarketMode] = useState<MarketMode>("futures"); // 기본값을 선물로 설정 (현재 백엔드 준비 상태 반영)
   const [isCoinListCollapsed, setIsCoinListCollapsed] = useState(true);
   const [activeInfoTab, setActiveInfoTab] = useState("orderbook");
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   useEffect(() => {
     document.body.classList.add("bg-[#0B0E11]");
@@ -108,7 +110,14 @@ export default function IntegratedTradingPage() {
               <TradingMetric label="보유 현금" value={formatAssetNumber(availableSpotBalance)} accentClassName="text-emerald-400" />
             </>
           )}
-          <div className="ml-4 border-l border-white/5 pl-4">
+          <div className="ml-4 border-l border-white/5 pl-4 flex items-center gap-1">
+            <button 
+              onClick={() => setIsTransferModalOpen(true)}
+              className="p-2 text-white/40 hover:text-white transition-colors"
+              title="자산 이체"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+            </button>
             <button 
               onClick={() => marketMode === "futures" && void futures.refreshBaseData()} 
               disabled={futures.isRefreshingBase} 
@@ -225,6 +234,13 @@ export default function IntegratedTradingPage() {
           </aside>
         </div>
       </div>
+
+      <AssetTransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        onSuccess={() => marketMode === "futures" && void futures.refreshBaseData()}
+        initialFromType={marketMode === "futures" ? "TRADE_FUTURE" : "TRADE_SPOT"}
+      />
     </div>
   );
 }

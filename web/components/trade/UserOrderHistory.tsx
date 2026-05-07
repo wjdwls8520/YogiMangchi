@@ -1,18 +1,22 @@
 "use client";
 
-import { type RefObject, useState } from "react";
-import Button from "@/components/ui/Button";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import Tabs from "@/components/ui/Tabs";
-import Select from "@/components/ui/Select";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useMockWalletStore } from "@/stores/useMockWalletStore";
+import { useFeedback } from "@/components/ui/FeedbackProvider";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
+import { cancelOrder } from "@/lib/api/trade";
 import { cn } from "@/lib/utils/cs";
 
-export type HistoryTab = "unfilled" | "filled";
-export type OrderFilter = "all" | "buy" | "sell";
+/* ────────────────── Types ────────────────── */
 
-export type UserOrderHistoryRow = {
+export type OrderHistoryMode = "mock" | "trade";
+export type HistoryTab = "pending" | "orders"; // pending: 미체결, orders: 체결
+
+export type OrderHistoryRow = {
   id: number;
   date: string | null;
   symbol: string;
@@ -24,30 +28,34 @@ export type UserOrderHistoryRow = {
   status: string;
 };
 
-type UserOrderHistoryProps = {
-  mode?: "mock" | "trade";
-  historyTab?: HistoryTab;
-  selectedOrderType?: OrderFilter;
-  rows?: UserOrderHistoryRow[];
-  isLoading?: boolean;
-  errorMessage?: string;
-  hasLoadedPortfolio?: boolean;
-  isParticipated?: boolean;
-  onHistoryTabChange?: (nextTab: HistoryTab) => void;
-  onOrderTypeChange?: (nextFilter: OrderFilter) => void;
-  onCancelOrder?: (orderId: number) => void | Promise<void>;
-  cancelingOrderId?: number | null;
-  hasNext?: boolean;
-  isFetchingMore?: boolean;
-  loadMoreRef?: RefObject<HTMLDivElement | null>;
-  scrollContainerRef?: RefObject<HTMLDivElement | null>;
+type CursorPage<T> = {
+  content: T[];
+  nextCursorId: number | null;
+  hasNext: boolean;
 };
 
-const ORDER_OPTIONS = [
-  { label: "구분", value: "all" },
-  { label: "매수", value: "buy" },
-  { label: "매도", value: "sell" },
-];
+type UserOrderHistoryProps = {
+  mode?: OrderHistoryMode;
+};
+
+/* ────────────────── Helpers ────────────────── */
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getCursorPage = <T,>(payload: unknown): CursorPage<T> => {
+  if (!isRecord(payload)) return { content: [], nextCursorId: null, hasNext: false };
+  const data = isRecord(payload.data) ? payload.data : null;
+  const source = data && isRecord(data.data) ? data.data : (isRecord(payload) ? payload : null);
+  
+  if (!source || !isRecord(source)) return { content: [], nextCursorId: null, hasNext: false };
+  
+  return {
+    content: Array.isArray(source.content) ? (source.content as T[]) : [],
+    nextCursorId: typeof source.nextCursorId === "number" ? source.nextCursorId : null,
+    hasNext: source.hasNext === true,
+  };
+};
 
 const formatStatus = (status: string) => {
   if (status === "PENDING") return "대기중";
@@ -57,47 +65,143 @@ const formatStatus = (status: string) => {
   return status;
 };
 
+/* ────────────────── Component ────────────────── */
+
 export default function UserOrderHistory({
   mode = "trade",
-  historyTab: initialHistoryTab = "filled",
-  selectedOrderType: initialOrderType = "all",
-  rows = [],
-  isLoading = false,
-  errorMessage = "",
-  hasLoadedPortfolio = true,
-  isParticipated = true,
-  onHistoryTabChange,
-  onOrderTypeChange,
-  onCancelOrder,
-  cancelingOrderId = null,
-  hasNext = false,
-  isFetchingMore = false,
-  loadMoreRef,
-  scrollContainerRef,
 }: UserOrderHistoryProps) {
+  const { alert, confirm, toast } = useFeedback();
+  
+  // Stores
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   
-  const [internalTab, setInternalTab] = useState<HistoryTab>(initialHistoryTab);
-  const [internalOrderType, setInternalOrderType] = useState<OrderFilter>(initialOrderType);
+  // Mock Specific Stores
+  const historyVersion = useMockWalletStore((state) => state.historyVersion);
+  const isParticipated = useMockWalletStore((state) => state.isParticipated);
+  const hasLoadedPortfolio = useMockWalletStore((state) => state.hasLoadedPortfolio);
+  const ownerMemberId = useMockWalletStore((state) => state.ownerMemberId);
+  const loadMockWallet = useMockWalletStore((state) => state.loadMockWallet);
 
-  const currentTab = onHistoryTabChange ? initialHistoryTab : internalTab;
-  const currentOrderType = onOrderTypeChange ? initialOrderType : internalOrderType;
-
-  const handleTabChange = (v: HistoryTab) => {
-    setInternalTab(v);
-    onHistoryTabChange?.(v);
-  };
-
-  const handleOrderTypeChange = (v: OrderFilter) => {
-    setInternalOrderType(v);
-    onOrderTypeChange?.(v);
-  };
+  // States
+  const [activeTab, setActiveTab] = useState<HistoryTab>("orders");
+  const [rows, setRows] = useState<OrderHistoryRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
-  const selectedCoinMeta = coinMetaList.find((coin) => coin.symbol === selectedCoin);
-  const quoteAsset = selectedCoinMeta?.quoteAsset ?? "USDT";
+  // Pagination
+  const [nextCursorId, setNextCursorId] = useState<number | null>(null);
+  const [hasNext, setHasNext] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // SSE Refresh (Mock Only for now)
+  useEffect(() => {
+    if (mode !== "mock") return;
+    const eventName = getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED");
+    const handleOrderCompleted = () => setRefreshKey((prev) => prev + 1);
+    window.addEventListener(eventName, handleOrderCompleted);
+    return () => window.removeEventListener(eventName, handleOrderCompleted);
+  }, [mode]);
+
+  // Fetch Logic
+  const loadRows = useCallback(async (isInitial = true) => {
+    if (mode === "trade") {
+      setRows([]);
+      return;
+    }
+
+    if (!hasLoadedPortfolio || !isParticipated) {
+      setRows([]);
+      return;
+    }
+
+    if (isInitial) {
+      setIsLoading(true);
+    } else {
+      setIsFetchingMore(true);
+    }
+    
+    setErrorMessage("");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("assetType", "MOCK");
+      params.set("size", "20");
+      if (!isInitial && nextCursorId) {
+        params.set("cursorId", nextCursorId.toString());
+      }
+
+      let url = "";
+      if (activeTab === "pending") {
+        url = `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`;
+      } else {
+        params.set("status", "COMPLETED");
+        url = `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`;
+      }
+
+      const response = await fetch(url, { method: "GET", credentials: "include" });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) throw new Error("데이터를 불러오지 못했습니다.");
+
+      const page = getCursorPage<any>(payload);
+      
+      // Mapping API response to OrderHistoryRow
+      const mappedContent: OrderHistoryRow[] = page.content.map((item: any) => ({
+        id: item.orderId,
+        date: item.orderedAt || item.date,
+        symbol: item.symbol,
+        side: item.side,
+        quantity: item.orderQuantity ?? item.quantity,
+        price: item.orderPrice ?? item.price,
+        totalAmount: item.executedAmount ?? item.orderAmount ?? item.totalAmount,
+        fee: item.totalFee ?? item.fee,
+        status: item.orderStatus ?? item.status,
+      }));
+
+      if (isInitial) {
+        setRows(mappedContent);
+      } else {
+        setRows((prev) => [...prev, ...mappedContent]);
+      }
+      
+      setNextCursorId(page.nextCursorId);
+      setHasNext(page.hasNext);
+    } catch (error) {
+      setErrorMessage("데이터 로딩 실패");
+      if (isInitial) setRows([]);
+    } finally {
+      setIsLoading(false);
+      setIsFetchingMore(false);
+    }
+  }, [mode, activeTab, hasLoadedPortfolio, isParticipated, nextCursorId]);
+
+  useEffect(() => {
+    void loadRows(true);
+  }, [activeTab, historyVersion, hasLoadedPortfolio, isParticipated, refreshKey, mode]);
+
+  // Cancel Logic (Mock Only for now)
+  const handleCancelOrder = async (orderId: number) => {
+    if (!(await confirm("해당 주문을 취소하시겠습니까?"))) return;
+    try {
+      setCancelingOrderId(orderId);
+      await cancelOrder(orderId, "MOCK");
+      if (ownerMemberId !== null) await loadMockWallet(ownerMemberId, true);
+      setRefreshKey((c) => c + 1);
+      toast({ title: "주문 취소 완료", tone: "success" });
+    } catch {
+      await alert("취소 실패");
+    } finally {
+      setCancelingOrderId(null);
+    }
+  };
 
   const getBaseAsset = (symbol: string) => coinMetaList.find(c => c.symbol === symbol)?.baseAsset ?? symbol;
+  const quoteAsset = coinMetaList.find(c => c.symbol === selectedCoin)?.quoteAsset ?? "USDT";
 
   return (
     <section className="flex h-full flex-col bg-[#161A1E]">
@@ -105,11 +209,11 @@ export default function UserOrderHistory({
       <div className="shrink-0 px-4 py-2">
         <Tabs
           tabs={[
-            { label: "체결 주문", value: "filled" },
-            { label: "미체결 주문", value: "unfilled" },
+            { label: "체결 주문", value: "orders" },
+            { label: "미체결 주문", value: "pending" },
           ]}
-          activeTab={currentTab}
-          onChange={(v) => handleTabChange(v as HistoryTab)}
+          activeTab={activeTab}
+          onChange={(v) => setActiveTab(v as HistoryTab)}
           fullWidth={false}
           size="sm"
           variant="plain"
@@ -118,35 +222,23 @@ export default function UserOrderHistory({
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto custom-scrollbar" ref={scrollContainerRef}>
-        <table className="w-full text-[11px] text-left border-separate border-spacing-0">
-          <thead className="sticky top-0 z-10 bg-[#1A1F26] text-gray-500 font-bold uppercase tracking-tighter">
-            <tr>
-              <th className="py-2 px-4 border-b border-white/5">주문일시</th>
-              <th className="py-2 px-4 border-b border-white/5">자산</th>
-              <th className="py-2 px-4 border-b border-white/5 text-center">구분</th>
-              <th className="py-2 px-4 border-b border-white/5 text-right">수량</th>
-              <th className="py-2 px-4 border-b border-white/5 text-right">가격({quoteAsset})</th>
-              <th className="py-2 px-4 border-b border-white/5 text-right">금액({quoteAsset})</th>
-              <th className="py-2 px-4 border-b border-white/5 text-right">수수료({quoteAsset})</th>
-              <th className="py-2 px-4 border-b border-white/5 text-center">상태</th>
-              {currentTab === "unfilled" && <th className="py-2 px-4 border-b border-white/5 text-center">관리</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 text-gray-200">
-            {mode === "trade" ? (
-              <tr><td colSpan={9} className="py-10 text-center text-gray-500 font-bold">실전 주문내역은 아직 연결 전입니다.</td></tr>
-            ) : !hasLoadedPortfolio ? (
-              <tr><td colSpan={9} className="py-10 text-center text-gray-500 animate-pulse">Loading...</td></tr>
-            ) : !isParticipated ? (
-              <tr><td colSpan={9} className="py-10 text-center text-gray-500 font-bold">모의투자 계좌를 생성하면 내역이 표시됩니다.</td></tr>
-            ) : isLoading && rows.length === 0 ? (
-              <tr><td colSpan={9} className="py-10 text-center text-gray-500 animate-pulse">데이터 로딩 중...</td></tr>
-            ) : errorMessage ? (
-              <tr><td colSpan={9} className="py-10 text-center text-red-400 font-bold">{errorMessage}</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={9} className="py-10 text-center text-gray-600 font-bold">내역이 없습니다.</td></tr>
-            ) : (
-              rows.map((row) => (
+        {rows.length > 0 ? (
+          <table className="w-full text-[11px] text-left border-separate border-spacing-0">
+            <thead className="sticky top-0 z-10 bg-[#1A1F26] text-gray-500 font-bold uppercase tracking-tighter">
+              <tr>
+                <th className="py-2 px-4 border-b border-white/5">주문일시</th>
+                <th className="py-2 px-4 border-b border-white/5">자산</th>
+                <th className="py-2 px-4 border-b border-white/5 text-center">구분</th>
+                <th className="py-2 px-4 border-b border-white/5 text-right">수량</th>
+                <th className="py-2 px-4 border-b border-white/5 text-right">가격({quoteAsset})</th>
+                <th className="py-2 px-4 border-b border-white/5 text-right">금액({quoteAsset})</th>
+                <th className="py-2 px-4 border-b border-white/5 text-right">수수료({quoteAsset})</th>
+                <th className="py-2 px-4 border-b border-white/5 text-center">상태</th>
+                {activeTab === "pending" && <th className="py-2 px-4 border-b border-white/5 text-center">관리</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-gray-200">
+              {rows.map((row) => (
                 <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-2 px-4 text-gray-500">{formatDateTime(row.date)}</td>
                   <td className="py-2 px-4 font-black">{getBaseAsset(row.symbol)}</td>
@@ -170,10 +262,10 @@ export default function UserOrderHistory({
                       {formatStatus(row.status)}
                     </span>
                   </td>
-                  {currentTab === "unfilled" && (
+                  {activeTab === "pending" && (
                     <td className="py-2 px-4 text-center">
                       <button
-                        onClick={() => onCancelOrder?.(row.id)}
+                        onClick={() => handleCancelOrder(row.id)}
                         disabled={cancelingOrderId === row.id}
                         className="text-[10px] font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
                       >
@@ -182,10 +274,26 @@ export default function UserOrderHistory({
                     </td>
                   )}
                 </tr>
-              ))
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center py-20 px-4 text-center">
+            {mode === "trade" ? (
+              <p className="text-sm font-bold text-gray-500">실전 주문내역은 아직 연결 전입니다.</p>
+            ) : !hasLoadedPortfolio ? (
+              <p className="text-sm font-bold text-gray-500 animate-pulse">Loading...</p>
+            ) : !isParticipated ? (
+              <p className="text-sm font-bold text-gray-500">모의투자 계좌를 생성하면 내역이 표시됩니다.</p>
+            ) : isLoading ? (
+              <p className="text-sm font-bold text-gray-500 animate-pulse">데이터 로딩 중...</p>
+            ) : errorMessage ? (
+              <p className="text-sm font-bold text-red-400">{errorMessage}</p>
+            ) : (
+              <p className="text-sm font-bold text-gray-600">내역이 없습니다.</p>
             )}
-          </tbody>
-        </table>
+          </div>
+        )}
         
         {rows.length > 0 && (isFetchingMore || hasNext) && (
           <div className="py-4 flex justify-center">
