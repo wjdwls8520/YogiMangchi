@@ -6,6 +6,7 @@ import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import SegmentTabs from "@/components/ui/SegmentTabs";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useFavoriteStore } from "@/stores/useFavoriteStore";
 import { getMarketLabel, type MarketType } from "@/lib/utils/market";
 import type { RealtimeData } from "@/stores/useTickerStore";
 
@@ -36,6 +37,9 @@ export default function CoinList({
   const setSelectedMarketType = useTickerStore(
     (state) => state.setSelectedMarketType
   );
+
+  const { favorites, fetchFavorites, toggleFavorite } = useFavoriteStore();
+
   const latestTickersRef = useRef<Record<string, RealtimeData>>(
     useTickerStore.getState().tickers
   );
@@ -45,7 +49,7 @@ export default function CoinList({
 
   const [coinTab, setCoinTab] = useState<CoinTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState<string[]>([]);
+
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey | null;
     direction: "asc" | "desc" | null;
@@ -53,6 +57,10 @@ export default function CoinList({
     key: null,
     direction: null,
   });
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
 
   useEffect(() => {
     if (availableMarketTypes.includes(selectedMarketType)) {
@@ -138,14 +146,9 @@ export default function CoinList({
     setSortConfig({ key, direction });
   };
 
-  const toggleFavorite = (symbol: string, e: React.MouseEvent) => {
+  const handleToggleFavorite = (symbol: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    setFavorites((prev) =>
-      prev.includes(symbol)
-        ? prev.filter((item) => item !== symbol)
-        : [...prev, symbol]
-    );
+    toggleFavorite(symbol);
   };
 
   const getEmptyMessage = () => {
@@ -171,36 +174,22 @@ export default function CoinList({
   };
 
   return (
-    <aside className="w-full h-full min-h-0 bg-white border border-gray-200 flex flex-col shrink-0 overflow-hidden">
-      <div className="p-4 border-b border-gray-200">
-        <div className="mb-4 flex items-center gap-2">
-          {headerAction && headerActionPosition === "left" ? (
-            <div className="shrink-0">{headerAction}</div>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <Tabs
-              activeTab={selectedMarketType}
-              onChange={(value) => setSelectedMarketType(value as MarketType)}
-              fullWidth={true}
-              tabs={availableMarketTypes.map((marketType) => ({
-                label: getMarketLabel(marketType),
-                value: marketType,
-              }))}
-            />
+    <aside className="w-full h-full min-h-0 bg-[#161A1E] border-r border-white/5 flex flex-col shrink-0 overflow-hidden">
+      <div className="p-4 border-b border-white/5">
+        {headerAction && (
+          <div className="mb-4">
+            {headerAction}
           </div>
-          {headerAction && headerActionPosition === "right" ? (
-            <div className="shrink-0">{headerAction}</div>
-          ) : null}
-        </div>
+        )}
 
         <div className="relative mb-4">
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="자산명, 심볼 검색"
-            className="pl-9"
+            className="pl-9 bg-[#1E2329] border-white/5 text-gray-200"
           />
-          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
         </div>
 
         <SegmentTabs
@@ -216,10 +205,10 @@ export default function CoinList({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <table className="w-full text-[11px] whitespace-nowrap">
-          <thead className="sticky top-0 bg-white text-[12px] font-bold text-gray-500 border-b border-gray-200 z-10">
+          <thead className="sticky top-0 bg-[#161A1E] text-[12px] font-bold text-gray-400 border-b border-white/5 z-10">
             <tr>
               <th
-                className="py-2.5 px-3 text-left cursor-pointer hover:bg-gray-50"
+                className="py-2.5 px-3 text-left cursor-pointer hover:bg-white/5"
                 onClick={() => requestSort("displayNameKr")}
               >
                 자산{" "}
@@ -227,7 +216,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-2 text-right cursor-pointer hover:bg-gray-50"
+                className="py-2.5 px-2 text-right cursor-pointer hover:bg-white/5"
                 onClick={() => requestSort("price")}
               >
                 현재가($){" "}
@@ -235,7 +224,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-2 text-right cursor-pointer hover:bg-gray-50"
+                className="py-2.5 px-2 text-right cursor-pointer hover:bg-white/5"
                 onClick={() => requestSort("change")}
               >
                 변동률{" "}
@@ -243,7 +232,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:bg-gray-50"
+                className="py-2.5 px-3 text-right cursor-pointer hover:bg-white/5"
                 onClick={() => requestSort("volume")}
               >
                 거래금액{" "}
@@ -258,12 +247,16 @@ export default function CoinList({
               const isFavorite = favorites.includes(coin.symbol);
               const isSelected = selectedCoin === coin.symbol;
 
+              const isSpotMode = selectedMarketType === "spot" || mode === "mock";
+              const buyColor = isSpotMode ? "text-[#fb2c36]" : "text-emerald-400";
+              const sellColor = isSpotMode ? "text-[#0058FF]" : "text-rose-400";
+
               const colorClass =
                 coin.change > 0
-                  ? "text-trade-buy"
+                  ? buyColor
                   : coin.change < 0
-                    ? "text-trade-sell"
-                    : "text-gray-900";
+                    ? sellColor
+                    : "text-gray-200";
 
               const priceDisplay = coin.price
                 ? coin.price.toLocaleString(undefined, {
@@ -287,46 +280,45 @@ export default function CoinList({
                 <tr
                   key={coin.symbol}
                   onClick={() => setSelectedCoin(coin.symbol)}
-                  className={`cursor-pointer transition-colors border-b border-gray-100 ${
-                    isSelected ? "bg-blue-100/50" : "hover:bg-gray-50"
+                  className={`cursor-pointer transition-colors border-b border-white/5 ${
+                    isSelected ? "bg-blue-500/10" : "hover:bg-white/5"
                   }`}
                 >
                   <td className="py-3 px-3 flex items-center gap-2">
                     <button
-                      onClick={(e) => toggleFavorite(coin.symbol, e)}
-                      className="p-1 active:scale-90 transition-transform"
+                      onClick={(e) => handleToggleFavorite(coin.symbol, e)}
+                      className="p-1 active:scale-90 transition-transform group"
                     >
                       {isFavorite ? (
                         <Star
-                        color="#e4f500"
-                        fill="#f1ff29"
-                        className="size-4"/>
+                          className="size-4 text-[#F0B90B] fill-[#F0B90B] drop-shadow-[0_0_2px_rgba(240,185,11,0.5)]"
+                        />
                       ) : (
-                        <Star className="size-4 text-gray-300 hover:text-yellow-200" />
+                        <Star className="size-4 text-gray-600 group-hover:text-yellow-500 transition-colors" />
                       )}
                     </button>
 
                     <div className="flex flex-col">
-                      <span className="font-black text-gray-900">
+                      <span className="font-black text-gray-200">
                         {coin.displayNameKr}
                       </span>
-                      <span className="text-gray-400 font-medium tracking-tighter">
+                      <span className="text-gray-500 font-bold tracking-tighter text-[10px]">
                         {coin.baseAsset}/{coin.quoteAsset}
                       </span>
                     </div>
                   </td>
 
-                  <td className={`py-3 px-2 text-right font-black ${colorClass}`}>
+                  <td className={`py-3 px-2 text-right font-black tabular-nums ${colorClass}`}>
                     {priceDisplay}
                   </td>
 
-                  <td className={`py-3 px-2 text-right font-bold ${colorClass}`}>
+                  <td className={`py-3 px-2 text-right font-bold tabular-nums ${colorClass}`}>
                     {changeDisplay}
                   </td>
 
-                  <td className="py-3 px-3 text-right font-bold">
+                  <td className="py-3 px-3 text-right font-bold text-gray-300">
                     {volumeDisplay}
-                    <span className="text-gray-400">백만</span>
+                    <span className="text-gray-500 ml-0.5 text-[9px]">M</span>
                   </td>
                 </tr>
               );
@@ -335,7 +327,7 @@ export default function CoinList({
         </table>
 
         {processedCoins.length === 0 && (
-          <div className="py-10 text-center text-[11px] text-gray-400 font-bold">
+          <div className="py-10 text-center text-[11px] text-gray-500 font-bold">
             {getEmptyMessage()}
           </div>
         )}
@@ -343,3 +335,4 @@ export default function CoinList({
     </aside>
   );
 }
+

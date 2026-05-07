@@ -1,12 +1,13 @@
 "use client";
 
-import { type RefObject } from "react";
+import { type RefObject, useState } from "react";
 import Button from "@/components/ui/Button";
 import Tabs from "@/components/ui/Tabs";
 import Select from "@/components/ui/Select";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { cn } from "@/lib/utils/cs";
 
 export type HistoryTab = "unfilled" | "filled";
 export type OrderFilter = "all" | "buy" | "sell";
@@ -48,10 +49,6 @@ const ORDER_OPTIONS = [
   { label: "매도", value: "sell" },
 ];
 
-const formatNumber = (value: number | null | undefined) => {
-  return formatAssetNumber(value, { fallback: "-" });
-};
-
 const formatStatus = (status: string) => {
   if (status === "PENDING") return "대기중";
   if (status === "PARTIALLY_FILLED") return "부분체결";
@@ -62,8 +59,8 @@ const formatStatus = (status: string) => {
 
 export default function UserOrderHistory({
   mode = "trade",
-  historyTab = "filled",
-  selectedOrderType = "all",
+  historyTab: initialHistoryTab = "filled",
+  selectedOrderType: initialOrderType = "all",
   rows = [],
   isLoading = false,
   errorMessage = "",
@@ -80,185 +77,126 @@ export default function UserOrderHistory({
 }: UserOrderHistoryProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
-  const showCancelColumn =
-    mode === "mock" &&
-    historyTab === "unfilled" &&
-    typeof onCancelOrder === "function";
+  
+  const [internalTab, setInternalTab] = useState<HistoryTab>(initialHistoryTab);
+  const [internalOrderType, setInternalOrderType] = useState<OrderFilter>(initialOrderType);
 
-  const columnCount = showCancelColumn ? 9 : 8;
+  const currentTab = onHistoryTabChange ? initialHistoryTab : internalTab;
+  const currentOrderType = onOrderTypeChange ? initialOrderType : internalOrderType;
+
+  const handleTabChange = (v: HistoryTab) => {
+    setInternalTab(v);
+    onHistoryTabChange?.(v);
+  };
+
+  const handleOrderTypeChange = (v: OrderFilter) => {
+    setInternalOrderType(v);
+    onOrderTypeChange?.(v);
+  };
+  
   const selectedCoinMeta = coinMetaList.find((coin) => coin.symbol === selectedCoin);
-  const quoteAssetName = selectedCoinMeta?.quoteAsset;
+  const quoteAsset = selectedCoinMeta?.quoteAsset ?? "USDT";
 
-  const formatAssetName = (symbol: string) => {
-    const coinMeta = coinMetaList.find((coin) => coin.symbol === symbol);
-
-    return coinMeta?.baseAsset ?? symbol;
-  };
-
-  const getHeaderLabel = (label: string) => {
-    return quoteAssetName ? `${label}(${quoteAssetName})` : label;
-  };
+  const getBaseAsset = (symbol: string) => coinMetaList.find(c => c.symbol === symbol)?.baseAsset ?? symbol;
 
   return (
-    <footer className="bg-white border border-gray-200 flex flex-col mb-10 w-full shrink-0 p-6">
-      <Tabs
-        activeTab={historyTab}
-        onChange={(value) => onHistoryTabChange?.(value as HistoryTab)}
-        fullWidth={false}
-        tabs={[
-          { label: "체결 주문", value: "filled" },
-          { label: "미체결 주문", value: "unfilled" },
-        ]}
-      />
-
-      <div className="pt-6">
-        <div className="mb-4">
-          <Select
-            options={ORDER_OPTIONS}
-            value={selectedOrderType}
-            onChange={(value) => onOrderTypeChange?.(value as OrderFilter)}
-            size="sm"
-          />
-        </div>
-
-        <div
-          ref={scrollContainerRef}
-          className="h-64 w-full overflow-x-auto overflow-y-auto border-t border-gray-200"
-        >
-          <table className="w-full text-[11px] whitespace-nowrap">
-            <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold">
-              <tr>
-                <th className="py-2.5 px-3 text-center">주문일시</th>
-                <th className="py-2.5 px-3 text-center">자산</th>
-                <th className="py-2.5 px-3 text-center">구분</th>
-                <th className="py-2.5 px-3 text-right">수량</th>
-                <th className="py-2.5 px-3 text-right">{getHeaderLabel("가격")}</th>
-                <th className="py-2.5 px-3 text-right">{getHeaderLabel("금액")}</th>
-                <th className="py-2.5 px-3 text-right">{getHeaderLabel("수수료")}</th>
-                <th className="py-2.5 px-3 text-center">상태</th>
-                {showCancelColumn ? (
-                  <th className="py-2.5 px-3 text-center">관리</th>
-                ) : null}
-              </tr>
-            </thead>
-
-            <tbody>
-              {mode !== "mock" ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-gray-400 font-bold">
-                    실전 주문내역은 아직 연결 전입니다.
-                  </td>
-                </tr>
-              ) : !hasLoadedPortfolio ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-gray-400 font-bold">
-                    지갑 상태 확인 중...
-                  </td>
-                </tr>
-              ) : !isParticipated ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-gray-400 font-bold">
-                    모의투자 계좌를 생성하면 내역이 표시됩니다.
-                  </td>
-                </tr>
-              ) : isLoading ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-gray-400 font-bold">
-                    주문/거래내역 불러오는 중...
-                  </td>
-                </tr>
-              ) : errorMessage ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-red-400 font-bold">
-                    {errorMessage}
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columnCount} className="py-12 text-center text-gray-400 font-bold">
-                    {historyTab === "unfilled"
-                      ? "미체결 주문이 없습니다."
-                      : "거래내역이 없습니다."}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-gray-100 hover:bg-gray-50"
-                  >
-                    <td className="py-3 px-3 text-center text-gray-500">
-                      {formatDateTime(row.date)}
-                    </td>
-
-                    <td className="py-3 px-3 text-center font-black">
-                      {formatAssetName(row.symbol)}
-                    </td>
-
-                    <td
-                      className={`py-3 px-3 text-center font-bold ${
-                        row.side === "BUY"
-                          ? "text-trade-buy"
-                          : "text-trade-sell"
-                      }`}
-                    >
-                      {row.side === "BUY" ? "매수" : "매도"}
-                    </td>
-
-                    <td className="py-3 px-3 text-right font-medium">
-                      {formatNumber(row.quantity)}
-                    </td>
-
-                    <td className="py-3 px-3 text-right font-medium">
-                      {formatNumber(row.price)}
-                    </td>
-
-                    <td className="py-3 px-3 text-right font-black text-gray-900">
-                      {formatNumber(row.totalAmount)}
-                    </td>
-
-                    <td className="py-3 px-3 text-right font-medium">
-                      {formatNumber(row.fee)}
-                    </td>
-
-                    <td className="py-3 px-3 text-center font-bold text-gray-700">
-                      {formatStatus(row.status)}
-                    </td>
-
-                    {showCancelColumn ? (
-                      <td className="py-3 px-3 text-center">
-                        <Button
-                          type="button"
-                          onClick={() => onCancelOrder?.(row.id)}
-                          disabled={cancelingOrderId === row.id}
-                          size="sm"
-                          variant="white"
-                        >
-                          {cancelingOrderId === row.id ? "취소 중..." : "주문취소"}
-                        </Button>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {rows.length > 0 && (isFetchingMore || hasNext) ? (
-            <div className="py-4">
-              {isFetchingMore ? (
-                <p className="text-center text-xxs font-bold text-gray-400">
-                  {historyTab === "unfilled"
-                    ? "미체결 주문을 더 불러오는 중..."
-                    : "체결 주문을 더 불러오는 중..."}
-                </p>
-              ) : hasNext ? (
-                <div ref={loadMoreRef} className="h-6" aria-hidden="true" />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+    <section className="flex h-full flex-col bg-[#161A1E]">
+      {/* Tabs */}
+      <div className="shrink-0 px-4 py-2">
+        <Tabs
+          tabs={[
+            { label: "체결 주문", value: "filled" },
+            { label: "미체결 주문", value: "unfilled" },
+          ]}
+          activeTab={currentTab}
+          onChange={(v) => handleTabChange(v as HistoryTab)}
+          fullWidth={false}
+          size="sm"
+          variant="plain"
+        />
       </div>
-    </footer>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-auto custom-scrollbar" ref={scrollContainerRef}>
+        <table className="w-full text-[11px] text-left border-separate border-spacing-0">
+          <thead className="sticky top-0 z-10 bg-[#1A1F26] text-gray-500 font-bold uppercase tracking-tighter">
+            <tr>
+              <th className="py-2 px-4 border-b border-white/5">주문일시</th>
+              <th className="py-2 px-4 border-b border-white/5">자산</th>
+              <th className="py-2 px-4 border-b border-white/5 text-center">구분</th>
+              <th className="py-2 px-4 border-b border-white/5 text-right">수량</th>
+              <th className="py-2 px-4 border-b border-white/5 text-right">가격({quoteAsset})</th>
+              <th className="py-2 px-4 border-b border-white/5 text-right">금액({quoteAsset})</th>
+              <th className="py-2 px-4 border-b border-white/5 text-right">수수료({quoteAsset})</th>
+              <th className="py-2 px-4 border-b border-white/5 text-center">상태</th>
+              {currentTab === "unfilled" && <th className="py-2 px-4 border-b border-white/5 text-center">관리</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5 text-gray-200">
+            {mode === "trade" ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-500 font-bold">실전 주문내역은 아직 연결 전입니다.</td></tr>
+            ) : !hasLoadedPortfolio ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-500 animate-pulse">Loading...</td></tr>
+            ) : !isParticipated ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-500 font-bold">모의투자 계좌를 생성하면 내역이 표시됩니다.</td></tr>
+            ) : isLoading && rows.length === 0 ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-500 animate-pulse">데이터 로딩 중...</td></tr>
+            ) : errorMessage ? (
+              <tr><td colSpan={9} className="py-10 text-center text-red-400 font-bold">{errorMessage}</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-600 font-bold">내역이 없습니다.</td></tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-2 px-4 text-gray-500">{formatDateTime(row.date)}</td>
+                  <td className="py-2 px-4 font-black">{getBaseAsset(row.symbol)}</td>
+                  <td className={cn("py-2 px-4 text-center font-bold", row.side === "BUY" ? "text-[#fb2c36]" : "text-[#0058FF]")}>
+                    {row.side === "BUY" ? "매수" : "매도"}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular-nums text-gray-300">
+                    {formatAssetNumber(row.quantity)}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular-nums font-bold">
+                    {row.price ? formatAssetNumber(row.price) : "시장가"}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular-nums font-black text-gray-100">
+                    {formatAssetNumber(row.totalAmount)}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular-nums text-gray-400">
+                    {formatAssetNumber(row.fee)}
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <span className="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-bold text-gray-400">
+                      {formatStatus(row.status)}
+                    </span>
+                  </td>
+                  {currentTab === "unfilled" && (
+                    <td className="py-2 px-4 text-center">
+                      <button
+                        onClick={() => onCancelOrder?.(row.id)}
+                        disabled={cancelingOrderId === row.id}
+                        className="text-[10px] font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
+                      >
+                        {cancelingOrderId === row.id ? "..." : "취소"}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+        
+        {rows.length > 0 && (isFetchingMore || hasNext) && (
+          <div className="py-4 flex justify-center">
+            {isFetchingMore ? (
+              <p className="text-xxs font-bold text-gray-400 animate-pulse">불러오는 중...</p>
+            ) : hasNext ? (
+              <div ref={loadMoreRef} className="h-4 w-full" />
+            ) : null}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

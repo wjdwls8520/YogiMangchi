@@ -4,13 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const selectTriggerVariants = cva(
-  "flex items-center justify-between gap-2 whitespace-nowrap rounded-xl border bg-white text-gray-900 transition-all cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500",
+  "flex items-center justify-between gap-2 whitespace-nowrap rounded-xl border transition-all cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-not-allowed",
   {
     variants: {
       variant: {
-        default: "border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF]",
-        error: "border-red-500 focus:border-red-500 focus:ring-red-500 text-red-900",
-        noStyle: "border-0 h-auto gap-1"
+        default: "bg-white text-gray-900 border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF] disabled:bg-gray-100 disabled:text-gray-500",
+        error: "bg-white text-red-900 border-red-500 focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500",
+        noStyle: "border-0 h-auto gap-1 bg-transparent text-gray-900 disabled:text-gray-500",
+        dark: "bg-[#1A1F26] border-white/10 text-gray-200 hover:bg-white/5 focus:border-white/20 focus:ring-0 disabled:bg-white/5 disabled:text-gray-600"
       },
       size: {
         sm: "h-9 px-3 text-xs",
@@ -80,7 +81,7 @@ export default function Select({
         className={`${selectTriggerVariants({ variant, size })} ${fullWidth ? "w-full" : ""}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
+        <span className={selectedOption ? (variant === "dark" ? "text-gray-200" : "text-gray-900") : "text-gray-500"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         
@@ -99,20 +100,22 @@ export default function Select({
       </button>
 
       {isOpen && (
-        <ul className="absolute z-50 mt-1 max-h-60 min-w-full w-max overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg animate-in fade-in slide-in-from-top-2">
-          {options.map((option) => (
-            <li
-              key={option.value}
-              className={`flex cursor-pointer items-center px-4 py-3 text-sm whitespace-nowrap transition-colors hover:bg-blue-50 hover:text-[#0058FF] ${
-                value === option.value
-                  ? "bg-blue-50 font-bold text-[#0058FF]"
-                  : "text-gray-700"
-              }`}
-              onClick={() => handleSelect(option.value)}
-            >
-              {option.label}
-            </li>
-          ))}
+        <ul className={`absolute z-50 mt-1 max-h-60 min-w-full w-max overflow-auto rounded-xl border py-1 shadow-lg animate-in fade-in slide-in-from-top-2 ${variant === "dark" ? "border-white/10 bg-[#1A1F26]" : "border-gray-200 bg-white"}`}>
+          {options.map((option) => {
+            const isSelected = value === option.value;
+            const darkItemClass = isSelected ? "bg-white/10 font-bold text-white" : "text-gray-400 hover:bg-white/5 hover:text-gray-200";
+            const lightItemClass = isSelected ? "bg-blue-50 font-bold text-[#0058FF]" : "text-gray-700 hover:bg-blue-50 hover:text-[#0058FF]";
+
+            return (
+              <li
+                key={option.value}
+                className={`flex cursor-pointer items-center px-4 py-3 text-sm whitespace-nowrap transition-colors ${variant === "dark" ? darkItemClass : lightItemClass}`}
+                onClick={() => handleSelect(option.value)}
+              >
+                {option.label}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

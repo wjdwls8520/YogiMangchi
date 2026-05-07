@@ -70,13 +70,14 @@ export default function FuturesActivitySection({
 
   return (
     <section className="flex h-full flex-col">
-      <div className="shrink-0 border-b border-white/5 px-4 py-2">
+      <div className="shrink-0 px-4 py-2">
         <Tabs
           tabs={tabOptions}
           activeTab={activeTab}
           onChange={(value) => setActiveTab(value as ActivityTab)}
           fullWidth={false}
           size="sm"
+          variant="plain"
         />
       </div>
 

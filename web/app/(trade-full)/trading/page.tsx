@@ -65,8 +65,8 @@ export default function IntegratedTradingPage() {
 
   return (
     <div className="dark grid h-screen w-full grid-rows-[48px_1fr] bg-[#0B0E11] text-gray-200 overflow-hidden">
-      {/* 1. Top Header */}
-      <header className="flex items-center justify-between border-b border-white/5 bg-[#161A1E] px-4 z-20">
+      {/* 1. Top Header - 실전 거래 (블루 포인트) */}
+      <header className="flex items-center justify-between border-b-2 border-blue-500/50 bg-[#161A28] px-4 z-20">
         <div className="flex items-center gap-6 min-w-0">
           <Link href="/" className="text-white/40 hover:text-white">
             <ChevronLeft className="h-5 w-5" />
@@ -93,10 +93,6 @@ export default function IntegratedTradingPage() {
               선물 거래
             </button>
           </div>
-
-          <h1 className="truncate text-sm font-black text-white/60">
-            {marketMode === "spot" ? "Spot Trading" : "Futures Trading"} (Live)
-          </h1>
         </div>
 
         {/* Real-time Wallet Metrics */}
@@ -127,27 +123,22 @@ export default function IntegratedTradingPage() {
       {/* 2. Main Layout */}
       <div className="grid grid-cols-[auto_1fr] h-full min-h-0 overflow-hidden relative">
         {/* Left Sidebar */}
-        <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-64 overflow-hidden flex flex-col")}>
+        <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-[360px] overflow-hidden flex flex-col")}>
           <div className="flex-1 overflow-auto">
              <CoinList availableMarketTypes={[marketMode]} />
           </div>
         </aside>
-
-        {/* Sidebar Toggle */}
-        <button 
-          onClick={() => setIsCoinListCollapsed(!isCoinListCollapsed)} 
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-30 flex h-10 w-4 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-[#161A1E] text-white/20 hover:text-white"
-          style={{ left: isCoinListCollapsed ? '0' : '256px' }}
-        >
-          {isCoinListCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-        </button>
 
         {/* Dashboard Grid */}
         <div className="grid grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] grid-rows-[minmax(250px,1fr)_300px] h-full min-h-0 min-w-0 overflow-hidden">
           
           {/* Chart Section */}
           <section className="col-start-1 col-end-2 row-start-1 row-end-2 flex flex-col min-h-0 bg-[#0B0E11] border-r border-white/5 overflow-hidden">
-             <CoinHeader className="bg-[#161A1E] border-b border-white/5 shrink-0" marketType={marketMode} />
+             <CoinHeader 
+               className="bg-[#161A1E] border-b border-white/5 shrink-0" 
+               onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
+               isSidebarCollapsed={isCoinListCollapsed}
+             />
              <div className="flex-1 min-h-0 relative">
                 <MainCandleChart 
                   className="absolute inset-0 h-full w-full border-none p-2" 
@@ -159,7 +150,7 @@ export default function IntegratedTradingPage() {
 
           {/* OrderBook & Trades Section */}
           <aside className="col-start-2 col-end-3 row-start-1 row-end-2 flex flex-col border-r border-white/5 bg-[#161A1E] min-h-0 min-w-0 overflow-hidden">
-            <div className="shrink-0 p-2 border-b border-white/5">
+            <div className="shrink-0 p-2">
               <Tabs
                 activeTab={activeInfoTab}
                 onChange={setActiveInfoTab}
@@ -169,13 +160,14 @@ export default function IntegratedTradingPage() {
                 ]}
                 fullWidth={true}
                 size="sm"
+                variant="plain"
               />
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
                {activeInfoTab === "orderbook" ? (
-                 <OrderBook className="!h-full flex-1 min-h-0 w-full border-none !bg-transparent" marketType={marketMode} />
+                 <OrderBook className="!h-full flex-1 min-h-0 w-full border-none !bg-transparent" />
                ) : (
-                 <RecentTrades className="!h-full flex-1 min-h-0 w-full border-none !bg-transparent" marketType={marketMode} />
+                 <RecentTrades className="!h-full flex-1 min-h-0 w-full border-none !bg-transparent" />
                )}
             </div>
           </aside>
@@ -198,14 +190,7 @@ export default function IntegratedTradingPage() {
                  onUpdatePositionLeverage={futures.updatePositionLeverage}
                />
              ) : (
-               <div className="flex flex-col h-full">
-                 <div className="px-4 py-2 border-b border-white/5">
-                    <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Asset & History</h3>
-                 </div>
-                 <div className="flex-1 overflow-auto p-4">
-                   <UserOrderHistory />
-                 </div>
-               </div>
+               <UserOrderHistory />
              )}
           </section>
 
@@ -235,9 +220,7 @@ export default function IntegratedTradingPage() {
                 onSubmitLimitCloseOrder={futures.submitLimitCloseOrder}
               />
             ) : (
-              <div className="p-4">
-                <OrderForm mode="trade" />
-              </div>
+              <OrderForm mode="trade" />
             )}
           </aside>
         </div>
