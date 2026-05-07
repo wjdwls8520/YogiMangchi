@@ -3,18 +3,33 @@
 import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { cn } from "@/lib/utils/cs";
+import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function CoinHeader({ className }: { className?: string }) {
+type CoinHeaderProps = {
+  className?: string;
+  onToggleSidebar?: () => void;
+  isSidebarCollapsed?: boolean;
+};
+
+export default function CoinHeader({ 
+  className,
+  onToggleSidebar,
+  isSidebarCollapsed = true
+}: CoinHeaderProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
+  const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
 
   const meta = coinMetaList.find(c => c.symbol === selectedCoin);
 
   if (!meta) {
     return (
       <header aria-label="코인 요약 정보" className={cn("bg-white px-3 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 min-h-[48px] animate-pulse", className)}>
-        <div className="h-5 bg-gray-100 rounded w-40"></div>
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gray-100 rounded-md"></div>
+          <div className="h-5 bg-gray-100 rounded w-40"></div>
+        </div>
         <div className="flex gap-4">
            <div className="h-5 bg-gray-100 rounded w-16"></div>
            <div className="h-5 bg-gray-100 rounded w-16"></div>
@@ -22,6 +37,8 @@ export default function CoinHeader({ className }: { className?: string }) {
       </header>
     );
   }
+
+  const isSpot = selectedMarketType === "spot";
 
   // 화면에 예쁘게 그리기 위한 값 세팅
   const price = realtime?.price ?? null;
@@ -32,12 +49,37 @@ export default function CoinHeader({ className }: { className?: string }) {
   const normalizedChangeRate = changeRate ?? 0;
   const isUp = normalizedChangeRate > 0;
   const isDown = normalizedChangeRate < 0;
-  const colorClass = isUp ? "text-trade-buy" : isDown ? "text-trade-sell" : "text-gray-900";
-  const sign = isUp ? "▲" : isDown ? "▼" : "";
+  
+  const buyTextColor = isSpot ? "text-[#fb2c36]" : "text-[#2EBD85]";
+  const sellTextColor = isSpot ? "text-[#0058FF]" : "text-[#F6465D]";
+  const neutralColor = className?.includes("bg-[#161A1E]") ? "text-gray-100" : "text-gray-900";
+  const colorClass = isUp ? buyTextColor : isDown ? sellTextColor : neutralColor;
+  
+  const sign = isUp ? (isSpot ? "▲" : "+") : isDown ? (isSpot ? "▼" : "") : "";
 
   return (
     <header aria-label="코인 요약 정보" className={cn("bg-white p-3 border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0 min-h-[48px] transition-all", className)}>
       <div className="flex items-center gap-4">
+        {/* 사이드바 토글 버튼 */}
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-md transition-all shrink-0 group",
+              className?.includes("bg-[#161A1E]") 
+                ? "text-gray-400 hover:text-white hover:bg-white/5" 
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            )}
+            title={isSidebarCollapsed ? "코인 목록 열기" : "코인 목록 닫기"}
+          >
+            {isSidebarCollapsed ? (
+              <Menu className="w-6 h-6 stroke-[1.5]" />
+            ) : (
+              <ChevronLeft className="w-6 h-6 stroke-[1.5]" />
+            )}
+          </button>
+        )}
+
         {/* 코인 이름 & 심볼 */}
         <div className="flex flex-col">
            <h1 className={cn("text-lg font-black text-gray-900 leading-none", className?.includes("bg-[#161A1E]") && "text-gray-100")}>{meta.displayNameKr}</h1>

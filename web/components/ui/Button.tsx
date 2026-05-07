@@ -13,6 +13,7 @@ const buttonVariants = cva(
         sky: "bg-blue-100 text-[#0058FF] hover:bg-blue-200",
         yellow: "bg-[#FEE500] text-[#000000] hover:bg-[#E6CF00]",
         ghost: "bg-transparent text-gray-700 hover:bg-gray-100",
+        dark: "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white border border-white/10",
       },
       size: {
         xs: "h-9 px-4 text-xs min-w-[48px]",
@@ -34,18 +35,31 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  fullWidth?: boolean; 
+  fullWidth?: boolean;
+  isLoading?: boolean;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  // cva는 className 프롭스를 객체 안에 넣으면 알아서 기존 클래스들과 합쳐줍니다!
-  ({ className, variant, size, fullWidth, ...props }, ref) => {
+  ({ className, variant, size, fullWidth, isLoading, children, disabled, ...props }, ref) => {
     return (
       <button
         ref={ref}
+        disabled={isLoading || disabled}
         className={buttonVariants({ variant, size, fullWidth, className })}
         {...props}
-      />
+      >
+        {isLoading ? (
+          <div className="flex items-center gap-2">
+            <svg className="h-4 w-4 animate-spin text-current" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span>{children}</span>
+          </div>
+        ) : (
+          children
+        )}
+      </button>
     );
   }
 );

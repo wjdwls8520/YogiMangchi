@@ -16,6 +16,38 @@ export const getBinanceWsBaseUrl = (marketType: MarketType) => {
     : "wss://fstream.binance.com";
 };
 
+/**
+ * 바이낸스 웹소켓 URL을 생성합니다.
+ * 2026년 4월 변경된 선물 거래소의 Public/Market 분리 정책을 자동으로 반영합니다.
+ */
+export const getBinanceWsUrl = ({
+  marketType,
+  stream,
+  isCombined = false,
+}: {
+  marketType: MarketType;
+  stream: string;
+  isCombined?: boolean;
+}) => {
+  const baseUrl = getBinanceWsBaseUrl(marketType);
+
+  if (marketType === "spot") {
+    return isCombined
+      ? `${baseUrl}/stream?streams=${stream}`
+      : `${baseUrl}/ws/${stream}`;
+  }
+
+  // 선물(Futures)의 경우 데이터 종류에 따라 경로가 다름
+  // - Public: @depth (호가창)
+  // - Market: @kline, @ticker, @trade, @aggTrade 등
+  const isPublic = stream.includes("@depth");
+  const category = isPublic ? "public" : "market";
+
+  return isCombined
+    ? `${baseUrl}/${category}/stream?streams=${stream}`
+    : `${baseUrl}/${category}/ws/${stream}`;
+};
+
 export const getBinanceKlineApiUrl = ({
   marketType,
   symbol,

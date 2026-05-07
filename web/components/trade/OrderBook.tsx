@@ -3,8 +3,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
-import { getBinanceWsBaseUrl } from "@/lib/utils/market";
+import { getBinanceWsUrl } from "@/lib/utils/market";
 import { cn } from "@/lib/utils/cs";
+import { ArrowUp, ArrowDown } from "lucide-react";
 
 type OrderBookLevel = {
   price: number;
@@ -69,11 +70,19 @@ export default function OrderBook({ className }: OrderBookProps) {
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
   const setSelectedOrderPrice = useTickerStore((state) => state.setSelectedOrderPrice);
-
   const [asks, setAsks] = useState<OrderBookLevel[]>([]);
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const pendingDepthRef = useRef<BinanceDepthMessage | null>(null);
+
+  const coinMetaList = useTickerStore((state) => state.coinMetaList);
+
+  // 현재 선택된 코인의 메타 정보에서 Quote Asset (단위) 가져오기
+  const currentCoinMeta = coinMetaList.find(c => c.symbol === selectedCoin);
+  const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
+
+  // 상/하단에 노출할 호가 개수 고정 (잘림 방지를 위해 12개로 조정)
+  const DISPLAY_COUNT = 12;
 
   useEffect(() => {
     if (!selectedCoin) return;
@@ -85,17 +94,20 @@ export default function OrderBook({ className }: OrderBookProps) {
       setBids([]);
     });
 
-    // 실시간 수신은 유지하고, 화면 반영만 2초마다 한 번씩 한다.
-    const stream = `${selectedCoin.toLowerCase()}@depth10`;
-    const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
-    const ws = new WebSocket(`${wsBaseUrl}/ws/${stream}`);
+    const stream = `${selectedCoin.toLowerCase()}@depth20`;
+    const ws = new WebSocket(
+      getBinanceWsUrl({
+        marketType: selectedMarketType,
+        stream,
+        isCombined: false,
+      })
+    );
+    
     const flushInterval = window.setInterval(() => {
       const data = pendingDepthRef.current;
-
       if (!isActive || !data) return;
 
       const { asks: rawAsks, bids: rawBids } = getDepthLevels(data);
-
       if (rawAsks.length === 0 || rawBids.length === 0) return;
 
       const nextAsks = parseLevels(rawAsks).sort((a, b) => a.price - b.price);
@@ -105,12 +117,11 @@ export default function OrderBook({ className }: OrderBookProps) {
       setBids(nextBids);
       setIsLoading(false);
       pendingDepthRef.current = null;
-    }, 500);
+    }, 200);
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as BinanceDepthMessage;
-
         if (!isActive) return;
         pendingDepthRef.current = data;
       } catch (error) {
@@ -132,113 +143,117 @@ export default function OrderBook({ className }: OrderBookProps) {
     };
   }, [selectedCoin, selectedMarketType]);
 
-  // asks는 낮은 가격 -> 높은 가격 순으로 들어오므로,
-  // 화면에서는 현재가 바로 위에 가장 낮은 매도호가가 붙게 reverse 해서 보여줌
-  const displayAsks = [...asks].reverse();
+  // 상단 매도호가는 가격이 높은 순서대로 위에서부터 정렬
+  const displayAsks = [...asks].slice(0, DISPLAY_COUNT).reverse();
+  const displayBids = [...bids].slice(0, DISPLAY_COUNT);
 
-  const maxAskQty =
-    displayAsks.length > 0
-      ? Math.max(...displayAsks.map((item) => item.quantity))
-      : 1;
-
-  const maxBidQty =
-    bids.length > 0 ? Math.max(...bids.map((item) => item.quantity)) : 1;
+  const maxAskQty = displayAsks.length > 0 ? Math.max(...displayAsks.map((item) => item.quantity)) : 1;
+  const maxBidQty = displayBids.length > 0 ? Math.max(...displayBids.map((item) => item.quantity)) : 1;
 
   const bestAsk = asks[0]?.price ?? 0;
   const bestBid = bids[0]?.price ?? 0;
-  const fallbackPrice =
-    bestAsk > 0 && bestBid > 0 ? (bestAsk + bestBid) / 2 : 0;
+  const fallbackPrice = bestAsk > 0 && bestBid > 0 ? (bestAsk + bestBid) / 2 : 0;
 
   const currentPrice = realtime?.price ?? fallbackPrice;
   const changeRate = realtime?.changeRate ?? 0;
 
   if (isLoading && asks.length === 0 && bids.length === 0) {
     return (
-      <div
-        className={cn(
-          "h-[600px] animate-pulse border border-gray-200 bg-white lg:col-span-4",
-          className
-        )}
-      />
+      <div className={cn("flex-1 min-h-[600px] animate-pulse border border-white/5 bg-[#161A1E] rounded-xl lg:col-span-3", className)} />
     );
   }
 
+  const isSpot = selectedMarketType === "spot";
+  const sellTextColor = isSpot ? "text-[#0058FF]" : "text-[#F6465D]";
+  const sellBgColor = isSpot ? "bg-[#0058FF]/10" : "bg-red-500/10";
+  const buyTextColor = isSpot ? "text-[#fb2c36]" : "text-[#2EBD85]";
+  const buyBgColor = isSpot ? "bg-[#fb2c36]/10" : "bg-green-500/10";
+
   return (
-    <div
-      className={cn(
-        "flex h-[520px] flex-col overflow-hidden border border-gray-200 bg-white md:col-span-1 lg:col-span-3 lg:h-full",
-        className
-      )}
-    >
-      <div className="grid grid-cols-2 p-4 pr-6 border-b border-gray-200 font-black text-xs bg-gray-50/50">
-        <span>호가</span>
+    <div className={cn("flex flex-col flex-1 min-h-0 overflow-hidden border border-white/5 bg-[#161A1E] rounded-xl md:col-span-1 lg:col-span-3", className)}>
+      {/* 헤더 */}
+      <div className="grid grid-cols-2 px-4 py-3 border-b border-white/5 font-black text-[10px] uppercase tracking-widest text-gray-500 bg-white/[0.02]">
+        <span>가격({quoteAsset})</span>
         <span className="text-right">수량</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {displayAsks.length === 0 && bids.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm font-bold text-gray-400">
-            호가 정보를 불러오지 못했습니다.
-          </div>
-        ) : (
-          <>
+      <div className="flex-1 flex flex-col overflow-hidden bg-black/[0.02] py-1">
+        {/* 매도 호가 영역 */}
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="flex flex-col mt-auto">
             {displayAsks.map((level) => (
               <div
                 key={`ask-${level.price}`}
                 onClick={() => setSelectedOrderPrice(level.price)}
-                className="flex justify-between items-center h-10 px-4 relative border-b border-gray-100 hover:bg-blue-50/10 cursor-pointer"
+                className="group flex justify-between items-center h-[20px] px-4 relative cursor-pointer hover:bg-white/[0.03] transition-colors"
               >
                 <div
-                  className="absolute right-0 top-0 bottom-0 bg-blue-50/30"
+                  className={cn("absolute right-0 top-0 bottom-0 transition-all duration-300", sellBgColor)}
                   style={{ width: getBarWidth(level.quantity, maxAskQty) }}
                 />
-                <span className="relative z-10 text-[12px] font-black text-trade-sell">
+                <span className={cn("relative z-10 text-[11px] font-black", sellTextColor)}>
                   {formatPrice(level.price)}
                 </span>
-                <span className="relative z-10 text-[11px] font-bold text-gray-500">
+                <span className="relative z-10 text-[11px] font-bold text-gray-400 tabular-nums">
                   {formatQty(level.quantity)}
                 </span>
               </div>
             ))}
+          </div>
+        </div>
 
-            <div className="h-12 bg-gray-100 flex items-center justify-between px-4 sticky top-0 bottom-0 z-10 border-y border-gray-300">
-              <span className="text-sm font-black text-gray-900">
+        {/* 현재가 (가운데) - 클릭 시 오더폼 입력 기능 추가 */}
+        <button 
+          onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
+          className="h-10 shrink-0 bg-white/[0.04] flex flex-col justify-center border-y border-white/5 z-10 px-4 hover:bg-white/[0.08] transition-colors group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {changeRate > 0 ? (
+                <ArrowUp className={cn("size-3.5 stroke-[3]", buyTextColor)} />
+              ) : changeRate < 0 ? (
+                <ArrowDown className={cn("size-3.5 stroke-[3]", sellTextColor)} />
+              ) : null}
+              <span className={cn(
+                "text-lg font-black tabular-nums tracking-tighter",
+                changeRate > 0 ? buyTextColor : changeRate < 0 ? sellTextColor : "text-white"
+              )}>
                 {currentPrice > 0 ? formatPrice(currentPrice) : "-"}
               </span>
-              <span
-                className={`text-[10px] font-bold tracking-tight ${
-                  changeRate > 0
-                    ? "text-red-500"
-                    : changeRate < 0
-                      ? "text-blue-500"
-                      : "text-gray-500"
-                }`}
-              >
-                {changeRate > 0 ? "+" : changeRate < 0 ? "-" : ""}
-                {Math.abs(changeRate).toFixed(2)}%
-              </span>
             </div>
+            
+            <div className={cn(
+              "text-[10px] font-black px-1.5 py-0.5 rounded",
+              changeRate > 0 ? `${buyBgColor} ${buyTextColor}` : changeRate < 0 ? `${sellBgColor} ${sellTextColor}` : "bg-gray-500/10 text-gray-500"
+            )}>
+              {changeRate > 0 ? "+" : ""}{changeRate.toFixed(2)}%
+            </div>
+          </div>
+        </button>
 
-            {bids.map((level) => (
+        {/* 매수 호가 영역 */}
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <div className="flex flex-col">
+            {displayBids.map((level) => (
               <div
                 key={`bid-${level.price}`}
                 onClick={() => setSelectedOrderPrice(level.price)}
-                className="flex justify-between items-center h-10 px-4 relative border-b border-gray-100 hover:bg-red-50/10 cursor-pointer"
+                className="group flex justify-between items-center h-[20px] px-4 relative cursor-pointer hover:bg-white/[0.03] transition-colors"
               >
                 <div
-                  className="absolute right-0 top-0 bottom-0 bg-red-50/30"
+                  className={cn("absolute right-0 top-0 bottom-0 transition-all duration-300", buyBgColor)}
                   style={{ width: getBarWidth(level.quantity, maxBidQty) }}
                 />
-                <span className="relative z-10 text-[12px] font-black text-trade-buy">
+                <span className={cn("relative z-10 text-[11px] font-black", buyTextColor)}>
                   {formatPrice(level.price)}
                 </span>
-                <span className="relative z-10 text-[11px] font-bold text-gray-500">
+                <span className="relative z-10 text-[11px] font-bold text-gray-400 tabular-nums">
                   {formatQty(level.quantity)}
                 </span>
               </div>
             ))}
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );

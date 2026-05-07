@@ -91,8 +91,8 @@ export default function ContestTradingPage() {
 
   return (
     <div className="dark grid h-screen w-full grid-rows-[48px_1fr] bg-[#0B0E11] text-gray-200 overflow-hidden">
-      {/* 1. Header (Fixed Height) */}
-      <header className="flex items-center justify-between border-b border-white/5 bg-[#161A1E] px-4 z-20">
+      {/* 1. Header - 대회 거래 (퍼플 포인트) */}
+      <header className="flex items-center justify-between border-b-2 border-purple-500/50 bg-[#1A1625] px-4 z-20">
         <div className="flex items-center gap-4 min-w-0">
           <Link href="/contest" className="text-white/40 hover:text-white">
             <ChevronLeft className="h-5 w-5" />
@@ -120,27 +120,22 @@ export default function ContestTradingPage() {
       {/* 2. Main Content Area (Remaining Height) */}
       <div className="grid grid-cols-[auto_1fr] h-full min-h-0 overflow-hidden relative">
         {/* Left Sidebar (Coin List) */}
-        <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-64 overflow-hidden flex flex-col")}>
+        <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-[360px] overflow-hidden flex flex-col")}>
           <div className="flex-1 overflow-auto">
              <CoinList mode="contest" availableMarketTypes={["futures"]} holdingSymbols={holdingSymbols} isParticipated={true} />
           </div>
         </aside>
-
-        {/* Toggle Button for Side Bar */}
-        <button 
-          onClick={() => setIsCoinListCollapsed(!isCoinListCollapsed)} 
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-30 flex h-10 w-4 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-[#161A1E] text-white/20 hover:text-white"
-          style={{ left: isCoinListCollapsed ? '0' : '256px' }}
-        >
-          {isCoinListCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-        </button>
 
         {/* The Grid Dashboard */}
         <div className="grid grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] grid-rows-[minmax(250px,1fr)_300px] h-full min-h-0 min-w-0 overflow-hidden">
           
           {/* Chart Area (Row 1, Col 1) */}
           <section className="col-start-1 col-end-2 row-start-1 row-end-2 flex flex-col min-h-0 bg-[#0B0E11] border-r border-white/5 overflow-hidden">
-             <CoinHeader className="bg-[#161A1E] border-b border-white/5 shrink-0" />
+             <CoinHeader 
+               className="bg-[#161A1E] border-b border-white/5 shrink-0" 
+               onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
+               isSidebarCollapsed={isCoinListCollapsed}
+             />
              <div className="flex-1 min-h-0 relative">
                 <MainCandleChart 
                   className="absolute inset-0 h-full w-full border-none p-2" 
@@ -152,7 +147,7 @@ export default function ContestTradingPage() {
 
           {/* OrderBook & Recent Trades (Row 1, Col 2) */}
           <aside className="col-start-2 col-end-3 row-start-1 row-end-2 flex flex-col border-r border-white/5 bg-[#161A1E] min-h-0 min-w-0 overflow-hidden">
-            <div className="shrink-0 p-2 border-b border-white/5">
+            <div className="shrink-0 p-2">
               <Tabs
                 activeTab={activeInfoTab}
                 onChange={setActiveInfoTab}
@@ -162,6 +157,7 @@ export default function ContestTradingPage() {
                 ]}
                 fullWidth={true}
                 size="sm"
+                variant="plain"
               />
             </div>
             <div className="flex-1 min-h-0 flex flex-col">

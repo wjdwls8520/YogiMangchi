@@ -17,6 +17,7 @@ interface TabsProps {
   fullWidth?: boolean;           // true면 탭들이 1/n로 꽉 차게 늘어남
   activeColor?: string; // 컴포넌트 전체의 기본 색상
   size?: "sm" | "md"; // 탭 크기 옵션 추가
+  variant?: "underline" | "plain"; // 탭 스타일 옵션 추가
 }
 
 export default function Tabs({
@@ -28,11 +29,12 @@ export default function Tabs({
   fullWidth = false,
   activeColor = "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300", // 기본값은 검정
   size = "md",
+  variant = "underline",
 }: TabsProps) {
   
   return (
-    // 전체 컨테이너: 하단에 연한 회색 보더를 깔아줍니다.
-    <div className={`flex border-b border-gray-200 ${className}`}>
+    // 전체 컨테이너: 하단에 연한 회색 보더를 깔아줍니다 (underline인 경우만)
+    <div className={cn("flex", variant === "underline" && "border-b border-gray-200", className)}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
 
@@ -44,22 +46,26 @@ export default function Tabs({
             key={tab.value}
             onClick={() => onChange(tab.value)}
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
-            className={`
-              relative transition-all duration-200
-              ${size === "sm" ? "pb-1.5 text-[12px]" : "pb-3"}
-              ${
-                fullWidth
-                  ? "flex-1 text-center"
-                  : size === "sm" 
-                    ? "min-w-[64px] whitespace-nowrap text-center px-3"
-                    : "min-w-[112px] whitespace-nowrap text-center"
-              }
-              ${isActive 
-                ? `font-black ${size === "sm" ? "border-b-2" : "border-b-[3px]"} ${currentTabColor}`
-                : `font-bold text-gray-400 ${size === "sm" ? "border-b-2" : "border-b-[3px]"} border-transparent hover:text-gray-600`
-              }
-              ${tabClassName}
-            `}
+            className={cn(
+              "relative transition-all duration-200",
+              size === "sm" ? "pb-1.5 text-[12px]" : "pb-3",
+              fullWidth
+                ? "flex-1 text-center"
+                : size === "sm" 
+                  ? "min-w-[64px] whitespace-nowrap text-center px-3"
+                  : "min-w-[112px] whitespace-nowrap text-center",
+              isActive 
+                ? cn(
+                    "font-black", 
+                    variant === "underline" && (size === "sm" ? "border-b-2" : "border-b-[3px]"),
+                    currentTabColor
+                  )
+                : cn(
+                    "font-bold text-gray-400 hover:text-gray-600",
+                    variant === "underline" && (size === "sm" ? "border-b-2" : "border-b-[3px] border-transparent")
+                  ),
+              tabClassName
+            )}
           >
             {tab.label}
           </button>
@@ -68,3 +74,6 @@ export default function Tabs({
     </div>
   );
 }
+
+// cn 헬퍼가 필요할 수 있으므로 상단에 추가 (이미 있으면 무시)
+import { cn } from "@/lib/utils/cs";

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useTickerStore, type CoinMeta } from "@/stores/useTickerStore";
 import {
   getBinance24hrTickerApiUrl,
-  getBinanceWsBaseUrl,
+  getBinanceWsUrl,
   getMarketSymbolsApiUrl,
   type MarketType,
 } from "@/lib/utils/market";
@@ -216,8 +216,14 @@ export const useBinanceWebSocket = (marketTypeOverride?: MarketType) => {
     const streams = coinMetaList
       .map((coin) => `${getBinanceSymbol(coin).toLowerCase()}@ticker`)
       .join("/");
-    const wsBaseUrl = getBinanceWsBaseUrl(effectiveMarketType);
-    const ws = new WebSocket(`${wsBaseUrl}/stream?streams=${streams}`);
+    
+    const ws = new WebSocket(
+      getBinanceWsUrl({
+        marketType: effectiveMarketType,
+        stream: streams,
+        isCombined: true,
+      })
+    );
     const flushInterval = window.setInterval(() => {
       const nextUpdates = pendingUpdatesRef.current;
 
@@ -227,7 +233,7 @@ export const useBinanceWebSocket = (marketTypeOverride?: MarketType) => {
 
       updateTickerBatch(nextUpdates);
       pendingUpdatesRef.current = {};
-    }, 1000);
+    }, 100);
     const fallbackSnapshotInterval = window.setInterval(() => {
       if (
         lastTickerMessageAtRef.current === 0 ||

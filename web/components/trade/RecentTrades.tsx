@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTickerStore } from "@/stores/useTickerStore";
-import { getBinanceRecentTradesApiUrl, getBinanceWsBaseUrl } from "@/lib/utils/market";
+import { getBinanceRecentTradesApiUrl, getBinanceWsUrl } from "@/lib/utils/market";
 import { cn } from "@/lib/utils/cs";
 
 type TradeItem = {
@@ -21,7 +21,7 @@ type BinanceTradeMessage = {
   m: boolean;
 };
 
-const MAX_RECENT_TRADES = 20;
+const MAX_RECENT_TRADES = 22;
 
 const mergeUniqueTrades = (incoming: TradeItem[], current: TradeItem[]) => {
   const seenTradeIds = new Set<number>();
@@ -86,7 +86,6 @@ export default function RecentTrades({ className }: RecentTradesProps) {
     const meta = coinMetaList.find((c) => c.symbol === selectedCoin);
     const binanceSymbol = (meta?.binanceRequestSymbol || selectedCoin).toUpperCase();
 
-    // REST API로 최근 체결 즉시 로딩
     const fetchInitialTrades = async () => {
       try {
         const url = getBinanceRecentTradesApiUrl({ marketType: selectedMarketType, symbol: binanceSymbol, limit: MAX_RECENT_TRADES });
@@ -117,23 +116,26 @@ export default function RecentTrades({ className }: RecentTradesProps) {
     void fetchInitialTrades();
 
     const stream = `${binanceSymbol.toLowerCase()}@trade`;
-    const wsBaseUrl = getBinanceWsBaseUrl(selectedMarketType);
-    const ws = new WebSocket(`${wsBaseUrl}/ws/${stream}`);
+    const ws = new WebSocket(
+      getBinanceWsUrl({
+        marketType: selectedMarketType,
+        stream,
+        isCombined: false,
+      })
+    );
+    
     const flushInterval = window.setInterval(() => {
       if (!isActive) return;
       if (pendingTradesRef.current.length === 0) return;
 
-      setTrades((prev) =>
-        mergeUniqueTrades(pendingTradesRef.current, prev)
-      );
+      setTrades((prev) => mergeUniqueTrades(pendingTradesRef.current, prev));
       pendingTradesRef.current = [];
       setIsLoading(false);
-    }, 500);
+    }, 200);
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as BinanceTradeMessage;
-
         if (!isActive) return;
 
         const nextTrade: TradeItem = {
@@ -144,17 +146,9 @@ export default function RecentTrades({ className }: RecentTradesProps) {
           isBuyerMaker: data.m,
         };
 
-        if (
-          !Number.isFinite(nextTrade.price) ||
-          !Number.isFinite(nextTrade.quantity)
-        ) {
-          return;
-        }
+        if (!Number.isFinite(nextTrade.price) || !Number.isFinite(nextTrade.quantity)) return;
 
-        pendingTradesRef.current = mergeUniqueTrades(
-          [nextTrade],
-          pendingTradesRef.current
-        );
+        pendingTradesRef.current = mergeUniqueTrades([nextTrade], pendingTradesRef.current);
       } catch (error) {
         console.error("바이낸스 체결 데이터 파싱 실패:", error);
       }
@@ -174,54 +168,57 @@ export default function RecentTrades({ className }: RecentTradesProps) {
     };
   }, [selectedCoin, selectedMarketType, coinMetaList]);
 
+  const currentCoinMeta = coinMetaList.find(c => c.symbol === selectedCoin);
+  const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
+
+  if (isLoading && trades.length === 0) {
+    return (
+      <div className={cn("flex-1 min-h-[600px] animate-pulse border border-white/5 bg-[#161A1E] rounded-xl lg:col-span-4", className)} />
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        "flex h-[520px] flex-col overflow-hidden border border-gray-200 bg-white md:col-span-1 lg:col-span-4 lg:h-full",
-        className
-      )}
-    >
-      <div className="grid grid-cols-3 p-4 pr-6 border-b border-gray-200 font-black text-xs bg-gray-50/50">
-        <span>체결시간</span>
-        <span className="text-right">체결가</span>
-        <span className="text-right">체결량</span>
+    <div className={cn("flex flex-col flex-1 min-h-0 overflow-hidden border border-white/5 bg-[#161A1E] rounded-xl md:col-span-1 lg:col-span-4", className)}>
+      <div className="grid grid-cols-3 px-4 py-3 border-b border-white/5 font-black text-[10px] uppercase tracking-widest text-gray-500 bg-white/[0.02]">
+        <span>시간</span>
+        <span className="text-right">가격({quoteAsset})</span>
+        <span className="text-right">수량</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {isLoading && trades.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm font-bold text-gray-400">
-            체결 내역 불러오는 중...
-          </div>
-        ) : trades.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm font-bold text-gray-400">
+      <div className="flex-1 flex flex-col overflow-hidden bg-black/[0.02] py-1">
+        {trades.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-[11px] font-bold text-gray-500">
             체결 내역이 없습니다.
           </div>
         ) : (
-          trades.map((trade) => (
+          <div className="flex flex-col">
+            {trades.map((trade) => (
             <div
               key={trade.id}
               onClick={() => setSelectedOrderPrice(trade.price)}
-              className="grid grid-cols-3 items-center h-10 px-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+              className="group grid grid-cols-3 items-center h-[18px] px-4 cursor-pointer hover:bg-white/[0.03] transition-colors"
             >
-              <span className="text-[11px] font-medium text-gray-500">
+              <span className="text-[10px] font-bold text-gray-500 tabular-nums">
                 {formatTime(trade.time)}
               </span>
 
-              <span
-                className={`text-[12px] font-black text-right ${
-                  trade.isBuyerMaker ? "text-trade-sell" : "text-trade-buy"
-                }`}
-              >
+              <span className={cn(
+                "text-[11px] font-black text-right tabular-nums",
+                trade.isBuyerMaker 
+                  ? (selectedMarketType === "spot" ? "text-[#0058FF]" : "text-[#F6465D]") 
+                  : (selectedMarketType === "spot" ? "text-[#fb2c36]" : "text-[#2EBD85]")
+              )}>
                 {formatPrice(trade.price)}
               </span>
 
-              <span className="text-[11px] font-bold text-gray-500 text-right">
+              <span className="text-[11px] font-bold text-gray-400 text-right tabular-nums">
                 {formatQty(trade.quantity)}
               </span>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+    </div>
     </div>
   );
 }

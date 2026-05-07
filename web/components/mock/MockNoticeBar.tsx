@@ -208,98 +208,57 @@ export default function DemoNoticeBar() {
   };
 
   return (
-    <aside
-      aria-label="모의투자 상태 안내 배너"
-      className={`w-full px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors duration-300 shrink-0 shadow-sm z-20 relative
-        ${isParticipated ? "bg-gray-800 text-white" : "bg-[#8B5CF6] text-white"}
-      `}
-    >
-      {/* ================== 좌측: 안내 문구 ================== */}
-      <div className="flex items-center gap-2 text-sm font-bold text-center sm:text-left w-full sm:w-auto justify-center sm:justify-start">
-        {isParticipated ? (
-          <>
-            <TriangleAlert aria-hidden="true" className="h-5 w-5 shrink-0 text-yellow-300" />
-            <p>
-              현재 <span className="text-yellow-300 font-black">모의투자(연습)</span> 모드로 접속 중입니다. 실제 자산이 소모되지 않습니다.
-            </p>
-          </>
-        ) : (
-          <>
-            <Lightbulb aria-hidden="true" className="h-5 w-5 shrink-0 text-yellow-200" />
-            <p>요기망치 모의투자에 오신 것을 환영합니다! 초기 자금을 받고 투자를 연습해 보세요.</p>
-          </>
-        )}
-      </div>
-
-      {/* ================== 우측: 컨트롤 버튼들 ================== */}
-      <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end shrink-0">
-        
-        {isParticipated ? (
-          /* 지갑이 있을 때: 잔고 표시 & 초기화 버튼 */
-          <div className="flex items-center gap-2">
-            <div 
-              aria-label={
-                quoteAssetName
-                  ? `현재 모의 잔고는 ${formattedBalance} ${quoteAssetName}입니다`
-                  : `현재 모의 잔고는 ${formattedBalance}입니다`
-              }
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-700"
-            >
-              <span className="text-gray-300">잔고:</span>
-              <strong className="text-[#00C087] font-black">{formattedBalance}</strong>
-              {quoteAssetName ? (
-                <span className="text-gray-400 text-[10px] sm:text-xs">{quoteAssetName}</span>
-              ) : null}
+    <div className="flex items-center gap-3 text-sm">
+      {isParticipated ? (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 border-l border-white/5 px-3">
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                모의 잔고
+              </p>
+              <p className="mt-0.5 text-xs font-black tabular-nums text-emerald-400">
+                {formattedBalance} {quoteAssetName && <span className="text-[10px] text-gray-500">{quoteAssetName}</span>}
+              </p>
             </div>
-            
-            <button
-              onClick={handleReset}
-              aria-label="모의투자 지갑 초기화 및 재도전"
-              disabled={isResetting || isLoadingPortfolio}
-              className="shrink-0 text-[11px] sm:text-xs font-bold opacity-70 hover:opacity-100 underline underline-offset-2 transition-opacity flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
-              title="재도전(초기화)"
-            >
-              {isResetting ? (
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RotateCcw className="h-3.5 w-3.5" />
-              )}
-              <span>재도전</span>
-            </button>
           </div>
-        ) : (
-          /* 지갑이 없을 때: 지원금 받기 버튼 */
+
           <button
-            onClick={handleParticipate}
-            aria-label={quoteAssetName ? `초기 지원금 ${rewardLabel} 받기` : "초기 지원금 받기"}
-            disabled={isSubmitting || isLoadingPortfolio}
-            className="shrink-0 px-4 py-1.5 bg-white text-[#8B5CF6] text-sm font-black rounded-full shadow-sm hover:bg-purple-50 hover:scale-105 transition-all active:scale-95 flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+            onClick={handleReset}
+            disabled={isResetting || isLoadingPortfolio}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-300 transition-colors disabled:opacity-50"
+            title="초기 지원금으로 재도전"
           >
-            <Gift className="h-4 w-4" />
-            {isLoadingPortfolio
-              ? "계좌 확인 중..."
-              : isSubmitting
-                ? "처리 중..."
-                : quoteAssetName
-                  ? `${rewardLabel} 받기`
-                  : "지원금 받기"}
+            {isResetting ? <LoaderCircle className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+            재도전
           </button>
-        )}
+        </div>
+      ) : (
+        <button
+          onClick={handleParticipate}
+          disabled={isSubmitting || isLoadingPortfolio}
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-full shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
+        >
+          <Gift className="h-3.5 w-3.5" />
+          {isLoadingPortfolio
+            ? "확인 중..."
+            : isSubmitting
+              ? "처리 중..."
+              : quoteAssetName
+                ? `${rewardLabel} 받기`
+                : "지원금 받기"}
+        </button>
+      )}
 
-        {/* 구분선 (PC에서만 보임) */}
-        <div className="w-px h-4 bg-white/20 hidden sm:block mx-1"></div>
-
-        {/* 실전 탈출구 */}
+      {/* 실전 탈출구 */}
+      <div className="border-l border-white/5 pl-3">
         <button
           onClick={() => router.push('/trading')} 
-          aria-label="실전 트레이딩 페이지로 이동"
-          className="shrink-0 text-[11px] sm:text-xs font-bold opacity-70 hover:opacity-100 underline underline-offset-2 transition-opacity flex items-center gap-1"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold transition-colors"
         >
-          <TrendingUp className="h-3.5 w-3.5" />
-          <span>실전 입장</span>
+          <TrendingUp className="h-3 w-3" />
+          실전 입장
         </button>
-
       </div>
-    </aside>
+    </div>
   );
 }

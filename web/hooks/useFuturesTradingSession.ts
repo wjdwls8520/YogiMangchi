@@ -40,6 +40,7 @@ export function useFuturesTradingSession() {
     marginInUse: 0,
     status: "ACTIVE",
     expiredAt: null,
+    retryCount: 0,
   });
   
   const [openPositions, setOpenPositions] = useState<FuturesPositionItem[]>([]);
