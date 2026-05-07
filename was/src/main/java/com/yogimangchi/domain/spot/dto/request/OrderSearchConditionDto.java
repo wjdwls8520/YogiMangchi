@@ -38,4 +38,9 @@ public record OrderSearchConditionDto(
     public Integer getOrDefaultSize() {
         return size == null || size <= 0 ? 10 : size;
     }
+
+    // 프론트엔드의 파라미터 변조를 방지하기 위해 Controller 계층에서 호출하여 AssetType을 안전하게 덮어씌우는 헬퍼 메서드입니다.
+    public OrderSearchConditionDto withAssetType(AssetType assetType) {
+        return new OrderSearchConditionDto(this.cursorId, this.size, assetType, this.symbol, this.side, this.status, this.startDate, this.endDate);
+    }
 }

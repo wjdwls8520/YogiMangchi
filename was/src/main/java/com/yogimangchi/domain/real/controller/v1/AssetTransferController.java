@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.real.controller;
+package com.yogimangchi.domain.real.controller.v1;
 
 import com.yogimangchi.domain.real.dto.request.TransferRequestDto;
 import com.yogimangchi.domain.real.service.AssetTransferService;
