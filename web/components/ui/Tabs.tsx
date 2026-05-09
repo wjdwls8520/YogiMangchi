@@ -48,7 +48,7 @@ export default function Tabs({
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
             className={cn(
               "relative transition-all duration-200",
-              size === "sm" ? "pb-1.5 text-[12px]" : "pb-3",
+              size === "sm" ? "pt-1.5 pb-1.5 text-[12px]" : "pt-3 pb-3",
               fullWidth
                 ? "flex-1 text-center"
                 : size === "sm" 

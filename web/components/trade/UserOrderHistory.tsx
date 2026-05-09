@@ -10,6 +10,7 @@ import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { cancelOrder } from "@/lib/api/trade";
 import { cn } from "@/lib/utils/cs";
+import { X } from "lucide-react";
 
 /* ────────────────── Types ────────────────── */
 
@@ -36,6 +37,8 @@ type CursorPage<T> = {
 
 type UserOrderHistoryProps = {
   mode?: OrderHistoryMode;
+  onClose?: () => void;
+  showCloseButton?: boolean;
 };
 
 /* ────────────────── Helpers ────────────────── */
@@ -69,6 +72,8 @@ const formatStatus = (status: string) => {
 
 export default function UserOrderHistory({
   mode = "trade",
+  onClose,
+  showCloseButton = false,
 }: UserOrderHistoryProps) {
   const { alert, confirm, toast } = useFeedback();
   
@@ -180,6 +185,28 @@ export default function UserOrderHistory({
     }
   }, [mode, activeTab, hasLoadedPortfolio, isParticipated, nextCursorId]);
 
+  // Infinite Scroll Trigger (Desktop Only)
+  useEffect(() => {
+    // 모바일에서는 20개까지만 보여주기 위해 무한 스크롤 비활성화
+    if (typeof window !== "undefined" && window.innerWidth < 1024) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNext && !isFetchingMore && !isLoading) {
+          void loadRows(false);
+        }
+      },
+      { threshold: 0.1, root: scrollContainerRef.current }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) observer.observe(currentRef);
+    
+    return () => {
+      if (currentRef) observer.unobserve(currentRef);
+    };
+  }, [hasNext, isFetchingMore, isLoading, loadRows]);
+
   useEffect(() => {
     void loadRows(true);
   }, [activeTab, historyVersion, hasLoadedPortfolio, isParticipated, refreshKey, mode]);
@@ -202,11 +229,23 @@ export default function UserOrderHistory({
 
   const getBaseAsset = (symbol: string) => coinMetaList.find(c => c.symbol === symbol)?.baseAsset ?? symbol;
   const quoteAsset = coinMetaList.find(c => c.symbol === selectedCoin)?.quoteAsset ?? "USDT";
+  
+  const isMock = mode === "mock";
+  const bgMain = isMock ? "bg-transparent text-slate-900" : "bg-[#161A1E]";
+  const theadBg = isMock ? "bg-slate-50 text-slate-500" : "bg-[#1A1F26] text-gray-500";
+  const borderSub = isMock ? "border-gray-100" : "border-white/5";
+  const tbodyDivide = isMock ? "divide-gray-100 text-slate-700" : "divide-white/5 text-gray-200";
+  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.02]";
+  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
+  const textQty = isMock ? "text-slate-600" : "text-gray-300";
+  const textAmount = isMock ? "text-slate-900" : "text-gray-100";
+  const textFee = isMock ? "text-slate-400" : "text-gray-400";
+  const statusBadge = isMock ? "bg-slate-100 text-slate-500" : "bg-white/5 text-gray-400";
 
   return (
-    <section className="flex h-full flex-col bg-[#161A1E]">
+    <section className={cn("flex flex-col h-full overflow-hidden", bgMain)}>
       {/* Tabs */}
-      <div className="shrink-0 px-4 py-2">
+      <div className="shrink-0 px-4 py-2 border-b border-gray-50">
         <Tabs
           tabs={[
             { label: "체결 주문", value: "orders" },
@@ -220,45 +259,45 @@ export default function UserOrderHistory({
         />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto custom-scrollbar" ref={scrollContainerRef}>
+      {/* Content - internal scroll for Bottom Sheet */}
+      <div className={cn("flex-1 min-h-0 overflow-auto", isMock ? "bg-white scrollbar-light" : "bg-transparent scrollbar-custom")} ref={scrollContainerRef}>
         {rows.length > 0 ? (
-          <table className="w-full text-[11px] text-left border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-[#1A1F26] text-gray-500 font-bold uppercase tracking-tighter">
+          <table className="w-full min-w-max text-[11px] text-left border-separate border-spacing-0 whitespace-nowrap">
+            <thead className={`sticky top-0 z-10 font-bold uppercase tracking-tighter ${theadBg}`}>
               <tr>
-                <th className="py-2 px-4 border-b border-white/5">주문일시</th>
-                <th className="py-2 px-4 border-b border-white/5">자산</th>
-                <th className="py-2 px-4 border-b border-white/5 text-center">구분</th>
-                <th className="py-2 px-4 border-b border-white/5 text-right">수량</th>
-                <th className="py-2 px-4 border-b border-white/5 text-right">가격({quoteAsset})</th>
-                <th className="py-2 px-4 border-b border-white/5 text-right">금액({quoteAsset})</th>
-                <th className="py-2 px-4 border-b border-white/5 text-right">수수료({quoteAsset})</th>
-                <th className="py-2 px-4 border-b border-white/5 text-center">상태</th>
-                {activeTab === "pending" && <th className="py-2 px-4 border-b border-white/5 text-center">관리</th>}
+                <th className={`py-2 px-4 border-b ${borderSub}`}>주문일시</th>
+                <th className={`py-2 px-4 border-b ${borderSub}`}>자산</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-center`}>구분</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>수량</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>가격({quoteAsset})</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>금액({quoteAsset})</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>수수료({quoteAsset})</th>
+                <th className={`py-2 px-4 border-b ${borderSub} text-center`}>상태</th>
+                {activeTab === "pending" && <th className={`py-2 px-4 border-b ${borderSub} text-center`}>관리</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-gray-200">
+            <tbody className={`divide-y ${tbodyDivide}`}>
               {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-2 px-4 text-gray-500">{formatDateTime(row.date)}</td>
+                <tr key={row.id} className={`transition-colors ${rowHover}`}>
+                  <td className={`py-2 px-4 ${textMuted}`}>{formatDateTime(row.date)}</td>
                   <td className="py-2 px-4 font-black">{getBaseAsset(row.symbol)}</td>
                   <td className={cn("py-2 px-4 text-center font-bold", row.side === "BUY" ? "text-[#fb2c36]" : "text-[#0058FF]")}>
                     {row.side === "BUY" ? "매수" : "매도"}
                   </td>
-                  <td className="py-2 px-4 text-right tabular-nums text-gray-300">
+                  <td className={`py-2 px-4 text-right tabular-nums ${textQty}`}>
                     {formatAssetNumber(row.quantity)}
                   </td>
                   <td className="py-2 px-4 text-right tabular-nums font-bold">
                     {row.price ? formatAssetNumber(row.price) : "시장가"}
                   </td>
-                  <td className="py-2 px-4 text-right tabular-nums font-black text-gray-100">
+                  <td className={`py-2 px-4 text-right tabular-nums font-black ${textAmount}`}>
                     {formatAssetNumber(row.totalAmount)}
                   </td>
-                  <td className="py-2 px-4 text-right tabular-nums text-gray-400">
+                  <td className={`py-2 px-4 text-right tabular-nums ${textFee}`}>
                     {formatAssetNumber(row.fee)}
                   </td>
                   <td className="py-2 px-4 text-center">
-                    <span className="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-bold text-gray-400">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${statusBadge}`}>
                       {formatStatus(row.status)}
                     </span>
                   </td>
@@ -295,7 +334,7 @@ export default function UserOrderHistory({
           </div>
         )}
         
-        {rows.length > 0 && (isFetchingMore || hasNext) && (
+        {rows.length > 0 && (isFetchingMore || (hasNext && typeof window !== "undefined" && window.innerWidth >= 1024)) && (
           <div className="py-4 flex justify-center">
             {isFetchingMore ? (
               <p className="text-xxs font-bold text-gray-400 animate-pulse">불러오는 중...</p>

@@ -63,9 +63,10 @@ const getBarWidth = (qty: number, maxQty: number) => {
 
 type OrderBookProps = {
   className?: string;
+  mode?: "mock" | "trade";
 };
 
-export default function OrderBook({ className }: OrderBookProps) {
+export default function OrderBook({ className, mode = "trade" }: OrderBookProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
@@ -74,6 +75,7 @@ export default function OrderBook({ className }: OrderBookProps) {
   const [bids, setBids] = useState<OrderBookLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const pendingDepthRef = useRef<BinanceDepthMessage | null>(null);
+  const asksContainerRef = useRef<HTMLDivElement>(null);
 
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
 
@@ -81,8 +83,17 @@ export default function OrderBook({ className }: OrderBookProps) {
   const currentCoinMeta = coinMetaList.find(c => c.symbol === selectedCoin);
   const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
 
-  // 상/하단에 노출할 호가 개수 고정 (잘림 방지를 위해 12개로 조정)
-  const DISPLAY_COUNT = 12;
+  // 상/하단에 노출할 호가 개수 (모바일 8개, PC 12개)
+  const [displayCount, setDisplayCount] = useState(12);
+
+  useEffect(() => {
+    const updateCount = () => {
+      setDisplayCount(window.innerWidth < 1024 ? 8 : 12);
+    };
+    updateCount();
+    window.addEventListener('resize', updateCount);
+    return () => window.removeEventListener('resize', updateCount);
+  }, []);
 
   useEffect(() => {
     if (!selectedCoin) return;
@@ -143,58 +154,85 @@ export default function OrderBook({ className }: OrderBookProps) {
     };
   }, [selectedCoin, selectedMarketType]);
 
-  // 상단 매도호가는 가격이 높은 순서대로 위에서부터 정렬
-  const displayAsks = [...asks].slice(0, DISPLAY_COUNT).reverse();
-  const displayBids = [...bids].slice(0, DISPLAY_COUNT);
-
-  const maxAskQty = displayAsks.length > 0 ? Math.max(...displayAsks.map((item) => item.quantity)) : 1;
-  const maxBidQty = displayBids.length > 0 ? Math.max(...displayBids.map((item) => item.quantity)) : 1;
+  // 매도 호가 스크롤 하단 고정 (현재가 근처가 먼저 보이도록)
+  useEffect(() => {
+    if (asksContainerRef.current) {
+      asksContainerRef.current.scrollTop = asksContainerRef.current.scrollHeight;
+    }
+  }, [asks]);
 
   const bestAsk = asks[0]?.price ?? 0;
   const bestBid = bids[0]?.price ?? 0;
   const fallbackPrice = bestAsk > 0 && bestBid > 0 ? (bestAsk + bestBid) / 2 : 0;
-
   const currentPrice = realtime?.price ?? fallbackPrice;
   const changeRate = realtime?.changeRate ?? 0;
 
+  // 상단 매도호가는 현재가보다 큰 가격만, 하단 매수호가는 현재가보다 작은 가격만 노출
+  const displayAsks = [...asks]
+    .filter(level => level.price > currentPrice)
+    .slice(0, displayCount)
+    .reverse();
+    
+  const displayBids = [...bids]
+    .filter(level => level.price < currentPrice)
+    .slice(0, displayCount);
+
+  // 현재가와 정확히 일치하는 호가의 잔량 찾기
+  const matchingLevel = [...asks, ...bids].find(level => level.price === currentPrice);
+  const currentPriceQty = matchingLevel?.quantity ?? null;
+
+  const maxAskQty = displayAsks.length > 0 ? Math.max(...displayAsks.map((item) => item.quantity)) : 1;
+  const maxBidQty = displayBids.length > 0 ? Math.max(...displayBids.map((item) => item.quantity)) : 1;
+
+  const isMock = mode === "mock";
+  const isSpot = selectedMarketType === "spot";
+
   if (isLoading && asks.length === 0 && bids.length === 0) {
+    const loadingBgCls = isMock ? "bg-white border border-gray-200" : "bg-[#161A1E] border border-white/5";
     return (
-      <div className={cn("flex-1 min-h-[600px] animate-pulse border border-white/5 bg-[#161A1E] rounded-xl lg:col-span-3", className)} />
+      <div className={cn(`flex-1 min-h-[600px] animate-pulse rounded-xl lg:col-span-3 ${loadingBgCls}`, className)} />
     );
   }
 
-  const isSpot = selectedMarketType === "spot";
-  const sellTextColor = isSpot ? "text-[#0058FF]" : "text-[#F6465D]";
-  const sellBgColor = isSpot ? "bg-[#0058FF]/10" : "bg-red-500/10";
-  const buyTextColor = isSpot ? "text-[#fb2c36]" : "text-[#2EBD85]";
-  const buyBgColor = isSpot ? "bg-[#fb2c36]/10" : "bg-green-500/10";
+  const sellTextColor = isSpot || isMock ? "text-[#0058FF]" : "text-[#F6465D]";
+  const sellBgColor = isSpot || isMock ? "bg-[#0058FF]/10" : "bg-red-500/10";
+  const buyTextColor = isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]";
+  const buyBgColor = isSpot || isMock ? "bg-[#fb2c36]/10" : "bg-green-500/10";
+
+  const containerBg = isMock ? "bg-transparent" : "bg-[#161A1E] border border-white/5 rounded-xl";
+  const headerBg = isMock ? "bg-slate-50 border-gray-100" : "bg-white/[0.02] border-white/5";
+  const headerText = isMock ? "text-slate-500" : "text-gray-500";
+  const chartBg = isMock ? "bg-white" : "bg-black/[0.02]";
+  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.03]";
+  const qtyColor = isMock ? "text-slate-500" : "text-gray-400";
+  const centerBtnBg = isMock ? "bg-slate-50 hover:bg-slate-100 border-gray-100" : "bg-white/[0.04] hover:bg-white/[0.08] border-white/5";
 
   return (
-    <div className={cn("flex flex-col flex-1 min-h-0 overflow-hidden border border-white/5 bg-[#161A1E] rounded-xl md:col-span-1 lg:col-span-3", className)}>
+    <div className={cn(`flex flex-col flex-1 min-h-0 overflow-hidden md:col-span-1 lg:col-span-3 ${containerBg}`, className)}>
       {/* 헤더 */}
-      <div className="grid grid-cols-2 px-4 py-3 border-b border-white/5 font-black text-[10px] uppercase tracking-widest text-gray-500 bg-white/[0.02]">
+      <div className={`grid grid-cols-2 px-3 sm:px-4 py-2 sm:py-3 border-b font-black text-[10px] uppercase tracking-widest ${headerText} ${headerBg}`}>
         <span>가격({quoteAsset})</span>
         <span className="text-right">수량</span>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-black/[0.02] py-1">
+      <div className={`flex-1 flex flex-col overflow-hidden py-1 ${chartBg}`}>
         {/* 매도 호가 영역 */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div ref={asksContainerRef} className="flex-1 flex flex-col overflow-y-auto min-h-0 custom-scrollbar scroll-smooth">
           <div className="flex flex-col mt-auto">
             {displayAsks.map((level) => (
               <div
                 key={`ask-${level.price}`}
                 onClick={() => setSelectedOrderPrice(level.price)}
-                className="group flex justify-between items-center h-[20px] px-4 relative cursor-pointer hover:bg-white/[0.03] transition-colors"
+                className={`group flex justify-between items-center h-[20px] px-3 sm:px-4 relative cursor-pointer transition-colors min-w-0 ${rowHover}`}
               >
                 <div
                   className={cn("absolute right-0 top-0 bottom-0 transition-all duration-300", sellBgColor)}
                   style={{ width: getBarWidth(level.quantity, maxAskQty) }}
                 />
-                <span className={cn("relative z-10 text-[11px] font-black", sellTextColor)}>
+                <span className={cn("relative z-10 text-[10px] sm:text-[11px] font-black truncate mr-2", sellTextColor)}>
                   {formatPrice(level.price)}
                 </span>
-                <span className="relative z-10 text-[11px] font-bold text-gray-400 tabular-nums">
+                <span className={`relative z-10 text-[10px] sm:text-[11px] font-bold tabular-nums truncate ${qtyColor}`}>
                   {formatQty(level.quantity)}
                 </span>
               </div>
@@ -202,52 +240,41 @@ export default function OrderBook({ className }: OrderBookProps) {
           </div>
         </div>
 
-        {/* 현재가 (가운데) - 클릭 시 오더폼 입력 기능 추가 */}
-        <button 
-          onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
-          className="h-10 shrink-0 bg-white/[0.04] flex flex-col justify-center border-y border-white/5 z-10 px-4 hover:bg-white/[0.08] transition-colors group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              {changeRate > 0 ? (
-                <ArrowUp className={cn("size-3.5 stroke-[3]", buyTextColor)} />
-              ) : changeRate < 0 ? (
-                <ArrowDown className={cn("size-3.5 stroke-[3]", sellTextColor)} />
-              ) : null}
-              <span className={cn(
-                "text-lg font-black tabular-nums tracking-tighter",
-                changeRate > 0 ? buyTextColor : changeRate < 0 ? sellTextColor : "text-white"
-              )}>
-                {currentPrice > 0 ? formatPrice(currentPrice) : "-"}
-              </span>
-            </div>
-            
-            <div className={cn(
-              "text-[10px] font-black px-1.5 py-0.5 rounded",
-              changeRate > 0 ? `${buyBgColor} ${buyTextColor}` : changeRate < 0 ? `${sellBgColor} ${sellTextColor}` : "bg-gray-500/10 text-gray-500"
-            )}>
-              {changeRate > 0 ? "+" : ""}{changeRate.toFixed(2)}%
-            </div>
-          </div>
-        </button>
+        {/* 현재가 (가운데) - 화이트 배경, 블랙 테두리/폰트 (2px) */}
+        <div className="py-1 shrink-0">
+          <button 
+            onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
+            className={cn(
+              "w-full h-[28px] flex items-center justify-between px-3 sm:px-4 transition-all z-10 border-y-2",
+              "bg-white border-black"
+            )}
+          >
+            <span className="text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate text-black">
+              {currentPrice > 0 ? formatPrice(currentPrice) : "-"}
+            </span>
+            <span className="text-[11px] sm:text-[12px] font-bold text-black tabular-nums">
+              {currentPriceQty !== null ? formatQty(currentPriceQty) : "-"}
+            </span>
+          </button>
+        </div>
 
         {/* 매수 호가 영역 */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col overflow-y-auto min-h-0 custom-scrollbar">
           <div className="flex flex-col">
             {displayBids.map((level) => (
               <div
                 key={`bid-${level.price}`}
                 onClick={() => setSelectedOrderPrice(level.price)}
-                className="group flex justify-between items-center h-[20px] px-4 relative cursor-pointer hover:bg-white/[0.03] transition-colors"
+                className={`group flex justify-between items-center h-[20px] px-3 sm:px-4 relative cursor-pointer transition-colors min-w-0 ${rowHover}`}
               >
                 <div
                   className={cn("absolute right-0 top-0 bottom-0 transition-all duration-300", buyBgColor)}
                   style={{ width: getBarWidth(level.quantity, maxBidQty) }}
                 />
-                <span className={cn("relative z-10 text-[11px] font-black", buyTextColor)}>
+                <span className={cn("relative z-10 text-[10px] sm:text-[11px] font-black truncate mr-2", buyTextColor)}>
                   {formatPrice(level.price)}
                 </span>
-                <span className="relative z-10 text-[11px] font-bold text-gray-400 tabular-nums">
+                <span className={`relative z-10 text-[10px] sm:text-[11px] font-bold tabular-nums truncate ${qtyColor}`}>
                   {formatQty(level.quantity)}
                 </span>
               </div>

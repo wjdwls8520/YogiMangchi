@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Search, Star  } from "lucide-react";
+import { Search, Star } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import SegmentTabs from "@/components/ui/SegmentTabs";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useFavoriteStore } from "@/stores/useFavoriteStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { getMarketLabel, type MarketType } from "@/lib/utils/market";
+import { cn } from "@/lib/utils/cs";
 import type { RealtimeData } from "@/stores/useTickerStore";
 
 type SortKey = "displayNameKr" | "price" | "change" | "volume";
@@ -20,6 +22,7 @@ type CoinListProps = {
   isParticipated?: boolean;
   headerAction?: ReactNode;
   headerActionPosition?: "left" | "right";
+  onSelect?: (symbol: string) => void;
 };
 
 export default function CoinList({
@@ -29,6 +32,7 @@ export default function CoinList({
   isParticipated = false,
   headerAction,
   headerActionPosition = "right",
+  onSelect,
 }: CoinListProps) {
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
@@ -58,9 +62,13 @@ export default function CoinList({
     direction: null,
   });
 
+  const isLogin = useAuthStore((state) => state.isLogin);
+
   useEffect(() => {
-    fetchFavorites();
-  }, [fetchFavorites]);
+    if (isLogin) {
+      fetchFavorites();
+    }
+  }, [fetchFavorites, isLogin]);
 
   useEffect(() => {
     if (availableMarketTypes.includes(selectedMarketType)) {
@@ -116,7 +124,7 @@ export default function CoinList({
       (coin) =>
         coin.displayNameKr.toLowerCase().includes(q) ||
         coin.baseAsset.toLowerCase().includes(q)
-      );
+    );
   }
 
   if (sortConfig.key) {
@@ -173,9 +181,20 @@ export default function CoinList({
     return "목록이 존재하지 않습니다.";
   };
 
+  const isMock = mode === "mock";
+  const bgMain = isMock ? "bg-white text-slate-900 border-gray-200" : "bg-[#161A1E] text-white border-white/5";
+  const borderSub = isMock ? "border-gray-100" : "border-white/5";
+  const bgInput = isMock ? "bg-slate-50" : "bg-[#1E2329]";
+  const textMain = isMock ? "text-slate-900" : "text-gray-200";
+  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
+  const textQty = isMock ? "text-slate-600" : "text-gray-300";
+  const bgHeader = isMock ? "bg-slate-50" : "bg-[#161A1E]";
+  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/5";
+  const rowSelected = isMock ? "bg-blue-50" : "bg-blue-500/10";
+
   return (
-    <aside className="w-full h-full min-h-0 bg-[#161A1E] border-r border-white/5 flex flex-col shrink-0 overflow-hidden">
-      <div className="p-4 border-b border-white/5">
+    <aside className={cn("w-full h-full min-h-0 flex flex-col shrink-0 overflow-hidden border-r", bgMain)}>
+      <div className={cn("p-4 border-b", borderSub)}>
         {headerAction && (
           <div className="mb-4">
             {headerAction}
@@ -187,7 +206,7 @@ export default function CoinList({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="자산명, 심볼 검색"
-            className="pl-9 bg-[#1E2329] border-white/5 text-gray-200"
+            className={cn("pl-9", bgInput, borderSub, textMain)}
           />
           <Search className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
         </div>
@@ -203,12 +222,12 @@ export default function CoinList({
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className={cn("flex-1 overflow-y-auto px-3", isMock ? "scrollbar-light" : "scrollbar-custom")}>
         <table className="w-full text-[11px] whitespace-nowrap">
-          <thead className="sticky top-0 bg-[#161A1E] text-[12px] font-bold text-gray-400 border-b border-white/5 z-10">
+          <thead className={cn("sticky top-0 z-10 text-[12px] font-bold border-b", bgHeader, textMuted, borderSub)}>
             <tr>
               <th
-                className="py-2.5 px-3 text-left cursor-pointer hover:bg-white/5"
+                className={cn("py-2.5 px-3 text-left cursor-pointer transition-colors", rowHover)}
                 onClick={() => requestSort("displayNameKr")}
               >
                 자산{" "}
@@ -216,7 +235,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-2 text-right cursor-pointer hover:bg-white/5"
+                className={cn("py-2.5 px-2 text-right cursor-pointer transition-colors", rowHover)}
                 onClick={() => requestSort("price")}
               >
                 현재가($){" "}
@@ -224,7 +243,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-2 text-right cursor-pointer hover:bg-white/5"
+                className={cn("py-2.5 px-2 text-right cursor-pointer transition-colors", rowHover)}
                 onClick={() => requestSort("change")}
               >
                 변동률{" "}
@@ -232,7 +251,7 @@ export default function CoinList({
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
               <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:bg-white/5"
+                className={cn("py-2.5 px-3 text-right cursor-pointer transition-colors", rowHover)}
                 onClick={() => requestSort("volume")}
               >
                 거래금액{" "}
@@ -256,13 +275,13 @@ export default function CoinList({
                   ? buyColor
                   : coin.change < 0
                     ? sellColor
-                    : "text-gray-200";
+                    : textMain;
 
               const priceDisplay = coin.price
                 ? coin.price.toLocaleString(undefined, {
-                    minimumFractionDigits: coin.price < 1 ? 2 : 2,
-                    maximumFractionDigits: coin.price < 1 ? 8 : 4,
-                  })
+                  minimumFractionDigits: coin.price < 1 ? 2 : 2,
+                  maximumFractionDigits: coin.price < 1 ? 8 : 4,
+                })
                 : "-";
 
               const changeDisplay =
@@ -272,17 +291,18 @@ export default function CoinList({
 
               const volumeDisplay = coin.volume
                 ? (coin.volume / 1000000).toLocaleString(undefined, {
-                    maximumFractionDigits: 0,
-                  })
+                  maximumFractionDigits: 0,
+                })
                 : "-";
 
               return (
                 <tr
                   key={coin.symbol}
-                  onClick={() => setSelectedCoin(coin.symbol)}
-                  className={`cursor-pointer transition-colors border-b border-white/5 ${
-                    isSelected ? "bg-blue-500/10" : "hover:bg-white/5"
-                  }`}
+                  onClick={() => {
+                    setSelectedCoin(coin.symbol);
+                    onSelect?.(coin.symbol);
+                  }}
+                  className={cn("cursor-pointer transition-colors border-b", borderSub, isSelected ? rowSelected : rowHover)}
                 >
                   <td className="py-3 px-3 flex items-center gap-2">
                     <button
@@ -294,31 +314,31 @@ export default function CoinList({
                           className="size-4 text-[#F0B90B] fill-[#F0B90B] drop-shadow-[0_0_2px_rgba(240,185,11,0.5)]"
                         />
                       ) : (
-                        <Star className="size-4 text-gray-600 group-hover:text-yellow-500 transition-colors" />
+                        <Star className="size-4 text-gray-300 group-hover:text-yellow-500 transition-colors" />
                       )}
                     </button>
 
                     <div className="flex flex-col">
-                      <span className="font-black text-gray-200">
+                      <span className={cn("font-black", textMain)}>
                         {coin.displayNameKr}
                       </span>
-                      <span className="text-gray-500 font-bold tracking-tighter text-[10px]">
+                      <span className={cn("font-bold tracking-tighter text-[10px]", textMuted)}>
                         {coin.baseAsset}/{coin.quoteAsset}
                       </span>
                     </div>
                   </td>
 
-                  <td className={`py-3 px-2 text-right font-black tabular-nums ${colorClass}`}>
+                  <td className={cn("py-3 px-2 text-right font-black tabular-nums", colorClass)}>
                     {priceDisplay}
                   </td>
 
-                  <td className={`py-3 px-2 text-right font-bold tabular-nums ${colorClass}`}>
+                  <td className={cn("py-3 px-2 text-right font-bold tabular-nums", colorClass)}>
                     {changeDisplay}
                   </td>
 
-                  <td className="py-3 px-3 text-right font-bold text-gray-300">
+                  <td className={cn("py-3 px-3 text-right font-bold", textQty)}>
                     {volumeDisplay}
-                    <span className="text-gray-500 ml-0.5 text-[9px]">M</span>
+                    <span className={cn("ml-0.5 text-[9px]", textMuted)}>M</span>
                   </td>
                 </tr>
               );
@@ -327,7 +347,7 @@ export default function CoinList({
         </table>
 
         {processedCoins.length === 0 && (
-          <div className="py-10 text-center text-[11px] text-gray-500 font-bold">
+          <div className={cn("py-10 text-center text-[11px] font-bold", textMuted)}>
             {getEmptyMessage()}
           </div>
         )}

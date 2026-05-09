@@ -14,6 +14,7 @@ import {
   type MarketType,
 } from "@/lib/utils/market";
 import { cn } from "@/lib/utils/cs";
+import { ChevronDown, Check, Settings } from "lucide-react";
 
 const timeframeOptions = [
   { label: "1분", value: "1m" },
@@ -71,6 +72,7 @@ type CoinChartProps = {
   className?: string;
   chartAreaClassName?: string;
   marketTypeOverride?: MarketType;
+  mode?: "mock" | "trade";
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -85,19 +87,11 @@ const getSocketValue = (value: unknown) => {
   return "";
 };
 
-const formatSocketUpdatedTime = () => {
-  return new Date().toLocaleTimeString("ko-KR", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
-
 export default function CoinChart({
   className,
   chartAreaClassName,
   marketTypeOverride,
+  mode = "trade",
 }: CoinChartProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
@@ -118,14 +112,27 @@ export default function CoinChart({
   const [showMA, setShowMA] = useState(false);
   const [showMarkers, setShowMarkers] = useState(false);
   const [isPercent, setIsPercent] = useState(false);
-  const [isDark, setIsDark] = useState(true); 
+  const [isDark, setIsDark] = useState(mode !== "mock"); 
+  useEffect(() => {
+    setIsDark(mode !== "mock");
+  }, [mode]);
+
   const [showPriceLine, setShowPriceLine] = useState(false); 
   const [showTooltip, setShowTooltip] = useState(true); 
 
   const [dataTick, setDataTick] = useState(0);
   const [isChartDataLoading, setIsChartDataLoading] = useState(true);
   const [chartDataErrorMessage, setChartDataErrorMessage] = useState("");
-  const [lastWsTime, setLastWsTime] = useState<string>("연결 대기 중...");
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    if (activeDropdown) {
+      window.addEventListener("click", handleClickOutside);
+    }
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [activeDropdown]);
 
   const chartRef = useRef<any>(null);
   const seriesRef = useRef<any>({});
@@ -538,10 +545,8 @@ export default function CoinChart({
     );
 
     wsRef.current = socket;
-    setLastWsTime("연결 중...");
 
     socket.onopen = () => {
-      setLastWsTime("연결됨");
     };
 
     socket.onmessage = (event) => {
@@ -554,19 +559,16 @@ export default function CoinChart({
         }
 
         upsertRealtimeData(realtimeKline.candle, realtimeKline.volume);
-        setLastWsTime(formatSocketUpdatedTime());
       } catch (error) {
         console.error("차트 실시간 데이터 파싱 실패:", error);
       }
     };
 
     socket.onerror = () => {
-      setLastWsTime("연결 오류");
     };
 
     socket.onclose = () => {
       if (wsRef.current === socket) {
-        setLastWsTime("연결 종료");
       }
     };
 
@@ -683,111 +685,131 @@ export default function CoinChart({
 
       <header className={`flex flex-wrap items-center justify-between`}>
         
-        <div className="flex flex-wrap items-center gap-4">
-          
-          <nav aria-label="시간대 선택" className="flex gap-1">
-            {timeframeOptions.map((opt, i) => (
-              <button
-                key={opt.value}
-                onClick={() => setTimeframe(opt.value)}
-                aria-pressed={timeframe === opt.value}
-                className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                  ${timeframe === opt.value
-                    ? (isDark ? "bg-white/20 text-white shadow-sm" : "bg-blue-100 text-[#0058FF] shadow-sm")
-                    : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")
-                  }
-                `}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </nav>
-
-          <nav aria-label="차트 종류 선택" className="flex gap-1">
-            {chartTypeOptions.map((opt, i) => (
-              <button
-                key={opt.value}
-                onClick={() => setChartType(opt.value)}
-                aria-pressed={chartType === opt.value}
-                className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                  ${chartType === opt.value
-                    ? (isDark ? "bg-white/20 text-white shadow-sm" : "bg-gray-200 text-gray-900 shadow-sm")
-                    : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")
-                  }
-                `}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div role="group" aria-label="차트 기능 토글" className="flex gap-1">
-            
-            <button 
-              onClick={() => setShowPriceLine(!showPriceLine)} 
-              aria-pressed={showPriceLine}
-              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                ${showPriceLine ? "bg-[#00C087] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
-              `}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 1. 시간대 드롭다운 */}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'timeframe' ? null : 'timeframe'); }}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1.5 text-[11px] font-bold rounded-md transition-all border",
+                isDark 
+                  ? "bg-[#2B3139] border-gray-700 text-gray-200 hover:bg-gray-700" 
+                  : "bg-white border-gray-200 text-slate-700 hover:bg-gray-50 shadow-sm"
+              )}
             >
-              평단가
+              {timeframeOptions.find(o => o.value === timeframe)?.label}
+              <ChevronDown className={cn("w-3 h-3 transition-transform", activeDropdown === 'timeframe' && "rotate-180")} />
             </button>
-
-            <button 
-              onClick={() => setShowMA(!showMA)} 
-              aria-pressed={showMA}
-              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                ${showMA ? "bg-[#F5A623] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
-              `}
-            >
-              MA20
-            </button>
-
-            <button 
-              onClick={() => setShowMarkers(!showMarkers)} 
-              aria-pressed={showMarkers}
-              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                ${showMarkers ? "bg-[#0058FF] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
-              `}
-            >
-              마커
-            </button>
-
-            <button 
-              onClick={() => setShowTooltip(!showTooltip)} 
-              aria-pressed={showTooltip}
-              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                ${showTooltip ? "bg-[#8B5CF6] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
-              `}
-            >
-              툴팁
-            </button>
-
-            <button 
-              onClick={() => setIsPercent(!isPercent)} 
-              aria-pressed={isPercent}
-              className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors
-                ${isPercent ? "bg-[#9B51E0] text-white shadow-sm" : (isDark ? "text-gray-400 hover:text-gray-200 hover:bg-white/5" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100")}
-              `}
-            >
-              {isPercent ? "% 비율" : "$ 가격"}
-            </button>
-            
+            {activeDropdown === 'timeframe' && (
+              <div className={cn(
+                "absolute top-full left-0 mt-1 w-24 z-50 rounded-lg border shadow-xl animate-in fade-in slide-in-from-top-1 duration-200",
+                isDark ? "bg-[#1E2329] border-gray-700" : "bg-white border-gray-100"
+              )}>
+                {timeframeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setTimeframe(opt.value); setActiveDropdown(null); }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold transition-colors first:rounded-t-lg last:rounded-b-lg",
+                      timeframe === opt.value
+                        ? (isDark ? "bg-white/10 text-white" : "bg-blue-50 text-[#0058FF]")
+                        : (isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-gray-50 hover:text-slate-900")
+                    )}
+                  >
+                    {opt.label}
+                    {timeframe === opt.value && <Check className="w-3 h-3" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* <button 
-            onClick={() => setIsDark(!isDark)}
-            aria-label={isDark ? "라이트 모드로 전환" : "다크 모드로 전환"}
-            className={`p-2 text-xl rounded-full transition-all border ${isDark ? 'bg-[#2B3139] border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
-            title="테마 변경"
-          >
-            {isDark ? "☀️" : "🌙"}
-          </button> */}
-          <span className="text-[10px] text-gray-500">WS: {lastWsTime}</span>
-        </div>
+          {/* 2. 차트 종류 드롭다운 */}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'style' ? null : 'style'); }}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1.5 text-[11px] font-bold rounded-md transition-all border",
+                isDark 
+                  ? "bg-[#2B3139] border-gray-700 text-gray-200 hover:bg-gray-700" 
+                  : "bg-white border-gray-200 text-slate-700 hover:bg-gray-50 shadow-sm"
+              )}
+            >
+              {chartTypeOptions.find(o => o.value === chartType)?.label}
+              <ChevronDown className={cn("w-3 h-3 transition-transform", activeDropdown === 'style' && "rotate-180")} />
+            </button>
+            {activeDropdown === 'style' && (
+              <div className={cn(
+                "absolute top-full left-0 mt-1 w-24 z-50 rounded-lg border shadow-xl animate-in fade-in slide-in-from-top-1 duration-200",
+                isDark ? "bg-[#1E2329] border-gray-700" : "bg-white border-gray-100"
+              )}>
+                {chartTypeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setChartType(opt.value); setActiveDropdown(null); }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold transition-colors first:rounded-t-lg last:rounded-b-lg",
+                      chartType === opt.value
+                        ? (isDark ? "bg-white/10 text-white" : "bg-blue-50 text-[#0058FF]")
+                        : (isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-gray-50 hover:text-slate-900")
+                    )}
+                  >
+                    {opt.label}
+                    {chartType === opt.value && <Check className="w-3 h-3" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
+          {/* 3. 차트 설정 드롭다운 */}
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'settings' ? null : 'settings'); }}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-md transition-all border",
+                isDark 
+                  ? "bg-[#2B3139] border-gray-700 text-gray-200 hover:bg-gray-700" 
+                  : "bg-white border-gray-200 text-slate-700 hover:bg-gray-50 shadow-sm"
+              )}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              설정
+              <ChevronDown className={cn("w-3 h-3 transition-transform", activeDropdown === 'settings' && "rotate-180")} />
+            </button>
+            {activeDropdown === 'settings' && (
+              <div className={cn(
+                "absolute top-full left-0 mt-1 w-40 z-50 rounded-lg border shadow-xl animate-in fade-in slide-in-from-top-1 duration-200",
+                isDark ? "bg-[#1E2329] border-gray-700" : "bg-white border-gray-100"
+              )} onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col p-1">
+                  {[
+                    { label: "평단가 표시", value: showPriceLine, action: () => setShowPriceLine(!showPriceLine), color: "bg-[#00C087]" },
+                    { label: "MA20 이동평균선", value: showMA, action: () => setShowMA(!showMA), color: "bg-[#F5A623]" },
+                    { label: "거래 마커", value: showMarkers, action: () => setShowMarkers(!showMarkers), color: "bg-[#0058FF]" },
+                    { label: "차트 툴팁", value: showTooltip, action: () => setShowTooltip(!showTooltip), color: "bg-[#8B5CF6]" },
+                    { label: "백분율(%) 스케일", value: isPercent, action: () => setIsPercent(!isPercent), color: "bg-[#9B51E0]" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.label}
+                      onClick={opt.action}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2.5 text-[11px] font-semibold transition-colors rounded-md",
+                        isDark ? "text-gray-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-gray-50 hover:text-slate-900"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full", opt.value ? opt.color : "bg-gray-300")} />
+                        {opt.label}
+                      </div>
+                      {opt.value && <Check className="w-3 h-3" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </header>
       
       <div className={cn("relative h-[500px] w-full", chartAreaClassName)}>

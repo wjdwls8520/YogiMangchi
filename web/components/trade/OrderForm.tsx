@@ -243,20 +243,28 @@ export default function OrderForm({
   const isFormDisabled = isSubmitting || isLoadingPortfolio || currentPrice <= 0;
   
   /* ═══════ UI pieces ═══════ */
-  const inputCls = "flex items-center bg-[#1E2329] rounded border border-transparent focus-within:border-[#F0B90B]/50 px-3 py-[6px] transition-colors";
-  const labelCls = "text-[12px] font-medium text-gray-500 w-14 shrink-0";
-  const fieldCls = "flex-1 bg-transparent text-right text-[13px] text-white outline-none font-bold";
+  const bgMain = isMock ? "bg-transparent text-slate-900" : "bg-[#161A1E] text-white";
+  const borderSub = isMock ? "border-gray-100" : "border-white/5";
+  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
+  const textTitle = isMock ? "text-slate-400" : "text-white/40";
+  
+  const inputBg = isMock ? "bg-slate-50 border-gray-200 focus-within:border-emerald-500/50" : "bg-[#1E2329] border-transparent focus-within:border-[#F0B90B]/50";
+  const inputText = isMock ? "text-slate-900" : "text-white";
+  
+  const inputCls = `flex items-center rounded border px-2 sm:px-3 py-[6px] transition-colors ${inputBg}`;
+  const labelCls = `text-[11px] sm:text-[12px] font-medium w-8 sm:w-12 shrink-0 ${textMuted}`;
+  const fieldCls = `flex-1 min-w-0 w-full bg-transparent text-right text-[12px] sm:text-[13px] outline-none font-bold ${inputText}`;
 
   return (
-    <section className="flex flex-col bg-[#161A1E] text-white h-full">
+    <section className={`flex flex-col h-full min-w-0 ${bgMain}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
-        <span className="text-xs font-black text-white/40">
+      <div className={`flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b shrink-0 ${borderSub}`}>
+        <span className={`text-[10px] sm:text-xs font-black ${textTitle}`}>
           {isMock ? "Mock Order" : "Spot Order"}
         </span>
-        <div className="flex items-center gap-1.5 text-[11px] font-bold">
-          <span className="text-gray-500">Fee</span>
-          <span className="text-[#F0B90B]">{(currentFeeRate * 100).toFixed(2)}%</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold">
+          <span className={textMuted}>Fee</span>
+          <span className={isMock ? "text-emerald-500" : "text-[#F0B90B]"}>{(currentFeeRate * 100).toFixed(2)}%</span>
         </div>
       </div>
 
@@ -264,23 +272,23 @@ export default function OrderForm({
       <div className="grid grid-cols-2 shrink-0">
         <button
           onClick={() => setOrderTab("buy")}
-          className={`py-2.5 text-center text-[13px] font-bold transition-colors ${isBuy ? "text-[#fb2c36] border-b-2 border-[#fb2c36]" : "text-gray-500 border-b-2 border-transparent hover:text-gray-300"}`}
+          className={`py-2 sm:py-2.5 text-center text-[12px] sm:text-[13px] font-bold transition-colors ${isBuy ? "text-[#fb2c36] border-b-2 border-[#fb2c36]" : `${textMuted} border-b-2 border-transparent hover:${inputText}`}`}
         >
-          Buy
+          매수
         </button>
         <button
           onClick={() => setOrderTab("sell")}
-          className={`py-2.5 text-center text-[13px] font-bold transition-colors ${!isBuy ? "text-[#0058FF] border-b-2 border-[#0058FF]" : "text-gray-500 border-b-2 border-transparent hover:text-gray-300"}`}
+          className={`py-2 sm:py-2.5 text-center text-[12px] sm:text-[13px] font-bold transition-colors ${!isBuy ? "text-[#0058FF] border-b-2 border-[#0058FF]" : `${textMuted} border-b-2 border-transparent hover:${inputText}`}`}
         >
-          Sell
+          매도
         </button>
       </div>
 
-      <div className="px-4 pt-4 pb-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+      <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 min-w-0 custom-scrollbar">
         {/* Execution Type */}
-        <div className="flex gap-5 text-[13px] font-bold">
-          <button onClick={() => setExecType("MARKET")} className={!isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>시장가</button>
-          <button onClick={() => setExecType("LIMIT")} className={isLimit ? "text-white" : "text-gray-500 hover:text-gray-300"}>지정가</button>
+        <div className="flex gap-4 sm:gap-5 text-[12px] sm:text-[13px] font-bold">
+          <button onClick={() => setExecType("MARKET")} className={!isLimit ? inputText : `${textMuted} hover:${inputText}`}>시장가</button>
+          <button onClick={() => setExecType("LIMIT")} className={isLimit ? inputText : `${textMuted} hover:${inputText}`}>지정가</button>
         </div>
 
         {/* Price */}
@@ -295,12 +303,12 @@ export default function OrderForm({
               onChange={(e) => setOrderPrice(sanitizeDecimalInput(e.target.value))} 
               className={fieldCls} 
             />
-            <span className="text-[12px] font-medium text-gray-500 ml-2">{meta.quoteAsset}</span>
+            <span className={`text-[11px] sm:text-[12px] font-medium ml-1.5 sm:ml-2 shrink-0 ${textMuted}`}>{meta.quoteAsset}</span>
           </div>
         ) : (
-          <div className="flex items-center bg-[#1E2329] rounded px-3 py-[6px]">
+          <div className={`flex items-center rounded px-2 sm:px-3 py-[6px] ${isMock ? 'bg-slate-100' : 'bg-[#1E2329]'}`}>
             <span className={labelCls}>가격</span>
-            <span className="flex-1 text-right text-[13px] text-gray-500 font-bold">Market Price</span>
+            <span className={`flex-1 text-right text-[12px] sm:text-[13px] font-bold min-w-0 ${textMuted}`}>시장가</span>
           </div>
         )}
 
@@ -316,7 +324,7 @@ export default function OrderForm({
               onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))} 
               className={fieldCls} 
             />
-            <span className="text-[12px] font-medium text-gray-500 ml-2">{meta.quoteAsset}</span>
+            <span className={`text-[11px] sm:text-[12px] font-medium ml-1.5 sm:ml-2 shrink-0 ${textMuted}`}>{meta.quoteAsset}</span>
           </div>
         ) : (
           <div className={inputCls}>
@@ -329,22 +337,22 @@ export default function OrderForm({
               onChange={(e) => setOrderQuantity(sanitizeDecimalInput(e.target.value))} 
               className={fieldCls} 
             />
-            <span className="text-[12px] font-medium text-gray-500 ml-2">{meta.baseAsset}</span>
+            <span className={`text-[11px] sm:text-[12px] font-medium ml-1.5 sm:ml-2 shrink-0 ${textMuted}`}>{meta.baseAsset}</span>
           </div>
         )}
 
         {/* Ratio Options */}
         <div className="flex gap-1.5">
           {ORDER_RATIO_OPTIONS.map((o) => (
-            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className="flex-1 bg-[#2B3139] hover:bg-[#353C46] rounded-[4px] py-1 text-center text-[11px] font-bold text-gray-400">{o.label}</button>
+            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className={`flex-1 rounded-[4px] py-1 text-center text-[10px] sm:text-[11px] font-bold transition-colors ${isMock ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-[#2B3139] hover:bg-[#353C46] text-gray-400'}`}>{o.label}</button>
           ))}
         </div>
 
         {/* Availability Info */}
-        <div className="space-y-[6px] text-[12px] pt-2 border-t border-white/5">
-          <div className="flex justify-between">
-            <span className="text-gray-500">주문 가능</span>
-            <span className="text-white font-bold">
+        <div className={`space-y-[6px] text-[11px] sm:text-[12px] pt-2 border-t ${borderSub}`}>
+          <div className="flex justify-between min-w-0">
+            <span className={`${textMuted} shrink-0`}>주문 가능</span>
+            <span className={`${inputText} font-bold truncate ml-2`}>
               {isBuy 
                 ? `${formatAssetNumber(usdtBalance)} ${meta.quoteAsset}` 
                 : `${formatAssetNumber(availableHolding)} ${meta.baseAsset}`}
@@ -352,18 +360,18 @@ export default function OrderForm({
           </div>
           
           {isBuy ? (
-            <div className="flex justify-between">
-              <span className="text-gray-500">예상 매수량</span>
-              <span className="text-[#fb2c36] font-bold">
+            <div className="flex justify-between min-w-0">
+              <span className={`${textMuted} shrink-0`}>예상 매수량</span>
+              <span className="text-[#fb2c36] font-bold truncate ml-2">
                 {isLimit 
                   ? `${formatAssetNumber(numQty)} ${meta.baseAsset}`
                   : `${formatAssetNumber(expectedBuyQuantity)} ${meta.baseAsset}`}
               </span>
             </div>
           ) : (
-            <div className="flex justify-between">
-              <span className="text-gray-500">예상 매도액</span>
-              <span className="text-[#0058FF] font-bold">
+            <div className="flex justify-between min-w-0">
+              <span className={`${textMuted} shrink-0`}>예상 매도액</span>
+              <span className="text-[#0058FF] font-bold truncate ml-2">
                 {isLimit 
                   ? `${formatAssetNumber(expectedLimitAmount)} ${meta.quoteAsset}`
                   : `${formatAssetNumber(expectedSellAmount)} ${meta.quoteAsset}`}
