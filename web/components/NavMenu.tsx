@@ -17,6 +17,7 @@ type NavMenuProps = {
 };
 
 const menuList: MenuType[] = [
+  { href: "/mock", name: "모의투자", id: "mock" },
   { href: "/trading", name: "트레이딩", id: "trading" },
   { href: "/contest", name: "대회", id: "contest" },
   { href: "/community/all", name: "커뮤니티", id: "community" },
