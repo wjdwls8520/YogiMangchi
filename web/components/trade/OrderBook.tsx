@@ -200,13 +200,19 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
   const buyTextColor = isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]";
   const buyBgColor = isSpot || isMock ? "bg-[#fb2c36]/10" : "bg-green-500/10";
 
-  const containerBg = isContest ? "bg-[#161A1E] border border-white/5 rounded-xl" : "bg-white border border-gray-100 rounded-xl";
-  const headerBg = isContest ? "bg-white/5 border-white/5" : "bg-slate-50 border-gray-100";
-  const headerText = isContest ? "text-white/30" : "text-slate-400";
-  const chartBg = isContest ? "bg-[#161A1E]" : "bg-white";
-  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50";
-  const qtyColor = isContest ? "text-white/40" : "text-slate-400";
-  const centerBtnBg = isContest ? "bg-white/5 hover:bg-white/10 border-white/10" : "bg-slate-50 hover:bg-slate-100 border-gray-100";
+  const containerBg = isContest 
+    ? "bg-[#161A1E] border border-white/5 rounded-xl" 
+    : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl";
+  const headerBg = isContest 
+    ? "bg-white/5 border-white/5" 
+    : "bg-slate-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700";
+  const headerText = isContest ? "text-white/30" : "text-slate-400 dark:text-gray-500";
+  const chartBg = isContest ? "bg-[#161A1E]" : "bg-white dark:bg-gray-800";
+  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-gray-700/50";
+  const qtyColor = isContest ? "text-white/40" : "text-slate-400 dark:text-gray-500";
+  const centerBtnBg = isContest 
+    ? "bg-white/5 hover:bg-white/10 border-white/10" 
+    : "bg-slate-50 dark:bg-gray-900 hover:bg-slate-100 dark:hover:bg-gray-700 border-gray-100 dark:border-gray-700";
 
   return (
     <div className={cn(`flex flex-col flex-1 min-h-0 overflow-hidden md:col-span-1 lg:col-span-3 ${containerBg}`, className)}>
@@ -247,13 +253,13 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
             onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
             className={cn(
               "w-full h-[28px] flex items-center justify-between px-3 sm:px-4 transition-all z-10 border-y-2",
-              isContest ? "bg-[#161A1E] border-white/10" : "bg-white border-black"
+              isContest ? "bg-[#161A1E] border-white/10" : "bg-white dark:bg-gray-900 border-black dark:border-gray-700"
             )}
           >
-            <span className={cn("text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate", isContest ? "text-white" : "text-black")}>
+            <span className={cn("text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate", isContest ? "text-white" : "text-black dark:text-gray-100")}>
               {currentPrice > 0 ? formatPrice(currentPrice) : "-"}
             </span>
-            <span className={cn("text-[11px] sm:text-[12px] font-bold tabular-nums", isContest ? "text-white/70" : "text-black")}>
+            <span className={cn("text-[11px] sm:text-[12px] font-bold tabular-nums", isContest ? "text-white/70" : "text-black dark:text-gray-500")}>
               {currentPriceQty !== null ? formatQty(currentPriceQty) : "-"}
             </span>
           </button>

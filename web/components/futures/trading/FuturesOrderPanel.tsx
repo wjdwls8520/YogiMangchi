@@ -7,6 +7,7 @@ import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 import { formatFuturesPositionSide } from "@/lib/utils/futures";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useUIStore } from "@/stores/useUIStore";
 import type {
   ContestFuturesLimitOpenOrderParams,
   ContestFuturesLimitCloseOrderParams,
@@ -155,7 +156,9 @@ export default function FuturesOrderPanel({
   const meta = coinMetaList.find((c) => c.symbol === selectedCoin);
   if (!meta) return <div className={`h-full animate-pulse ${mode === 'contest' ? 'bg-white/5' : 'bg-gray-100'}`} />;
 
+  const isDarkMode = useUIStore((s) => s.isDarkMode);
   const isContest = mode === "contest";
+  const isDark = isContest || isDarkMode;
 
   const currentPrice = realtime?.price ?? 0;
   const isRealtimeReady = currentPrice > 0;
@@ -274,22 +277,22 @@ export default function FuturesOrderPanel({
   /* ═══════ shared UI pieces ═══════ */
   const inputCls = cn(
     "flex items-center rounded border transition-colors px-3 py-[8px] lg:py-[6px] focus-within:border-[#F0B90B]",
-    isContest ? "bg-white/5 border-white/10" : "bg-slate-50 border-gray-100"
+    isDark ? "bg-zinc-900 border-gray-700" : "bg-slate-50 border-gray-100"
   );
   const labelCls = cn(
     "text-[12px] font-medium w-14 shrink-0",
-    isContest ? "text-white/40" : "text-slate-400"
+    isDark ? "text-gray-500" : "text-slate-400"
   );
   const fieldCls = cn(
     "flex-1 bg-transparent text-right text-[13px] outline-none font-bold",
-    isContest ? "text-white" : "text-slate-900"
+    isDark ? "text-gray-100" : "text-slate-900"
   );
 
   return (
-    <section className={cn("flex flex-col overflow-y-auto", isContest ? "bg-[#161A1E] text-white" : "bg-white text-slate-900")}>
+    <section className={cn("flex flex-col overflow-y-auto", isDark ? "bg-gray-800 text-gray-100" : "bg-white text-slate-900")}>
       {/* Margin + Leverage Row */}
-      <div className={cn("flex items-center justify-between px-4 py-3 border-b shrink-0", isContest ? "border-white/5" : "border-gray-100")}>
-        <span className={cn("text-xs font-semibold", isContest ? "text-white/30" : "text-slate-400")}>Isolated</span>
+      <div className={cn("flex items-center justify-between px-4 py-3 border-b shrink-0", isDark ? "border-gray-700" : "border-gray-100")}>
+        <span className={cn("text-xs font-semibold", isDark ? "text-gray-500" : "text-slate-400")}>Isolated</span>
         <button
           type="button"
           onClick={() => setIsLeverageModalOpen(true)}
@@ -301,7 +304,7 @@ export default function FuturesOrderPanel({
           }
           className={cn(
             "rounded px-3 py-1 text-xs font-black text-[#F0B90B] hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed",
-            isContest ? "bg-white/5" : "bg-slate-100"
+            isDark ? "bg-zinc-900" : "bg-slate-100"
           )}
         >
           {isLoadingLeverage ? (
@@ -309,7 +312,7 @@ export default function FuturesOrderPanel({
           ) : (
             <span className="flex items-center gap-1.5">
               <span className="text-[#2EBD85]">{longLeverageInfo?.leverage ?? "-"}x</span>
-              <span className="text-gray-600">/</span>
+              <span className="text-gray-600 dark:text-gray-500">/</span>
               <span className="text-[#F6465D]">{shortLeverageInfo?.leverage ?? "-"}x</span>
             </span>
           )}
@@ -325,8 +328,8 @@ export default function FuturesOrderPanel({
           className={cn(
             "py-2.5 text-center text-[13px] font-bold transition-colors border-b-2",
             mainTab === "open" 
-              ? (isContest ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]") 
-              : (isContest ? "text-white/30 border-transparent hover:text-white/50" : "text-slate-400 border-transparent hover:text-slate-600")
+              ? "text-slate-900 dark:text-gray-100 border-[#F0B90B]" 
+              : "text-slate-400 dark:text-gray-500 border-transparent hover:text-slate-600 dark:hover:text-gray-300"
           )}
         >
           Open
@@ -337,8 +340,8 @@ export default function FuturesOrderPanel({
           className={cn(
             "py-2.5 text-center text-[13px] font-bold transition-colors border-b-2",
             mainTab === "close" 
-              ? (isContest ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]") 
-              : (isContest ? "text-white/30 border-transparent hover:text-white/50" : "text-slate-400 border-transparent hover:text-slate-600")
+              ? "text-slate-900 dark:text-gray-100 border-[#F0B90B]" 
+              : "text-slate-400 dark:text-gray-500 border-transparent hover:text-slate-600 dark:hover:text-gray-300"
           )}
         >
           Close
@@ -350,8 +353,8 @@ export default function FuturesOrderPanel({
         <div className="px-4 pt-4 pb-5 space-y-3">
           {/* Limit / Market */}
           <div className="flex gap-5 text-[13px] font-bold">
-            <button onClick={() => setExecType("LIMIT")} className={isLimit ? (isContest ? "text-white" : "text-slate-900") : (isContest ? "text-white/30 hover:text-white/50" : "text-slate-400 hover:text-slate-600")}>지정가</button>
-            <button onClick={() => setExecType("MARKET")} className={!isLimit ? (isContest ? "text-white" : "text-slate-900") : (isContest ? "text-white/30 hover:text-white/50" : "text-slate-400 hover:text-slate-600")}>시장가</button>
+            <button onClick={() => setExecType("LIMIT")} className={isLimit ? "text-slate-900 dark:text-gray-100" : "text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"}>지정가</button>
+            <button onClick={() => setExecType("MARKET")} className={!isLimit ? "text-slate-900 dark:text-gray-100" : "text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"}>시장가</button>
           </div>
 
           {/* Price */}
@@ -359,26 +362,26 @@ export default function FuturesOrderPanel({
             <div className={inputCls}>
               <span className={labelCls}>가격</span>
               <input type="text" inputMode="decimal" placeholder="0" value={orderPrice} onChange={(e) => setOrderPrice(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
-              <span className={cn("text-[12px] font-medium ml-2", isContest ? "text-white/30" : "text-gray-500")}>{meta.quoteAsset}</span>
+              <span className={cn("text-[12px] font-medium ml-2", isDark ? "text-gray-500" : "text-gray-500")}>{meta.quoteAsset}</span>
             </div>
           ) : (
-            <div className={cn("flex items-center rounded border px-3 py-[6px]", isContest ? "bg-white/5 border-white/10" : "bg-slate-50 border-gray-100")}>
+            <div className={cn("flex items-center rounded border px-3 py-[6px]", isDark ? "bg-zinc-900 border-gray-700" : "bg-slate-50 border-gray-100")}>
               <span className={labelCls}>가격</span>
-              <span className={cn("flex-1 text-right text-[13px] font-bold", isContest ? "text-white/20" : "text-slate-400")}>시장가</span>
+              <span className={cn("flex-1 text-right text-[13px] font-bold", isDark ? "text-gray-600" : "text-slate-400")}>시장가</span>
             </div>
           )}
 
           {/* Quantity */}
           <div className={inputCls}>
-            <span className={cn("text-[12px] font-medium w-[72px] shrink-0", isContest ? "text-white/40" : "text-gray-500")}>수량</span>
+            <span className={cn("text-[12px] font-medium w-[72px] shrink-0", isDark ? "text-gray-500" : "text-gray-500")}>수량</span>
             <input type="text" inputMode="decimal" placeholder="0" value={orderQuantity} onChange={(e) => setOrderQuantity(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
-            <span className={cn("text-[12px] font-medium ml-2", isContest ? "text-white/30" : "text-gray-500")}>{meta.baseAsset}</span>
+            <span className={cn("text-[12px] font-medium ml-2", isDark ? "text-gray-500" : "text-gray-500")}>{meta.baseAsset}</span>
           </div>
 
           {/* Ratio */}
           <div className="flex gap-1.5">
             {ORDER_RATIO_OPTIONS.map((o) => (
-              <button key={o.label} type="button" onClick={() => handleOpenRatio(o.ratio)} className={cn("flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors", isContest ? "bg-white/5 text-white/40 hover:bg-white/10" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>{o.label}</button>
+              <button key={o.label} type="button" onClick={() => handleOpenRatio(o.ratio)} className={cn("flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors", isDark ? "bg-zinc-900 text-gray-500 hover:bg-zinc-800" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>{o.label}</button>
             ))}
           </div>
 
@@ -388,11 +391,11 @@ export default function FuturesOrderPanel({
 
           {/* Info */}
           <div className="space-y-[6px] text-[12px] pt-1">
-            <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>명목가치</span><span className={isContest ? "text-white/70" : "text-slate-900"}>{estNotional > 0 ? formatAssetNumber(estNotional) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>비용</span><span className={isContest ? "text-white/70" : "text-slate-900"}>{estRequired > 0 ? formatAssetNumber(estRequired) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>수수료 ({(currentFeeRate * 100).toFixed(2)}%)</span><span className={isContest ? "text-white/70" : "text-slate-900"}>{estFee > 0 ? formatAssetNumber(estFee) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>예상 청산가</span><span className="text-[#F6465D] font-bold">{estLiquidationPrice ? formatAssetNumber(estLiquidationPrice) : "--"} {meta.quoteAsset}</span></div>
-            <div className={cn("flex justify-between pt-1 border-t", isContest ? "border-white/5" : "border-gray-100")}><span className={isContest ? "text-white/30" : "text-slate-400"}>주문 가능</span><span className={isContest ? "text-white font-bold" : "text-slate-900 font-bold"}>{formatAssetNumber(availableBalance)} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">명목가치</span><span className="text-slate-900 dark:text-gray-300">{estNotional > 0 ? formatAssetNumber(estNotional) : "--"} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">비용</span><span className="text-slate-900 dark:text-gray-300">{estRequired > 0 ? formatAssetNumber(estRequired) : "--"} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">수수료 ({(currentFeeRate * 100).toFixed(2)}%)</span><span className="text-slate-900 dark:text-gray-300">{estFee > 0 ? formatAssetNumber(estFee) : "--"} {meta.quoteAsset}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">예상 청산가</span><span className="text-[#F6465D] font-bold">{estLiquidationPrice ? formatAssetNumber(estLiquidationPrice) : "--"} {meta.quoteAsset}</span></div>
+            <div className={cn("flex justify-between pt-1 border-t", isDark ? "border-gray-700" : "border-gray-100")}><span className="text-slate-400 dark:text-gray-500">주문 가능</span><span className="text-slate-900 dark:text-gray-100 font-bold">{formatAssetNumber(availableBalance)} {meta.quoteAsset}</span></div>
           </div>
 
           {/* Long / Short Buttons */}
@@ -476,8 +479,8 @@ export default function FuturesOrderPanel({
             <>
               {/* Close Exec Type */}
               <div className="flex gap-5 text-[13px] font-bold pt-1">
-                <button onClick={() => setCloseExecType("MARKET")} className={!isCloseLimit ? (isContest ? "text-white" : "text-slate-900") : (isContest ? "text-white/30 hover:text-white/50" : "text-slate-400 hover:text-slate-600")}>시장가</button>
-                <button onClick={() => setCloseExecType("LIMIT")} className={isCloseLimit ? (isContest ? "text-white" : "text-slate-900") : (isContest ? "text-white/30 hover:text-white/50" : "text-slate-400 hover:text-slate-600")}>지정가</button>
+                <button onClick={() => setCloseExecType("MARKET")} className={!isCloseLimit ? "text-slate-900 dark:text-gray-100" : "text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"}>시장가</button>
+                <button onClick={() => setCloseExecType("LIMIT")} className={isCloseLimit ? "text-slate-900 dark:text-gray-100" : "text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"}>지정가</button>
               </div>
 
               {/* Close Price (Limit only) */}
@@ -485,7 +488,7 @@ export default function FuturesOrderPanel({
                 <div className={inputCls}>
                   <span className={labelCls}>가격</span>
                   <input type="text" inputMode="decimal" placeholder="0" value={closePrice} onChange={(e) => setClosePrice(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
-                  <span className="text-[12px] font-medium text-gray-500 ml-2">{meta.quoteAsset}</span>
+                  <span className={cn("text-[12px] font-medium ml-2", isDark ? "text-gray-500" : "text-gray-500")}>{meta.quoteAsset}</span>
                 </div>
               )}
 
@@ -493,20 +496,20 @@ export default function FuturesOrderPanel({
               <div className={inputCls}>
                 <span className={labelCls}>수량</span>
                 <input type="text" inputMode="decimal" placeholder={formatQty(closeableQty)} value={closeQuantity} onChange={(e) => setCloseQuantity(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
-                <span className="text-[12px] font-medium text-gray-500 ml-2">{meta.baseAsset}</span>
+                <span className={cn("text-[12px] font-medium ml-2", isDark ? "text-gray-500" : "text-gray-500")}>{meta.baseAsset}</span>
               </div>
 
               {/* Close Ratio */}
               <div className="flex gap-1.5">
                 {ORDER_RATIO_OPTIONS.map((o) => (
-                  <button key={o.label} type="button" onClick={() => handleCloseRatio(o.ratio)} className={cn("flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors", isContest ? "bg-white/5 text-white/40 hover:bg-white/10" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>{o.label}</button>
+                  <button key={o.label} type="button" onClick={() => handleCloseRatio(o.ratio)} className={cn("flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors", isDark ? "bg-zinc-900 text-gray-500 hover:bg-zinc-800" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>{o.label}</button>
                 ))}
               </div>
 
               {/* Close Info */}
               <div className="space-y-[6px] text-[12px]">
-                <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>청산 가능</span><span className={isContest ? "text-white font-bold" : "text-slate-900 font-bold"}>{formatQty(closeableQty)} {meta.baseAsset}</span></div>
-                {pendingCloseQty > 0 && <div className="flex justify-between"><span className={isContest ? "text-white/30" : "text-slate-400"}>대기 수량</span><span className="text-yellow-600 font-bold">{formatQty(pendingCloseQty)}</span></div>}
+                <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">청산 가능</span><span className="text-slate-900 dark:text-gray-100 font-bold">{formatQty(closeableQty)} {meta.baseAsset}</span></div>
+                {pendingCloseQty > 0 && <div className="flex justify-between"><span className="text-slate-400 dark:text-gray-500">대기 수량</span><span className="text-yellow-600 font-bold">{formatQty(pendingCloseQty)}</span></div>}
               </div>
 
               {/* Close Button */}

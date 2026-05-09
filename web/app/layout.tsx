@@ -4,6 +4,7 @@ import "./globals.css";
 import SSEProvider from "./SSEProvider";
 import AuthBootstrap from "./AuthBootstrap";
 import FeedbackProvider from "@/components/ui/FeedbackProvider";
+import ThemeInitializer from "@/components/ThemeInitializer";
 
 export const metadata: Metadata = {
   title: "요기망치",
@@ -20,6 +21,7 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
+          <ThemeInitializer />
           <FeedbackProvider>
               <AuthBootstrap />
               <SSEProvider>

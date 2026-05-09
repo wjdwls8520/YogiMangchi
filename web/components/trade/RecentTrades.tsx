@@ -175,11 +175,15 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
   const isMock = mode === "mock";
   const isContest = mode === "contest";
 
-  const bgMain = isContest ? "bg-[#161A1E] text-white border-white/5" : "bg-white text-slate-900 border-gray-100";
-  const headerBg = isContest ? "bg-white/5 border-white/5" : "bg-slate-50 border-gray-100";
-  const textMuted = isContest ? "text-white/30" : "text-slate-400";
-  const textQty = isContest ? "text-white/40" : "text-slate-500";
-  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50";
+  const bgMain = isContest 
+    ? "bg-[#161A1E] text-white border-white/5" 
+    : "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 border-gray-100 dark:border-gray-700";
+  const headerBg = isContest 
+    ? "bg-white/5 border-white/5" 
+    : "bg-slate-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700";
+  const textMuted = isContest ? "text-white/30" : "text-slate-400 dark:text-gray-500";
+  const textQty = isContest ? "text-white/40" : "text-slate-500 dark:text-gray-400";
+  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-gray-700/50";
 
   if (isLoading && trades.length === 0) {
     return (

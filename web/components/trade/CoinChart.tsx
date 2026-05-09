@@ -15,6 +15,7 @@ import {
 } from "@/lib/utils/market";
 import { cn } from "@/lib/utils/cs";
 import { ChevronDown, Check, Settings } from "lucide-react";
+import { useUIStore } from "@/stores/useUIStore";
 
 const timeframeOptions = [
   { label: "1분", value: "1m" },
@@ -112,10 +113,12 @@ export default function CoinChart({
   const [showMA, setShowMA] = useState(false);
   const [showMarkers, setShowMarkers] = useState(false);
   const [isPercent, setIsPercent] = useState(false);
+  const isDarkMode = useUIStore((state) => state.isDarkMode);
   const [isDark, setIsDark] = useState(false); 
   useEffect(() => {
-    setIsDark(mode === "contest");
-  }, [mode]);
+    // 대회 모드거나 전역 다크모드일 때 다크 테마 적용
+    setIsDark(mode === "contest" || isDarkMode);
+  }, [mode, isDarkMode]);
 
   const [showPriceLine, setShowPriceLine] = useState(false); 
   const [showTooltip, setShowTooltip] = useState(true); 
@@ -321,11 +324,18 @@ export default function CoinChart({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    const isDarkInitial = document.documentElement.classList.contains('dark') || mode === 'contest';
     const chart = createChart(chartContainerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
+      layout: { 
+        background: { type: ColorType.Solid, color: isDarkInitial ? '#1f2937' : '#ffffff' }, 
+        textColor: isDarkInitial ? '#D1D5DB' : '#333' 
+      },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 400,
-      grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
+      grid: { 
+        vertLines: { color: isDarkInitial ? '#374151' : '#f0f3fa' }, 
+        horzLines: { color: isDarkInitial ? '#374151' : '#f0f3fa' } 
+      },
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
       },
@@ -417,6 +427,39 @@ export default function CoinChart({
       }
     };
   }, []); 
+
+  // 테마 변경 (통합된 로직)
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    const darkTheme = {
+      layout: { 
+        background: { type: ColorType.Solid, color: "#1f2937" }, // gray-800
+        textColor: "#D1D5DB" // gray-300
+      },
+      grid: {
+        vertLines: { color: "#374151" }, // gray-700
+        horzLines: { color: "#374151" }, // gray-700
+      },
+    };
+
+    const lightTheme = {
+      layout: { 
+        background: { type: ColorType.Solid, color: "#ffffff" },
+        textColor: "#333" 
+      },
+      grid: {
+        vertLines: { color: "#f0f3fa" },
+        horzLines: { color: "#f0f3fa" },
+      },
+    };
+
+    try {
+      chartRef.current.applyOptions(isDark ? darkTheme : lightTheme);
+    } catch (err) {
+      console.error("차트 테마 적용 에러:", err);
+    }
+  }, [isDark]);
 
   // 2. 초기 데이터 페칭 및 무한 스크롤 로직 (웹소켓 연결 제거, HTTP 통신만 수행)
   useEffect(() => {
@@ -658,26 +701,14 @@ export default function CoinChart({
     } catch {}
   }, [effectiveMarketType]);
 
-  // 5. 테마 변경
-  useEffect(() => {
-    if(!chartRef.current) return;
-    const darkTheme = {
-      layout: { background: { type: ColorType.Solid, color: '#0B0E11' }, textColor: '#B7BDC6' },
-      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)' }, horzLines: { color: 'rgba(255, 255, 255, 0.04)' } },
-    };
-    const lightTheme = {
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
-      grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
-    };
-    try { chartRef.current.applyOptions(isDark ? darkTheme : lightTheme); } catch {}
-  }, [isDark]);
+  // 기존 중복된 테마 변경 로직 제거됨
 
   return (
     <section 
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
       className={cn(
         "relative flex w-full flex-col gap-2 border p-4 transition-colors",
-        isDark ? "border-white/5 bg-[#161A1E]" : "border-gray-100 bg-white",
+        isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-white",
         className
       )}
     >

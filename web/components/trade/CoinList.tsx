@@ -182,15 +182,17 @@ export default function CoinList({
   };
 
   const isMock = mode === "mock";
-  const bgMain = isMock ? "bg-white text-slate-900 border-gray-200" : "bg-[#161A1E] text-white border-white/5";
-  const borderSub = isMock ? "border-gray-100" : "border-white/5";
-  const bgInput = isMock ? "bg-slate-50" : "bg-[#1E2329]";
-  const textMain = isMock ? "text-slate-900" : "text-gray-200";
-  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
-  const textQty = isMock ? "text-slate-600" : "text-gray-300";
-  const bgHeader = isMock ? "bg-slate-50" : "bg-[#161A1E]";
-  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/5";
-  const rowSelected = isMock ? "bg-blue-50" : "bg-blue-500/10";
+  const bgMain = isMock
+    ? "bg-white dark:bg-zinc-950 text-slate-900 dark:text-gray-100 border-gray-200 dark:border-gray-800"
+    : "bg-[#161A1E] dark:bg-zinc-950 text-white dark:text-gray-100 border-white/5 dark:border-gray-800";
+  const borderSub = isMock ? "border-gray-100 dark:border-gray-800" : "border-white/5 dark:border-gray-800";
+  const bgInput = isMock ? "bg-slate-50 dark:bg-gray-900" : "bg-[#1E2329] dark:bg-gray-900";
+  const textMain = isMock ? "text-slate-900 dark:text-gray-100" : "text-gray-200 dark:text-gray-100";
+  const textMuted = isMock ? "text-slate-500 dark:text-gray-500" : "text-gray-500 dark:text-gray-500";
+  const textQty = isMock ? "text-slate-600 dark:text-gray-400" : "text-gray-300 dark:text-gray-400";
+  const bgHeader = isMock ? "bg-slate-50 dark:bg-zinc-900" : "bg-[#161A1E] dark:bg-zinc-900";
+  const rowHover = isMock ? "hover:bg-slate-50 dark:hover:bg-zinc-800/50" : "hover:bg-white/5 dark:hover:bg-zinc-800/50";
+  const rowSelected = isMock ? "bg-blue-50 dark:bg-blue-900/30" : "bg-blue-500/10 dark:bg-blue-900/40";
 
   return (
     <aside className={cn("w-full h-full min-h-0 flex flex-col shrink-0 overflow-hidden border-r", bgMain)}>

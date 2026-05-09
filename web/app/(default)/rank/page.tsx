@@ -4,6 +4,7 @@ import { useState } from "react";
 import RankItem from "./components/RankItem";
 import Tabs from "@/components/ui/Tabs";
 import { Info } from "./types/user";
+import { useUIStore } from "@/stores/useUIStore";
 
 const menus = [
   { value: "profit", label: "수익금 높은순" },
@@ -13,6 +14,7 @@ const menus = [
 
 export default function RankPage() {
   const [activeTab, setActiveTab] = useState("profit");
+  const isDarkMode = useUIStore((state) => state.isDarkMode);
 
   const users: Info[] = [
     {
@@ -60,8 +62,8 @@ export default function RankPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bg-white border-b border-gray-100">
+    <div className="flex flex-col gap-6 min-h-screen transition-colors">
+      <div className="border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4">
           <Tabs
             tabs={menus}
@@ -69,6 +71,7 @@ export default function RankPage() {
             onChange={setActiveTab}
             variant="underline"
             size="md"
+            mode={isDarkMode ? "dark" : "light"}
           />
         </div>
       </div>

@@ -72,11 +72,11 @@ const AvatarName = ({
           className="h-8 w-8 shrink-0 rounded-full border border-gray-200 object-cover"
         />
       ) : (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-xs font-black text-gray-500">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-xs font-black text-gray-500 dark:text-gray-400">
           {fallbackLabel}
         </div>
       )}
-      <span className="font-bold text-gray-900">{name ?? "-"}</span>
+      <span className="font-bold text-gray-900 dark:text-gray-100">{name ?? "-"}</span>
     </div>
   );
 };
@@ -443,8 +443,8 @@ export default function ContestMembersManager({
                 onClick={() => setActiveTab(tab.value)}
                 className={`rounded-full px-4 py-2 text-sm font-bold transition-colors ${
                   isActive
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 }`}
               >
                 {tab.label}
@@ -457,7 +457,7 @@ export default function ContestMembersManager({
       {activeTab === "applicants" ? (
         <div className="space-y-4">
           {!canProcessApplicants ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+            <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-400">
               {processBlockedMessage}
             </div>
           ) : null}
@@ -482,10 +482,10 @@ export default function ContestMembersManager({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
         <table className="min-w-full table-fixed text-sm">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr className="border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+            <tr className="border-b border-gray-200 dark:border-gray-800">
               {activeTab === "applicants" ? (
                 <th className="w-[70px] px-4 py-4 text-center font-black">
                   <input
@@ -542,7 +542,7 @@ export default function ContestMembersManager({
               <tr>
                 <td
                   colSpan={columnCount}
-                  className="px-6 py-16 text-center text-sm font-medium text-gray-500"
+                  className="px-6 py-16 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
                 >
                   참가자 정보를 불러오는 중입니다...
                 </td>
@@ -561,7 +561,7 @@ export default function ContestMembersManager({
                 applicants.map((applicant) => (
                   <tr
                     key={applicant.applicantId}
-                    className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
                     <td className="px-4 py-4 text-center">
                       <input
@@ -572,7 +572,7 @@ export default function ContestMembersManager({
                         }
                       />
                     </td>
-                    <td className="px-4 py-4 text-center font-bold text-gray-600">
+                    <td className="px-4 py-4 text-center font-bold text-gray-600 dark:text-gray-400">
                       {applicant.memberId}
                     </td>
                     <td className="px-4 py-4">
@@ -581,7 +581,7 @@ export default function ContestMembersManager({
                         profileImgUrl={applicant.profileImgUrl}
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-600">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">
                       {formatDateTime(applicant.appliedAt)}
                     </td>
                     <td className="px-4 py-4">
@@ -616,7 +616,7 @@ export default function ContestMembersManager({
                 <tr>
                   <td
                     colSpan={columnCount}
-                    className="px-6 py-16 text-center text-sm font-medium text-gray-500"
+                    className="px-6 py-16 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
                   >
                     현재 승인 대기 중인 신청자가 없습니다.
                   </td>
@@ -627,9 +627,9 @@ export default function ContestMembersManager({
                 participants.map((participant) => (
                   <tr
                     key={participant.participantId}
-                    className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
-                    <td className="px-4 py-4 text-center font-bold text-gray-600">
+                    <td className="px-4 py-4 text-center font-bold text-gray-600 dark:text-gray-400">
                       {participant.memberId}
                     </td>
                     <td className="px-4 py-4">
@@ -638,7 +638,7 @@ export default function ContestMembersManager({
                         profileImgUrl={participant.profileImgUrl}
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-600">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">
                       {formatDateTime(participant.appliedAt)}
                     </td>
                     <td className="px-4 py-4">
@@ -647,7 +647,7 @@ export default function ContestMembersManager({
                         profileImgUrl={participant.approvedByAdminProfileImgUrl}
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-600">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">
                       {formatDateTime(participant.approvedAt)}
                     </td>
                   </tr>
@@ -656,7 +656,7 @@ export default function ContestMembersManager({
                 <tr>
                   <td
                     colSpan={columnCount}
-                    className="px-6 py-16 text-center text-sm font-medium text-gray-500"
+                    className="px-6 py-16 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
                   >
                     현재 참가 승인된 사용자가 없습니다.
                   </td>
@@ -666,9 +666,9 @@ export default function ContestMembersManager({
               rejectedApplicants.map((rejectedApplicant) => (
                 <tr
                   key={rejectedApplicant.rejectedApplicantId}
-                  className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                  className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
-                  <td className="px-4 py-4 text-center font-bold text-gray-600">
+                  <td className="px-4 py-4 text-center font-bold text-gray-600 dark:text-gray-400">
                     {rejectedApplicant.memberId}
                   </td>
                   <td className="px-4 py-4">
@@ -677,7 +677,7 @@ export default function ContestMembersManager({
                       profileImgUrl={rejectedApplicant.profileImgUrl}
                     />
                   </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-600">
+                  <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">
                     {formatDateTime(rejectedApplicant.appliedAt)}
                   </td>
                   <td className="px-4 py-4">
@@ -686,10 +686,10 @@ export default function ContestMembersManager({
                       profileImgUrl={rejectedApplicant.rejectedByAdminProfileImgUrl}
                     />
                   </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-600">
+                  <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">
                     {formatDateTime(rejectedApplicant.rejectedAt)}
                   </td>
-                  <td className="px-4 py-4 text-sm font-medium leading-6 text-gray-600">
+                  <td className="px-4 py-4 text-sm font-medium leading-6 text-gray-600 dark:text-gray-300">
                     {rejectedApplicant.rejectReason}
                   </td>
                 </tr>
@@ -698,7 +698,7 @@ export default function ContestMembersManager({
               <tr>
                 <td
                   colSpan={columnCount}
-                  className="px-6 py-16 text-center text-sm font-medium text-gray-500"
+                  className="px-6 py-16 text-center text-sm font-medium text-gray-500 dark:text-gray-400"
                 >
                   현재 반려 이력이 없습니다.
                 </td>
@@ -755,8 +755,8 @@ export default function ContestMembersManager({
           }
         >
           <div className="space-y-4">
-            <p className="text-sm font-medium leading-6 text-gray-600">
-              <span className="font-black text-gray-900">
+            <p className="text-sm font-medium leading-6 text-gray-600 dark:text-gray-400">
+              <span className="font-black text-gray-900 dark:text-gray-100">
                 {rejectingApplicant.nickname}
               </span>
               {" "}신청자를 반려합니다. 반려 사유를 입력해 주세요.
@@ -765,7 +765,7 @@ export default function ContestMembersManager({
               value={rejectReason}
               onChange={(event) => setRejectReason(event.target.value)}
               placeholder="반려 사유를 입력해 주세요."
-              className="min-h-32 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]"
+              className="min-h-32 w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 outline-none transition-all focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]"
             />
           </div>
         </BaseModal>

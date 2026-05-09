@@ -29,18 +29,18 @@ import {
 type MemberTab = "applicants" | "participants" | "rejected";
 
 const getStatusBadgeClassName = (status: ContestSeasonDisplayStatus) => {
-  if (status === "공개중") return "bg-blue-50 text-blue-700 ring-1 ring-blue-200/50";
-  if (status === "종료") return "bg-gray-100 text-gray-600 ring-1 ring-gray-200/50";
-  if (status === "취소됨") return "bg-rose-50 text-rose-700 ring-1 ring-rose-200/50";
-  return "bg-amber-50 text-amber-700 ring-1 ring-amber-200/50";
+  if (status === "공개중") return "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 ring-1 ring-blue-200/50 dark:ring-blue-800/50";
+  if (status === "종료") return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 ring-1 ring-gray-200/50 dark:ring-gray-700/50";
+  if (status === "취소됨") return "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 ring-1 ring-rose-200/50 dark:ring-rose-800/50";
+  return "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-200/50 dark:ring-amber-800/50";
 };
 
 const getProgressBadgeClassName = (progress: "모집중" | "Live") => {
   if (progress === "모집중") {
-    return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50";
+    return "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200/50 dark:ring-emerald-800/50";
   }
 
-  return "bg-sky-50 text-sky-700 ring-1 ring-sky-200/50";
+  return "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 ring-1 ring-sky-200/50 dark:ring-sky-800/50";
 };
 
 const formatDateTime = (value: string) => {
@@ -226,16 +226,16 @@ export default function AdminContestDetailPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 pb-12 px-4 sm:px-6">
       {/* 1. 상단 헤더 & 컨트롤 바 */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-gray-200 pb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-gray-200 dark:border-gray-800 pb-6">
         <div>
           <Link
             href="/admin/contest"
-            className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors"
+            className="inline-flex items-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-2 transition-colors"
           >
             <span className="mr-1.5">←</span> 대회 목록으로 돌아가기
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               {season?.title || "대회 상세"}
             </h1>
             {season && (
@@ -261,7 +261,7 @@ export default function AdminContestDetailPage() {
                       </span>
                     ))
                 ) : (
-                  <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500 ring-1 ring-gray-200/50">
+                  <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs font-bold text-gray-500 dark:text-gray-400 ring-1 ring-gray-200/50 dark:ring-gray-700/50">
                     대기중
                   </span>
                 )}
@@ -281,8 +281,8 @@ export default function AdminContestDetailPage() {
       </div>
 
       {isLoadingSeason ? (
-        <div className="flex h-96 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50">
-          <p className="text-sm font-medium text-gray-500 animate-pulse">데이터를 로드하고 있습니다...</p>
+        <div className="flex h-96 items-center justify-center rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 animate-pulse">데이터를 로드하고 있습니다...</p>
         </div>
       ) : seasonError ? (
         <div className="flex h-64 items-center justify-center rounded-2xl border border-red-100 bg-red-50">
@@ -296,22 +296,22 @@ export default function AdminContestDetailPage() {
             
             {/* 대회 기본 설명 */}
             <div className="lg:col-span-2 space-y-6">
-              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+                <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
                   대회 상세 설명
                 </h2>
-                <div className="min-h-[142px] max-h-[142px] rounded-xl bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+                <div className="min-h-[142px] max-h-[142px] rounded-xl bg-gray-50 dark:bg-gray-900/50 p-4 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
                   {season.description || "등록된 대회 설명이 없습니다."}
                 </div>
               </section>
 
               {/* 상태 스위치 패널 */}
-              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">대회 상태 변경</h2>
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+                <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">대회 상태 변경</h2>
                 <div className="flex flex-wrap items-center gap-8">
                   <label className="flex cursor-pointer items-center gap-3 group">
-                    <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">시즌 공개 여부</span>
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">시즌 공개 여부</span>
                     <div className="relative inline-flex items-center">
                       <input
                         type="checkbox"
@@ -320,14 +320,14 @@ export default function AdminContestDetailPage() {
                         disabled={updatingStatusField === "isPublic"}
                         onChange={() => void handleToggleStatus("isPublic")}
                       />
-                      <div className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"></div>
+                      <div className="h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 dark:after:border-gray-600 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 dark:peer-focus:ring-blue-900 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"></div>
                     </div>
                   </label>
 
-                  <div className="h-8 w-px bg-gray-100"></div>
+                  <div className="h-8 w-px bg-gray-100 dark:bg-gray-700"></div>
 
                   <label className="flex cursor-pointer items-center gap-3 group">
-                    <span className="text-sm font-bold text-gray-700 group-hover:text-gray-900">시즌 취소 상태</span>
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">시즌 취소 상태</span>
                     <div className="relative inline-flex items-center">
                       <input
                         type="checkbox"
@@ -336,7 +336,7 @@ export default function AdminContestDetailPage() {
                         disabled={updatingStatusField === "isCancel"}
                         onChange={() => void handleToggleStatus("isCancel")}
                       />
-                      <div className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-rose-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"></div>
+                      <div className="h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 dark:after:border-gray-600 after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-rose-100 dark:peer-focus:ring-rose-900 peer-disabled:cursor-not-allowed peer-disabled:opacity-60"></div>
                     </div>
                   </label>
                 </div>
@@ -345,46 +345,46 @@ export default function AdminContestDetailPage() {
 
             {/* 일정 및 시스템 정보 사이드바 */}
             <div className="space-y-6">
-              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+                <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <span className="w-1 h-4 bg-amber-500 rounded-full"></span>
                   주요 일정
                 </h2>
                 <div className="space-y-5">
-                  <div className="relative pl-4 border-l-2 border-blue-100">
+                  <div className="relative pl-4 border-l-2 border-blue-100 dark:border-blue-900">
                     <p className="text-[11px] font-bold text-blue-600 uppercase">참가 신청</p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 tracking-tight">
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
                       {formatPeriod(season.recruitmentStartAt, season.recruitmentEndAt)}
                     </p>
                   </div>
-                  <div className="relative pl-4 border-l-2 border-red-100">
+                  <div className="relative pl-4 border-l-2 border-red-100 dark:border-red-900">
                     <p className="text-[11px] font-bold text-red-600 uppercase">대회 진행</p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900 tracking-tight">
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 tracking-tight">
                       {formatPeriod(season.contestStartAt, season.contestEndAt)}
                     </p>
                   </div>
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+                <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <span className="w-1 h-4 bg-gray-400 rounded-full"></span>
                   시스템 정보
                 </h2>
                 <dl className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <dt className="text-xs text-gray-500">시즌 고유 ID</dt>
-                    <dd className="text-xs font-mono font-bold text-gray-900">#{season.id}</dd>
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">시즌 고유 ID</dt>
+                    <dd className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100">#{season.id}</dd>
                   </div>
                   <div className="flex justify-between items-center">
-                    <dt className="text-xs text-gray-500">생성일</dt>
-                    <dd className="text-xs font-medium text-gray-900">
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">생성일</dt>
+                    <dd className="text-xs font-medium text-gray-900 dark:text-gray-100">
                       {createdAtValue ? formatDateTime(createdAtValue) : "-"}
                     </dd>
                   </div>
                   <div className="flex justify-between items-center">
-                    <dt className="text-xs text-gray-500">최종 업데이트</dt>
-                    <dd className="text-xs font-medium text-gray-900">
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">최종 업데이트</dt>
+                    <dd className="text-xs font-medium text-gray-900 dark:text-gray-100">
                       {updatedAtValue ? formatDateTime(updatedAtValue) : "-"}
                     </dd>
                   </div>
@@ -394,10 +394,10 @@ export default function AdminContestDetailPage() {
           </div>
 
           {/* 3. 하단 섹션: 멤버 관리 탭 및 리스트 */}
-          <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div className="bg-gray-50/50 border-b border-gray-200 px-6 pt-6">
+          <div className="flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+            <div className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800 px-6 pt-6">
               <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-lg font-bold text-gray-900">멤버 관리</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">멤버 관리</h2>
               </div>
               <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                 {memberTabs.map((tab) => {
@@ -408,8 +408,8 @@ export default function AdminContestDetailPage() {
                       onClick={() => setActiveTab(tab.value)}
                       className={`whitespace-nowrap border-b-2 py-4 px-2 text-sm font-bold transition-all ${
                         isActive
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300"
+                          ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                          : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       {tab.label}

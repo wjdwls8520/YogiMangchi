@@ -92,8 +92,8 @@ export default function SegmentTabs({
               fullWidth ? "flex-1" : `flex-none ${sizeClasses.compactPadding}`
             } ${
               isActive
-                ? "border-gray-800 bg-gray-800 text-white"
-                : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+                ? "border-gray-800 bg-gray-800 text-white dark:border-white dark:bg-white dark:text-gray-900"
+                : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
             }`}
           >
             {tab.label}
