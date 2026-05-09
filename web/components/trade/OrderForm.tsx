@@ -243,13 +243,13 @@ export default function OrderForm({
   const isFormDisabled = isSubmitting || isLoadingPortfolio || currentPrice <= 0;
   
   /* ═══════ UI pieces ═══════ */
-  const bgMain = "bg-white text-slate-900";
-  const borderSub = "border-gray-100";
-  const textMuted = "text-slate-400";
-  const textTitle = "text-slate-400";
+  const bgMain = "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100";
+  const borderSub = "border-gray-100 dark:border-gray-700";
+  const textMuted = "text-slate-400 dark:text-gray-500";
+  const textTitle = "text-slate-400 dark:text-gray-500";
   
-  const inputBg = "bg-slate-50 border-gray-200 focus-within:border-emerald-500/50";
-  const inputText = "text-slate-900";
+  const inputBg = "bg-slate-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 focus-within:border-emerald-500/50";
+  const inputText = "text-slate-900 dark:text-gray-100";
   
   const inputCls = `flex items-center rounded border px-2 sm:px-3 py-[8px] lg:py-[6px] transition-colors ${inputBg}`;
   const labelCls = `text-[11px] sm:text-[12px] font-medium w-8 sm:w-12 shrink-0 ${textMuted}`;
@@ -306,7 +306,7 @@ export default function OrderForm({
             <span className={`text-[11px] sm:text-[12px] font-medium ml-1.5 sm:ml-2 shrink-0 ${textMuted}`}>{meta.quoteAsset}</span>
           </div>
         ) : (
-          <div className="flex items-center rounded px-2 sm:px-3 py-[6px] bg-slate-50 border border-gray-100">
+          <div className="flex items-center rounded px-2 sm:px-3 py-[6px] bg-slate-50 dark:bg-zinc-950 border border-gray-100 dark:border-white/5">
             <span className={labelCls}>가격</span>
             <span className={`flex-1 text-right text-[12px] sm:text-[13px] font-bold min-w-0 ${textMuted}`}>시장가</span>
           </div>
@@ -344,7 +344,7 @@ export default function OrderForm({
         {/* Ratio Options */}
         <div className="flex gap-1.5">
           {ORDER_RATIO_OPTIONS.map((o) => (
-            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className="flex-1 rounded-[4px] py-1 text-center text-[10px] sm:text-[11px] font-bold transition-colors bg-slate-100 hover:bg-slate-200 text-slate-500">{o.label}</button>
+            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className="flex-1 rounded-[4px] py-1 text-center text-[10px] sm:text-[11px] font-bold transition-colors bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400">{o.label}</button>
           ))}
         </div>
 

@@ -145,7 +145,7 @@ const ToggleSwitch = ({
       disabled={disabled}
       onClick={onChange}
       className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors ${
-        checked ? "bg-blue-500" : "bg-gray-300"
+        checked ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-700"
       } ${disabled ? "cursor-not-allowed opacity-60" : "hover:opacity-90"}`}
     >
       <span
@@ -363,10 +363,10 @@ export default function AdminContestPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-gray-200 bg-white p-8">
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-8 shadow-sm">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-black text-gray-900">대회 관리</h1>
+            <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100">대회 관리</h1>
           </div>
 
           <div className="flex gap-3">
@@ -375,20 +375,20 @@ export default function AdminContestPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-            <p className="text-sm font-bold text-gray-500">전체 대회</p>
-            <p className="mt-2 text-3xl font-black text-gray-900">{rows.length}</p>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-5">
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">전체 대회</p>
+            <p className="mt-2 text-3xl font-black text-gray-900 dark:text-gray-100">{rows.length}</p>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-            <p className="text-sm font-bold text-gray-500">모집중 대회</p>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-5">
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">모집중 대회</p>
             <p className="mt-2 text-3xl font-black text-emerald-600">
               {recruitingCount}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-            <p className="text-sm font-bold text-gray-500">진행중 대회</p>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-5">
+            <p className="text-sm font-bold text-gray-500 dark:text-gray-400">진행중 대회</p>
             <p className="mt-2 text-3xl font-black text-blue-600">
               {progressingCount}
             </p>
@@ -399,15 +399,15 @@ export default function AdminContestPage() {
       <section >
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black text-gray-900">대회 목록</h2>
+            <h2 className="text-xl font-black text-gray-900 dark:text-gray-100">대회 목록</h2>
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-gray-200">
+        <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
           <table className="w-full table-fixed text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr className="border-b border-gray-200">
-                <th className="sticky left-0 z-10 w-[70px] bg-gray-50 px-3 py-4 text-center font-black">
+            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="sticky left-0 z-10 w-[70px] bg-gray-50 dark:bg-gray-800 px-3 py-4 text-center font-black">
                   ID
                 </th>
                 <th className="w-[220px] px-3 py-4 text-left font-black">
@@ -460,15 +460,15 @@ export default function AdminContestPage() {
                 sortedRows.map((row) => (
                   <tr
                     key={row.id}
-                    className="group border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    className="group border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
-                    <td className="sticky left-0 z-[1] bg-white px-3 py-4 text-center font-bold text-gray-500 transition-colors group-hover:bg-gray-50">
+                    <td className="sticky left-0 z-[1] bg-white dark:bg-zinc-900 px-3 py-4 text-center font-bold text-gray-500 dark:text-gray-400 transition-colors group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/50">
                       {row.id}
                     </td>
                     <td className="px-3 py-4">
                       <Link
                         href={`/admin/contest/${row.id}`}
-                        className="inline max-w-full break-words font-black leading-6 text-gray-900 underline underline-offset-4 hover:text-blue-600"
+                        className="inline max-w-full break-words font-black leading-6 text-gray-900 dark:text-gray-100 underline underline-offset-4 hover:text-blue-600"
                       >
                         {row.title}
                       </Link>
@@ -510,7 +510,7 @@ export default function AdminContestPage() {
                     </td>
                     <td className="px-3 py-4 text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-xs font-bold leading-4 text-gray-600">
+                        <span className="text-xs font-bold leading-4 text-gray-600 dark:text-gray-400">
                           {row.isPublic ? "공개" : "비공개"}
                         </span>
                         <ToggleSwitch
@@ -522,7 +522,7 @@ export default function AdminContestPage() {
                     </td>
                     <td className="px-3 py-4 text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-xs font-bold leading-4 text-gray-600">
+                        <span className="text-xs font-bold leading-4 text-gray-600 dark:text-gray-400">
                           {row.isCancel ? "취소됨" : "정상"}
                         </span>
                         <ToggleSwitch
@@ -532,10 +532,10 @@ export default function AdminContestPage() {
                         />
                       </div>
                     </td>
-                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600">
+                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600 dark:text-gray-400">
                       {formatPeriod(row.recruitmentStartAt, row.recruitmentEndAt)}
                     </td>
-                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600">
+                    <td className="px-3 py-4 text-center text-sm font-medium leading-5 text-gray-600 dark:text-gray-400">
                       {formatPeriod(row.contestStartAt, row.contestEndAt)}
                     </td>
                     <td className="px-3 py-4">

@@ -211,13 +211,13 @@ export default function DemoNoticeBar() {
     <div className="flex items-center gap-2 sm:gap-3 text-sm">
       {isParticipated ? (
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 border-l border-gray-200 px-2 sm:px-3">
+          <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 px-2 sm:px-3">
             <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-gray-500">
                 모의 잔고
               </p>
-              <p className="mt-0.5 text-xs font-black tabular-nums text-emerald-600 truncate max-w-[100px] sm:max-w-[200px]">
-                {formattedBalance} {quoteAssetName && <span className="text-[10px] text-slate-500">{quoteAssetName}</span>}
+              <p className="mt-0.5 text-xs font-black tabular-nums text-emerald-600 dark:text-emerald-400 truncate max-w-[100px] sm:max-w-[200px]">
+                {formattedBalance} {quoteAssetName && <span className="text-[10px] text-slate-500 dark:text-gray-500">{quoteAssetName}</span>}
               </p>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function DemoNoticeBar() {
           <button
             onClick={handleReset}
             disabled={isResetting || isLoadingPortfolio}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-slate-600 transition-colors disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-gray-100 transition-colors disabled:opacity-50 shrink-0"
             title="초기 지원금으로 재도전"
           >
             {isResetting ? <LoaderCircle className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}

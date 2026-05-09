@@ -19,7 +19,7 @@ export default function StandardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-zinc-900 transition-colors duration-300">
       <AdminGuard>
 
           <AdminHeader />
@@ -28,13 +28,13 @@ export default function StandardLayout({
               {children}
           </main>
 
-          <footer className="mt-12 py-6 border-t border-gray-200 text-center">
-            <div className="flex flex-col items-center gap-1 text-xs text-gray-400">
+          <footer className="mt-12 py-6 border-t border-gray-200 dark:border-zinc-800 text-center">
+            <div className="flex flex-col items-center gap-1 text-xs text-gray-400 dark:text-zinc-500">
               <p>© 2026 YogiMangchi Admin.</p>
               <div className="flex items-center gap-3">
-                <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">v{packageInfo.version} / Build: {formattedDate}</span>
-                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                <button className="hover:text-gray-600 transition-colors underline-offset-2 underline">개발팀 문의</button>
+                <span className="font-mono bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[11px] dark:text-zinc-400">v{packageInfo.version} / Build: {formattedDate}</span>
+                <span className="w-1 h-1 bg-gray-300 dark:bg-zinc-700 rounded-full"></span>
+                <button className="hover:text-gray-600 dark:hover:text-zinc-300 transition-colors underline-offset-2 underline">개발팀 문의</button>
               </div>
             </div>
           </footer>

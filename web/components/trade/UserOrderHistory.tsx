@@ -9,6 +9,7 @@ import { useMockWalletStore } from "@/stores/useMockWalletStore";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { cancelOrder } from "@/lib/api/trade";
+import { useUIStore } from "@/stores/useUIStore";
 import { cn } from "@/lib/utils/cs";
 import { X } from "lucide-react";
 
@@ -236,18 +237,18 @@ export default function UserOrderHistory({
   const getBaseAsset = (symbol: string) => coinMetaList.find(c => c.symbol === symbol)?.baseAsset ?? symbol;
   const quoteAsset = coinMetaList.find(c => c.symbol === selectedCoin)?.quoteAsset ?? "USDT";
   
-  const bgMain = "bg-white text-slate-900";
-  const theadBg = "bg-slate-50 text-slate-500";
-  const borderSub = "border-gray-100";
-  const tbodyDivide = "divide-gray-100 text-slate-700";
-  const rowHover = "hover:bg-slate-50";
-  const textMuted = "text-slate-400";
-  const textQty = "text-slate-600";
-  const textAmount = "text-slate-900";
-  const textFee = "text-slate-400";
-  const statusBadge = "bg-slate-100 text-slate-500";
-  const btnCancel = "bg-red-50 text-red-500 hover:bg-red-100 disabled:bg-gray-100 disabled:text-gray-400";
-  const isDark = false; // 기본적으로 라이트 테마인 컴포넌트이므로 false 설정
+  const bgMain = "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100";
+  const theadBg = "bg-slate-50 dark:bg-gray-900 text-slate-500 dark:text-gray-500";
+  const borderSub = "border-gray-100 dark:border-gray-700";
+  const tbodyDivide = "divide-gray-100 dark:divide-gray-700 text-slate-700 dark:text-gray-300";
+  const rowHover = "hover:bg-slate-50 dark:hover:bg-gray-700/50";
+  const textMuted = "text-slate-400 dark:text-gray-500";
+  const textQty = "text-slate-600 dark:text-gray-400";
+  const textAmount = "text-slate-900 dark:text-gray-100";
+  const textFee = "text-slate-400 dark:text-gray-500";
+  const statusBadge = "bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-gray-400";
+  const btnCancel = "bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-600";
+  const isDark = useUIStore((state) => state.isDarkMode);
 
   return (
     <section className={cn("flex flex-col h-full overflow-hidden", bgMain)}>
@@ -263,11 +264,12 @@ export default function UserOrderHistory({
           fullWidth={false}
           size="sm"
           variant="plain"
+          mode={isDark ? "dark" : "light"}
         />
       </div>
 
       {/* Content - internal scroll for Bottom Sheet */}
-      <div className="flex-1 min-h-0 overflow-auto bg-white scrollbar-light" ref={scrollContainerRef}>
+      <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-gray-800 scrollbar-light" ref={scrollContainerRef}>
         {rows.length > 0 ? (
           <table className="w-full min-w-max text-[11px] text-left border-separate border-spacing-0 whitespace-nowrap">
             <thead className={`sticky top-0 z-10 font-bold uppercase tracking-tighter ${theadBg}`}>

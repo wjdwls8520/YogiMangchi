@@ -37,8 +37,8 @@ export default function Tabs({
 
   // 기본 색상 설정 (mode에 따라 다르게)
   const defaultActiveColor = isDark
-    ? "text-white border-[#F0B90B]"
-    : "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300";
+    ? "text-white border-white"
+    : "text-gray-900 border-gray-900 dark:text-white dark:border-white";
 
   const finalActiveColor = activeColor || defaultActiveColor;
   

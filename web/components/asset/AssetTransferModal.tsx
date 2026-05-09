@@ -9,6 +9,7 @@ import { useFeedback } from "@/components/ui/FeedbackProvider";
 import SegmentTabs from "@/components/ui/SegmentTabs";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cs";
+import { fetchClient } from "@/lib/api/client";
 
 interface AssetTransferModalProps {
   isOpen: boolean;
@@ -52,14 +53,8 @@ export default function AssetTransferModal({
     const fetchBalance = async () => {
       setIsLoadingBalance(true);
       try {
-        const response = await fetch(
-          `http://localhost:8080/api/v1/real/assets/transferable?assetType=${fromType}`,
-          { credentials: "include" }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setTransferableAmount(data.data?.transferableAmount ?? data.transferableAmount ?? 0);
-        }
+        const data = await fetchClient(`real/assets/transferable?assetType=${fromType}`);
+        setTransferableAmount(data.data?.transferableAmount ?? data.transferableAmount ?? 0);
       } catch (error) {
         console.error("Failed to fetch transferable amount:", error);
       } finally {
@@ -77,17 +72,11 @@ export default function AssetTransferModal({
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        const response = await fetch(
-          "http://localhost:8080/api/v1/real/assets/transfer/history",
-          { credentials: "include" }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          // Backend returns CursorResponseDto { content: [...], hasNext: ... }
-          // Or it might be wrapped in a data property
-          const list = data.content ?? data.data?.content ?? [];
-          setTransferHistory(Array.isArray(list) ? list : []);
-        }
+        const data = await fetchClient("real/assets/transfer/history");
+        // Backend returns CursorResponseDto { content: [...], hasNext: ... }
+        // Or it might be wrapped in a data property
+        const list = data.content ?? data.data?.content ?? [];
+        setTransferHistory(Array.isArray(list) ? list : []);
       } catch (error) {
         console.error("Failed to fetch transfer history:", error);
       } finally {
@@ -127,31 +116,24 @@ export default function AssetTransferModal({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("http://localhost:8080/api/v1/real/assets/transfer", {
+      await fetchClient("real/assets/transfer", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           fromType,
           toType,
           amount: numAmount,
-          requestId: `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        }),
-        credentials: "include",
+          requestId: crypto.randomUUID(), // Using standard UUID
+        },
       });
 
-      if (response.ok) {
-        toast({ title: "이체 완료", description: "자산이 성공적으로 이동되었습니다.", tone: "success" });
-        onSuccess?.();
-        // Switch to history tab to see the result
-        setActiveModalTab("history");
-        setAmount("");
-      } else {
-        const errorData = await response.json();
-        await alert(errorData.message || "이체에 실패했습니다.");
-      }
-    } catch (error) {
+      toast({ title: "이체 완료", description: "자산이 성공적으로 이동되었습니다.", tone: "success" });
+      onSuccess?.();
+      // Switch to history tab to see the result
+      setActiveModalTab("history");
+      setAmount("");
+    } catch (error: any) {
       console.error("Transfer error:", error);
-      await alert("서버 통신 오류가 발생했습니다.");
+      await alert(error.userMessage || "이체에 실패했습니다.");
     } finally {
       setIsSubmitting(false);
     }

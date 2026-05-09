@@ -167,7 +167,7 @@ export default function ContestEditModal({
           <section className="space-y-5">
             <div className="grid gap-5">
               <label className="space-y-2">
-                <span className="text-sm font-bold text-gray-700">대회명</span>
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">대회명</span>
                 <Input
                   value={form.title}
                   onChange={(event) => updateField("title", event.target.value)}
@@ -176,7 +176,7 @@ export default function ContestEditModal({
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-bold text-gray-700">설명</span>
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">설명</span>
                 <textarea
                   value={form.description}
                   onChange={(event) =>
@@ -184,16 +184,16 @@ export default function ContestEditModal({
                   }
                   maxLength={DESCRIPTION_MAX_LENGTH}
                   placeholder="대회 안내 문구와 운영 설명을 입력해 주세요."
-                    className={`min-h-20 w-full resize-none rounded-xl border px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:ring-2 ${
+                    className={`min-h-20 w-full resize-none rounded-xl border px-4 py-3 text-sm text-gray-900 dark:text-gray-100 dark:bg-gray-900 outline-none transition-all focus:ring-2 ${
                       isDescriptionTooLong
                         ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                        : "border-gray-200 focus:border-[#0058FF] focus:ring-[#0058FF]"
+                        : "border-gray-200 dark:border-gray-700 focus:border-[#0058FF] dark:focus:border-[#0058FF] focus:ring-[#0058FF]"
                     }`}
                 />
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <span
                     className={
-                      isDescriptionTooLong ? "font-medium text-red-500" : "text-gray-500"
+                      isDescriptionTooLong ? "font-medium text-red-500" : "text-gray-500 dark:text-gray-400"
                     }
                   >
                     {isDescriptionTooLong
@@ -202,7 +202,7 @@ export default function ContestEditModal({
                   </span>
                   <span
                     className={
-                      isDescriptionTooLong ? "font-bold text-red-500" : "font-medium text-gray-400"
+                      isDescriptionTooLong ? "font-bold text-red-500" : "font-medium text-gray-400 dark:text-gray-500"
                     }
                   >
                     {descriptionLength} / {DESCRIPTION_MAX_LENGTH}자
@@ -214,11 +214,11 @@ export default function ContestEditModal({
 
           <section className="space-y-5">
             <div className="grid gap-6">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                <p className="mb-4 text-sm font-black text-gray-900">모집 기간</p>
+               <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-5">
+                <p className="mb-4 text-sm font-black text-gray-900 dark:text-gray-100">모집 기간</p>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <label className="space-y-2">
-                    <span className="text-sm font-bold text-gray-700">
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                       모집 시작일
                     </span>
                     <Input
@@ -231,7 +231,7 @@ export default function ContestEditModal({
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-bold text-gray-700">
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                       모집 종료일
                     </span>
                     <Input
@@ -245,11 +245,11 @@ export default function ContestEditModal({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                <p className="mb-4 text-sm font-black text-gray-900">대회 기간</p>
+               <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-5">
+                <p className="mb-4 text-sm font-black text-gray-900 dark:text-gray-100">대회 기간</p>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <label className="space-y-2">
-                    <span className="text-sm font-bold text-gray-700">
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                       대회 시작일
                     </span>
                     <Input
@@ -262,7 +262,7 @@ export default function ContestEditModal({
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-bold text-gray-700">
+                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                       대회 종료일
                     </span>
                     <Input
