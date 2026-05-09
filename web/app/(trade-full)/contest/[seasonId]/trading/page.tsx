@@ -307,7 +307,6 @@ export default function ContestTradingPage() {
                 <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-[#161A1E] lg:rounded-xl lg:shadow-sm lg:border border-white/5 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
                   <FuturesOrderPanel
                     mode="contest"
-                    mode="contest"
                     walletStatus={session.walletStatus}
                     leverageInfo={session.leverageInfo}
                     leverageInfoByKey={session.leverageInfoByKey}

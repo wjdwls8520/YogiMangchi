@@ -35,6 +35,8 @@ export type ContestListItem = {
   participants?: number | null;
   reward?: string;
   rejectReason?: string;
+  description?: string;
+  recruitmentEndAt?: string;
   myRank?: number | null;
   myYield?: number | null;
   accentLabel?: string;

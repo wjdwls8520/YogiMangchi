@@ -10,7 +10,7 @@ export default function TradeFullLayout({
   return (
     <div className="flex h-screen flex-col bg-[#F4F5F7] overflow-hidden">
       <Header />
-      <main className="min-h-0 flex-1 w-full overflow-hidden">{children}</main>
+      <main className="min-h-0 flex-1 w-full overflow-y-auto custom-scrollbar">{children}</main>
       <QuestInitializer />
     </div>
   );
