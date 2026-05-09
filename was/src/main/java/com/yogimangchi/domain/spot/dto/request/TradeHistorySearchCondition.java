@@ -1,6 +1,5 @@
 package com.yogimangchi.domain.spot.dto.request;
 
-import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -14,10 +13,6 @@ public record TradeHistorySearchCondition(
 
         @Schema(description = "한 번에 가져올 개수(기본값 10)", example = "10", defaultValue = "10")
         Integer size,
-
-        @NotNull(message = "지갑 타입은 필수입니다.")
-        @Schema(description = "지갑 타입(MOCK, TRADE_SPOT, TRADE_FUTURE, CONTEST)", example = "MOCK")
-        AssetType assetType,
 
         @Schema(description = "특정 코인만 검색", example = "BTCUSDT", nullable = true)
         String symbol,
@@ -37,10 +32,5 @@ public record TradeHistorySearchCondition(
     @Schema(hidden = true)
     public Integer getOrDefaultSize() {
         return size == null || size <= 0 ? 10 : size;
-    }
-
-    // 프론트엔드의 파라미터 변조를 방지하기 위해 Controller 계층에서 호출하여 AssetType을 안전하게 덮어씌우는 헬퍼 메서드입니다.
-    public TradeHistorySearchCondition withAssetType(AssetType assetType) {
-        return new TradeHistorySearchCondition(this.cursorId, this.size, assetType, this.symbol, this.side, this.status, this.startDate, this.endDate);
     }
 }

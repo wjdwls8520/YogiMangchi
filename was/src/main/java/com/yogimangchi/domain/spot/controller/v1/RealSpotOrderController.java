@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/real/spot")
 @RequiredArgsConstructor
-@Tag(name = "99-03-SPOT", description = "실전(현물) 매매 주문 관련 API")
+@Tag(name = "99-03-SPOT_REAL", description = "본투자(현물) 매매 주문 관련 API")
 public class RealSpotOrderController {
 
     // 공통 서비스 로직을 그대로 주입받아 사용합니다.
@@ -47,8 +47,8 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody MarketOrderRequestDto request
     ) {
-        // 프론트엔드의 파라미터 변조 방지: 강제로 실전 현물(TRADE_SPOT) AssetType 주입
-        spotOrderService.createMarketOrder(memberId, request.withAssetType(AssetType.TRADE_SPOT));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 강제로 실전 현물(TRADE_SPOT)로 통제합니다.
+        spotOrderService.createMarketOrder(memberId, AssetType.TRADE_SPOT, request);
         return ResponseEntity.ok("주문이 성공적으로 체결되었습니다.");
     }
 
@@ -59,8 +59,8 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody LimitOrderRequestDto request
     ) {
-        // 프론트엔드의 파라미터 변조 방지: 강제로 실전 현물(TRADE_SPOT) AssetType 주입
-        spotOrderService.createLimitOrder(memberId, request.withAssetType(AssetType.TRADE_SPOT));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 강제로 실전 현물(TRADE_SPOT)로 통제합니다.
+        spotOrderService.createLimitOrder(memberId, AssetType.TRADE_SPOT, request);
         return ResponseEntity.ok("지정가 주문이 성공적으로 접수되었습니다.");
     }
 
@@ -71,8 +71,8 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long orderId
     ) {
-        // 취소 요청은 주문 ID만으로 처리되므로 별도의 AssetType 덮어쓰기는 필요 없습니다.
-        spotOrderService.cancelOrder(memberId, orderId);
+        // 크로스 자산 공격 방어: 취소 시에도 실전 현물(TRADE_SPOT)로 강제 통제합니다.
+        spotOrderService.cancelOrder(memberId, AssetType.TRADE_SPOT, orderId);
         return ResponseEntity.ok("주문이 성공적으로 취소되었습니다.");
     }
 
@@ -86,9 +86,9 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute TradeHistorySearchCondition condition
     ) {
-        // 실전투자 현물 거래 내역만 조회하도록 AssetType을 강제 지정합니다.
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 실전 현물(TRADE_SPOT)로 통제합니다.
         CursorResponseDto<TradeHistoryResponseDto> response =
-                spotTradeHistoryQueryService.getTradeHistories(memberId, condition.withAssetType(AssetType.TRADE_SPOT));
+                spotTradeHistoryQueryService.getTradeHistories(memberId, AssetType.TRADE_SPOT, condition);
         return ResponseEntity.ok(response);
     }
 
@@ -102,8 +102,8 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute OrderSearchConditionDto condition
     ) {
-        // 실전투자 현물 주문 내역만 조회하도록 AssetType을 강제 지정합니다.
-        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOrders(memberId, condition.withAssetType(AssetType.TRADE_SPOT));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 실전 현물(TRADE_SPOT)로 통제합니다.
+        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOrders(memberId, AssetType.TRADE_SPOT, condition);
         return ResponseEntity.ok(response);
     }
 
@@ -117,8 +117,8 @@ public class RealSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute OpenOrderSearchConditionDto condition
     ) {
-        // 실전투자 현물 미체결 주문 내역만 조회하도록 AssetType을 강제 지정합니다.
-        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOpenOrders(memberId, condition.withAssetType(AssetType.TRADE_SPOT));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 실전 현물(TRADE_SPOT)로 통제합니다.
+        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOpenOrders(memberId, AssetType.TRADE_SPOT, condition);
         return ResponseEntity.ok(response);
     }
 }

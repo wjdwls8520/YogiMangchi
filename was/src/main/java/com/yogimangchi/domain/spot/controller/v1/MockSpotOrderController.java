@@ -47,8 +47,8 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody MarketOrderRequestDto request
     ) {
-        // 프론트엔드에서 넘어온 지갑 타입을 무시하고 강제로 모의투자(MOCK) AssetType으로 덮어씌웁니다. (파라미터 변조 방어 로직)
-        spotOrderService.createMarketOrder(memberId, request.withAssetType(AssetType.MOCK));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 강제로 모의투자(MOCK)로 통제합니다.
+        spotOrderService.createMarketOrder(memberId, AssetType.MOCK, request);
         return ResponseEntity.ok("주문이 성공적으로 체결되었습니다.");
     }
 
@@ -59,8 +59,8 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody LimitOrderRequestDto request
     ) {
-        // 프론트엔드에서 넘어온 지갑 타입을 무시하고 강제로 모의투자(MOCK) AssetType으로 덮어씌웁니다. (파라미터 변조 방어 로직)
-        spotOrderService.createLimitOrder(memberId, request.withAssetType(AssetType.MOCK));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 강제로 모의투자(MOCK)로 통제합니다.
+        spotOrderService.createLimitOrder(memberId, AssetType.MOCK, request);
         return ResponseEntity.ok("지정가 주문이 성공적으로 접수되었습니다.");
     }
 
@@ -71,8 +71,8 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long orderId
     ) {
-        // 취소 요청은 주문 ID만으로 처리되므로 별도의 AssetType 덮어쓰기는 필요 없습니다.
-        spotOrderService.cancelOrder(memberId, orderId);
+        // 크로스 자산 공격 방어: 취소 시에도 모의투자(MOCK)로 강제 통제합니다.
+        spotOrderService.cancelOrder(memberId, AssetType.MOCK, orderId);
         return ResponseEntity.ok("주문이 성공적으로 취소되었습니다.");
     }
 
@@ -86,9 +86,9 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute TradeHistorySearchCondition condition
     ) {
-        // 모의투자 거래 내역만 조회하도록 AssetType을 강제 지정합니다.
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 모의투자(MOCK)로 통제합니다.
         CursorResponseDto<TradeHistoryResponseDto> response =
-                spotTradeHistoryQueryService.getTradeHistories(memberId, condition.withAssetType(AssetType.MOCK));
+                spotTradeHistoryQueryService.getTradeHistories(memberId, AssetType.MOCK, condition);
         return ResponseEntity.ok(response);
     }
 
@@ -102,8 +102,8 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute OrderSearchConditionDto condition
     ) {
-        // 모의투자 주문 내역만 조회하도록 AssetType을 강제 지정합니다.
-        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOrders(memberId, condition.withAssetType(AssetType.MOCK));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 모의투자(MOCK)로 통제합니다.
+        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOrders(memberId, AssetType.MOCK, condition);
         return ResponseEntity.ok(response);
     }
 
@@ -117,8 +117,8 @@ public class MockSpotOrderController {
             @AuthenticationPrincipal Long memberId,
             @Valid @ParameterObject @ModelAttribute OpenOrderSearchConditionDto condition
     ) {
-        // 모의투자 미체결 주문 내역만 조회하도록 AssetType을 강제 지정합니다.
-        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOpenOrders(memberId, condition.withAssetType(AssetType.MOCK));
+        // 프론트엔드에서 파라미터로 AssetType을 받지 않고 모의투자(MOCK)로 통제합니다.
+        CursorResponseDto<OrderResponseDto> response = spotOrderQueryService.getOpenOrders(memberId, AssetType.MOCK, condition);
         return ResponseEntity.ok(response);
     }
 }
