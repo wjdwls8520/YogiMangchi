@@ -48,7 +48,7 @@ export default function MockTradingPage() {
   return (
     <div className="flex flex-col h-full w-full bg-slate-100 text-slate-900 overflow-hidden font-sans">
       {/* 1. Top Header - 고정 높이 48px */}
-      <header className="flex h-[48px] items-center justify-between border-b border-gray-200 bg-white px-2 sm:px-4 z-20 shadow-sm shrink-0">
+      <header className="flex h-[48px] items-center justify-between border-b border-gray-200 bg-slate-200 px-2 sm:px-4 z-20 shadow-sm shrink-0">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0 shrink-0">
           <div className="hidden md:flex items-center gap-2 text-xs sm:text-sm font-bold truncate">
             {isParticipated ? (
@@ -75,7 +75,7 @@ export default function MockTradingPage() {
         </div>
 
         <div className="flex items-center gap-1 min-w-0 shrink">
-          <div className="min-w-0 overflow-x-auto custom-scrollbar no-scrollbar-arrows pb-0.5 max-w-full pr-2">
+          <div className="min-w-0 overflow-x-auto scrollbar-hide no-scrollbar-arrows pb-0.5 max-w-full pr-2">
             <MockNoticeBar />
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function MockTradingPage() {
       />
 
       {/* 3. Main Layout - 헤더 제외 남은 공간 꽉 채움 */}
-      <main className="flex-1 min-h-0 flex flex-col lg:flex-row relative overflow-y-auto lg:overflow-x-hidden custom-scrollbar">
+      <main className="flex-1 min-h-0 flex flex-col lg:flex-row relative overflow-y-auto lg:overflow-x-hidden scrollbar-hide">
         {/* Dashboard Grid / Mobile Tab Interface */}
         <div className={cn(
           "flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] lg:grid-rows-[1fr_300px] lg:gap-2 lg:p-2 h-full min-h-[600px] lg:min-h-[650px] min-w-0 bg-white lg:bg-slate-100",
@@ -154,9 +154,15 @@ export default function MockTradingPage() {
 
           {/* 모바일 바텀 시트 (주문 내역) */}
           {isHistoryOpen && (
-            <div className="lg:hidden fixed inset-0 z-[150] flex flex-col justify-end">
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsHistoryOpen(false)} />
-              <div className="relative bg-white rounded-t-[24px] shadow-2xl flex flex-col h-[50vh] animate-in slide-in-from-bottom duration-300">
+            <div className="lg:hidden fixed inset-0 z-[150] flex flex-col justify-end overflow-hidden">
+              <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-backdrop-fade-in" 
+                onClick={() => setIsHistoryOpen(false)} 
+              />
+              <div 
+                className="relative bg-white rounded-t-[24px] shadow-2xl flex flex-col h-[60vh] border-t border-gray-100 animate-sheet-slide-up"
+                style={{ willChange: 'transform, opacity' }}
+              >
                 {/* 바텀시트 핸들러 (디자인용 바만 유지) */}
                 <div className="flex flex-col items-center py-3 shrink-0" onClick={() => setIsHistoryOpen(false)}>
                   <div className="w-10 h-1.5 bg-slate-200 rounded-full" />
@@ -173,7 +179,7 @@ export default function MockTradingPage() {
           )}
 
           {/* 컨텐츠 영역: 모바일에서는 전체 스크롤, 데스크탑에서는 그리드 고정 */}
-          <div className="flex-1 min-h-0 flex flex-col lg:contents overflow-y-auto lg:overflow-hidden custom-scrollbar">
+          <div className="flex-1 min-h-0 flex flex-col lg:contents overflow-y-auto lg:overflow-hidden scrollbar-hide">
 
             {/* Chart Section */}
             <section className={`lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] bg-white lg:rounded-xl lg:shadow-sm lg:border border-gray-200 shrink-0 ${mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'}`}>
@@ -221,7 +227,7 @@ export default function MockTradingPage() {
 
               {/* Top: OrderBook & OrderForm (Static/Natural Height) */}
               <div className="flex shrink-0 lg:contents">
-                <aside className="w-[145px] sm:flex-1 shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-white lg:rounded-xl lg:shadow-sm lg:border border-r border-gray-100 lg:border-gray-200 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none custom-scrollbar">
+                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-white lg:rounded-xl lg:shadow-sm lg:border border-r border-gray-100 lg:border-gray-200 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
                   <div className="shrink-0 p-1.5 sm:p-2 border-b border-gray-100 hidden lg:block">
                     <Tabs
                       activeTab={activeInfoTab}
@@ -238,7 +244,7 @@ export default function MockTradingPage() {
                   <div className="shrink-0 p-2 border-b border-gray-100 lg:hidden font-bold text-slate-700 text-[11px] text-center bg-slate-50 tracking-widest">
                     호가
                   </div>
-                  <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                     <div className="hidden lg:flex flex-col h-full w-full">
                       {activeInfoTab === "orderbook" ? (
                         <OrderBook mode="mock" className="flex-1 w-full border-none !bg-transparent !rounded-none" />

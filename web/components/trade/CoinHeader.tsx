@@ -9,7 +9,7 @@ type CoinHeaderProps = {
   className?: string;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
 };
 
 export default function CoinHeader({
@@ -18,6 +18,7 @@ export default function CoinHeader({
   isSidebarCollapsed = true,
   mode = "trade"
 }: CoinHeaderProps) {
+  const isContest = mode === "contest";
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
   const realtime = useTickerStore((state) => state.tickers[state.selectedCoin]);
@@ -61,7 +62,7 @@ export default function CoinHeader({
   const sign = isUp ? (isSpot ? "▲" : "+") : isDown ? (isSpot ? "▼" : "") : "";
 
   return (
-    <header aria-label="코인 요약 정보" className={cn("bg-white px-3 border-b border-gray-100 flex flex-col justify-center shrink-0 py-2 min-h-[64px] lg:h-auto lg:py-3 transition-all", className)}>
+    <header aria-label="코인 요약 정보" className={cn("px-3 flex flex-col justify-center shrink-0 py-2 min-h-[64px] lg:h-auto lg:py-3 transition-all", isContest ? "bg-[#161A1E] border-b border-white/5" : "bg-white border-b border-gray-100", className)}>
       {/* 첫 번째 줄 (모바일) / 왼쪽 영역 (데스크탑) */}
       <div className="flex items-center justify-start gap-4 lg:gap-8 min-w-0 w-full lg:w-auto">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
@@ -69,12 +70,7 @@ export default function CoinHeader({
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className={cn(
-                "flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 rounded-md transition-all shrink-0 group cursor-pointer",
-                className?.includes("bg-[#161A1E]")
-                  ? "text-gray-400 hover:text-white hover:bg-white/5"
-                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-              )}
+              className="flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 rounded-md transition-all shrink-0 group cursor-pointer text-slate-400 hover:text-slate-900 hover:bg-slate-50"
             >
               {isSidebarCollapsed ? <ChevronDown className="w-5 h-5 lg:w-6 lg:h-6" /> : <ChevronUp className="w-5 h-5 lg:w-6 lg:h-6" />}
             </button>
@@ -82,8 +78,8 @@ export default function CoinHeader({
 
           {/* 코인 이름 & 심볼 */}
           <div className="flex flex-col">
-            <h1 className={cn("text-base lg:text-lg font-black text-gray-900 leading-none", className?.includes("bg-[#161A1E]") && "text-gray-100")}>{meta.displayNameKr}</h1>
-            <span className="text-[9px] lg:text-[10px] font-bold text-gray-400 italic leading-none mt-1">{meta.baseAsset}/{meta.quoteAsset}</span>
+            <h1 className={cn("text-base lg:text-lg font-black leading-none", isContest ? "text-white" : "text-slate-900")}>{meta.displayNameKr}</h1>
+            <span className={cn("text-[9px] lg:text-[10px] font-bold italic leading-none mt-1", isContest ? "text-white/30" : "text-slate-400")}>{meta.baseAsset}/{meta.quoteAsset}</span>
           </div>
         </div>
 
@@ -98,24 +94,24 @@ export default function CoinHeader({
         </div>
       </div>
 
-      {/* 두 번째 줄 (모바일 및 데스크탑 공통) */}
-      <div className="flex items-center gap-4 lg:gap-6 mt-2 pt-2 border-t border-gray-50">
-        <div className={cn("flex flex-col", className?.includes("bg-[#161A1E]") && "lg:border-white/5")}>
-          <p className="text-[9px] lg:text-[10px] text-gray-400 mb-0.5">고가(24H)</p>
-          <p className={cn("text-[10px] lg:text-[11px] text-gray-900 font-black", className?.includes("bg-[#161A1E]") && "text-gray-200")}>
+      {/* 지표 영역 (모든 화면에서 표시) */}
+      <div className={cn("flex items-center gap-3 sm:gap-6 mt-2 pt-2 border-t overflow-x-auto no-scrollbar", isContest ? "border-white/5" : "border-gray-100")}>
+        <div className="flex flex-col">
+          <p className={cn("text-[9px] lg:text-[10px] mb-0.5 uppercase tracking-tighter", isContest ? "text-white/30" : "text-slate-400")}>고가(24H)</p>
+          <p className={cn("text-[10px] lg:text-[11px] font-black", isContest ? "text-white/70" : "text-slate-900")}>
             {highPrice === null ? "-" : formatAssetNumber(highPrice, { standardMaxFractionDigits: 4, smallMaxFractionDigits: 8 })}
           </p>
         </div>
-        <div className={cn("flex flex-col", className?.includes("bg-[#161A1E]") && "lg:border-white/5")}>
-          <p className="text-[9px] lg:text-[10px] text-gray-400 mb-0.5">저가(24H)</p>
-          <p className={cn("text-[10px] lg:text-[11px] text-gray-900 font-black", className?.includes("bg-[#161A1E]") && "text-gray-200")}>
+        <div className="flex flex-col">
+          <p className={cn("text-[9px] lg:text-[10px] mb-0.5 uppercase tracking-tighter", isContest ? "text-white/30" : "text-slate-400")}>저가(24H)</p>
+          <p className={cn("text-[10px] lg:text-[11px] font-black", isContest ? "text-white/70" : "text-slate-900")}>
             {lowPrice === null ? "-" : formatAssetNumber(lowPrice, { standardMaxFractionDigits: 4, smallMaxFractionDigits: 8 })}
           </p>
         </div>
-        <div className={cn("flex flex-col border-l border-gray-200 pl-3", className?.includes("bg-[#161A1E]") && "border-white/5")}>
-          <p className="text-[10px] text-gray-400 mb-0.5">거래량(24H)</p>
-          <p className={cn("text-[11px] text-gray-900 font-black", className?.includes("bg-[#161A1E]") && "text-gray-200")}>
-            {volume === null ? "-" : volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-gray-400 font-medium">{meta.baseAsset}</span>
+        <div className={cn("flex flex-col border-l pl-3", isContest ? "border-white/5" : "border-gray-100")}>
+          <p className={cn("text-[10px] mb-0.5 uppercase tracking-tighter", isContest ? "text-white/30" : "text-slate-400")}>거래량(24H)</p>
+          <p className={cn("text-[11px] font-black", isContest ? "text-white/70" : "text-slate-900")}>
+            {volume === null ? "-" : volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className={cn("font-medium", isContest ? "text-white/30" : "text-slate-400")}>{meta.baseAsset}</span>
           </p>
         </div>
       </div>

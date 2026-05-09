@@ -72,7 +72,7 @@ type CoinChartProps = {
   className?: string;
   chartAreaClassName?: string;
   marketTypeOverride?: MarketType;
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -112,9 +112,9 @@ export default function CoinChart({
   const [showMA, setShowMA] = useState(false);
   const [showMarkers, setShowMarkers] = useState(false);
   const [isPercent, setIsPercent] = useState(false);
-  const [isDark, setIsDark] = useState(mode !== "mock"); 
+  const [isDark, setIsDark] = useState(false); 
   useEffect(() => {
-    setIsDark(mode !== "mock");
+    setIsDark(mode === "contest");
   }, [mode]);
 
   const [showPriceLine, setShowPriceLine] = useState(false); 
@@ -322,10 +322,10 @@ export default function CoinChart({
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: '#0B0E11' }, textColor: '#B7BDC6' },
+      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#333' },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 400,
-      grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)' }, horzLines: { color: 'rgba(255, 255, 255, 0.04)' } },
+      grid: { vertLines: { color: '#f0f3fa' }, horzLines: { color: '#f0f3fa' } },
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
       },
@@ -677,7 +677,7 @@ export default function CoinChart({
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
       className={cn(
         "relative flex w-full flex-col gap-2 border p-4 transition-colors",
-        isDark ? "border-[#2B3139] bg-[#181A20]" : "border-gray-100 bg-white",
+        isDark ? "border-white/5 bg-[#161A1E]" : "border-gray-100 bg-white",
         className
       )}
     >

@@ -18,6 +18,7 @@ interface TabsProps {
   activeColor?: string; // 컴포넌트 전체의 기본 색상
   size?: "sm" | "md"; // 탭 크기 옵션 추가
   variant?: "underline" | "plain"; // 탭 스타일 옵션 추가
+  mode?: "light" | "dark"; // 다크모드 옵션 추가
 }
 
 export default function Tabs({
@@ -27,14 +28,27 @@ export default function Tabs({
   className = "",
   tabClassName = "",
   fullWidth = false,
-  activeColor = "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300", // 기본값은 검정
+  activeColor,
   size = "md",
   variant = "underline",
+  mode,
 }: TabsProps) {
+  const isDark = mode === "dark";
+
+  // 기본 색상 설정 (mode에 따라 다르게)
+  const defaultActiveColor = isDark
+    ? "text-white border-[#F0B90B]"
+    : "text-gray-900 border-gray-900 dark:text-gray-300 dark:border-gray-300";
+
+  const finalActiveColor = activeColor || defaultActiveColor;
   
   return (
     // 전체 컨테이너: 하단에 연한 회색 보더를 깔아줍니다 (underline인 경우만)
-    <div className={cn("flex", variant === "underline" && "border-b border-gray-200", className)}>
+    <div className={cn(
+      "flex", 
+      variant === "underline" && cn("border-b", isDark ? "border-white/5" : "border-gray-200 dark:border-gray-800"), 
+      className
+    )}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
 
@@ -56,13 +70,14 @@ export default function Tabs({
                   : "min-w-[112px] whitespace-nowrap text-center",
               isActive 
                 ? cn(
-                    "font-black", 
+                    "font-black transition-all", 
                     variant === "underline" && (size === "sm" ? "border-b-2" : "border-b-[3px]"),
-                    currentTabColor
+                    finalActiveColor
                   )
                 : cn(
-                    "font-bold text-gray-400 hover:text-gray-600",
-                    variant === "underline" && (size === "sm" ? "border-b-2" : "border-b-[3px] border-transparent")
+                    "font-bold transition-all",
+                    isDark ? "text-white/30 hover:text-white/50" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400",
+                    variant === "underline" && (size === "sm" ? "border-b-2 border-transparent" : "border-b-[3px] border-transparent")
                   ),
               tabClassName
             )}

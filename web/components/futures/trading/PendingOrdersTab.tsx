@@ -8,6 +8,7 @@ type PendingOrdersTabProps = {
   cancelingOrderId: number | null;
   isTradingEnabled: boolean;
   onCancelLimitOrder: (orderId: number) => Promise<void>;
+  mode?: "light" | "dark";
 };
 
 const PENDING_ORDER_PAGE_SIZE = 5;
@@ -18,6 +19,7 @@ export default function PendingOrdersTab({
   cancelingOrderId,
   isTradingEnabled,
   onCancelLimitOrder,
+  mode,
 }: PendingOrdersTabProps) {
   return (
     <FuturesOrderList
@@ -28,6 +30,7 @@ export default function PendingOrdersTab({
       cancelingOrderId={cancelingOrderId}
       isTradingEnabled={isTradingEnabled}
       onCancelLimitOrder={onCancelLimitOrder}
+      themeMode={mode}
     />
   );
 }

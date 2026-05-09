@@ -243,15 +243,15 @@ export default function OrderForm({
   const isFormDisabled = isSubmitting || isLoadingPortfolio || currentPrice <= 0;
   
   /* ═══════ UI pieces ═══════ */
-  const bgMain = isMock ? "bg-transparent text-slate-900" : "bg-[#161A1E] text-white";
-  const borderSub = isMock ? "border-gray-100" : "border-white/5";
-  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
-  const textTitle = isMock ? "text-slate-400" : "text-white/40";
+  const bgMain = "bg-white text-slate-900";
+  const borderSub = "border-gray-100";
+  const textMuted = "text-slate-400";
+  const textTitle = "text-slate-400";
   
-  const inputBg = isMock ? "bg-slate-50 border-gray-200 focus-within:border-emerald-500/50" : "bg-[#1E2329] border-transparent focus-within:border-[#F0B90B]/50";
-  const inputText = isMock ? "text-slate-900" : "text-white";
+  const inputBg = "bg-slate-50 border-gray-200 focus-within:border-emerald-500/50";
+  const inputText = "text-slate-900";
   
-  const inputCls = `flex items-center rounded border px-2 sm:px-3 py-[6px] transition-colors ${inputBg}`;
+  const inputCls = `flex items-center rounded border px-2 sm:px-3 py-[8px] lg:py-[6px] transition-colors ${inputBg}`;
   const labelCls = `text-[11px] sm:text-[12px] font-medium w-8 sm:w-12 shrink-0 ${textMuted}`;
   const fieldCls = `flex-1 min-w-0 w-full bg-transparent text-right text-[12px] sm:text-[13px] outline-none font-bold ${inputText}`;
 
@@ -306,7 +306,7 @@ export default function OrderForm({
             <span className={`text-[11px] sm:text-[12px] font-medium ml-1.5 sm:ml-2 shrink-0 ${textMuted}`}>{meta.quoteAsset}</span>
           </div>
         ) : (
-          <div className={`flex items-center rounded px-2 sm:px-3 py-[6px] ${isMock ? 'bg-slate-100' : 'bg-[#1E2329]'}`}>
+          <div className="flex items-center rounded px-2 sm:px-3 py-[6px] bg-slate-50 border border-gray-100">
             <span className={labelCls}>가격</span>
             <span className={`flex-1 text-right text-[12px] sm:text-[13px] font-bold min-w-0 ${textMuted}`}>시장가</span>
           </div>
@@ -344,7 +344,7 @@ export default function OrderForm({
         {/* Ratio Options */}
         <div className="flex gap-1.5">
           {ORDER_RATIO_OPTIONS.map((o) => (
-            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className={`flex-1 rounded-[4px] py-1 text-center text-[10px] sm:text-[11px] font-bold transition-colors ${isMock ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-[#2B3139] hover:bg-[#353C46] text-gray-400'}`}>{o.label}</button>
+            <button key={o.label} type="button" onClick={() => handleRatio(o.ratio)} className="flex-1 rounded-[4px] py-1 text-center text-[10px] sm:text-[11px] font-bold transition-colors bg-slate-100 hover:bg-slate-200 text-slate-500">{o.label}</button>
           ))}
         </div>
 

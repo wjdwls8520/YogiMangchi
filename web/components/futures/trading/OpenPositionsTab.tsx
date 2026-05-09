@@ -3,6 +3,7 @@
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import { formatFuturesPositionSide } from "@/lib/utils/futures";
+import { cn } from "@/lib/utils/cs";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 import type {
@@ -26,6 +27,7 @@ type OpenPositionsTabProps = {
     params: ContestFuturesLimitCloseOrderParams
   ) => Promise<FuturesLimitOrderResponse>;
   disabledMessage?: string;
+  mode?: "light" | "dark";
 };
 
 const getPendingKey = (p: FuturesPositionItem) =>
@@ -39,7 +41,9 @@ export default function OpenPositionsTab({
   onClosePosition,
   onSubmitLimitCloseOrder,
   disabledMessage = "현재는 청산이 가능한 상태가 아닙니다.",
+  mode,
 }: OpenPositionsTabProps) {
+  const isDark = mode === "dark";
   const { alert, toast } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({
     loginRedirectMode: "push",
@@ -100,33 +104,33 @@ export default function OpenPositionsTab({
         </div>
       ) : (
         <table className="w-full min-w-[1200px] border-separate border-spacing-0">
-          <thead className="sticky top-0 z-10 bg-[#161A1E]">
-            <tr className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-              <th className="border-b border-white/5 px-4 py-3 text-left whitespace-nowrap">
+          <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+            <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
+              <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 자산
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 방향
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 수량
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 진입가
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 시장가
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 청산가
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 증거금
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 미실현손익(ROE%)
               </th>
-              <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">
+              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
                 관리
               </th>
             </tr>
@@ -151,11 +155,11 @@ export default function OpenPositionsTab({
               return (
                 <tr
                   key={p.positionId}
-                  className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]"
+                  className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <p className="text-sm font-black text-white">{p.symbol}</p>
-                    <p className="text-[10px] font-medium text-gray-500">
+                    <p className={cn("text-sm font-black", isDark ? "text-white" : "text-slate-900")}>{p.symbol}</p>
+                    <p className={cn("text-[10px] font-medium", isDark ? "text-white/30" : "text-slate-400")}>
                       Isolated {p.leverage}x
                     </p>
                   </td>
@@ -171,7 +175,7 @@ export default function OpenPositionsTab({
                     </span>
                   </td>
                   <td className="px-4 py-4 text-right whitespace-nowrap">
-                    <p className="text-sm font-bold text-white">
+                    <p className={cn("text-sm font-bold", isDark ? "text-white/80" : "text-slate-900")}>
                       {formatAssetNumber(p.filledQuantity, {
                         standardMaxFractionDigits: 4,
                         smallMaxFractionDigits: 8,
@@ -183,16 +187,16 @@ export default function OpenPositionsTab({
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm font-bold text-gray-300 whitespace-nowrap">
+                  <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/60" : "text-slate-600")}>
                     {formatAssetNumber(p.entryPrice)}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm font-bold text-white whitespace-nowrap">
+                  <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
                     {markPrice > 0 ? formatAssetNumber(markPrice) : "-"}
                   </td>
                   <td className="px-4 py-4 text-right text-sm font-bold text-[#F6465D] whitespace-nowrap">
                     {formatAssetNumber(p.liquidationPrice)}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm font-bold text-gray-300 whitespace-nowrap">
+                  <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/60" : "text-slate-600")}>
                     {formatAssetNumber(p.totalMargin)}
                   </td>
                   <td className="px-4 py-4 text-right whitespace-nowrap">
@@ -220,7 +224,12 @@ export default function OpenPositionsTab({
                         localClosingId === p.positionId
                       }
                       onClick={() => void handleMarketClose(p)}
-                      className="rounded bg-white/5 px-3 py-1.5 text-[11px] font-black text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      className={cn(
+                        "rounded px-3 py-1.5 text-[11px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                        isDark 
+                          ? "bg-white/10 text-white hover:bg-white/20" 
+                          : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                      )}
                     >
                       {closingPositionId === p.positionId ||
                       localClosingId === p.positionId

@@ -63,7 +63,7 @@ const getBarWidth = (qty: number, maxQty: number) => {
 
 type OrderBookProps = {
   className?: string;
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
 };
 
 export default function OrderBook({ className, mode = "trade" }: OrderBookProps) {
@@ -185,10 +185,11 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
   const maxBidQty = displayBids.length > 0 ? Math.max(...displayBids.map((item) => item.quantity)) : 1;
 
   const isMock = mode === "mock";
+  const isContest = mode === "contest";
   const isSpot = selectedMarketType === "spot";
 
   if (isLoading && asks.length === 0 && bids.length === 0) {
-    const loadingBgCls = isMock ? "bg-white border border-gray-200" : "bg-[#161A1E] border border-white/5";
+    const loadingBgCls = "bg-white border border-gray-100";
     return (
       <div className={cn(`flex-1 min-h-[600px] animate-pulse rounded-xl lg:col-span-3 ${loadingBgCls}`, className)} />
     );
@@ -199,13 +200,13 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
   const buyTextColor = isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]";
   const buyBgColor = isSpot || isMock ? "bg-[#fb2c36]/10" : "bg-green-500/10";
 
-  const containerBg = isMock ? "bg-transparent" : "bg-[#161A1E] border border-white/5 rounded-xl";
-  const headerBg = isMock ? "bg-slate-50 border-gray-100" : "bg-white/[0.02] border-white/5";
-  const headerText = isMock ? "text-slate-500" : "text-gray-500";
-  const chartBg = isMock ? "bg-white" : "bg-black/[0.02]";
-  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.03]";
-  const qtyColor = isMock ? "text-slate-500" : "text-gray-400";
-  const centerBtnBg = isMock ? "bg-slate-50 hover:bg-slate-100 border-gray-100" : "bg-white/[0.04] hover:bg-white/[0.08] border-white/5";
+  const containerBg = isContest ? "bg-[#161A1E] border border-white/5 rounded-xl" : "bg-white border border-gray-100 rounded-xl";
+  const headerBg = isContest ? "bg-white/5 border-white/5" : "bg-slate-50 border-gray-100";
+  const headerText = isContest ? "text-white/30" : "text-slate-400";
+  const chartBg = isContest ? "bg-[#161A1E]" : "bg-white";
+  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50";
+  const qtyColor = isContest ? "text-white/40" : "text-slate-400";
+  const centerBtnBg = isContest ? "bg-white/5 hover:bg-white/10 border-white/10" : "bg-slate-50 hover:bg-slate-100 border-gray-100";
 
   return (
     <div className={cn(`flex flex-col flex-1 min-h-0 overflow-hidden md:col-span-1 lg:col-span-3 ${containerBg}`, className)}>
@@ -217,7 +218,7 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
 
       <div className={`flex-1 flex flex-col overflow-hidden py-1 ${chartBg}`}>
         {/* 매도 호가 영역 */}
-        <div ref={asksContainerRef} className="flex-1 flex flex-col overflow-y-auto min-h-0 custom-scrollbar scroll-smooth">
+        <div ref={asksContainerRef} className="flex-1 flex flex-col overflow-y-auto min-h-0 scrollbar-hide scroll-smooth">
           <div className="flex flex-col mt-auto">
             {displayAsks.map((level) => (
               <div
@@ -246,20 +247,20 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
             onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
             className={cn(
               "w-full h-[28px] flex items-center justify-between px-3 sm:px-4 transition-all z-10 border-y-2",
-              "bg-white border-black"
+              isContest ? "bg-[#161A1E] border-white/10" : "bg-white border-black"
             )}
           >
-            <span className="text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate text-black">
+            <span className={cn("text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate", isContest ? "text-white" : "text-black")}>
               {currentPrice > 0 ? formatPrice(currentPrice) : "-"}
             </span>
-            <span className="text-[11px] sm:text-[12px] font-bold text-black tabular-nums">
+            <span className={cn("text-[11px] sm:text-[12px] font-bold tabular-nums", isContest ? "text-white/70" : "text-black")}>
               {currentPriceQty !== null ? formatQty(currentPriceQty) : "-"}
             </span>
           </button>
         </div>
 
         {/* 매수 호가 영역 */}
-        <div className="flex-1 flex flex-col overflow-y-auto min-h-0 custom-scrollbar">
+        <div className="flex-1 flex flex-col overflow-y-auto min-h-0 scrollbar-hide">
           <div className="flex flex-col">
             {displayBids.map((level) => (
               <div

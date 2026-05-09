@@ -30,6 +30,7 @@ export type FuturesOrderListProps = {
   cancelingOrderId?: number | null;
   isTradingEnabled?: boolean;
   onCancelLimitOrder?: (orderId: number) => Promise<void>;
+  themeMode?: "light" | "dark";
 };
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -63,14 +64,14 @@ const MODE_CONFIG: Record<
   },
 };
 
-const formatQuantity = (value?: number | null) =>
+const formatQuantity = (value?: number | string | null) =>
   formatAssetNumber(value, {
     fallback: "-",
     standardMaxFractionDigits: 4,
     smallMaxFractionDigits: 8,
   });
 
-const formatMoney = (value?: number | null) =>
+const formatMoney = (value?: number | string | null) =>
   formatAssetNumber(value, { fallback: "-" });
 
 const getStatusClassName = (orderStatus?: FuturesOrderStatus | null) => {
@@ -98,10 +99,10 @@ export default function FuturesOrderList({
   activityVersion,
   mode,
   pageSize = DEFAULT_PAGE_SIZE,
-  cancelingOrderId = null,
-  isTradingEnabled = false,
   onCancelLimitOrder,
+  themeMode,
 }: FuturesOrderListProps) {
+  const isDark = themeMode === "dark" || Boolean(contestSeasonId);
   const config = MODE_CONFIG[mode];
   const { alert, toast } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({
@@ -273,59 +274,59 @@ export default function FuturesOrderList({
       <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
         {mode === "pending" ? (
           <table className="w-full min-w-[980px] border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-[#161A1E]">
-              <tr className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                <th className="border-b border-white/5 px-4 py-3 text-left whitespace-nowrap">자산</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">방향</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">구분</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">유형</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">주문가</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">주문수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">잔여수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">증거금</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">수수료</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">주문일시</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">관리</th>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+              <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>잔여수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>증거금</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문일시</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>관리</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderPendingRow(order))}</tbody>
           </table>
         ) : mode === "orders" ? (
           <table className="w-full min-w-[1280px] border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-[#161A1E]">
-              <tr className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                <th className="border-b border-white/5 px-4 py-3 text-left whitespace-nowrap">자산</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">방향</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">구분</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">유형</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">상태</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">주문가</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">체결가</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">주문수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">체결수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">잔여수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">명목금액</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">수수료</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">주문일시</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">체결일시</th>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+              <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>상태</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>잔여수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>명목금액</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문일시</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결일시</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderOrderHistoryRow(order))}</tbody>
           </table>
         ) : (
           <table className="w-full min-w-[1080px] border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-[#161A1E]">
-              <tr className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                <th className="border-b border-white/5 px-4 py-3 text-left whitespace-nowrap">자산</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">방향</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">구분</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">유형</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">체결가</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">체결수량</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">명목금액</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">증거금</th>
-                <th className="border-b border-white/5 px-4 py-3 text-right whitespace-nowrap">수수료</th>
-                <th className="border-b border-white/5 px-4 py-3 text-center whitespace-nowrap">체결일시</th>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+              <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>명목금액</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>증거금</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결일시</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderTradeHistoryRow(order))}</tbody>
@@ -348,9 +349,9 @@ export default function FuturesOrderList({
   function renderAssetCell(order: FuturesOrderItem) {
     return (
       <td className="px-4 py-3 whitespace-nowrap">
-        <p className="text-sm font-black text-white">{order.symbol}</p>
+        <p className={cn("text-sm font-black", isDark ? "text-white" : "text-slate-900")}>{order.symbol}</p>
         {order.displayNameKr ? (
-          <p className="text-[10px] font-medium text-gray-500 whitespace-nowrap">
+          <p className={cn("text-[10px] font-medium whitespace-nowrap", isDark ? "text-white/30" : "text-slate-400")}>
             {order.displayNameKr}
           </p>
         ) : null}
@@ -377,7 +378,7 @@ export default function FuturesOrderList({
 
   function renderActionCell(order: FuturesOrderItem) {
     return (
-      <td className="px-4 py-3 text-center text-sm font-bold text-gray-300 whitespace-nowrap">
+      <td className={cn("px-4 py-3 text-center text-sm font-bold whitespace-nowrap", isDark ? "text-white/60" : "text-slate-600")}>
         {formatFuturesPositionAction(order.positionAction)}
       </td>
     );
@@ -385,7 +386,7 @@ export default function FuturesOrderList({
 
   function renderTypeCell(order: FuturesOrderItem) {
     return (
-      <td className="px-4 py-3 text-center text-sm font-bold text-gray-300 whitespace-nowrap">
+      <td className={cn("px-4 py-3 text-center text-sm font-bold whitespace-nowrap", isDark ? "text-white/60" : "text-slate-600")}>
         {formatFuturesOrderType(order.orderType)}
       </td>
     );
@@ -410,28 +411,28 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]"
+        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}
         {renderActionCell(order)}
         {renderTypeCell(order)}
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.orderPrice)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.orderQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.remainingQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.orderMargin)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.totalFee)}
         </td>
-        <td className="px-4 py-3 text-center text-xs font-medium text-gray-500 whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-center text-xs font-medium whitespace-nowrap", isDark ? "text-white/30" : "text-gray-500")}>
           {formatDateTime(order.createdAt)}
         </td>
         <td className="px-4 py-3 text-center whitespace-nowrap">
@@ -452,38 +453,38 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]"
+        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}
         {renderActionCell(order)}
         {renderTypeCell(order)}
         {renderStatusCell(order)}
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.orderPrice)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.executedPrice)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.orderQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.filledQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.remainingQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.notionalAmount)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.totalFee)}
         </td>
-        <td className="px-4 py-3 text-center text-xs font-medium text-gray-500 whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-center text-xs font-medium whitespace-nowrap", isDark ? "text-white/30" : "text-gray-500")}>
           {formatDateTime(order.createdAt)}
         </td>
-        <td className="px-4 py-3 text-center text-xs font-medium text-gray-500 whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-center text-xs font-medium whitespace-nowrap", isDark ? "text-white/30" : "text-gray-500")}>
           {formatDateTime(order.executedAt)}
         </td>
       </tr>
@@ -494,28 +495,28 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className="border-b border-white/5 last:border-b-0 hover:bg-white/[0.02]"
+        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}
         {renderActionCell(order)}
         {renderTypeCell(order)}
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.executedPrice)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatQuantity(order.filledQuantity)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney((order.executedPrice ?? 0) * (order.filledQuantity ?? 0))}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.orderMargin)}
         </td>
-        <td className="px-4 py-3 text-right text-sm font-bold text-white whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
           {formatMoney(order.totalFee)}
         </td>
-        <td className="px-4 py-3 text-center text-xs font-medium text-gray-500 whitespace-nowrap">
+        <td className={cn("px-4 py-3 text-center text-xs font-medium whitespace-nowrap", isDark ? "text-white/30" : "text-gray-500")}>
           {formatDateTime(order.executedAt)}
         </td>
       </tr>

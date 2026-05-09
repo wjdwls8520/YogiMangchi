@@ -66,6 +66,26 @@ body {
   button {
     cursor: pointer;
   }
+
+  /* Premium Spring Animations */
+  @keyframes sheet-slide-up {
+    0% { transform: translateY(100%); opacity: 0; }
+    60% { transform: translateY(-15px); opacity: 1; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes backdrop-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .animate-sheet-slide-up {
+    animation: sheet-slide-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .animate-backdrop-fade-in {
+    animation: backdrop-fade-in 0.4s ease-out forwards;
+  }
 }
 
 /* 카드형식 공통디자인정의 */
