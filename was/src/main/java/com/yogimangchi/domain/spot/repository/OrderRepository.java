@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface OrderRepository extends JpaRepository<Order, Long>, OrderRepositoryCustom {
 
-    // 회원 소유 주문 취소 시 잠금을 걸고 조회
+    // 회원 소유 주문 취소 시 잠금을 걸고 조회 (크로스 자산 공격 방어)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT o
@@ -20,10 +20,12 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReposi
             JOIN o.assets a
             WHERE o.id = :orderId
               AND a.member.id = :memberId
+              AND a.type = :assetType
             """)
-    Optional<Order> findByIdAndMemberIdForUpdate(
+    Optional<Order> findByIdAndMemberIdAndAssetTypeForUpdate(
             @Param("orderId") Long orderId,
-            @Param("memberId") Long memberId
+            @Param("memberId") Long memberId,
+            @Param("assetType") com.yogimangchi.domain.asset.enums.AssetType assetType
     );
 
     // 지정가 주문 체결 실행 시 잠금을 걸고 조회

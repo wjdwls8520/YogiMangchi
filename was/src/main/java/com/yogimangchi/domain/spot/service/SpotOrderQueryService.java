@@ -22,9 +22,9 @@ public class SpotOrderQueryService {
     private final AssetRepository assetRepository;
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<OrderResponseDto> getOrders(Long memberId, OrderSearchConditionDto condition) {
-        Long assetId = resolveAssetId(memberId, condition.assetType());
-        List<OrderQueryDto> orders = orderRepository.searchOrders(memberId, condition, assetId);
+    public CursorResponseDto<OrderResponseDto> getOrders(Long memberId, AssetType assetType, OrderSearchConditionDto condition) {
+        Long assetId = resolveAssetId(memberId, assetType);
+        List<OrderQueryDto> orders = orderRepository.searchOrders(memberId, assetType, condition, assetId);
 
         int limitSize = condition.getOrDefaultSize();
         boolean hasNext = orders.size() > limitSize;
@@ -46,9 +46,9 @@ public class SpotOrderQueryService {
     }
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<OrderResponseDto> getOpenOrders(Long memberId, OpenOrderSearchConditionDto condition) {
-        Long assetId = resolveAssetId(memberId, condition.assetType());
-        List<OrderQueryDto> orders = orderRepository.searchOpenOrders(memberId, condition, assetId);
+    public CursorResponseDto<OrderResponseDto> getOpenOrders(Long memberId, AssetType assetType, OpenOrderSearchConditionDto condition) {
+        Long assetId = resolveAssetId(memberId, assetType);
+        List<OrderQueryDto> orders = orderRepository.searchOpenOrders(memberId, assetType, condition, assetId);
 
         int limitSize = condition.getOrDefaultSize();
         boolean hasNext = orders.size() > limitSize;

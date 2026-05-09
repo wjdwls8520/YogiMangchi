@@ -31,7 +31,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<OrderQueryDto> searchOrders(Long memberId, OrderSearchConditionDto condition, Long assetId) {
+    public List<OrderQueryDto> searchOrders(Long memberId, AssetType assetType, OrderSearchConditionDto condition, Long assetId) {
         // 주문 내역 목록 조회 쿼리
         return queryFactory
                 // 주문 상세와 마켓 표시명 동시 조회
@@ -62,7 +62,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                 .where(
                         assetIdEq(assetId),
                         assets.member.id.eq(memberId),
-                        assetTypeEq(condition.assetType()),
+                        assetTypeEq(assetType),
                         cursorIdLt(condition.cursorId()),
                         symbolEq(condition.symbol()),
                         sideEq(condition.side()),
@@ -76,7 +76,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
     }
 
     @Override
-    public List<OrderQueryDto> searchOpenOrders(Long memberId, OpenOrderSearchConditionDto condition, Long assetId) {
+    public List<OrderQueryDto> searchOpenOrders(Long memberId, AssetType assetType, OpenOrderSearchConditionDto condition, Long assetId) {
         // 미체결 주문 목록 조회 쿼리
         return queryFactory
                 // 주문 상세와 마켓 표시명 동시 조회
@@ -107,7 +107,7 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                 .where(
                         assetIdEq(assetId),
                         assets.member.id.eq(memberId),
-                        assetTypeEq(condition.assetType()),
+                        assetTypeEq(assetType),
                         cursorIdLt(condition.cursorId()),
                         symbolEq(condition.symbol()),
                         sideEq(condition.side()),

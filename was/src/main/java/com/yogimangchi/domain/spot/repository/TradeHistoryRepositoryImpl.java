@@ -28,7 +28,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<TradeHistoryQueryDto> searchTradeHistories(Long memberId, TradeHistorySearchCondition cond, Long assetId) {
+    public List<TradeHistoryQueryDto> searchTradeHistories(Long memberId, AssetType assetType, TradeHistorySearchCondition cond, Long assetId) {
         return queryFactory
                 .select(Projections.constructor(
                         TradeHistoryQueryDto.class,
@@ -55,7 +55,7 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepositoryCustom 
                 .where(
                         assetIdEq(assetId),                  // MOCK 조회 시 현재 ACTIVE 지갑만 조회
                         assets.member.id.eq(memberId),       //  내 지갑의 거래내역만 (필수)
-                        assetTypeEq(cond.assetType()),       // 특정 지갑 타입 (MOCK 등) 필터 (필수)
+                        assetTypeEq(assetType),              // 특정 지갑 타입 (MOCK 등) 필터 (필수)
                         cursorIdLt(cond.cursorId()),         // 커서 페이징 조건 (선택)
                         symbolEq(cond.symbol()),             // 심볼 필터 (선택)
                         sideEq(cond.side()),                 // 매수/매도 필터 (선택)

@@ -21,16 +21,16 @@ public class SpotTradeHistoryQueryService {
     private final TradeHistoryRepository tradeHistoryRepository;
 
     @Transactional(readOnly = true)
-    public CursorResponseDto<TradeHistoryResponseDto> getTradeHistories(Long memberId, TradeHistorySearchCondition cond) {
+    public CursorResponseDto<TradeHistoryResponseDto> getTradeHistories(Long memberId, AssetType assetType, TradeHistorySearchCondition cond) {
         Long assetId = null;
-        if (cond.assetType() == AssetType.MOCK) {
+        if (assetType == AssetType.MOCK) {
             assetId = assetRepository.findByMemberIdAndTypeAndStatus(memberId, AssetType.MOCK, "ACTIVE")
                     .map(Assets::getId)
                     .orElseThrow(() -> new IllegalArgumentException("현재 참여 중인 모의투자 계좌가 존재하지 않습니다."));
         }
 
         // QueryDSL 조회 시 다음 페이지 판별을 위해 size + 1건을 가져온다.
-        List<TradeHistoryQueryDto> histories = tradeHistoryRepository.searchTradeHistories(memberId, cond, assetId);
+        List<TradeHistoryQueryDto> histories = tradeHistoryRepository.searchTradeHistories(memberId, assetType, cond, assetId);
 
         // 다음 페이지 존재 여부를 계산한다.
         int limitSize = cond.getOrDefaultSize();

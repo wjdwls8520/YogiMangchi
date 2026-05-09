@@ -1,9 +1,9 @@
 package com.yogimangchi.domain.spot.repository;
 
+import com.yogimangchi.domain.asset.enums.AssetType;
+import com.yogimangchi.domain.spot.dto.query.OrderQueryDto;
 import com.yogimangchi.domain.spot.dto.request.OpenOrderSearchConditionDto;
 import com.yogimangchi.domain.spot.dto.request.OrderSearchConditionDto;
-import com.yogimangchi.domain.spot.dto.query.OrderQueryDto;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -11,10 +11,11 @@ import java.util.Map;
 public interface OrderRepositoryCustom {
 
     // 주문 내역 목록 조회 메서드
-    List<OrderQueryDto> searchOrders(Long memberId, OrderSearchConditionDto condition, Long assetId);
+    List<OrderQueryDto> searchOrders(Long memberId, AssetType assetType, OrderSearchConditionDto condition, Long assetId);
 
     // 미체결 주문 목록 조회 메서드
-    List<OrderQueryDto> searchOpenOrders(Long memberId, OpenOrderSearchConditionDto condition, Long assetId);
+    List<OrderQueryDto> searchOpenOrders(Long memberId, AssetType assetType, OpenOrderSearchConditionDto condition, Long assetId);
+
 
     // 지정가 매수 체결 후보 ID 조회 메서드
     List<Long> findExecutableBuyLimitOrderIds(String symbol, BigDecimal minPrice, int size);

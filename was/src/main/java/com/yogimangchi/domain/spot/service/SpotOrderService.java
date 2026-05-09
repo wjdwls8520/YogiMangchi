@@ -52,7 +52,7 @@ public class SpotOrderService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public void createMarketOrder(Long memberId, MarketOrderRequestDto request) {
+    public void createMarketOrder(Long memberId, AssetType assetType, MarketOrderRequestDto request) {
         if ("BUY".equalsIgnoreCase(request.side()) && request.totalAmount() == null) {
             throw new IllegalArgumentException("매수 시 주문 금액은 필수입니다.");
         }
@@ -84,8 +84,8 @@ public class SpotOrderService {
         }
 
         // 주문 지갑 조회 및 락
-        Assets wallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, request.assetType(), "ACTIVE")
-                .orElseThrow(() -> new IllegalArgumentException("활성화된 " + request.assetType() + " 지갑을 찾을 수 없습니다."));
+        Assets wallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, assetType, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("활성화된 " + assetType + " 지갑을 찾을 수 없습니다."));
 
         if (LocalDateTime.now().isAfter(wallet.getExpiredAt())) {
             throw new IllegalArgumentException("해당 컨텐츠의 진행 기간이 만료되어 더 이상 매매할 수 없습니다. 지갑을 다시 생성해주세요.");
@@ -101,7 +101,7 @@ public class SpotOrderService {
     }
 
     @Transactional
-    public void createLimitOrder(Long memberId, LimitOrderRequestDto request) {
+    public void createLimitOrder(Long memberId, AssetType assetType, LimitOrderRequestDto request) {
         String symbol = request.symbol().trim().toUpperCase();
         String side = request.side().trim().toUpperCase();
 
@@ -120,8 +120,8 @@ public class SpotOrderService {
             throw new IllegalArgumentException("최소 주문 금액은 " + MIN_ORDER_AMOUNT + " 달러 이상이어야 합니다.");
         }
 
-        Assets wallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, request.assetType(), "ACTIVE")
-                .orElseThrow(() -> new IllegalArgumentException("활성화된 " + request.assetType() + " 지갑을 찾을 수 없습니다."));
+        Assets wallet = assetRepository.findByMemberIdAndTypeAndStatusForUpdate(memberId, assetType, "ACTIVE")
+                .orElseThrow(() -> new IllegalArgumentException("활성화된 " + assetType + " 지갑을 찾을 수 없습니다."));
 
         if (LocalDateTime.now().isAfter(wallet.getExpiredAt())) {
             throw new IllegalArgumentException("해당 컨텐츠의 진행 기간이 만료되어 더 이상 매매할 수 없습니다. 지갑을 다시 생성해주세요.");
@@ -141,9 +141,9 @@ public class SpotOrderService {
     }
 
     @Transactional
-    public void cancelOrder(Long memberId, Long orderId) {
-        Order order = orderRepository.findByIdAndMemberIdForUpdate(orderId, memberId)
-                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+    public void cancelOrder(Long memberId, AssetType assetType, Long orderId) {
+        Order order = orderRepository.findByIdAndMemberIdAndAssetTypeForUpdate(orderId, memberId, assetType)
+                .orElseThrow(() -> new IllegalArgumentException("해당 지갑 타입에 존재하지 않는 주문이거나 취소 권한이 없습니다."));
 
         if (!"LIMIT".equals(order.getOrderType())) {
             throw new IllegalArgumentException("지정가 주문만 취소할 수 있습니다.");
