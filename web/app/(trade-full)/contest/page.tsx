@@ -61,6 +61,8 @@ const mapRecruitingContestToListItem = (season: ContestSeason): ContestListItem 
   id: season.id,
   cardType: "apply",
   title: season.title,
+  description: season.description,
+  recruitmentEndAt: season.recruitmentEndAt,
   period: formatContestPeriod(season.contestStartAt, season.contestEndAt),
   accentLabel: season.isRecruiting ? "모집중" : translateContestDisplayStatus(season),
   actionLabel: season.appliedByMe === true ? "신청 완료" : "신청하기",
@@ -71,6 +73,8 @@ const mapPendingContestToListItem = (application: MyContestPendingApplication): 
   id: application.seasonId,
   cardType: "wait",
   title: application.seasonTitle,
+  description: application.seasonDescription,
+  recruitmentEndAt: application.recruitmentEndAt,
   period: formatContestPeriod(application.contestStartAt, application.contestEndAt),
   accentLabel: "대기",
   actionLabel: "승인 대기중",
@@ -81,6 +85,8 @@ const mapParticipatingContestToListItem = (season: ContestParticipationSeason): 
   id: season.seasonId,
   cardType: "approved",
   title: season.seasonTitle,
+  description: season.seasonDescription,
+  recruitmentEndAt: season.recruitmentEndAt,
   period: formatContestPeriod(season.contestStartAt, season.contestEndAt),
   accentLabel: season.isLive ? "진행중" : "승인",
   actionLabel: season.isLive ? "라이브 진행중" : "승인 완료",
@@ -91,6 +97,7 @@ const mapRejectedContestToListItem = (application: MyContestLatestRejectedApplic
   id: application.seasonId,
   cardType: "reject",
   title: application.seasonTitle,
+  description: application.seasonDescription,
   period: "-",
   accentLabel: "반려",
   rejectReason: application.rejectReason,
@@ -102,6 +109,8 @@ const mapPastContestToListItem = (season: ContestParticipationSeason): ContestLi
   id: season.seasonId,
   cardType: "past",
   title: season.seasonTitle,
+  description: season.seasonDescription,
+  recruitmentEndAt: season.recruitmentEndAt,
   period: formatContestPeriod(season.contestStartAt, season.contestEndAt),
   accentLabel: "종료",
   actionLabel: "지난 대회",
@@ -174,7 +183,7 @@ export default function ContestMainPage() {
   }, [alert, loadContestPageData, requireVerifiedUser, toast]);
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-slate-200 pb-20 selection:bg-emerald-500 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0f1a] text-slate-200 pb-20 selection:bg-emerald-500 selection:text-white relative">
       {/* Background Glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none -z-0" />
 

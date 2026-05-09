@@ -6,7 +6,7 @@ import CoinList from "./CoinList";
 interface CoinListDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
   holdingSymbols?: string[];
   isParticipated?: boolean;
   marketMode?: "spot" | "futures";
