@@ -478,7 +478,7 @@ export default function Header() {
         <Link
           href="/"
           aria-label="메인 페이지로 이동"
-          className="origin-left flex flex-shrink-0 items-center scale-[0.85]"
+          className="origin-left flex flex-shrink-0 items-center scale-[0.7] sm:scale-[0.85]"
         >
           <Logo />
         </Link>

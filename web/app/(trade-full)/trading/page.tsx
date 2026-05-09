@@ -10,6 +10,7 @@ import RecentTrades from "@/components/trade/RecentTrades";
 import CoinList from "@/components/trade/CoinList";
 import OrderForm from "@/components/trade/OrderForm";
 import UserOrderHistory from "@/components/trade/UserOrderHistory";
+import CoinListDrawer from "@/components/trade/CoinListDrawer";
 
 import FuturesActivitySection from "@/components/futures/trading/FuturesActivitySection";
 import FuturesOrderPanel from "@/components/futures/trading/FuturesOrderPanel";
@@ -129,10 +130,18 @@ export default function IntegratedTradingPage() {
         </div>
       </header>
 
+      {/* 2. Mobile Coin List Drawer */}
+      <CoinListDrawer
+        isOpen={!isCoinListCollapsed}
+        onClose={() => setIsCoinListCollapsed(true)}
+        mode="trade"
+        marketMode={marketMode}
+      />
+
       {/* 2. Main Layout */}
       <div className="grid grid-cols-[auto_1fr] h-full min-h-0 overflow-hidden relative">
-        {/* Left Sidebar */}
-        <aside className={cn("h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-[360px] overflow-hidden flex flex-col")}>
+        {/* Left Sidebar (Desktop Only) */}
+        <aside className={cn("hidden lg:flex h-full border-r border-white/5 bg-[#161A1E] transition-all duration-300", isCoinListCollapsed ? "w-0 overflow-hidden" : "w-[360px] overflow-hidden flex flex-col")}>
           <div className="flex-1 overflow-auto">
              <CoinList availableMarketTypes={[marketMode]} />
           </div>

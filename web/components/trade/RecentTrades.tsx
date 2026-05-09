@@ -62,9 +62,10 @@ const formatTime = (timestamp: number) => {
 
 type RecentTradesProps = {
   className?: string;
+  mode?: "mock" | "trade";
 };
 
-export default function RecentTrades({ className }: RecentTradesProps) {
+export default function RecentTrades({ className, mode = "trade" }: RecentTradesProps) {
   const selectedCoin = useTickerStore((state) => state.selectedCoin);
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const coinMetaList = useTickerStore((state) => state.coinMetaList);
@@ -123,7 +124,7 @@ export default function RecentTrades({ className }: RecentTradesProps) {
         isCombined: false,
       })
     );
-    
+
     const flushInterval = window.setInterval(() => {
       if (!isActive) return;
       if (pendingTradesRef.current.length === 0) return;
@@ -171,54 +172,64 @@ export default function RecentTrades({ className }: RecentTradesProps) {
   const currentCoinMeta = coinMetaList.find(c => c.symbol === selectedCoin);
   const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
 
+  const isMock = mode === "mock";
+  const bgMain = isMock ? "bg-white text-slate-900 border-gray-200" : "bg-[#161A1E] text-gray-100 border-white/5";
+  const headerBg = isMock ? "bg-slate-50 border-gray-100" : "bg-white/[0.02] border-white/5";
+  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
+  const textQty = isMock ? "text-slate-600" : "text-gray-400";
+  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.03]";
+
   if (isLoading && trades.length === 0) {
     return (
-      <div className={cn("flex-1 min-h-[600px] animate-pulse border border-white/5 bg-[#161A1E] rounded-xl lg:col-span-4", className)} />
+      <div className={cn("flex-1 min-h-[600px] animate-pulse border rounded-xl lg:col-span-4", bgMain, className)} />
     );
   }
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+  const displayTrades = isMobile ? trades.slice(0, 20) : trades;
+
   return (
-    <div className={cn("flex flex-col flex-1 min-h-0 overflow-hidden border border-white/5 bg-[#161A1E] rounded-xl md:col-span-1 lg:col-span-4", className)}>
-      <div className="grid grid-cols-3 px-4 py-3 border-b border-white/5 font-black text-[10px] uppercase tracking-widest text-gray-500 bg-white/[0.02]">
+    <div className={cn("flex flex-col flex-1 min-h-0 overflow-hidden border rounded-xl md:col-span-1 lg:col-span-4 shadow-sm", bgMain, className)}>
+      <div className={cn("grid grid-cols-3 px-4 py-3 border-b font-black text-[10px] uppercase tracking-widest", textMuted, headerBg)}>
         <span>시간</span>
         <span className="text-right">가격({quoteAsset})</span>
         <span className="text-right">수량</span>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-black/[0.02] py-1">
-        {trades.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[11px] font-bold text-gray-500">
+      <div className="flex-1 flex flex-col overflow-hidden py-1">
+        {displayTrades.length === 0 ? (
+          <div className={cn("h-full flex items-center justify-center text-[11px] font-bold", textMuted)}>
             체결 내역이 없습니다.
           </div>
         ) : (
-          <div className="flex flex-col">
-            {trades.map((trade) => (
-            <div
-              key={trade.id}
-              onClick={() => setSelectedOrderPrice(trade.price)}
-              className="group grid grid-cols-3 items-center h-[18px] px-4 cursor-pointer hover:bg-white/[0.03] transition-colors"
-            >
-              <span className="text-[10px] font-bold text-gray-500 tabular-nums">
-                {formatTime(trade.time)}
-              </span>
+          <div className={cn("flex flex-col overflow-y-auto", isMock ? "scrollbar-light" : "scrollbar-custom")}>
+            {displayTrades.map((trade) => (
+              <div
+                key={trade.id}
+                onClick={() => setSelectedOrderPrice(trade.price)}
+                className={cn("group grid grid-cols-3 items-center h-[20px] px-4 cursor-pointer transition-colors", rowHover)}
+              >
+                <span className={cn("text-[10px] font-bold tabular-nums", textMuted)}>
+                  {formatTime(trade.time)}
+                </span>
 
-              <span className={cn(
-                "text-[11px] font-black text-right tabular-nums",
-                trade.isBuyerMaker 
-                  ? (selectedMarketType === "spot" ? "text-[#0058FF]" : "text-[#F6465D]") 
-                  : (selectedMarketType === "spot" ? "text-[#fb2c36]" : "text-[#2EBD85]")
-              )}>
-                {formatPrice(trade.price)}
-              </span>
+                <span className={cn(
+                  "text-[11px] font-black text-right tabular-nums",
+                  trade.isBuyerMaker
+                    ? (selectedMarketType === "spot" || isMock ? "text-[#0058FF]" : "text-[#F6465D]")
+                    : (selectedMarketType === "spot" || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]")
+                )}>
+                  {formatPrice(trade.price)}
+                </span>
 
-              <span className="text-[11px] font-bold text-gray-400 text-right tabular-nums">
-                {formatQty(trade.quantity)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+                <span className={cn("text-[11px] font-bold text-right tabular-nums", textQty)}>
+                  {formatQty(trade.quantity)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

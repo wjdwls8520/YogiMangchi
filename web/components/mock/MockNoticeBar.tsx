@@ -208,16 +208,16 @@ export default function DemoNoticeBar() {
   };
 
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-2 sm:gap-3 text-sm">
       {isParticipated ? (
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 border-l border-white/5 px-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 border-l border-gray-200 px-2 sm:px-3">
             <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 모의 잔고
               </p>
-              <p className="mt-0.5 text-xs font-black tabular-nums text-emerald-400">
-                {formattedBalance} {quoteAssetName && <span className="text-[10px] text-gray-500">{quoteAssetName}</span>}
+              <p className="mt-0.5 text-xs font-black tabular-nums text-emerald-600 truncate max-w-[100px] sm:max-w-[200px]">
+                {formattedBalance} {quoteAssetName && <span className="text-[10px] text-slate-500">{quoteAssetName}</span>}
               </p>
             </div>
           </div>
@@ -225,40 +225,33 @@ export default function DemoNoticeBar() {
           <button
             onClick={handleReset}
             disabled={isResetting || isLoadingPortfolio}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs font-bold text-gray-300 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] sm:text-xs font-bold text-slate-600 transition-colors disabled:opacity-50 shrink-0"
             title="초기 지원금으로 재도전"
           >
             {isResetting ? <LoaderCircle className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-            재도전
+            <span className="hidden sm:inline">재도전</span>
           </button>
         </div>
       ) : (
         <button
           onClick={handleParticipate}
           disabled={isSubmitting || isLoadingPortfolio}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-full shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
+          className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] sm:text-xs font-black rounded-full shadow-sm transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 shrink-0"
         >
           <Gift className="h-3.5 w-3.5" />
-          {isLoadingPortfolio
-            ? "확인 중..."
-            : isSubmitting
-              ? "처리 중..."
-              : quoteAssetName
-                ? `${rewardLabel} 받기`
-                : "지원금 받기"}
+          <span className="truncate">
+            {isLoadingPortfolio
+              ? "확인 중..."
+              : isSubmitting
+                ? "처리 중..."
+                : quoteAssetName
+                  ? `${rewardLabel} 받기`
+                  : "지원금 받기"}
+          </span>
         </button>
       )}
 
-      {/* 실전 탈출구 */}
-      <div className="border-l border-white/5 pl-3">
-        <button
-          onClick={() => router.push('/trading')} 
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold transition-colors"
-        >
-          <TrendingUp className="h-3 w-3" />
-          실전 입장
-        </button>
-      </div>
+
     </div>
   );
 }

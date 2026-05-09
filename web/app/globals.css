@@ -31,7 +31,8 @@ body {
   }
 
   .scrollbar-custom::-webkit-scrollbar {
-    height: 3px; /* 가로 스크롤 */
+    width: 6px;
+    height: 6px;
   }
 
   .scrollbar-custom::-webkit-scrollbar-thumb {
@@ -42,6 +43,25 @@ body {
   .scrollbar-custom::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  .scrollbar-light::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-light::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* slate-300 */
+    border-radius: 9999px;
+  }
+
+  .scrollbar-light::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* slate-400 */
+  }
+
+  .scrollbar-light::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
 
   button {
     cursor: pointer;
