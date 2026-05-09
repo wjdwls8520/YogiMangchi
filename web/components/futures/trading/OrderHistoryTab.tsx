@@ -10,12 +10,14 @@ type OrderHistoryTabProps = {
 export default function OrderHistoryTab({
   contestSeasonId = null,
   activityVersion,
-}: OrderHistoryTabProps) {
+  mode,
+}: OrderHistoryTabProps & { mode?: "light" | "dark" }) {
   return (
     <FuturesOrderList
       contestSeasonId={contestSeasonId}
       activityVersion={activityVersion}
       mode="orders"
+      themeMode={mode}
     />
   );
 }

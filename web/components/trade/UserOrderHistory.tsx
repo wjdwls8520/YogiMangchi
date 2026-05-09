@@ -156,17 +156,23 @@ export default function UserOrderHistory({
       const page = getCursorPage<any>(payload);
       
       // Mapping API response to OrderHistoryRow
-      const mappedContent: OrderHistoryRow[] = page.content.map((item: any) => ({
-        id: item.orderId,
-        date: item.orderedAt || item.date,
-        symbol: item.symbol,
-        side: item.side,
-        quantity: item.orderQuantity ?? item.quantity,
-        price: item.orderPrice ?? item.price,
-        totalAmount: item.executedAmount ?? item.orderAmount ?? item.totalAmount,
-        fee: item.totalFee ?? item.fee,
-        status: item.orderStatus ?? item.status,
-      }));
+      const mappedContent: OrderHistoryRow[] = page.content.map((item: any) => {
+        const isPending = item.orderStatus === "PENDING" || item.orderStatus === "PARTIALLY_FILLED" || item.status === "PENDING" || item.status === "PARTIALLY_FILLED";
+        
+        return {
+          id: item.orderId || item.tradeId,
+          date: item.executedAt || item.orderedAt || item.date,
+          symbol: item.symbol,
+          side: item.side,
+          // 미체결일 때는 총 주문 수량(orderQuantity)을, 체결 완료 시에는 체결 수량(quantity/filledQuantity)을 우선함
+          quantity: isPending ? (item.orderQuantity ?? item.quantity ?? item.filledQuantity) : (item.quantity ?? item.filledQuantity ?? item.orderQuantity),
+          // 미체결일 때는 지정가(orderPrice)를, 체결 완료 시에는 체결가(price/avgFilledPrice)를 우선함
+          price: isPending ? (item.orderPrice ?? item.price ?? item.avgFilledPrice) : (item.price ?? item.avgFilledPrice ?? item.orderPrice),
+          totalAmount: item.totalAmount ?? item.executedAmount ?? item.orderAmount,
+          fee: item.fee ?? item.totalFee,
+          status: item.orderStatus ?? item.status,
+        };
+      });
 
       if (isInitial) {
         setRows(mappedContent);
@@ -230,22 +236,23 @@ export default function UserOrderHistory({
   const getBaseAsset = (symbol: string) => coinMetaList.find(c => c.symbol === symbol)?.baseAsset ?? symbol;
   const quoteAsset = coinMetaList.find(c => c.symbol === selectedCoin)?.quoteAsset ?? "USDT";
   
-  const isMock = mode === "mock";
-  const bgMain = isMock ? "bg-transparent text-slate-900" : "bg-[#161A1E]";
-  const theadBg = isMock ? "bg-slate-50 text-slate-500" : "bg-[#1A1F26] text-gray-500";
-  const borderSub = isMock ? "border-gray-100" : "border-white/5";
-  const tbodyDivide = isMock ? "divide-gray-100 text-slate-700" : "divide-white/5 text-gray-200";
-  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.02]";
-  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
-  const textQty = isMock ? "text-slate-600" : "text-gray-300";
-  const textAmount = isMock ? "text-slate-900" : "text-gray-100";
-  const textFee = isMock ? "text-slate-400" : "text-gray-400";
-  const statusBadge = isMock ? "bg-slate-100 text-slate-500" : "bg-white/5 text-gray-400";
+  const bgMain = "bg-white text-slate-900";
+  const theadBg = "bg-slate-50 text-slate-500";
+  const borderSub = "border-gray-100";
+  const tbodyDivide = "divide-gray-100 text-slate-700";
+  const rowHover = "hover:bg-slate-50";
+  const textMuted = "text-slate-400";
+  const textQty = "text-slate-600";
+  const textAmount = "text-slate-900";
+  const textFee = "text-slate-400";
+  const statusBadge = "bg-slate-100 text-slate-500";
+  const btnCancel = "bg-red-50 text-red-500 hover:bg-red-100 disabled:bg-gray-100 disabled:text-gray-400";
+  const isDark = false; // 기본적으로 라이트 테마인 컴포넌트이므로 false 설정
 
   return (
     <section className={cn("flex flex-col h-full overflow-hidden", bgMain)}>
       {/* Tabs */}
-      <div className="shrink-0 px-4 py-2 border-b border-gray-50">
+      <div className="shrink-0 px-6 py-2 border-b border-gray-50">
         <Tabs
           tabs={[
             { label: "체결 주문", value: "orders" },
@@ -260,53 +267,56 @@ export default function UserOrderHistory({
       </div>
 
       {/* Content - internal scroll for Bottom Sheet */}
-      <div className={cn("flex-1 min-h-0 overflow-auto", isMock ? "bg-white scrollbar-light" : "bg-transparent scrollbar-custom")} ref={scrollContainerRef}>
+      <div className="flex-1 min-h-0 overflow-auto bg-white scrollbar-light" ref={scrollContainerRef}>
         {rows.length > 0 ? (
           <table className="w-full min-w-max text-[11px] text-left border-separate border-spacing-0 whitespace-nowrap">
             <thead className={`sticky top-0 z-10 font-bold uppercase tracking-tighter ${theadBg}`}>
               <tr>
-                <th className={`py-2 px-4 border-b ${borderSub}`}>주문일시</th>
-                <th className={`py-2 px-4 border-b ${borderSub}`}>자산</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-center`}>구분</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>수량</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>가격({quoteAsset})</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>금액({quoteAsset})</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-right`}>수수료({quoteAsset})</th>
-                <th className={`py-2 px-4 border-b ${borderSub} text-center`}>상태</th>
-                {activeTab === "pending" && <th className={`py-2 px-4 border-b ${borderSub} text-center`}>관리</th>}
+                <th className={`py-2 px-6 border-b ${borderSub}`}>주문일시</th>
+                <th className={`py-2 px-6 border-b ${borderSub}`}>자산</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-center`}>구분</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-right`}>수량</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-right`}>가격({quoteAsset})</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-right`}>금액({quoteAsset})</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-right`}>수수료({quoteAsset})</th>
+                <th className={`py-2 px-6 border-b ${borderSub} text-center`}>상태</th>
+                {activeTab === "pending" && <th className={`py-2 px-6 border-b ${borderSub} text-center`}>관리</th>}
               </tr>
             </thead>
             <tbody className={`divide-y ${tbodyDivide}`}>
               {rows.map((row) => (
                 <tr key={row.id} className={`transition-colors ${rowHover}`}>
-                  <td className={`py-2 px-4 ${textMuted}`}>{formatDateTime(row.date)}</td>
-                  <td className="py-2 px-4 font-black">{getBaseAsset(row.symbol)}</td>
-                  <td className={cn("py-2 px-4 text-center font-bold", row.side === "BUY" ? "text-[#fb2c36]" : "text-[#0058FF]")}>
+                  <td className={`py-3 lg:py-2 px-6 ${textMuted}`}>{formatDateTime(row.date)}</td>
+                  <td className="py-2 px-6 font-black">{getBaseAsset(row.symbol)}</td>
+                  <td className={cn("py-2 px-6 text-center font-bold", row.side === "BUY" ? "text-[#fb2c36]" : "text-[#0058FF]")}>
                     {row.side === "BUY" ? "매수" : "매도"}
                   </td>
-                  <td className={`py-2 px-4 text-right tabular-nums ${textQty}`}>
-                    {formatAssetNumber(row.quantity)}
+                  <td className={`py-2 px-6 text-right tabular-nums ${textQty}`}>
+                    {formatAssetNumber(row.quantity, { smallMaxFractionDigits: 8, fallback: "-" })}
                   </td>
-                  <td className="py-2 px-4 text-right tabular-nums font-bold">
-                    {row.price ? formatAssetNumber(row.price) : "시장가"}
+                  <td className="py-2 px-6 text-right tabular-nums font-bold">
+                    {row.price && row.price !== 0 ? formatAssetNumber(row.price) : "시장가"}
                   </td>
-                  <td className={`py-2 px-4 text-right tabular-nums font-black ${textAmount}`}>
+                  <td className={`py-2 px-6 text-right tabular-nums font-black ${textAmount}`}>
                     {formatAssetNumber(row.totalAmount)}
                   </td>
-                  <td className={`py-2 px-4 text-right tabular-nums ${textFee}`}>
-                    {formatAssetNumber(row.fee)}
+                  <td className={`py-2 px-6 text-right tabular-nums ${textFee}`}>
+                    {formatAssetNumber(row.fee, { smallMaxFractionDigits: 8 })}
                   </td>
-                  <td className="py-2 px-4 text-center">
+                  <td className="py-2 px-6 text-center">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${statusBadge}`}>
                       {formatStatus(row.status)}
                     </span>
                   </td>
                   {activeTab === "pending" && (
-                    <td className="py-2 px-4 text-center">
+                    <td className="py-2 px-6 text-center">
                       <button
                         onClick={() => handleCancelOrder(row.id)}
                         disabled={cancelingOrderId === row.id}
-                        className="text-[10px] font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
+                        className={cn(
+                          "rounded px-2 py-1 text-[10px] font-bold transition-all",
+                          btnCancel
+                        )}
                       >
                         {cancelingOrderId === row.id ? "..." : "취소"}
                       </button>

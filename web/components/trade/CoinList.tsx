@@ -302,41 +302,41 @@ export default function CoinList({
                     setSelectedCoin(coin.symbol);
                     onSelect?.(coin.symbol);
                   }}
-                  className={cn("cursor-pointer transition-colors border-b", borderSub, isSelected ? rowSelected : rowHover)}
+                  className={cn("cursor-pointer transition-colors border-b active:bg-white/10", borderSub, isSelected ? rowSelected : rowHover)}
                 >
-                  <td className="py-3 px-3 flex items-center gap-2">
+                  <td className="py-3.5 lg:py-3 px-3 flex items-center gap-2">
                     <button
                       onClick={(e) => handleToggleFavorite(coin.symbol, e)}
-                      className="p-1 active:scale-90 transition-transform group"
+                      className="p-1.5 active:scale-90 transition-transform group"
                     >
                       {isFavorite ? (
                         <Star
-                          className="size-4 text-[#F0B90B] fill-[#F0B90B] drop-shadow-[0_0_2px_rgba(240,185,11,0.5)]"
+                          className="size-4 lg:size-4 text-[#F0B90B] fill-[#F0B90B] drop-shadow-[0_0_2px_rgba(240,185,11,0.5)]"
                         />
                       ) : (
-                        <Star className="size-4 text-gray-300 group-hover:text-yellow-500 transition-colors" />
+                        <Star className="size-4 lg:size-4 text-gray-300 group-hover:text-yellow-500 transition-colors" />
                       )}
                     </button>
 
                     <div className="flex flex-col">
-                      <span className={cn("font-black", textMain)}>
+                      <span className={cn("font-black text-[12px] lg:text-[13px] leading-tight", textMain)}>
                         {coin.displayNameKr}
                       </span>
-                      <span className={cn("font-bold tracking-tighter text-[10px]", textMuted)}>
+                      <span className={cn("font-bold tracking-tighter text-[9px] lg:text-[10px]", textMuted)}>
                         {coin.baseAsset}/{coin.quoteAsset}
                       </span>
                     </div>
                   </td>
 
-                  <td className={cn("py-3 px-2 text-right font-black tabular-nums", colorClass)}>
+                  <td className={cn("py-3.5 lg:py-3 px-2 text-right font-black tabular-nums text-[12px] lg:text-[13px]", colorClass)}>
                     {priceDisplay}
                   </td>
 
-                  <td className={cn("py-3 px-2 text-right font-bold tabular-nums", colorClass)}>
+                  <td className={cn("py-3.5 lg:py-3 px-2 text-right font-bold tabular-nums text-[11px] lg:text-[12px]", colorClass)}>
                     {changeDisplay}
                   </td>
 
-                  <td className={cn("py-3 px-3 text-right font-bold", textQty)}>
+                  <td className={cn("py-3.5 lg:py-3 px-3 text-right font-bold text-[11px] lg:text-[12px]", textQty)}>
                     {volumeDisplay}
                     <span className={cn("ml-0.5 text-[9px]", textMuted)}>M</span>
                   </td>

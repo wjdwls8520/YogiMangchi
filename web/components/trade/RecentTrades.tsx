@@ -62,7 +62,7 @@ const formatTime = (timestamp: number) => {
 
 type RecentTradesProps = {
   className?: string;
-  mode?: "mock" | "trade";
+  mode?: "mock" | "trade" | "contest";
 };
 
 export default function RecentTrades({ className, mode = "trade" }: RecentTradesProps) {
@@ -173,11 +173,13 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
   const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
 
   const isMock = mode === "mock";
-  const bgMain = isMock ? "bg-white text-slate-900 border-gray-200" : "bg-[#161A1E] text-gray-100 border-white/5";
-  const headerBg = isMock ? "bg-slate-50 border-gray-100" : "bg-white/[0.02] border-white/5";
-  const textMuted = isMock ? "text-slate-500" : "text-gray-500";
-  const textQty = isMock ? "text-slate-600" : "text-gray-400";
-  const rowHover = isMock ? "hover:bg-slate-50" : "hover:bg-white/[0.03]";
+  const isContest = mode === "contest";
+
+  const bgMain = isContest ? "bg-[#161A1E] text-white border-white/5" : "bg-white text-slate-900 border-gray-100";
+  const headerBg = isContest ? "bg-white/5 border-white/5" : "bg-slate-50 border-gray-100";
+  const textMuted = isContest ? "text-white/30" : "text-slate-400";
+  const textQty = isContest ? "text-white/40" : "text-slate-500";
+  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50";
 
   if (isLoading && trades.length === 0) {
     return (
@@ -202,7 +204,7 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
             체결 내역이 없습니다.
           </div>
         ) : (
-          <div className={cn("flex flex-col overflow-y-auto", isMock ? "scrollbar-light" : "scrollbar-custom")}>
+          <div className="flex flex-col overflow-y-auto scrollbar-light">
             {displayTrades.map((trade) => (
               <div
                 key={trade.id}

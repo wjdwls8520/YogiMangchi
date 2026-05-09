@@ -38,6 +38,7 @@ export type FuturesActivitySectionProps = {
     positionSide: FuturesPositionSide,
     leverage: number
   ) => Promise<FuturesLeverageInfo>;
+  mode?: "light" | "dark";
 };
 
 type ActivityTab = "pending" | "open" | "orders" | "trades";
@@ -53,6 +54,7 @@ export default function FuturesActivitySection({
   onCancelLimitOrder,
   onClosePosition,
   onSubmitLimitCloseOrder,
+  mode,
 }: FuturesActivitySectionProps) {
   const [activeTab, setActiveTab] = useState<ActivityTab>("pending");
 
@@ -78,6 +80,7 @@ export default function FuturesActivitySection({
           fullWidth={false}
           size="sm"
           variant="plain"
+          mode={mode}
         />
       </div>
 
@@ -89,6 +92,7 @@ export default function FuturesActivitySection({
             cancelingOrderId={cancelingOrderId}
             isTradingEnabled={isTradingEnabled}
             onCancelLimitOrder={onCancelLimitOrder}
+            mode={mode}
           />
         )}
 
@@ -100,6 +104,7 @@ export default function FuturesActivitySection({
             pendingCloseQuantityByPositionKey={pendingCloseQuantityByPositionKey}
             onClosePosition={onClosePosition}
             onSubmitLimitCloseOrder={onSubmitLimitCloseOrder}
+            mode={mode}
           />
         )}
 
@@ -107,6 +112,7 @@ export default function FuturesActivitySection({
           <OrderHistoryTab
             contestSeasonId={contestSeasonId}
             activityVersion={activityVersion}
+            mode={mode}
           />
         )}
 
@@ -114,6 +120,7 @@ export default function FuturesActivitySection({
           <TradeHistoryTab
             contestSeasonId={contestSeasonId}
             activityVersion={activityVersion}
+            mode={mode}
           />
         )}
       </div>

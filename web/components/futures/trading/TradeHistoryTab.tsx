@@ -10,12 +10,14 @@ type TradeHistoryTabProps = {
 export default function TradeHistoryTab({
   contestSeasonId = null,
   activityVersion,
-}: TradeHistoryTabProps) {
+  mode,
+}: TradeHistoryTabProps & { mode?: "light" | "dark" }) {
   return (
     <FuturesOrderList
       contestSeasonId={contestSeasonId}
       activityVersion={activityVersion}
       mode="trades"
+      themeMode={mode}
     />
   );
 }

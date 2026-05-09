@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import { useUIStore } from "@/stores/useUIStore";
@@ -40,6 +40,8 @@ const NOTIFICATION_DRAWER_REFRESH_STALE_MS = 60000;
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isContestPage = pathname?.startsWith("/contest");
   const headerRef = useRef<HTMLElement | null>(null);
   const alarmPanelRef = useRef<HTMLDivElement | null>(null);
   const alarmTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -488,16 +490,18 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={toggleDarkMode}
-            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
-          >
-            {isDarkMode ? (
-              <Sun strokeWidth={2} size={20} />
-            ) : (
-              <Moon strokeWidth={2} size={20} />
-            )}
-          </button>
+          {!isContestPage && (
+            <button
+              onClick={toggleDarkMode}
+              className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+            >
+              {isDarkMode ? (
+                <Sun strokeWidth={2} size={20} />
+              ) : (
+                <Moon strokeWidth={2} size={20} />
+              )}
+            </button>
+          )}
 
           <div className="relative">
             <button

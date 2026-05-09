@@ -12,7 +12,7 @@ export default function TradingLockedOverlay() {
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
       {/* 배경 블러 효과를 위한 딤드 처리 */}
-      <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/80 backdrop-blur-md rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700" />
+      <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/80 backdrop-blur-md rounded-3xl" />
       
       {/* 콘텐츠 */}
       <div className="relative z-10 space-y-4">

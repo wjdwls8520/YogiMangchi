@@ -13,7 +13,7 @@ const DEFAULT_OPTIONS: Required<FormatAssetNumberOptions> = {
 };
 
 export const formatAssetNumber = (
-  value?: number | null,
+  value?: number | string | null,
   options?: FormatAssetNumberOptions
 ) => {
   const {
@@ -26,17 +26,22 @@ export const formatAssetNumber = (
     ...options,
   };
 
-  if (value === null || value === undefined || Number.isNaN(value)) {
+  if (value === null || value === undefined) {
     return fallback;
   }
 
-  const absoluteValue = Math.abs(value);
-  const maximumFractionDigits =
-    absoluteValue > 0 && absoluteValue < 1
-      ? smallMaxFractionDigits
-      : standardMaxFractionDigits;
+  const numValue = typeof value === "string" ? parseFloat(value) : value;
 
-  return value.toLocaleString(locale, {
+  if (Number.isNaN(numValue)) {
+    return fallback;
+  }
+
+  const absoluteValue = Math.abs(numValue);
+  
+  // 항상 더 높은 정밀도를 허용하도록 설정 (소수점 누락 방지)
+  const maximumFractionDigits = Math.max(standardMaxFractionDigits, smallMaxFractionDigits);
+
+  return numValue.toLocaleString(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits,
   });

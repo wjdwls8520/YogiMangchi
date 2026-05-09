@@ -77,9 +77,9 @@ export default function LeverageModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#1E2329] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/5 p-5">
-          <h2 className="text-lg font-black text-white">레버리지 조정</h2>
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-gray-100 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 p-5">
+          <h2 className="text-lg font-black text-slate-900">레버리지 조정</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -88,7 +88,7 @@ export default function LeverageModal({
         </div>
 
         <div className="p-6">
-          <div className="mb-6 flex gap-2 rounded-lg bg-black/20 p-1">
+          <div className="mb-6 flex gap-2 rounded-lg bg-slate-100 p-1">
             <button
               onClick={() => handleSideChange("LONG")}
               className={`flex-1 rounded-md py-2 text-xs font-black transition-all ${
@@ -109,10 +109,10 @@ export default function LeverageModal({
 
           <div className="mb-8">
             <div className="mb-4 flex items-end justify-between">
-              <span className="text-xs font-bold text-gray-500">{symbol}</span>
+              <span className="text-xs font-bold text-slate-400">{symbol}</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-[#F0B90B]">{leverage}</span>
-                <span className="text-sm font-bold text-gray-500">x</span>
+                <span className="text-sm font-bold text-slate-400">x</span>
               </div>
             </div>
 
@@ -123,7 +123,7 @@ export default function LeverageModal({
               step={1}
               value={leverage}
               onChange={(e) => setLeverage(Number(e.target.value))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-[#F0B90B]"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-100 accent-[#F0B90B]"
             />
 
             <div className="mt-4 grid grid-cols-5 gap-2">
@@ -132,7 +132,7 @@ export default function LeverageModal({
                   key={step}
                   onClick={() => setLeverage(step)}
                   className={`rounded py-1.5 text-[10px] font-black transition-colors ${
-                    leverage === step ? "bg-[#F0B90B] text-black" : "bg-white/5 text-gray-400 hover:bg-white/10"
+                    leverage === step ? "bg-[#F0B90B] text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                   }`}
                 >
                   {step}x
@@ -141,14 +141,14 @@ export default function LeverageModal({
             </div>
           </div>
 
-          <div className="space-y-3 rounded-lg bg-black/20 p-4 text-xs">
+          <div className="space-y-3 rounded-lg bg-slate-50 p-4 text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-500">최대 포지션 가치</span>
-              <span className="font-bold text-white">
+              <span className="text-slate-500">최대 포지션 가치</span>
+              <span className="font-bold text-slate-900">
                 {currentInfo ? formatAssetNumber(currentInfo.availableOrderNotionalAmount) : "-"} USDT
               </span>
             </div>
-            <p className="text-[10px] leading-relaxed text-gray-500">
+            <p className="text-[10px] leading-relaxed text-slate-400">
               * 레버리지를 높이면 청산 가격이 현재가와 가까워져 위험이 증가합니다.
             </p>
           </div>
@@ -156,13 +156,13 @@ export default function LeverageModal({
           {error && <p className="mt-4 text-center text-xs font-bold text-red-500">{error}</p>}
         </div>
 
-        <div className="flex gap-3 bg-black/10 p-6">
+        <div className="flex gap-3 bg-slate-50 p-6">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={isSubmitting}>
             취소
           </Button>
           <Button
             variant="primary"
-            className="flex-1 bg-[#F0B90B] text-black hover:bg-[#F0B90B]/90"
+            className="flex-1 bg-[#F0B90B] text-white hover:bg-[#F0B90B]/90"
             onClick={handleConfirm}
             isLoading={isSubmitting}
           >
