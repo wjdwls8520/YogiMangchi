@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, TrendingUp, Zap, Clock, XCircle } from "lucide-react";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import {
@@ -21,6 +20,7 @@ import {
 import { useAuthStore } from "@/stores/useAuthStore";
 import ContestListCard from "./components/ContestListCard";
 import ContestOngoingSection from "./components/ContestOngoingSection";
+import Tabs from "@/components/ui/Tabs";
 import type {
   ContestListItem,
   OngoingContest,
@@ -34,17 +34,6 @@ const formatMonthDay = (value: string) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${month}.${day}`;
-};
-
-const formatShortDateTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}.${month}.${day} ${hours}:${minutes}`;
 };
 
 const formatContestPeriod = (startAt: string, endAt: string) => {
@@ -141,6 +130,7 @@ export default function ContestMainPage() {
   const [pastContests, setPastContests] = useState<ContestListItem[]>([]);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isApplyingContestId, setIsApplyingContestId] = useState<number | null>(null);
+  const [activeListTab, setActiveListTab] = useState("available");
 
   const loadContestPageData = useCallback(async () => {
     setIsLoadingPage(true);
@@ -182,20 +172,20 @@ export default function ContestMainPage() {
     }
   }, [alert, loadContestPageData, requireVerifiedUser, toast]);
 
-  return (
-    <div className="min-h-screen bg-[#0a0f1a] text-slate-200 pb-20 selection:bg-emerald-500 selection:text-white relative">
-      {/* Background Glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none -z-0" />
+  const combinedHistoryContests = [...rejectedContests, ...pastContests];
 
-      <div className="max-w-6xl mx-auto px-6 py-12 space-y-16 relative z-10">
+  return (
+    <div className="min-h-full pb-20 selection:bg-blue-600 selection:text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
         {/* Header Section */}
-        <header className="flex items-center justify-between">
-          <div className="space-y-1.5">
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center gap-3">
-              {/* <Sparkles className="w-8 h-8 text-emerald-400" /> */}
+        <header className="border-b border-gray-200 dark:border-gray-800 pb-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
               요기망치 투자 대회
             </h1>
-            <p className="text-slate-400 font-bold text-base">당신의 투자 감각을 증명할 시간입니다.</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              실시간 투자 감각을 겨루고 상금을 획득해보세요.
+            </p>
           </div>
         </header>
 
@@ -208,21 +198,40 @@ export default function ContestMainPage() {
           onMoveTrading={(id) => router.push(`/contest/${id}/trading`)}
         />
 
-        {/* 2. Sub-Grid (Available, Pending, Rejected/Past) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* Available Contests */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-              <Zap className="w-5 h-5 text-violet-400" />
-              참가 신청 가능
-            </h2>
-            <div className="space-y-3">
-              {isLoadingPage ? (
-                 Array.from({ length: 2 }).map((_, i) => (
-                   <div key={i} className="h-32 w-full animate-pulse rounded-xl bg-white/5 border border-white/10" />
-                 ))
-              ) : availableContests.length > 0 ? (
+        {/* 2. Sub-List Section (Tabs: Available, Pending, Past/Rejected) */}
+        <section className="space-y-4 pt-2">
+          <Tabs
+            tabs={[
+              { 
+                label: `참가 신청 가능 (${availableContests.length})`, 
+                value: "available", 
+                activeColor: "text-emerald-600 border-emerald-600 dark:text-emerald-400 dark:border-emerald-400" 
+              },
+              { 
+                label: `참가 심사 중 (${pendingContests.length})`, 
+                value: "pending", 
+                activeColor: "text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400" 
+              },
+              { 
+                label: `종료 및 반려 (${combinedHistoryContests.length})`, 
+                value: "history", 
+                activeColor: "text-gray-900 border-gray-900 dark:text-white dark:border-white" 
+              },
+            ]}
+            activeTab={activeListTab}
+            onChange={setActiveListTab}
+            variant="underline"
+            className="gap-4 sm:gap-8 overflow-x-auto scrollbar-custom"
+            tabClassName="text-xs sm:text-base pt-2 pb-2 sm:pt-3 sm:pb-3 min-w-0 sm:min-w-[112px]"
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+            {isLoadingPage ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-32 w-full animate-pulse rounded-2xl bg-gray-100 dark:bg-gray-800" />
+              ))
+            ) : activeListTab === "available" ? (
+              availableContests.length > 0 ? (
                 availableContests.map((contest) => (
                   <ContestListCard
                     key={contest.id}
@@ -233,23 +242,12 @@ export default function ContestMainPage() {
                   />
                 ))
               ) : (
-                <p className="text-slate-500 text-[11px] font-bold py-10 text-center border border-dashed border-white/5 rounded-xl">현재 신청 가능한 대회가 없습니다.</p>
-              )}
-            </div>
-          </section>
-
-          {/* Pending Contests (Approved/Wait) */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-              <Clock className="w-5 h-5 text-amber-400" />
-              참가 심사 중
-            </h2>
-            <div className="space-y-3">
-               {isLoadingPage ? (
-                 Array.from({ length: 2 }).map((_, i) => (
-                   <div key={i} className="h-32 w-full animate-pulse rounded-xl bg-white/5 border border-white/10" />
-                 ))
-              ) : pendingContests.length > 0 ? (
+                <div className="col-span-full flex h-32 items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500">현재 신청 가능한 대회가 없습니다.</p>
+                </div>
+              )
+            ) : activeListTab === "pending" ? (
+              pendingContests.length > 0 ? (
                 pendingContests.map((contest) => (
                   <ContestListCard
                     key={contest.id}
@@ -258,24 +256,13 @@ export default function ContestMainPage() {
                   />
                 ))
               ) : (
-                <p className="text-slate-500 text-[11px] font-bold py-10 text-center border border-dashed border-white/5 rounded-xl">심사 중인 대회가 없습니다.</p>
-              )}
-            </div>
-          </section>
-
-          {/* Rejected & Past Contests */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-white">
-              <XCircle className="w-5 h-5 text-rose-400" />
-              종료 및 반려
-            </h2>
-            <div className="space-y-3">
-               {isLoadingPage ? (
-                 Array.from({ length: 2 }).map((_, i) => (
-                   <div key={i} className="h-32 w-full animate-pulse rounded-xl bg-white/5 border border-white/10" />
-                 ))
-              ) : [...rejectedContests, ...pastContests].length > 0 ? (
-                [...rejectedContests, ...pastContests].map((contest) => (
+                <div className="col-span-full flex h-32 items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500">심사 중인 대회가 없습니다.</p>
+                </div>
+              )
+            ) : (
+              combinedHistoryContests.length > 0 ? (
+                combinedHistoryContests.map((contest) => (
                   <ContestListCard
                     key={contest.id}
                     contest={contest}
@@ -283,12 +270,13 @@ export default function ContestMainPage() {
                   />
                 ))
               ) : (
-                <p className="text-slate-500 text-[11px] font-bold py-10 text-center border border-dashed border-white/5 rounded-xl">내역이 없습니다.</p>
-              )}
-            </div>
-          </section>
-
-        </div>
+                <div className="col-span-full flex h-32 items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50">
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500">내역이 없습니다.</p>
+                </div>
+              )
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

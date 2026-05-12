@@ -176,10 +176,10 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
   const isContest = mode === "contest";
 
   const bgMain = isContest 
-    ? "bg-[#161A1E] text-white border-white/5" 
+    ? "bg-futures-trade text-white border-futures-border" 
     : "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 border-gray-100 dark:border-gray-700";
   const headerBg = isContest 
-    ? "bg-white/5 border-white/5" 
+    ? "bg-white/5 border-futures-border" 
     : "bg-slate-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700";
   const textMuted = isContest ? "text-white/30" : "text-slate-400 dark:text-gray-500";
   const textQty = isContest ? "text-white/40" : "text-slate-500 dark:text-gray-400";
@@ -222,8 +222,8 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
                 <span className={cn(
                   "text-[11px] font-black text-right tabular-nums",
                   trade.isBuyerMaker
-                    ? (selectedMarketType === "spot" || isMock ? "text-[#0058FF]" : "text-[#F6465D]")
-                    : (selectedMarketType === "spot" || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]")
+                    ? (isContest ? "text-trade-short" : (selectedMarketType === "spot" || isMock ? "text-[#0058FF]" : "text-[#F6465D]"))
+                    : (isContest ? "text-trade-long" : (selectedMarketType === "spot" || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]"))
                 )}>
                   {formatPrice(trade.price)}
                 </span>

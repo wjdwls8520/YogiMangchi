@@ -54,15 +54,15 @@ export default function CoinHeader({
   const isUp = normalizedChangeRate > 0;
   const isDown = normalizedChangeRate < 0;
 
-  const buyTextColor = isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]";
-  const sellTextColor = isSpot || isMock ? "text-[#0058FF]" : "text-[#F6465D]";
-  const neutralColor = isMock ? "text-slate-900 dark:text-gray-100" : (className?.includes("bg-[#161A1E]") ? "text-gray-100" : "text-gray-900 dark:text-gray-100");
+  const buyTextColor = isContest ? "text-trade-long" : (isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]");
+  const sellTextColor = isContest ? "text-trade-short" : (isSpot || isMock ? "text-[#0058FF]" : "text-[#F6465D]");
+  const neutralColor = isMock ? "text-slate-900 dark:text-gray-100" : (isContest || className?.includes("bg-[#161A1E]") ? "text-gray-100" : "text-gray-900 dark:text-gray-100");
   const colorClass = isUp ? buyTextColor : isDown ? sellTextColor : neutralColor;
 
   const sign = isUp ? (isSpot ? "▲" : "+") : isDown ? (isSpot ? "▼" : "") : "";
 
   return (
-    <header aria-label="코인 요약 정보" className={cn("px-3 flex flex-col justify-center shrink-0 py-2 min-h-[64px] lg:h-auto lg:py-3 transition-all", isContest ? "bg-[#161A1E] dark:bg-gray-800 border-b border-white/5 dark:border-gray-700" : "bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700", className)}>
+    <header aria-label="코인 요약 정보" className={cn("px-3 flex flex-col justify-center shrink-0 py-2 min-h-[64px] lg:h-auto lg:py-3 transition-all", isContest ? "bg-futures-trade border-b border-futures-border" : "bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700", className)}>
       {/* 첫 번째 줄 (모바일) / 왼쪽 영역 (데스크탑) */}
       <div className="flex items-center justify-start gap-4 lg:gap-8 min-w-0 w-full lg:w-auto">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">

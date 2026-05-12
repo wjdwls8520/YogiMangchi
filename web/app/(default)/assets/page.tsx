@@ -756,7 +756,7 @@ export default function AssetsPage() {
 
       try {
         const openOrdersResponse = await fetch(
-          `http://localhost:8080/api/v1/spot/mock/orders/open?assetType=MOCK&size=${OPEN_ORDER_PAGE_SIZE}`,
+          `http://localhost:8080/api/v1/mock/spot/orders/open?assetType=MOCK&size=${OPEN_ORDER_PAGE_SIZE}`,
           {
             method: "GET",
             credentials: "include",
@@ -825,7 +825,7 @@ export default function AssetsPage() {
 
       try {
         const response = await fetch(
-          `http://localhost:8080/api/v1/spot/mock/orders?${query}`,
+          `http://localhost:8080/api/v1/mock/spot/orders?${query}`,
           {
             method: "GET",
             credentials: "include",
@@ -891,7 +891,7 @@ export default function AssetsPage() {
 
       try {
         const response = await fetch(
-          `http://localhost:8080/api/v1/spot/mock/histories?${query}`,
+          `http://localhost:8080/api/v1/mock/spot/histories?${query}`,
           {
             method: "GET",
             credentials: "include",
@@ -1013,7 +1013,7 @@ export default function AssetsPage() {
               params.set("cursorId", String(openOrdersNextCursorId));
 
               const response = await fetch(
-                `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`,
+                `http://localhost:8080/api/v1/mock/spot/orders/open?${params.toString()}`,
                 {
                   method: "GET",
                   credentials: "include",
@@ -1066,7 +1066,7 @@ export default function AssetsPage() {
               });
 
               const response = await fetch(
-                `http://localhost:8080/api/v1/spot/mock/orders?${query}`,
+                `http://localhost:8080/api/v1/mock/spot/orders?${query}`,
                 {
                   method: "GET",
                   credentials: "include",
@@ -1119,7 +1119,7 @@ export default function AssetsPage() {
               });
 
               const response = await fetch(
-                `http://localhost:8080/api/v1/spot/mock/histories?${query}`,
+                `http://localhost:8080/api/v1/mock/spot/histories?${query}`,
                 {
                   method: "GET",
                   credentials: "include",

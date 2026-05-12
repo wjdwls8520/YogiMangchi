@@ -324,17 +324,18 @@ export default function CoinChart({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const isDarkInitial = document.documentElement.classList.contains('dark') || mode === 'contest';
+    const isContest = mode === 'contest';
+    const isDarkInitial = document.documentElement.classList.contains('dark') || isContest;
     const chart = createChart(chartContainerRef.current, {
       layout: { 
-        background: { type: ColorType.Solid, color: isDarkInitial ? '#1f2937' : '#ffffff' }, 
+        background: { type: ColorType.Solid, color: isContest ? '#161A1E' : (isDarkInitial ? '#1f2937' : '#ffffff') }, 
         textColor: isDarkInitial ? '#D1D5DB' : '#333' 
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 400,
       grid: { 
-        vertLines: { color: isDarkInitial ? '#374151' : '#f0f3fa' }, 
-        horzLines: { color: isDarkInitial ? '#374151' : '#f0f3fa' } 
+        vertLines: { color: isContest ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') }, 
+        horzLines: { color: isContest ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') } 
       },
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
@@ -346,10 +347,10 @@ export default function CoinChart({
     chartRef.current = chart;
 
     const isSpot = effectiveMarketType === "spot";
-    const upColor = isSpot ? '#fb2c36' : '#00C087';
-    const downColor = isSpot ? '#0058FF' : '#fb2c36';
-    const upAreaColor = isSpot ? 'rgba(251, 44, 54, 0.4)' : 'rgba(0, 192, 135, 0.4)';
-    const downAreaColor = isSpot ? 'rgba(0, 88, 255, 0.4)' : 'rgba(251, 44, 54, 0.4)';
+    const upColor = isContest ? '#2EBD85' : (isSpot ? '#fb2c36' : '#00C087');
+    const downColor = isContest ? '#F6465D' : (isSpot ? '#0058FF' : '#fb2c36');
+    const upAreaColor = isContest ? 'rgba(46, 189, 133, 0.4)' : (isSpot ? 'rgba(251, 44, 54, 0.4)' : 'rgba(0, 192, 135, 0.4)');
+    const downAreaColor = isContest ? 'rgba(246, 70, 93, 0.4)' : (isSpot ? 'rgba(0, 88, 255, 0.4)' : 'rgba(251, 44, 54, 0.4)');
 
     seriesRef.current.candle = chart.addSeries(CandlestickSeries, { upColor, downColor, borderVisible: false, wickUpColor: upColor, wickDownColor: downColor });
     markersRef.current.candle = createSeriesMarkers(seriesRef.current.candle);
@@ -432,6 +433,17 @@ export default function CoinChart({
   useEffect(() => {
     if (!chartRef.current) return;
 
+    const contestTheme = {
+      layout: { 
+        background: { type: ColorType.Solid, color: "#161A1E" },
+        textColor: "#D1D5DB"
+      },
+      grid: {
+        vertLines: { color: "#2B3139" },
+        horzLines: { color: "#2B3139" },
+      },
+    };
+
     const darkTheme = {
       layout: { 
         background: { type: ColorType.Solid, color: "#1f2937" }, // gray-800
@@ -455,7 +467,7 @@ export default function CoinChart({
     };
 
     try {
-      chartRef.current.applyOptions(isDark ? darkTheme : lightTheme);
+      chartRef.current.applyOptions(mode === "contest" ? contestTheme : (isDark ? darkTheme : lightTheme));
     } catch (err) {
       console.error("차트 테마 적용 에러:", err);
     }
@@ -707,8 +719,8 @@ export default function CoinChart({
     <section 
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
       className={cn(
-        "relative flex w-full flex-col gap-2 border p-4 transition-colors",
-        isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-white",
+        "relative flex w-full flex-col gap-2 p-4 transition-colors",
+        mode === "contest" ? "border-none bg-futures-trade lg:rounded-b-xl" : (isDark ? "border border-gray-700 bg-gray-800" : "border border-gray-100 bg-white"),
         className
       )}
     >

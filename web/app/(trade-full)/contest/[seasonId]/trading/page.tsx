@@ -86,13 +86,7 @@ export default function ContestTradingPage() {
   return (
     <div className="flex flex-col h-full w-full bg-black text-gray-200 overflow-hidden font-sans">
       {/* 1. Top Header */}
-      <header 
-        className="flex h-[48px] items-center justify-between bg-[#1A1625] px-2 sm:px-4 z-20 shrink-0 relative"
-        style={{ 
-          borderBottom: `2.5px solid ${theme.main}`,
-          boxShadow: `0 4px 15px ${theme.glow}`
-        }}
-      >
+      <header className="flex h-[48px] items-center justify-between bg-futures-trade px-2 sm:px-4 z-20 shrink-0 relative">
         <div className="flex items-center gap-3 min-w-0 shrink-0">
           <Link href="/contest" className="text-white/40 hover:text-white shrink-0">
             <ChevronLeft className="h-5 w-5" />
@@ -129,46 +123,43 @@ export default function ContestTradingPage() {
       {/* 3. Main Layout */}
       <main className="flex-1 min-h-0 flex flex-col lg:flex-row relative overflow-y-auto lg:overflow-x-hidden scrollbar-hide">
         <div className={cn(
-          "flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] lg:grid-rows-[1fr_300px] lg:gap-2 lg:p-2 h-full min-h-[600px] lg:min-h-[650px] min-w-0 bg-[#1A1625] lg:bg-black",
+          "flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] lg:grid-rows-[1fr_300px] lg:gap-2 lg:p-2 h-full min-h-[600px] lg:min-h-[650px] min-w-0 bg-futures-trade lg:bg-black",
           isCoinListCollapsed ? "" : "overflow-hidden",
           "lg:overflow-visible"
         )}>
 
           {/* Mobile Only: Header & Tabs */}
-          <div className="lg:hidden flex flex-col shrink-0 border-b border-white/5 z-10 bg-[#1A1625]">
-            <div className="bg-[#1A1625] relative">
+          <div className="lg:hidden flex flex-col shrink-0 border-b border-futures-border z-10 bg-futures-trade">
+            <div className="bg-futures-trade relative">
               <CoinHeader
                 mode="contest"
-                className="bg-[#1A1625] border-none"
+                className="bg-futures-trade border-none"
                 onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
                 isSidebarCollapsed={isCoinListCollapsed}
               />
             </div>
 
-            <div className="flex bg-[#1A1625] border-t border-white/5 shrink-0">
+            <div className="flex bg-futures-trade border-t border-futures-border shrink-0">
               <button
                 className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trade' ? 'text-white' : 'text-gray-500'}`}
                 onClick={() => setMobileTab('trade')}
-                style={mobileTab === 'trade' ? { color: theme.light } : {}}
               >
                 주문
-                {mobileTab === 'trade' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px]" style={{ backgroundColor: theme.main }} />}
+                {mobileTab === 'trade' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-white" />}
               </button>
               <button
                 className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'chart' ? 'text-white' : 'text-gray-500'}`}
                 onClick={() => setMobileTab('chart')}
-                style={mobileTab === 'chart' ? { color: theme.light } : {}}
               >
                 차트
-                {mobileTab === 'chart' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px]" style={{ backgroundColor: theme.main }} />}
+                {mobileTab === 'chart' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-white" />}
               </button>
               <button
                 className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trades' ? 'text-white' : 'text-gray-500'}`}
                 onClick={() => setMobileTab('trades')}
-                style={mobileTab === 'trades' ? { color: theme.light } : {}}
               >
                 체결
-                {mobileTab === 'trades' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px]" style={{ backgroundColor: theme.main }} />}
+                {mobileTab === 'trades' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-white" />}
               </button>
             </div>
           </div>
@@ -198,7 +189,7 @@ export default function ContestTradingPage() {
                 onClick={() => setIsHistoryOpen(false)} 
               />
               <div 
-                className="relative bg-[#1A1625] rounded-t-[24px] shadow-2xl flex flex-col h-[60vh] border-t border-purple-500/20 animate-sheet-slide-up"
+                className="relative bg-futures-trade rounded-t-[24px] shadow-2xl flex flex-col h-[60vh] border-t border-purple-500/20 animate-sheet-slide-up"
                 style={{ willChange: 'transform, opacity' }}
               >
                 <div className="flex flex-col items-center py-3 shrink-0" onClick={() => setIsHistoryOpen(false)}>
@@ -230,18 +221,18 @@ export default function ContestTradingPage() {
           <div className="flex-1 min-h-0 flex flex-col lg:contents overflow-y-auto lg:overflow-hidden scrollbar-hide">
             
             {/* Chart Section */}
-            <section className={`lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] bg-[#161A1E] lg:rounded-xl lg:shadow-sm lg:border border-white/5 shrink-0 ${mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'}`}>
-              <div className={cn("hidden lg:block border-b border-white/5 relative", !isCoinListCollapsed && "z-50")}>
+            <section className={`lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-futures-border shrink-0 ${mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'}`}>
+              <div className={cn("hidden lg:block border-b border-futures-border relative lg:rounded-t-xl", !isCoinListCollapsed && "z-50")}>
                 <CoinHeader
                   mode="contest"
-                  className="bg-[#161A1E] border-none relative z-50"
+                  className="bg-futures-trade border-none relative z-50 lg:rounded-t-xl"
                   onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
                   isSidebarCollapsed={isCoinListCollapsed}
                 />
                 {!isCoinListCollapsed && (
                   <>
                     <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsCoinListCollapsed(true)} />
-                    <div className="absolute top-1/2 left-0 w-[380px] h-[calc(100vh-180px)] max-h-[800px] z-50 bg-[#161A1E] shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="absolute top-1/2 left-0 w-[380px] h-[calc(100vh-180px)] max-h-[800px] z-50 bg-futures-trade shadow-[0_30px_60px_rgba(0,0,0,0.5)] border border-futures-border-strong rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                       <CoinList
                         mode="contest"
                         availableMarketTypes={["futures"]}
@@ -261,8 +252,8 @@ export default function ContestTradingPage() {
             </section>
 
             {/* Market Trades (Mobile) */}
-            <section className={`lg:hidden flex-col bg-[#161A1E] min-h-[500px] shrink-0 ${mobileTab === 'trades' ? 'flex' : 'hidden'}`}>
-              <div className="p-3 border-b border-white/5 font-bold text-gray-500 text-xs bg-black/20 tracking-widest shrink-0 uppercase">
+            <section className={`lg:hidden flex-col bg-futures-trade min-h-[500px] shrink-0 ${mobileTab === 'trades' ? 'flex' : 'hidden'}`}>
+              <div className="p-3 border-b border-futures-border font-bold text-gray-500 text-xs bg-black/20 tracking-widest shrink-0 uppercase">
                 시장 체결 내역
               </div>
               <RecentTrades mode="contest" className="flex-1 border-none !bg-transparent" />
@@ -272,8 +263,8 @@ export default function ContestTradingPage() {
             <div className={`gap-0 lg:gap-2 shrink-0 lg:contents ${mobileTab === 'trade' ? 'flex flex-col' : 'hidden lg:flex'}`}>
               
               <div className="flex shrink-0 lg:contents">
-                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-[#161A1E] lg:rounded-xl lg:shadow-sm lg:border border-r border-white/5 lg:border-white/5 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
-                  <div className="shrink-0 p-1.5 sm:p-2 border-b border-white/5 hidden lg:block">
+                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-r border-futures-border lg:border-futures-border min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
+                  <div className="shrink-0 p-1.5 sm:p-2 border-b border-futures-border hidden lg:block">
                     <Tabs
                       activeTab={activeInfoTab}
                       onChange={setActiveInfoTab}
@@ -287,7 +278,7 @@ export default function ContestTradingPage() {
                       mode="dark"
                     />
                   </div>
-                  <div className="shrink-0 p-2 border-b border-white/5 lg:hidden font-bold text-gray-500 text-[11px] text-center bg-black/20 tracking-widest uppercase">
+                  <div className="shrink-0 p-2 border-b border-futures-border lg:hidden font-bold text-gray-500 text-[11px] text-center bg-black/20 tracking-widest uppercase">
                     호가
                   </div>
                   <div className="flex-1 min-h-0 flex flex-col overflow-y-auto scrollbar-hide">
@@ -304,7 +295,7 @@ export default function ContestTradingPage() {
                   </div>
                 </aside>
 
-                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-[#161A1E] lg:rounded-xl lg:shadow-sm lg:border border-white/5 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
+                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-futures-border min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
                   <FuturesOrderPanel
                     mode="contest"
                     walletStatus={session.walletStatus}
@@ -332,7 +323,7 @@ export default function ContestTradingPage() {
               </div>
 
               {/* Bottom History (Desktop only) */}
-              <section className="lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 bg-[#161A1E] lg:rounded-xl lg:shadow-sm lg:border border-t border-white/5 lg:border-white/5 min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
+              <section className="lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-t border-futures-border lg:border-futures-border min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
                 <FuturesActivitySection
                   contestSeasonId={contestSeasonId}
                   activityVersion={session.activityVersion}

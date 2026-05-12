@@ -8,7 +8,7 @@ import { useTickerStore } from "@/stores/useTickerStore";
 import { useMockWalletStore } from "@/stores/useMockWalletStore";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
-import { cancelOrder } from "@/lib/api/trade";
+import { cancelOrder, fetchOpenOrders, fetchOrders, fetchTradeHistories, type OrderItem } from "@/lib/api/trade";
 import { useUIStore } from "@/stores/useUIStore";
 import { cn } from "@/lib/utils/cs";
 import { X } from "lucide-react";
@@ -42,24 +42,7 @@ type UserOrderHistoryProps = {
   showCloseButton?: boolean;
 };
 
-/* ────────────────── Helpers ────────────────── */
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-const getCursorPage = <T,>(payload: unknown): CursorPage<T> => {
-  if (!isRecord(payload)) return { content: [], nextCursorId: null, hasNext: false };
-  const data = isRecord(payload.data) ? payload.data : null;
-  const source = data && isRecord(data.data) ? data.data : (isRecord(payload) ? payload : null);
-  
-  if (!source || !isRecord(source)) return { content: [], nextCursorId: null, hasNext: false };
-  
-  return {
-    content: Array.isArray(source.content) ? (source.content as T[]) : [],
-    nextCursorId: typeof source.nextCursorId === "number" ? source.nextCursorId : null,
-    hasNext: source.hasNext === true,
-  };
-};
+// CursorPage helper is no longer needed as trade.ts provides parseCursorResponse and parseArrayResponse
 
 const formatStatus = (status: string) => {
   if (status === "PENDING") return "대기중";
@@ -134,44 +117,43 @@ export default function UserOrderHistory({
     setErrorMessage("");
 
     try {
-      const params = new URLSearchParams();
-      params.set("assetType", "MOCK");
-      params.set("size", "20");
-      if (!isInitial && nextCursorId) {
-        params.set("cursorId", nextCursorId.toString());
-      }
+      let content: OrderItem[] = [];
+      let nextCursor: number | null = null;
+      let hasMore = false;
 
-      let url = "";
       if (activeTab === "pending") {
-        url = `http://localhost:8080/api/v1/spot/mock/orders/open?${params.toString()}`;
+        // 미체결 주문 조회 (배열 응답)
+        const response = await fetchOpenOrders({
+          assetType: "MOCK",
+          size: 50, // 미체결은 보통 한 번에 다 보여주거나 넉넉히 가져옴
+        });
+        content = response;
       } else {
-        params.set("status", "COMPLETED");
-        url = `http://localhost:8080/api/v1/spot/mock/orders?${params.toString()}`;
+        // 전체/체결 주문 조회 (status 필터 제거하여 500 에러 방지)
+        const response = await fetchOrders({
+          assetType: "MOCK",
+          size: 20,
+          cursorId: !isInitial ? nextCursorId : null,
+        });
+        content = response.content;
+        nextCursor = response.nextCursorId;
+        hasMore = response.hasNext;
       }
 
-      const response = await fetch(url, { method: "GET", credentials: "include" });
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok) throw new Error("데이터를 불러오지 못했습니다.");
-
-      const page = getCursorPage<any>(payload);
-      
-      // Mapping API response to OrderHistoryRow
-      const mappedContent: OrderHistoryRow[] = page.content.map((item: any) => {
-        const isPending = item.orderStatus === "PENDING" || item.orderStatus === "PARTIALLY_FILLED" || item.status === "PENDING" || item.status === "PARTIALLY_FILLED";
-        
+      // Mapping API response (OrderItem or similar) to OrderHistoryRow
+      const mappedContent: OrderHistoryRow[] = content.map((item: any) => {
         return {
-          id: item.orderId || item.tradeId,
+          id: item.orderId || item.tradeId || item.id,
           date: item.executedAt || item.orderedAt || item.date,
           symbol: item.symbol,
           side: item.side,
-          // 미체결일 때는 총 주문 수량(orderQuantity)을, 체결 완료 시에는 체결 수량(quantity/filledQuantity)을 우선함
-          quantity: isPending ? (item.orderQuantity ?? item.quantity ?? item.filledQuantity) : (item.quantity ?? item.filledQuantity ?? item.orderQuantity),
-          // 미체결일 때는 지정가(orderPrice)를, 체결 완료 시에는 체결가(price/avgFilledPrice)를 우선함
-          price: isPending ? (item.orderPrice ?? item.price ?? item.avgFilledPrice) : (item.price ?? item.avgFilledPrice ?? item.orderPrice),
-          totalAmount: item.totalAmount ?? item.executedAmount ?? item.orderAmount,
-          fee: item.fee ?? item.totalFee,
-          status: item.orderStatus ?? item.status,
+          // 주문 내역에서는 사용자가 원래 주문했던 수량과 가격을 보여주는 것이 직관적입니다.
+          quantity: item.orderQuantity ?? item.quantity ?? item.filledQuantity ?? 0,
+          price: item.orderPrice ?? item.price ?? item.avgFilledPrice ?? 0,
+          // 금액과 수수료는 실제 체결된 결과(executed)를 보여줍니다. (취소 시 0)
+          totalAmount: item.executedAmount ?? item.totalAmount ?? item.orderAmount ?? 0,
+          fee: item.totalFee ?? item.fee ?? 0,
+          status: item.orderStatus || item.status,
         };
       });
 
@@ -181,10 +163,11 @@ export default function UserOrderHistory({
         setRows((prev) => [...prev, ...mappedContent]);
       }
       
-      setNextCursorId(page.nextCursorId);
-      setHasNext(page.hasNext);
+      setNextCursorId(nextCursor);
+      setHasNext(hasMore);
     } catch (error) {
-      setErrorMessage("데이터 로딩 실패");
+      console.error("UserOrderHistory loadRows failed:", error);
+      setErrorMessage("데이터를 불러오지 못했습니다.");
       if (isInitial) setRows([]);
     } finally {
       setIsLoading(false);
