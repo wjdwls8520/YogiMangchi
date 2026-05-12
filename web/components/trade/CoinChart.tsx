@@ -114,11 +114,11 @@ export default function CoinChart({
   const [showMarkers, setShowMarkers] = useState(false);
   const [isPercent, setIsPercent] = useState(false);
   const isDarkMode = useUIStore((state) => state.isDarkMode);
+  const isFutures = mode === "contest" || effectiveMarketType === "futures";
   const [isDark, setIsDark] = useState(false); 
   useEffect(() => {
-    // 대회 모드거나 전역 다크모드일 때 다크 테마 적용
-    setIsDark(mode === "contest" || isDarkMode);
-  }, [mode, isDarkMode]);
+    setIsDark(isFutures || isDarkMode);
+  }, [isFutures, isDarkMode]);
 
   const [showPriceLine, setShowPriceLine] = useState(false); 
   const [showTooltip, setShowTooltip] = useState(true); 
@@ -183,9 +183,9 @@ export default function CoinChart({
   const formatData = (rawArray: any[]) => {
     const candles: any[] = [];
     const volumes: any[] = [];
-    const isSpot = effectiveMarketType === "spot";
-    const upColor = isSpot ? "rgba(251, 44, 54, 0.3)" : "rgba(0, 192, 135, 0.3)";
-    const downColor = isSpot ? "rgba(0, 88, 255, 0.3)" : "rgba(251, 44, 54, 0.3)";
+    const isFuturesMarket = mode === "contest" || effectiveMarketType === "futures";
+    const upColor = isFuturesMarket ? "rgba(46, 189, 133, 0.3)" : "rgba(251, 44, 54, 0.3)";
+    const downColor = isFuturesMarket ? "rgba(246, 70, 93, 0.3)" : "rgba(0, 88, 255, 0.3)";
     
     rawArray.forEach((d) => {
       const time = (d[0] / 1000) as Time;
@@ -229,9 +229,9 @@ export default function CoinChart({
 
     const time = Math.floor(openTime / 1000) as Time;
 
-    const isSpot = effectiveMarketType === "spot";
-    const upColor = isSpot ? "rgba(251, 44, 54, 0.3)" : "rgba(0, 192, 135, 0.3)";
-    const downColor = isSpot ? "rgba(0, 88, 255, 0.3)" : "rgba(251, 44, 54, 0.3)";
+    const isFuturesMarket = mode === "contest" || effectiveMarketType === "futures";
+    const upColor = isFuturesMarket ? "rgba(46, 189, 133, 0.3)" : "rgba(251, 44, 54, 0.3)";
+    const downColor = isFuturesMarket ? "rgba(246, 70, 93, 0.3)" : "rgba(0, 88, 255, 0.3)";
 
     return {
       candle: { time, open, high, low, close },
@@ -324,18 +324,18 @@ export default function CoinChart({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const isContest = mode === 'contest';
-    const isDarkInitial = document.documentElement.classList.contains('dark') || isContest;
+    const isFuturesInitial = mode === 'contest' || effectiveMarketType === 'futures';
+    const isDarkInitial = document.documentElement.classList.contains('dark') || isFuturesInitial;
     const chart = createChart(chartContainerRef.current, {
       layout: { 
-        background: { type: ColorType.Solid, color: isContest ? '#161A1E' : (isDarkInitial ? '#1f2937' : '#ffffff') }, 
+        background: { type: ColorType.Solid, color: isFuturesInitial ? '#161A1E' : (isDarkInitial ? '#1f2937' : '#ffffff') }, 
         textColor: isDarkInitial ? '#D1D5DB' : '#333' 
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 400,
       grid: { 
-        vertLines: { color: isContest ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') }, 
-        horzLines: { color: isContest ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') } 
+        vertLines: { color: isFuturesInitial ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') }, 
+        horzLines: { color: isFuturesInitial ? '#2B3139' : (isDarkInitial ? '#374151' : '#f0f3fa') } 
       },
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
@@ -346,11 +346,11 @@ export default function CoinChart({
     });
     chartRef.current = chart;
 
-    const isSpot = effectiveMarketType === "spot";
-    const upColor = isContest ? '#2EBD85' : (isSpot ? '#fb2c36' : '#00C087');
-    const downColor = isContest ? '#F6465D' : (isSpot ? '#0058FF' : '#fb2c36');
-    const upAreaColor = isContest ? 'rgba(46, 189, 133, 0.4)' : (isSpot ? 'rgba(251, 44, 54, 0.4)' : 'rgba(0, 192, 135, 0.4)');
-    const downAreaColor = isContest ? 'rgba(246, 70, 93, 0.4)' : (isSpot ? 'rgba(0, 88, 255, 0.4)' : 'rgba(251, 44, 54, 0.4)');
+    const isSpotInitial = !isFuturesInitial;
+    const upColor = isFuturesInitial ? '#2EBD85' : '#fb2c36';
+    const downColor = isFuturesInitial ? '#F6465D' : '#0058FF';
+    const upAreaColor = isFuturesInitial ? 'rgba(46, 189, 133, 0.4)' : 'rgba(251, 44, 54, 0.4)';
+    const downAreaColor = isFuturesInitial ? 'rgba(246, 70, 93, 0.4)' : 'rgba(0, 88, 255, 0.4)';
 
     seriesRef.current.candle = chart.addSeries(CandlestickSeries, { upColor, downColor, borderVisible: false, wickUpColor: upColor, wickDownColor: downColor });
     markersRef.current.candle = createSeriesMarkers(seriesRef.current.candle);
@@ -358,11 +358,11 @@ export default function CoinChart({
     markersRef.current.bar = createSeriesMarkers(seriesRef.current.bar);
     seriesRef.current.baseline = chart.addSeries(BaselineSeries, {
       baseValue: { type: 'price', price: 65000 }, 
-      topFillColor1: isSpot ? 'rgba(251, 44, 54, 0.28)' : 'rgba(0, 192, 135, 0.28)', 
-      topFillColor2: isSpot ? 'rgba(251, 44, 54, 0.05)' : 'rgba(0, 192, 135, 0.05)', 
+      topFillColor1: isSpotInitial ? 'rgba(251, 44, 54, 0.28)' : 'rgba(0, 192, 135, 0.28)', 
+      topFillColor2: isSpotInitial ? 'rgba(251, 44, 54, 0.05)' : 'rgba(0, 192, 135, 0.05)', 
       topLineColor: upColor,
-      bottomFillColor1: isSpot ? 'rgba(0, 88, 255, 0.05)' : 'rgba(251, 44, 54, 0.05)', 
-      bottomFillColor2: isSpot ? 'rgba(0, 88, 255, 0.28)' : 'rgba(251, 44, 54, 0.28)', 
+      bottomFillColor1: isSpotInitial ? 'rgba(0, 88, 255, 0.05)' : 'rgba(251, 44, 54, 0.05)', 
+      bottomFillColor2: isSpotInitial ? 'rgba(0, 88, 255, 0.28)' : 'rgba(251, 44, 54, 0.28)', 
       bottomLineColor: downColor,
     });
     markersRef.current.baseline = createSeriesMarkers(seriesRef.current.baseline);
@@ -686,41 +686,48 @@ export default function CoinChart({
   useEffect(() => {
     if (!chartRef.current) return;
     
-    const isSpot = effectiveMarketType === "spot";
-    const upColor = isSpot ? '#fb2c36' : '#00C087';
-    const downColor = isSpot ? '#0058FF' : '#fb2c36';
-    const upAreaColor = isSpot ? 'rgba(251, 44, 54, 0.4)' : 'rgba(0, 192, 135, 0.4)';
-    const downAreaColor = isSpot ? 'rgba(0, 88, 255, 0.4)' : 'rgba(251, 44, 54, 0.4)';
-    const upVolume = isSpot ? "rgba(251, 44, 54, 0.3)" : "rgba(0, 192, 135, 0.3)";
-    const downVolume = isSpot ? "rgba(0, 88, 255, 0.3)" : "rgba(251, 44, 54, 0.3)";
+    const isFuturesCurrent = mode === "contest" || effectiveMarketType === "futures";
+    const upColor = isFuturesCurrent ? '#2EBD85' : '#fb2c36';
+    const downColor = isFuturesCurrent ? '#F6465D' : '#0058FF';
+    const upAreaColor = isFuturesCurrent ? 'rgba(46, 189, 133, 0.4)' : 'rgba(251, 44, 54, 0.4)';
+    const downAreaColor = isFuturesCurrent ? 'rgba(246, 70, 93, 0.4)' : 'rgba(0, 88, 255, 0.4)';
+    const isSpotCurrent = !isFuturesCurrent;
 
     try {
+      chartRef.current.applyOptions({
+        layout: {
+          background: { type: ColorType.Solid, color: isFuturesCurrent ? '#161A1E' : (isDark ? '#1f2937' : '#ffffff') },
+          textColor: isDark ? '#D1D5DB' : '#333'
+        },
+        grid: {
+          vertLines: { color: isFuturesCurrent ? '#2B3139' : (isDark ? '#374151' : '#f0f3fa') },
+          horzLines: { color: isFuturesCurrent ? '#2B3139' : (isDark ? '#374151' : '#f0f3fa') }
+        }
+      });
+
       seriesRef.current.candle?.applyOptions({ upColor, downColor, wickUpColor: upColor, wickDownColor: downColor });
       seriesRef.current.bar?.applyOptions({ upColor, downColor });
       seriesRef.current.baseline?.applyOptions({
-        topFillColor1: isSpot ? 'rgba(251, 44, 54, 0.28)' : 'rgba(0, 192, 135, 0.28)',
-        topFillColor2: isSpot ? 'rgba(251, 44, 54, 0.05)' : 'rgba(0, 192, 135, 0.05)',
+        topFillColor1: isSpotCurrent ? 'rgba(251, 44, 54, 0.28)' : 'rgba(0, 192, 135, 0.28)',
+        topFillColor2: isSpotCurrent ? 'rgba(251, 44, 54, 0.05)' : 'rgba(0, 192, 135, 0.05)',
         topLineColor: upColor,
-        bottomFillColor1: isSpot ? 'rgba(0, 88, 255, 0.05)' : 'rgba(251, 44, 54, 0.05)',
-        bottomFillColor2: isSpot ? 'rgba(0, 88, 255, 0.28)' : 'rgba(251, 44, 54, 0.28)',
+        bottomFillColor1: isSpotCurrent ? 'rgba(0, 88, 255, 0.05)' : 'rgba(251, 44, 54, 0.05)',
+        bottomFillColor2: isSpotCurrent ? 'rgba(0, 88, 255, 0.28)' : 'rgba(251, 44, 54, 0.28)',
         bottomLineColor: downColor,
       });
       seriesRef.current.line?.applyOptions({ color: downColor });
       seriesRef.current.area?.applyOptions({ lineColor: downColor, topColor: downAreaColor });
 
-      // 재조립 시 과거 데이터 색상 업데이트를 위해 dataTick 강제 트리거
       setDataTick(prev => prev + 1);
     } catch {}
-  }, [effectiveMarketType]);
-
-  // 기존 중복된 테마 변경 로직 제거됨
+  }, [effectiveMarketType, mode, isDark]);
 
   return (
     <section 
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
       className={cn(
-        "relative flex w-full flex-col gap-2 p-4 transition-colors",
-        mode === "contest" ? "border-none bg-futures-trade lg:rounded-b-xl" : (isDark ? "border border-gray-700 bg-gray-800" : "border border-gray-100 bg-white"),
+        "relative flex w-full flex-col gap-2 p-4 transition-colors lg:rounded-b-xl",
+        isFutures ? "border-none bg-futures-trade" : (isDark ? "border border-gray-700 bg-gray-800" : "border border-gray-100 bg-white"),
         className
       )}
     >

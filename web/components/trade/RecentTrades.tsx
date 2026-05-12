@@ -173,17 +173,17 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
   const quoteAsset = currentCoinMeta?.quoteAsset || "USDT";
 
   const isMock = mode === "mock";
-  const isContest = mode === "contest";
+  const isFutures = mode === "contest" || selectedMarketType === "futures";
 
-  const bgMain = isContest 
+  const bgMain = isFutures 
     ? "bg-futures-trade text-white border-futures-border" 
     : "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 border-gray-100 dark:border-gray-700";
-  const headerBg = isContest 
+  const headerBg = isFutures 
     ? "bg-white/5 border-futures-border" 
     : "bg-slate-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700";
-  const textMuted = isContest ? "text-white/30" : "text-slate-400 dark:text-gray-500";
-  const textQty = isContest ? "text-white/40" : "text-slate-500 dark:text-gray-400";
-  const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-gray-700/50";
+  const textMuted = isFutures ? "text-white/30" : "text-slate-400 dark:text-gray-500";
+  const textQty = isFutures ? "text-white/40" : "text-slate-500 dark:text-gray-400";
+  const rowHover = isFutures ? "hover:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-gray-700/50";
 
   if (isLoading && trades.length === 0) {
     return (
@@ -222,8 +222,8 @@ export default function RecentTrades({ className, mode = "trade" }: RecentTrades
                 <span className={cn(
                   "text-[11px] font-black text-right tabular-nums",
                   trade.isBuyerMaker
-                    ? (isContest ? "text-trade-short" : (selectedMarketType === "spot" || isMock ? "text-[#0058FF]" : "text-[#F6465D]"))
-                    : (isContest ? "text-trade-long" : (selectedMarketType === "spot" || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]"))
+                    ? (isFutures ? "text-trade-short" : (selectedMarketType === "spot" || isMock ? "text-[#0058FF]" : "text-[#F6465D]"))
+                    : (isFutures ? "text-trade-long" : (selectedMarketType === "spot" || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]"))
                 )}>
                   {formatPrice(trade.price)}
                 </span>

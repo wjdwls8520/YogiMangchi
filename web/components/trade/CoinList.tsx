@@ -182,18 +182,18 @@ export default function CoinList({
   };
 
   const isMock = mode === "mock";
-  const isContest = mode === "contest";
-  const bgMain = isContest 
+  const isFutures = mode === "contest" || selectedMarketType === "futures" || (availableMarketTypes.length === 1 && availableMarketTypes[0] === "futures");
+  const bgMain = isFutures 
     ? "bg-futures-trade text-white border-futures-border" 
     : (isMock ? "bg-white dark:bg-zinc-950 text-slate-900 dark:text-gray-100 border-gray-200 dark:border-gray-800" : "bg-[#161A1E] dark:bg-zinc-950 text-white dark:text-gray-100 border-futures-border dark:border-gray-800");
-  const borderSub = isContest ? "border-futures-border" : (isMock ? "border-gray-100 dark:border-gray-800" : "border-futures-border dark:border-gray-800");
-  const bgInput = isContest ? "bg-white/5" : (isMock ? "bg-slate-50 dark:bg-gray-900" : "bg-[#1E2329] dark:bg-gray-900");
-  const textMain = isContest ? "text-white" : (isMock ? "text-slate-900 dark:text-gray-100" : "text-gray-200 dark:text-gray-100");
-  const textMuted = isContest ? "text-white/30" : (isMock ? "text-slate-500 dark:text-gray-500" : "text-gray-500 dark:text-gray-500");
-  const textQty = isContest ? "text-white/40" : (isMock ? "text-slate-600 dark:text-gray-400" : "text-gray-300 dark:text-gray-400");
-  const bgHeader = isContest ? "bg-futures-trade" : (isMock ? "bg-slate-50 dark:bg-zinc-900" : "bg-[#161A1E] dark:bg-zinc-900");
-  const rowHover = isContest ? "hover:bg-white/5" : (isMock ? "hover:bg-slate-50 dark:hover:bg-zinc-800/50" : "hover:bg-white/5 dark:hover:bg-zinc-800/50");
-  const rowSelected = isContest ? "bg-white/10" : (isMock ? "bg-blue-50 dark:bg-blue-900/30" : "bg-blue-500/10 dark:bg-blue-900/40");
+  const borderSub = isFutures ? "border-futures-border" : (isMock ? "border-gray-100 dark:border-gray-800" : "border-futures-border dark:border-gray-800");
+  const bgInput = isFutures ? "bg-white/5" : (isMock ? "bg-slate-50 dark:bg-gray-900" : "bg-[#1E2329] dark:bg-gray-900");
+  const textMain = isFutures ? "text-white" : (isMock ? "text-slate-900 dark:text-gray-100" : "text-gray-200 dark:text-gray-100");
+  const textMuted = isFutures ? "text-white/30" : (isMock ? "text-slate-500 dark:text-gray-500" : "text-gray-500 dark:text-gray-500");
+  const textQty = isFutures ? "text-white/40" : (isMock ? "text-slate-600 dark:text-gray-400" : "text-gray-300 dark:text-gray-400");
+  const bgHeader = isFutures ? "bg-futures-trade" : (isMock ? "bg-slate-50 dark:bg-zinc-900" : "bg-[#161A1E] dark:bg-zinc-900");
+  const rowHover = isFutures ? "hover:bg-white/5" : (isMock ? "hover:bg-slate-50 dark:hover:bg-zinc-800/50" : "hover:bg-white/5 dark:hover:bg-zinc-800/50");
+  const rowSelected = isFutures ? "bg-white/10" : (isMock ? "bg-blue-50 dark:bg-blue-900/30" : "bg-blue-500/10 dark:bg-blue-900/40");
 
   return (
     <aside className={cn("w-full h-full min-h-0 flex flex-col shrink-0 overflow-hidden border-r", bgMain)}>
@@ -269,9 +269,9 @@ export default function CoinList({
               const isFavorite = favorites.includes(coin.symbol);
               const isSelected = selectedCoin === coin.symbol;
 
-              const isSpotMode = selectedMarketType === "spot" || mode === "mock";
-              const buyColor = mode === "contest" ? "text-trade-long" : (isSpotMode ? "text-[#fb2c36]" : "text-emerald-400");
-              const sellColor = mode === "contest" ? "text-trade-short" : (isSpotMode ? "text-[#0058FF]" : "text-rose-400");
+              const isSpotMode = !isFutures;
+              const buyColor = isFutures ? "text-trade-long" : (isSpotMode ? "text-[#fb2c36]" : "text-emerald-400");
+              const sellColor = isFutures ? "text-trade-short" : (isSpotMode ? "text-[#0058FF]" : "text-rose-400");
 
               const colorClass =
                 coin.change > 0
