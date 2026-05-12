@@ -221,7 +221,7 @@ export default function ContestTradingPage() {
           <div className="flex-1 min-h-0 flex flex-col lg:contents overflow-y-auto lg:overflow-hidden scrollbar-hide">
             
             {/* Chart Section */}
-            <section className={`lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-futures-border shrink-0 ${mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'}`}>
+            <section className={`lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] bg-futures-trade lg:rounded-xl lg:border border-futures-border shrink-0 ${mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'}`}>
               <div className={cn("hidden lg:block border-b border-futures-border relative lg:rounded-t-xl", !isCoinListCollapsed && "z-50")}>
                 <CoinHeader
                   mode="contest"
@@ -263,7 +263,7 @@ export default function ContestTradingPage() {
             <div className={`gap-0 lg:gap-2 shrink-0 lg:contents ${mobileTab === 'trade' ? 'flex flex-col' : 'hidden lg:flex'}`}>
               
               <div className="flex shrink-0 lg:contents">
-                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-r border-futures-border lg:border-futures-border min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
+                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-futures-trade lg:rounded-xl lg:border border-r border-futures-border lg:border-futures-border min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
                   <div className="shrink-0 p-1.5 sm:p-2 border-b border-futures-border hidden lg:block">
                     <Tabs
                       activeTab={activeInfoTab}
@@ -295,7 +295,7 @@ export default function ContestTradingPage() {
                   </div>
                 </aside>
 
-                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-futures-border min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
+                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:border border-futures-border min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
                   <FuturesOrderPanel
                     mode="contest"
                     walletStatus={session.walletStatus}
@@ -323,7 +323,7 @@ export default function ContestTradingPage() {
               </div>
 
               {/* Bottom History (Desktop only) */}
-              <section className="lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:shadow-sm lg:border border-t border-futures-border lg:border-futures-border min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
+              <section className="lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 bg-futures-trade lg:rounded-xl lg:border border-t border-futures-border lg:border-futures-border min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
                 <FuturesActivitySection
                   contestSeasonId={contestSeasonId}
                   activityVersion={session.activityVersion}

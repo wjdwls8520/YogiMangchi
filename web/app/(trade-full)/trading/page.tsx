@@ -79,16 +79,16 @@ export default function IntegratedTradingPage() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-100 dark:bg-zinc-900 text-slate-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className={cn("flex flex-col h-full w-full overflow-hidden font-sans transition-colors duration-300", isFutures ? "bg-black text-gray-200" : "bg-slate-100 dark:bg-zinc-900 text-slate-900 dark:text-gray-100")}>
       {/* 1. Top Header */}
-      <header className="flex h-[48px] items-center justify-between border-b border-white/10 dark:border-gray-700 bg-[#1E2329] dark:bg-gray-800 px-2 sm:px-4 z-20 shadow-sm shrink-0">
+      <header className="flex h-[48px] items-center justify-between border-b border-white/10 dark:border-gray-700 bg-[#1E2329] dark:bg-gray-800 px-2 sm:px-4 z-20 shrink-0">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0 shrink-0">
           <div className="flex items-center gap-1 sm:gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
             <button
               onClick={() => setSelectedMarketType("spot")}
               className={cn(
                 "px-3 py-1 rounded text-[13px] font-black transition-all",
-                !isFutures ? "bg-slate-100 dark:bg-gray-700 text-slate-900 dark:text-gray-100 shadow-sm" : "text-gray-400 hover:text-white"
+                !isFutures ? "bg-slate-100 dark:bg-gray-700 text-slate-900 dark:text-gray-100" : "text-gray-400 hover:text-white"
               )}
             >
               현물
@@ -97,7 +97,7 @@ export default function IntegratedTradingPage() {
               onClick={() => setSelectedMarketType("futures")}
               className={cn(
                 "px-3 py-1 rounded text-[13px] font-black transition-all",
-                isFutures ? "bg-slate-100 text-slate-900 shadow-sm" : "text-gray-400 hover:text-white"
+                isFutures ? "bg-slate-100 text-slate-900" : "text-gray-400 hover:text-white"
               )}
             >
               선물
@@ -125,50 +125,51 @@ export default function IntegratedTradingPage() {
       <CoinListDrawer
         isOpen={!isCoinListCollapsed}
         onClose={() => setIsCoinListCollapsed(true)}
-        mode="trade"
+        mode={isFutures ? "contest" : "trade"}
         marketMode={selectedMarketType}
       />
 
       {/* 3. Main Layout */}
       <main className="flex-1 min-h-0 flex flex-col lg:flex-row relative overflow-y-auto lg:overflow-x-hidden scrollbar-hide">
         <div className={cn(
-          "flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] lg:grid-rows-[1fr_300px] lg:gap-2 lg:p-2 h-full min-h-[600px] lg:min-h-[650px] min-w-0 bg-white dark:bg-zinc-900 lg:bg-slate-100",
+          "flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_300px_320px] 2xl:grid-cols-[1fr_320px_360px] lg:grid-rows-[1fr_300px] lg:gap-2 lg:p-2 h-full min-h-[600px] lg:min-h-[650px] min-w-0",
+          isFutures ? "bg-futures-trade lg:bg-black" : "bg-white dark:bg-zinc-900 lg:bg-slate-100",
           isCoinListCollapsed ? "" : "overflow-hidden",
           "lg:overflow-visible"
         )}>
 
           {/* Mobile Only: Header & Tabs */}
-          <div className="lg:hidden flex flex-col shrink-0 border-b border-gray-100 dark:border-gray-700 z-10 bg-white dark:bg-gray-800">
-            <div className="bg-white dark:bg-gray-800 relative">
+          <div className={cn("lg:hidden flex flex-col shrink-0 border-b z-10", isFutures ? "bg-futures-trade border-futures-border" : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700")}>
+            <div className={cn("relative", isFutures ? "bg-futures-trade" : "bg-white dark:bg-gray-800")}>
               <CoinHeader
-                mode="trade"
-                className="bg-white dark:bg-gray-800 border-none"
+                mode={isFutures ? "contest" : "trade"}
+                className={cn("border-none", isFutures ? "bg-futures-trade" : "bg-white dark:bg-gray-800")}
                 onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
                 isSidebarCollapsed={isCoinListCollapsed}
               />
             </div>
 
-            <div className="flex bg-white dark:bg-gray-800 border-t border-gray-50 dark:border-gray-700 shrink-0">
+            <div className={cn("flex shrink-0 border-t", isFutures ? "bg-futures-trade border-futures-border" : "bg-white dark:bg-gray-800 border-gray-50 dark:border-gray-700")}>
               <button
-                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trade' ? 'text-brand-primary' : 'text-slate-400'}`}
+                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trade' ? (isFutures ? 'text-white' : 'text-brand-primary') : 'text-slate-400'}`}
                 onClick={() => setMobileTab('trade')}
               >
                 주문
-                {mobileTab === 'trade' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-primary" />}
+                {mobileTab === 'trade' && <div className={cn("absolute bottom-0 left-0 right-0 h-[2.5px]", isFutures ? "bg-white" : "bg-brand-primary")} />}
               </button>
               <button
-                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'chart' ? 'text-brand-primary' : 'text-slate-400'}`}
+                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'chart' ? (isFutures ? 'text-white' : 'text-brand-primary') : 'text-slate-400'}`}
                 onClick={() => setMobileTab('chart')}
               >
                 차트
-                {mobileTab === 'chart' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-primary" />}
+                {mobileTab === 'chart' && <div className={cn("absolute bottom-0 left-0 right-0 h-[2.5px]", isFutures ? "bg-white" : "bg-brand-primary")} />}
               </button>
               <button
-                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trades' ? 'text-brand-primary' : 'text-slate-400 dark:text-gray-500'}`}
+                className={`flex-1 py-3 text-[13px] font-black transition-all relative ${mobileTab === 'trades' ? (isFutures ? 'text-white' : 'text-brand-primary') : 'text-slate-400 dark:text-gray-500'}`}
                 onClick={() => setMobileTab('trades')}
               >
                 체결
-                {mobileTab === 'trades' && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-brand-primary" />}
+                {mobileTab === 'trades' && <div className={cn("absolute bottom-0 left-0 right-0 h-[2.5px]", isFutures ? "bg-white" : "bg-brand-primary")} />}
               </button>
             </div>
           </div>
@@ -177,12 +178,12 @@ export default function IntegratedTradingPage() {
           <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[40] px-3 pb-3 pointer-events-none">
             <button
               onClick={() => setIsHistoryOpen(true)}
-              className="w-full h-11 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 rounded-xl shadow-xl flex items-center justify-between px-4 pointer-events-auto active:scale-[0.98] transition-transform border border-gray-200 dark:border-gray-700"
+              className={cn("w-full h-11 rounded-xl shadow-xl flex items-center justify-between px-4 pointer-events-auto active:scale-[0.98] transition-transform border", isFutures ? "bg-gray-900 text-white border-futures-border" : "bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 border-gray-200 dark:border-gray-700")}
             >
               <div className="flex items-center gap-3">
                 <span className="text-[12px] font-black flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse" />
-                  포지션 및 거래 내역
+                  <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isFutures ? "bg-purple-500" : "bg-brand-primary")} />
+                  {isFutures ? "선물 포지션 및 거래 내역" : "포지션 및 거래 내역"}
                 </span>
               </div>
               <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -193,15 +194,15 @@ export default function IntegratedTradingPage() {
           {isHistoryOpen && (
             <div className="lg:hidden fixed inset-0 z-[150] flex flex-col justify-end overflow-hidden">
               <div 
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-backdrop-fade-in" 
+                className={cn("absolute inset-0 backdrop-blur-sm animate-backdrop-fade-in", isFutures ? "bg-black/80" : "bg-black/40")} 
                 onClick={() => setIsHistoryOpen(false)} 
               />
               <div 
-                className="relative bg-white dark:bg-gray-800 rounded-t-[24px] shadow-2xl flex flex-col h-[60vh] border-t border-gray-100 dark:border-gray-700 animate-sheet-slide-up"
+                className={cn("relative rounded-t-[24px] shadow-2xl flex flex-col h-[60vh] border-t animate-sheet-slide-up", isFutures ? "bg-futures-trade border-purple-500/20" : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700")}
                 style={{ willChange: 'transform, opacity' }}
               >
                 <div className="flex flex-col items-center py-3 shrink-0" onClick={() => setIsHistoryOpen(false)}>
-                  <div className="w-10 h-1.5 bg-slate-200 rounded-full" />
+                  <div className={cn("w-10 h-1.5 rounded-full", isFutures ? "bg-gray-800" : "bg-slate-200")} />
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
                   {isFutures ? (
@@ -218,7 +219,7 @@ export default function IntegratedTradingPage() {
                       onClosePosition={futures.submitCloseOrder}
                       onSubmitLimitCloseOrder={futures.submitLimitCloseOrder}
                       onUpdatePositionLeverage={futures.updatePositionLeverage}
-                      mode={isDarkMode ? "dark" : "light"}
+                      mode="dark"
                     />
                   ) : (
                     <UserOrderHistory mode="trade" onClose={() => setIsHistoryOpen(false)} />
@@ -231,22 +232,22 @@ export default function IntegratedTradingPage() {
           <div className="flex-1 min-h-0 flex flex-col lg:contents overflow-y-auto lg:overflow-hidden scrollbar-hide">
             <section className={cn(
               "lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] shrink-0",
-              "bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-gray-200 dark:border-gray-700",
+              isFutures ? "bg-futures-trade lg:rounded-xl lg:border border-futures-border" : "bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-gray-200 dark:border-gray-700",
               mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'
             )}>
-              <div className={cn("hidden lg:block border-b border-gray-200 dark:border-gray-700 relative", !isCoinListCollapsed && "z-50")}>
+              <div className={cn("hidden lg:block border-b relative lg:rounded-t-xl", isFutures ? "border-futures-border" : "border-gray-200 dark:border-gray-700", !isCoinListCollapsed && "z-50")}>
                 <CoinHeader
-                  mode="trade"
-                  className="bg-white dark:bg-gray-800 border-none relative z-50"
+                  mode={isFutures ? "contest" : "trade"}
+                  className={cn("border-none relative z-50 lg:rounded-t-xl", isFutures ? "bg-futures-trade" : "bg-white dark:bg-gray-800")}
                   onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
                   isSidebarCollapsed={isCoinListCollapsed}
                 />
                 {!isCoinListCollapsed && (
                   <>
                     <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsCoinListCollapsed(true)} />
-                    <div className="absolute top-1/2 left-0 w-[420px] h-[calc(100vh-180px)] max-h-[800px] z-50 bg-white dark:bg-gray-800 shadow-[0_30px_60px_rgba(0,0,0,0.15)] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className={cn("absolute top-1/2 left-0 w-[420px] h-[calc(100vh-180px)] max-h-[800px] z-50 shadow-[0_30px_60px_rgba(0,0,0,0.15)] border rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200", isFutures ? "bg-futures-trade border-futures-border-strong" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700")}>
                       <CoinList
-                        mode="trade"
+                        mode={isFutures ? "contest" : "trade"}
                         availableMarketTypes={["spot", "futures"]}
                         onSelect={() => setIsCoinListCollapsed(true)}
                       />
@@ -256,7 +257,7 @@ export default function IntegratedTradingPage() {
               </div>
               <div className="flex-1 min-h-0 relative">
                 <MainCandleChart
-                  mode="trade"
+                  mode={isFutures ? "contest" : "trade"}
                   className="absolute inset-0 h-full w-full border-none p-2"
                   chartAreaClassName="h-full flex-1 min-h-0"
                 />
@@ -264,13 +265,14 @@ export default function IntegratedTradingPage() {
             </section>
 
             <section className={cn(
-              "lg:hidden flex-col bg-white dark:bg-gray-800 min-h-[500px] shrink-0",
+              "lg:hidden flex-col min-h-[500px] shrink-0",
+              isFutures ? "bg-futures-trade" : "bg-white dark:bg-gray-800",
               mobileTab === 'trades' ? 'flex' : 'hidden'
             )}>
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700 font-bold text-slate-400 dark:text-gray-500 text-xs bg-slate-50 dark:bg-gray-800/50 tracking-widest shrink-0 uppercase">
+              <div className={cn("p-3 border-b font-bold text-xs tracking-widest shrink-0 uppercase", isFutures ? "border-futures-border text-white/30 bg-white/5" : "border-gray-200 dark:border-gray-700 text-slate-400 dark:text-gray-500 bg-slate-50 dark:bg-gray-800/50")}>
                 시장 체결 내역
               </div>
-              <RecentTrades mode="trade" className="flex-1 border-none !bg-transparent" />
+              <RecentTrades mode={isFutures ? "contest" : "trade"} className="flex-1 border-none !bg-transparent" />
             </section>
 
             <div className={cn(
@@ -278,8 +280,8 @@ export default function IntegratedTradingPage() {
               mobileTab === 'trade' ? 'flex flex-col' : 'hidden lg:flex'
             )}>
               <div className="flex shrink-0 lg:contents">
-                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-r border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
-                  <div className="shrink-0 p-1.5 sm:p-2 border-b border-gray-200 dark:border-gray-700 hidden lg:block">
+                <aside className={cn("w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide", isFutures ? "bg-futures-trade lg:rounded-xl lg:border border-futures-border" : "bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-r border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700")}>
+                  <div className={cn("shrink-0 p-1.5 sm:p-2 border-b hidden lg:block", isFutures ? "border-futures-border" : "border-gray-200 dark:border-gray-700")}>
                     <Tabs
                       activeTab={activeInfoTab}
                       onChange={setActiveInfoTab}
@@ -290,27 +292,27 @@ export default function IntegratedTradingPage() {
                       fullWidth={true}
                       size="sm"
                       variant="plain"
-                      mode={isDarkMode ? "dark" : "light"}
+                      mode={isFutures ? "dark" : (isDarkMode ? "dark" : "light")}
                     />
                   </div>
-                  <div className="shrink-0 p-2 border-b border-gray-200 dark:border-gray-700 lg:hidden font-bold text-slate-400 dark:text-gray-500 text-[11px] text-center bg-slate-50 dark:bg-gray-800/50 tracking-widest uppercase">
+                  <div className={cn("shrink-0 p-2 border-b lg:hidden font-bold text-[11px] text-center tracking-widest uppercase", isFutures ? "border-futures-border text-white/30 bg-white/5" : "border-gray-200 dark:border-gray-700 text-slate-400 dark:text-gray-500 bg-slate-50 dark:bg-gray-800/50")}>
                     호가
                   </div>
                   <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                     <div className="hidden lg:flex flex-col h-full w-full">
                       {activeInfoTab === "orderbook" ? (
-                        <OrderBook mode="trade" className="flex-1 w-full border-none !bg-transparent !rounded-none" />
+                        <OrderBook mode={isFutures ? "contest" : "trade"} className="flex-1 w-full border-none !bg-transparent !rounded-none" />
                       ) : (
-                        <RecentTrades mode="trade" className="flex-1 w-full border-none !bg-transparent !rounded-none" />
+                        <RecentTrades mode={isFutures ? "contest" : "trade"} className="flex-1 w-full border-none !bg-transparent !rounded-none" />
                       )}
                     </div>
                     <div className="flex lg:hidden flex-col h-full w-full">
-                      <OrderBook mode="trade" className="flex-1 w-full border-none !bg-transparent !rounded-none" />
+                      <OrderBook mode={isFutures ? "contest" : "trade"} className="flex-1 w-full border-none !bg-transparent !rounded-none" />
                     </div>
                   </div>
                 </aside>
 
-                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-gray-200 dark:border-gray-700 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
+                <aside className={cn("flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none", isFutures ? "bg-futures-trade lg:rounded-xl lg:border border-futures-border" : "bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-gray-200 dark:border-gray-700")}>
                   <TradingLockedOverlay />
                   {isFutures ? (
                     <FuturesOrderPanel
@@ -340,7 +342,7 @@ export default function IntegratedTradingPage() {
                 </aside>
               </div>
 
-              <section className="lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-t border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
+              <section className={cn("lg:col-start-1 lg:col-end-3 xl:col-end-3 lg:row-start-2 lg:row-end-3 min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex", isFutures ? "bg-futures-trade lg:rounded-xl lg:border border-futures-border" : "bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-t border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700")}>
                 {isFutures ? (
                   <FuturesActivitySection
                     activityVersion={futures.activityVersion}
@@ -355,7 +357,7 @@ export default function IntegratedTradingPage() {
                     onClosePosition={futures.submitCloseOrder}
                     onSubmitLimitCloseOrder={futures.submitLimitCloseOrder}
                     onUpdatePositionLeverage={futures.updatePositionLeverage}
-                    mode={isDarkMode ? "dark" : "light"}
+                    mode="dark"
                   />
                 ) : (
                   <UserOrderHistory mode="trade" />

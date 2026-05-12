@@ -45,7 +45,7 @@ export default function MockTradingPage() {
   return (
     <div className="flex flex-col h-full w-full bg-slate-100 dark:bg-zinc-900 text-slate-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
       {/* 1. Top Header - 고정 높이 48px */}
-      <header className="flex h-[48px] items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-slate-200 dark:bg-gray-800 px-2 sm:px-4 z-20 shadow-sm shrink-0">
+      <header className="flex h-[48px] items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-slate-200 dark:bg-gray-800 px-2 sm:px-4 z-20 shrink-0">
         <div className="flex items-center gap-2 sm:gap-6 min-w-0 shrink-0">
           <div className="hidden md:flex items-center gap-2 text-xs sm:text-sm font-bold truncate">
             {isParticipated ? (
@@ -175,13 +175,13 @@ export default function MockTradingPage() {
             {/* Chart Section */}
             <section className={cn(
               "lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-2 flex-col min-h-[400px] lg:min-h-[350px] shrink-0",
-              "bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-gray-200 dark:border-gray-700",
+              "bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-gray-200 dark:border-gray-700",
               mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'
             )}>
-              <div className={cn("hidden lg:block border-b border-gray-200 dark:border-gray-700 relative", !isCoinListCollapsed && "z-50")}>
+              <div className={cn("hidden lg:block border-b border-gray-200 dark:border-gray-700 relative lg:rounded-t-xl", !isCoinListCollapsed && "z-50")}>
                 <CoinHeader
                   mode="mock"
-                  className="bg-white dark:bg-gray-800 border-none relative z-50"
+                  className="bg-white dark:bg-gray-800 border-none relative z-50 lg:rounded-t-xl"
                   onToggleSidebar={() => setIsCoinListCollapsed(!isCoinListCollapsed)}
                   isSidebarCollapsed={isCoinListCollapsed}
                 />
@@ -227,7 +227,7 @@ export default function MockTradingPage() {
             )}>
               
               <div className="flex shrink-0 lg:contents">
-                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-r border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
+                <aside className="w-[42%] min-w-[140px] shrink-0 lg:w-auto lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2 flex flex-col bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-r border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-0 min-w-0 overflow-y-auto lg:overflow-hidden order-1 lg:order-none scrollbar-hide">
                   <div className="shrink-0 p-1.5 sm:p-2 border-b border-gray-200 dark:border-gray-700 hidden lg:block">
                     <Tabs
                       activeTab={activeInfoTab}
@@ -259,13 +259,13 @@ export default function MockTradingPage() {
                   </div>
                 </aside>
 
-                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-gray-200 dark:border-gray-700 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
+                <aside className="flex-1 lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-gray-200 dark:border-gray-700 min-h-0 min-w-0 overflow-hidden relative order-2 lg:order-none">
                   <OrderForm mode="mock" />
                 </aside>
               </div>
 
               {/* Bottom History (Desktop only) */}
-              <section className="lg:col-start-1 lg:col-end-3 lg:row-start-2 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:shadow-sm lg:border border-t border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
+              <section className="lg:col-start-1 lg:col-end-3 lg:row-start-2 lg:row-end-3 bg-white dark:bg-gray-800 lg:rounded-xl lg:border border-t border-gray-200 dark:border-gray-700 lg:border-gray-200 dark:lg:border-gray-700 min-h-[400px] lg:min-h-0 overflow-hidden flex-col shrink-0 hidden lg:flex">
                 <UserOrderHistory mode="mock" />
               </section>
             </div>
