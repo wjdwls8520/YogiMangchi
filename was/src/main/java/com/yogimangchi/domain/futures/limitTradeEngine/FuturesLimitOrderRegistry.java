@@ -40,10 +40,20 @@ public class FuturesLimitOrderRegistry {
 
     // 지정가 주문 체결/취소 시 호출 — 보유자 수 -1, 0이 되면 항목 제거
     public void deregister(String symbol) {
+        deregister(symbol, 1);
+    }
+
+    // 일괄 취소 시 호출 — 보유자 수를 count 만큼 한 번에 차감
+    // count <= 0 이면 무시. 차감 결과가 0 이하면 항목 자체 제거.
+    public void deregister(String symbol, int count) {
+        if (count <= 0) {
+            return;
+        }
         String key = normalize(symbol);
-        holderCounts.computeIfPresent(key, (k, count) ->
-                count.decrementAndGet() <= 0 ? null : count
-        );
+        holderCounts.computeIfPresent(key, (k, atomic) -> {
+            int remaining = atomic.addAndGet(-count);
+            return remaining <= 0 ? null : atomic;
+        });
     }
 
     // 해당 심볼에 PENDING 주문이 하나라도 있는지 확인

@@ -175,24 +175,30 @@ public class FuturesLimitOrderService {
     // 지정가 주문 취소
     // - OPEN 주문 취소 시: 선차감했던 증거금 + 수수료 반환
     // - CLOSE 주문 취소 시: 선차감 없었으므로 반환 없음
+    // 락 순서: 지갑 -> 주문 (체결/강제청산/레버리지 변경 등 다른 모든 경로와 동일)
     @Transactional
     public void cancelLimitOrder(Long memberId, Long contestSeasonId, Long orderId) {
 
-        // 주문 조회 (비관적 락 — 상태 변경 + 잔고 반환 동시 처리)
-        FuturesOrder order = futuresOrderRepository.findByIdForUpdate(orderId)
+        // Step 1: 락 없이 주문을 먼저 조회해 소유권을 사전 검증한다.
+        // 주문의 assets_id 는 불변이므로 무락 조회 결과로 소유권을 빠르게 판단해도 안전하다.
+        FuturesOrder orderSnapshot = futuresOrderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
-        // 지갑 조회 (OPEN 주문 취소 시 잔고 반환 필요)
+        // Step 2: 지갑 락 먼저 획득 — 표준 락 순서 (지갑 -> 주문)
         Assets wallet = (contestSeasonId == null)
                 ? futuresWalletReader.getTradableRealWallet(memberId)
                 : futuresWalletReader.getTradableContestWallet(memberId, contestSeasonId);
 
-        // 소유권 검증
-        if (!order.getAssets().getId().equals(wallet.getId())) {
+        // Step 3: 소유권 검증 — 락 전 빠른 실패로 불필요한 주문 락 대기를 피한다.
+        if (!orderSnapshot.getAssets().getId().equals(wallet.getId())) {
             throw new IllegalArgumentException("해당 주문에 대한 접근 권한이 없습니다.");
         }
 
-        // PENDING 상태 검증 — 이미 체결/취소된 주문은 취소 불가
+        // Step 4: 주문 락 획득
+        FuturesOrder order = futuresOrderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // Step 5: 락 획득 후 PENDING 상태 재확인 — 락 대기 중 체결/취소 완료된 경우 방어
         if (order.getOrderStatus() != OrderStatus.PENDING) {
             throw new IllegalArgumentException("취소할 수 없는 주문 상태입니다: " + order.getOrderStatus());
         }

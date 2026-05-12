@@ -25,12 +25,13 @@ public class FuturesLimitOrderEventListener {
         log.debug("[지정가 Registry 등록] symbol={}", event.symbol());
     }
 
-    // 지정가 주문 체결 또는 취소 완료 후 — Registry -1, 감시 심볼 없으면 스케줄러 중지
+    // 지정가 주문 체결 또는 취소 완료 후 — Registry -count, 감시 심볼 없으면 스케줄러 중지
     // AFTER_COMMIT: 트랜잭션 롤백 시 Registry 상태 불일치 방지
+    // 단건 체결/취소는 count=1, 일괄 취소(cleanup)는 영향 행 수만큼 한 번에 차감
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onLimitOrderRemoved(LimitOrderRemovedEvent event) {
-        limitOrderRegistry.deregister(event.symbol());
+        limitOrderRegistry.deregister(event.symbol(), event.count());
         limitOrderScheduler.stopIfIdle();
-        log.debug("[지정가 Registry 해제] symbol={}", event.symbol());
+        log.debug("[지정가 Registry 해제] symbol={}, count={}", event.symbol(), event.count());
     }
 }

@@ -51,25 +51,38 @@ public class FuturesLimitOrderExecutionService {
     private static final BigDecimal LIMIT_TRADE_FEE = new BigDecimal("0.0003");
 
     // Coordinator 에서 주문 ID 단위로 호출 — OPEN / CLOSE 분기
+    // 락 순서: 지갑 -> 주문 -> 포지션
+    // 모든 선물 경로(시장가/지정가/강제청산/레버리지 변경/취소)가 동일하게 지갑을 먼저 잡으므로
+    // 이 순서를 따르면 데드락이 발생하지 않는다.
     @Transactional
     public void executeLimitOrder(Long orderId) {
 
-        // 주문 조회 (비관적 락 — 동시 체결 중복 방지)
-        FuturesOrder order = futuresOrderRepository.findByIdForUpdate(orderId)
+        // Step 1: 락 없이 주문을 먼저 조회해 지갑 ID 와 사전 상태를 확보한다.
+        // 주문의 assets_id 는 불변이므로 무락 조회 결과를 락 순서 판단에 사용해도 안전하다.
+        FuturesOrder orderSnapshot = futuresOrderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
-        // 이미 체결되거나 취소된 주문이면 스킵 (다른 스레드가 먼저 처리한 경우 방어)
-        if (order.getOrderStatus() != OrderStatus.PENDING) {
-            log.info("[지정가 체결 스킵] orderId={}, status={}", orderId, order.getOrderStatus());
+        // 사전 상태가 PENDING 이 아니면 락 획득 전에 빠르게 종료
+        if (orderSnapshot.getOrderStatus() != OrderStatus.PENDING) {
+            log.info("[지정가 체결 스킵] orderId={}, status={}", orderId, orderSnapshot.getOrderStatus());
             return;
         }
 
-        // 지갑 조회 (비관적 락 — 잔고 동시 수정 방지)
-        Assets wallet = assetRepository.findByIdForUpdate(order.getAssets().getId())
+        // Step 2: 지갑 락 먼저 획득 — 표준 락 순서 (지갑 -> 주문 -> 포지션)
+        Assets wallet = assetRepository.findByIdForUpdate(orderSnapshot.getAssets().getId())
                 .orElseThrow(() -> new IllegalArgumentException("지갑을 찾을 수 없습니다."));
 
-        // OPEN 주문: 포지션 생성 또는 추가진입
-        // CLOSE 주문: 포지션 청산
+        // Step 3: 주문 락 획득
+        FuturesOrder order = futuresOrderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // Step 4: 락 획득 후 PENDING 상태 재확인 — 락 대기 중 다른 스레드가 먼저 처리했을 가능성 방어
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            log.info("[지정가 체결 스킵 — 락 후 재확인] orderId={}, status={}", orderId, order.getOrderStatus());
+            return;
+        }
+
+        // Step 5: OPEN / CLOSE 분기 — 포지션 락은 분기 내부에서 획득
         if (order.getPositionAction() == PositionStatus.OPEN) {
             executeOpen(order, wallet);
         } else {
