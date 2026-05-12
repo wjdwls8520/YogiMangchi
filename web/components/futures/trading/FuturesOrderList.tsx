@@ -99,6 +99,8 @@ export default function FuturesOrderList({
   activityVersion,
   mode,
   pageSize = DEFAULT_PAGE_SIZE,
+  cancelingOrderId = null,
+  isTradingEnabled = true,
   onCancelLimitOrder,
   themeMode,
 }: FuturesOrderListProps) {
@@ -274,59 +276,59 @@ export default function FuturesOrderList({
       <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto">
         {mode === "pending" ? (
           <table className="w-full min-w-[980px] border-separate border-spacing-0">
-            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-futures-trade" : "bg-slate-50")}>
               <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
-                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문가</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>잔여수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>증거금</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문일시</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>관리</th>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>잔여수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>증거금</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문일시</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>관리</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderPendingRow(order))}</tbody>
           </table>
         ) : mode === "orders" ? (
           <table className="w-full min-w-[1280px] border-separate border-spacing-0">
-            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-futures-trade" : "bg-slate-50")}>
               <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
-                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>상태</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문가</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결가</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>잔여수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>명목금액</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>주문일시</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결일시</th>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>상태</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>잔여수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>명목금액</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>주문일시</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결일시</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderOrderHistoryRow(order))}</tbody>
           </table>
         ) : (
           <table className="w-full min-w-[1080px] border-separate border-spacing-0">
-            <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+            <thead className={cn("sticky top-0 z-10", isDark ? "bg-futures-trade" : "bg-slate-50")}>
               <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
-                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>자산</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>방향</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>구분</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>유형</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결가</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결수량</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>명목금액</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>증거금</th>
-                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>수수료</th>
-                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>체결일시</th>
+                <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>자산</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>방향</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>구분</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>유형</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결가</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결수량</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>명목금액</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>증거금</th>
+                <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>수수료</th>
+                <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>체결일시</th>
               </tr>
             </thead>
             <tbody>{items.map((order) => renderTradeHistoryRow(order))}</tbody>
@@ -366,8 +368,8 @@ export default function FuturesOrderList({
           className={cn(
             "inline-flex rounded px-2 py-0.5 text-[10px] font-black whitespace-nowrap",
             order.positionSide === "LONG"
-              ? "bg-[#2EBD85]/15 text-[#2EBD85]"
-              : "bg-[#F6465D]/15 text-[#F6465D]"
+              ? (isDark ? "bg-trade-long/15 text-trade-long" : "bg-[#2EBD85]/15 text-[#2EBD85]")
+              : (isDark ? "bg-trade-short/15 text-trade-short" : "bg-[#F6465D]/15 text-[#F6465D]")
           )}
         >
           {formatFuturesPositionSide(order.positionSide)}
@@ -411,7 +413,7 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
+        className={cn("border-b last:border-b-0", isDark ? "border-futures-border hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}
@@ -440,7 +442,7 @@ export default function FuturesOrderList({
             type="button"
             onClick={() => void handleCancelOrder(order)}
             disabled={cancelingOrderId === order.orderId}
-            className="rounded bg-[#F6465D]/20 px-2.5 py-1 text-[11px] font-black text-[#F6465D] transition-colors hover:bg-[#F6465D]/30 disabled:cursor-not-allowed disabled:opacity-40 whitespace-nowrap"
+            className={cn("rounded px-2.5 py-1 text-[11px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 whitespace-nowrap", isDark ? "bg-trade-short/20 text-trade-short hover:bg-trade-short/30" : "bg-[#F6465D]/20 text-[#F6465D] hover:bg-[#F6465D]/30")}
           >
             {cancelingOrderId === order.orderId ? "취소 중" : "취소"}
           </button>
@@ -453,7 +455,7 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
+        className={cn("border-b last:border-b-0", isDark ? "border-futures-border hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}
@@ -495,7 +497,7 @@ export default function FuturesOrderList({
     return (
       <tr
         key={order.orderId}
-        className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
+        className={cn("border-b last:border-b-0", isDark ? "border-futures-border hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
       >
         {renderAssetCell(order)}
         {renderSideCell(order)}

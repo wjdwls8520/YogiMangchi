@@ -68,7 +68,7 @@ export async function fetchClient(
     ...options,
     credentials: "include",
     headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(isFormData || !requestBody ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     },
     body: requestBody,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils/cs";
-import { Zap, Clock, XCircle, ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import type {
   ContestListCardType,
   ContestListItem,
@@ -19,36 +19,24 @@ const getThemeStyles = (type: ContestListCardType) => {
   switch (type) {
     case "apply":
       return {
-        icon: <Zap className="w-5 h-5 text-violet-400" />,
-        border: "hover:border-violet-500/50",
-        shadow: "hover:shadow-[0_0_20px_rgba(139,92,246,0.15)]",
-        title: "group-hover:text-violet-300",
-        button: "bg-violet-500 text-white hover:bg-violet-400",
+        badge: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200/50 dark:ring-emerald-800/50",
+        button: "bg-emerald-600 text-white hover:bg-emerald-500",
       };
     case "wait":
     case "approved":
       return {
-        icon: <Clock className="w-5 h-5 text-amber-400" />,
-        border: "border-l-4 border-l-amber-500/50",
-        shadow: "hover:shadow-[0_0_20px_rgba(245,158,11,0.1)]",
-        title: "text-slate-200",
-        button: "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30",
+        badge: "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 ring-1 ring-amber-200/50 dark:ring-amber-800/50",
+        button: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50",
       };
     case "reject":
       return {
-        icon: <XCircle className="w-5 h-5 text-rose-400" />,
-        border: "border-rose-900/30 opacity-75 hover:opacity-100",
-        shadow: "hover:shadow-[0_0_20px_rgba(244,63,94,0.1)]",
-        title: "text-slate-400 line-through decoration-rose-500/50",
-        button: "bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20",
+        badge: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 ring-1 ring-rose-200/50 dark:ring-rose-800/50",
+        button: "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50",
       };
     default:
       return {
-        icon: <Zap className="w-5 h-5 text-slate-400" />,
-        border: "border-slate-700",
-        shadow: "",
-        title: "text-slate-200",
-        button: "bg-slate-700/50 text-slate-300 hover:bg-slate-700/70",
+        badge: "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 ring-1 ring-gray-200/50 dark:ring-gray-700/50",
+        button: "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
       };
   }
 };
@@ -67,110 +55,104 @@ export default function ContestListCard({
   return (
     <div 
       className={cn(
-        "group flex flex-col rounded-xl bg-slate-800/20 border border-slate-700/30 backdrop-blur-sm transition-all duration-300 overflow-hidden",
-        theme.border,
-        theme.shadow,
-        isExpanded ? "bg-slate-800/40 border-slate-600/50" : "hover:bg-slate-800/30"
+        "flex flex-col rounded-2xl border transition-all duration-200 bg-white dark:bg-gray-800 overflow-hidden",
+        isExpanded 
+          ? "border-gray-300 dark:border-gray-700" 
+          : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
       )}
     >
       {/* Header Row */}
       <div 
-        className="flex items-center justify-between p-4 cursor-pointer gap-4"
+        className="flex items-center justify-between p-5 cursor-pointer gap-4 select-none"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <div className={cn("shrink-0 transition-transform duration-300", isExpanded ? "scale-110" : "group-hover:scale-110")}>
-            {theme.icon}
-          </div>
-          <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0", theme.badge)}>
+            {contest.accentLabel || (type === "apply" ? "모집중" : type === "wait" ? "대기" : "종료")}
+          </span>
+          <div className="min-w-0 flex-1 space-y-0.5">
             <h3 className={cn(
-              "text-[14px] font-bold tracking-tight transition-all leading-none",
-              theme.title,
+              "text-sm font-extrabold text-gray-900 dark:text-gray-100 tracking-tight leading-snug",
+              type === "reject" && "line-through text-gray-400 dark:text-gray-500",
               !isExpanded && "truncate"
             )}>
               {contest.title}
             </h3>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
+            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 tracking-tight">
               {contest.period}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ChevronDown className={cn("w-4 h-4 text-slate-600 transition-transform duration-300", isExpanded && "rotate-180")} />
-          <div className="shrink-0">
-            {type !== "reject" && (
-              <button
-                type="button"
-                disabled={isActionDisabled}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAction?.(contest);
-                }}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-[11px] font-black transition-all flex items-center gap-1.5 min-w-[60px] justify-center active:scale-95",
-                  theme.button
-                )}
-              >
-                {actionLabel}
-                {type === "apply" && !isActionLoading && <ArrowRight className="w-3.5 h-3.5" />}
-              </button>
-            )}
-          </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {type !== "reject" && (
+            <button
+              type="button"
+              disabled={isActionDisabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction?.(contest);
+              }}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 min-w-[54px] justify-center active:scale-95",
+                theme.button,
+                isActionDisabled && "opacity-60 cursor-not-allowed"
+              )}
+            >
+              {actionLabel}
+              {type === "apply" && !isActionLoading && <ArrowRight className="w-3 h-3" />}
+            </button>
+          )}
+          <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform duration-200", isExpanded && "rotate-180")} />
         </div>
       </div>
 
       {/* Accordion Content */}
-      <div className={cn(
-        "grid transition-all duration-500 ease-in-out",
-        isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-      )}>
-        <div className="overflow-hidden border-t border-white/5 bg-black/20">
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">대회 일정</p>
-                <p className="text-[12px] font-bold text-slate-300 leading-snug">{contest.period}</p>
-              </div>
-              <div className="space-y-1 md:text-right">
-                <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest">신청 마감일</p>
-                <p className="text-[12px] font-bold text-rose-300 leading-snug">
-                  {contest.recruitmentEndAt ? new Date(contest.recruitmentEndAt).toLocaleDateString("ko-KR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  }) : "-"}
-                </p>
-              </div>
+      {isExpanded && (
+        <div className="border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/30 p-5 space-y-4 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">대회 일정</p>
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight">{contest.period}</p>
             </div>
-
-            <div className="space-y-1.5">
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">대회 설명</p>
-              <p className="text-[12px] text-slate-300 leading-relaxed font-medium">
-                {contest.description || "상세 설명이 등록되지 않은 대회입니다."}
+            <div className="space-y-0.5 sm:text-right">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">신청 마감일</p>
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 tracking-tight">
+                {contest.recruitmentEndAt ? new Date(contest.recruitmentEndAt).toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                }) : "-"}
               </p>
             </div>
-
-            {type === "reject" ? (
-              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 space-y-1">
-                <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest">반려 사유</p>
-                <p className="text-[12px] font-bold text-rose-300/90 leading-normal">
-                  {contest.rejectReason ?? "사유 미정"}
-                </p>
-              </div>
-            ) : contest.reward ? (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-                <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">대회 상금</p>
-                <p className="text-[12px] font-bold text-emerald-300/90 leading-normal">
-                  {contest.reward}
-                </p>
-              </div>
-            ) : null}
           </div>
+
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">대회 설명</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
+              {contest.description || "상세 설명이 등록되지 않은 대회입니다."}
+            </p>
+          </div>
+
+          {type === "reject" ? (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/50 space-y-0.5">
+              <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">반려 사유</p>
+              <p className="text-xs font-bold text-rose-900 dark:text-rose-200 leading-normal">
+                {contest.rejectReason ?? "사유 미정"}
+              </p>
+            </div>
+          ) : contest.reward ? (
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 space-y-0.5">
+              <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">대회 상금</p>
+              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200 leading-normal">
+                {contest.reward}
+              </p>
+            </div>
+          ) : null}
         </div>
-      </div>
+      )}
     </div>
   );
 }

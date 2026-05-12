@@ -72,7 +72,7 @@ export default function Tabs({
                 ? cn(
                     "font-black transition-all", 
                     variant === "underline" && (size === "sm" ? "border-b-2" : "border-b-[3px]"),
-                    finalActiveColor
+                    currentTabColor || finalActiveColor
                   )
                 : cn(
                     "font-bold transition-all",

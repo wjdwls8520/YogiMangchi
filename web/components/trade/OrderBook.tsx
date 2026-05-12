@@ -195,23 +195,23 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
     );
   }
 
-  const sellTextColor = isSpot || isMock ? "text-[#0058FF]" : "text-[#F6465D]";
-  const sellBgColor = isSpot || isMock ? "bg-[#0058FF]/10" : "bg-red-500/10";
-  const buyTextColor = isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]";
-  const buyBgColor = isSpot || isMock ? "bg-[#fb2c36]/10" : "bg-green-500/10";
+  const sellTextColor = isContest ? "text-trade-short" : (isSpot || isMock ? "text-[#0058FF]" : "text-[#F6465D]");
+  const sellBgColor = isContest ? "bg-trade-short/10" : (isSpot || isMock ? "bg-[#0058FF]/10" : "bg-red-500/10");
+  const buyTextColor = isContest ? "text-trade-long" : (isSpot || isMock ? "text-[#fb2c36]" : "text-[#2EBD85]");
+  const buyBgColor = isContest ? "bg-trade-long/10" : (isSpot || isMock ? "bg-[#fb2c36]/10" : "bg-green-500/10");
 
   const containerBg = isContest 
-    ? "bg-[#161A1E] border border-white/5 rounded-xl" 
+    ? "bg-futures-trade border border-futures-border rounded-xl" 
     : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl";
   const headerBg = isContest 
-    ? "bg-white/5 border-white/5" 
+    ? "bg-white/5 border-futures-border" 
     : "bg-slate-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700";
   const headerText = isContest ? "text-white/30" : "text-slate-400 dark:text-gray-500";
-  const chartBg = isContest ? "bg-[#161A1E]" : "bg-white dark:bg-gray-800";
+  const chartBg = isContest ? "bg-futures-trade" : "bg-white dark:bg-gray-800";
   const rowHover = isContest ? "hover:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-gray-700/50";
   const qtyColor = isContest ? "text-white/40" : "text-slate-400 dark:text-gray-500";
   const centerBtnBg = isContest 
-    ? "bg-white/5 hover:bg-white/10 border-white/10" 
+    ? "bg-white/5 hover:bg-white/10 border-futures-border-strong" 
     : "bg-slate-50 dark:bg-gray-900 hover:bg-slate-100 dark:hover:bg-gray-700 border-gray-100 dark:border-gray-700";
 
   return (
@@ -253,7 +253,7 @@ export default function OrderBook({ className, mode = "trade" }: OrderBookProps)
             onClick={() => currentPrice > 0 && setSelectedOrderPrice(currentPrice)}
             className={cn(
               "w-full h-[28px] flex items-center justify-between px-3 sm:px-4 transition-all z-10 border-y-2",
-              isContest ? "bg-[#161A1E] border-white/10" : "bg-white dark:bg-gray-900 border-black dark:border-gray-700"
+              isContest ? "bg-futures-trade border-futures-border-strong" : "bg-white dark:bg-gray-900 border-black dark:border-gray-700"
             )}
           >
             <span className={cn("text-[11px] sm:text-[12px] font-black tabular-nums tracking-tighter truncate", isContest ? "text-white" : "text-black dark:text-gray-100")}>

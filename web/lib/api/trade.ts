@@ -123,27 +123,27 @@ const getSuccessMessage = (payload: unknown) => {
   return extractApiMessage(payload) || "OK";
 };
 
-// 모의투자 주문/조회는 별도 spot/mock 경로를 사용하고, 나머지는 기존 trade 경로를 사용한다.
+// 모의투자 주문/조회는 별도 mock/spot 경로를 사용하고, 실전 현물은 real/spot 경로를 사용한다.
 const getTradeApiPath = (
   assetType: AssetType,
   type: "market" | "limit" | "orders" | "openOrders" | "histories" | "cancel",
   orderId?: number
 ) => {
   if (assetType === "MOCK") {
-    if (type === "market") return "spot/mock/order/market";
-    if (type === "limit") return "spot/mock/order/limit";
-    if (type === "orders") return "spot/mock/orders";
-    if (type === "openOrders") return "spot/mock/orders/open";
-    if (type === "histories") return "spot/mock/histories";
-    return `spot/mock/orders/${orderId}/cancel`;
+    if (type === "market") return "mock/spot/order/market";
+    if (type === "limit") return "mock/spot/order/limit";
+    if (type === "orders") return "mock/spot/orders";
+    if (type === "openOrders") return "mock/spot/orders/open";
+    if (type === "histories") return "mock/spot/histories";
+    return `mock/spot/orders/${orderId}/cancel`;
   }
 
-  if (type === "market") return "trade/order/market";
-  if (type === "limit") return "trade/order/limit";
-  if (type === "orders") return "trade/orders";
-  if (type === "openOrders") return "trade/orders/open";
-  if (type === "histories") return "trade/histories";
-  return `trade/orders/${orderId}/cancel`;
+  if (type === "market") return "real/spot/order/market";
+  if (type === "limit") return "real/spot/order/limit";
+  if (type === "orders") return "real/spot/orders";
+  if (type === "openOrders") return "real/spot/orders/open";
+  if (type === "histories") return "real/spot/histories";
+  return `real/spot/orders/${orderId}/cancel`;
 };
 
 // 시장가 주문 실행

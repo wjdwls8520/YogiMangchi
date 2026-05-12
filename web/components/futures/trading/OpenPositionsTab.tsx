@@ -104,33 +104,33 @@ export default function OpenPositionsTab({
         </div>
       ) : (
         <table className="w-full min-w-[1200px] border-separate border-spacing-0">
-          <thead className={cn("sticky top-0 z-10", isDark ? "bg-[#161A1E]" : "bg-slate-50")}>
+          <thead className={cn("sticky top-0 z-10", isDark ? "bg-futures-trade" : "bg-slate-50")}>
             <tr className={cn("text-[11px] font-bold uppercase tracking-wide", isDark ? "text-white/30" : "text-slate-400")}>
-              <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-left whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 자산
               </th>
-              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 방향
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 수량
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 진입가
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 시장가
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 청산가
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 증거금
               </th>
-              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-right whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 미실현손익(ROE%)
               </th>
-              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-white/5" : "border-gray-100")}>
+              <th className={cn("border-b px-4 py-3 text-center whitespace-nowrap", isDark ? "border-futures-border" : "border-gray-100")}>
                 관리
               </th>
             </tr>
@@ -155,7 +155,7 @@ export default function OpenPositionsTab({
               return (
                 <tr
                   key={p.positionId}
-                  className={cn("border-b last:border-b-0", isDark ? "border-white/5 hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
+                  className={cn("border-b last:border-b-0", isDark ? "border-futures-border hover:bg-white/5" : "border-gray-100 hover:bg-slate-50")}
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <p className={cn("text-sm font-black", isDark ? "text-white" : "text-slate-900")}>{p.symbol}</p>
@@ -165,11 +165,12 @@ export default function OpenPositionsTab({
                   </td>
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     <span
-                      className={`inline-flex rounded px-2 py-0.5 text-[10px] font-black ${
+                      className={cn(
+                        "inline-flex rounded px-2 py-0.5 text-[10px] font-black",
                         p.positionSide === "LONG"
-                          ? "bg-[#2EBD85]/15 text-[#2EBD85]"
-                          : "bg-[#F6465D]/15 text-[#F6465D]"
-                      }`}
+                          ? (isDark ? "bg-trade-long/15 text-trade-long" : "bg-[#2EBD85]/15 text-[#2EBD85]")
+                          : (isDark ? "bg-trade-short/15 text-trade-short" : "bg-[#F6465D]/15 text-[#F6465D]")
+                      )}
                     >
                       {formatFuturesPositionSide(p.positionSide)}
                     </span>
@@ -193,7 +194,7 @@ export default function OpenPositionsTab({
                   <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/80" : "text-slate-900")}>
                     {markPrice > 0 ? formatAssetNumber(markPrice) : "-"}
                   </td>
-                  <td className="px-4 py-4 text-right text-sm font-bold text-[#F6465D] whitespace-nowrap">
+                  <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-trade-short" : "text-[#F6465D]")}>
                     {formatAssetNumber(p.liquidationPrice)}
                   </td>
                   <td className={cn("px-4 py-4 text-right text-sm font-bold whitespace-nowrap", isDark ? "text-white/60" : "text-slate-600")}>
@@ -201,16 +202,12 @@ export default function OpenPositionsTab({
                   </td>
                   <td className="px-4 py-4 text-right whitespace-nowrap">
                     <p
-                      className={`text-sm font-bold ${
-                        pnl >= 0 ? "text-[#2EBD85]" : "text-[#F6465D]"
-                      }`}
+                      className={cn("text-sm font-bold", pnl >= 0 ? (isDark ? "text-trade-long" : "text-[#2EBD85]") : (isDark ? "text-trade-short" : "text-[#F6465D]"))}
                     >
                       {formatSignedAssetNumber(pnl)}
                     </p>
                     <p
-                      className={`text-[11px] font-bold ${
-                        roe >= 0 ? "text-[#2EBD85]" : "text-[#F6465D]"
-                      }`}
+                      className={cn("text-[11px] font-bold", roe >= 0 ? (isDark ? "text-trade-long" : "text-[#2EBD85]") : (isDark ? "text-trade-short" : "text-[#F6465D]"))}
                     >
                       ({roe >= 0 ? "+" : ""}
                       {roe.toFixed(2)}%)
