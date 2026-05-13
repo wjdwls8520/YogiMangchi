@@ -2,6 +2,8 @@
 
 import { useQuestStore } from "@/stores/useQuestStore";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useRequireLogin } from "@/hooks/useWithAuth";
 import { Lock, Sparkles } from "lucide-react";
 import Button from "../ui/Button";
 import { cn } from "@/lib/utils/cs";
@@ -10,6 +12,17 @@ export default function TradingLockedOverlay() {
   const { isUnlocked, setIsModalOpen } = useQuestStore();
   const selectedMarketType = useTickerStore((state) => state.selectedMarketType);
   const isFutures = selectedMarketType === "futures";
+
+  const { isLogin } = useAuthStore();
+  const requireLogin = useRequireLogin({ redirectMode: "push" });
+
+  const handleClick = async () => {
+    if (!isLogin) {
+      const ok = await requireLogin();
+      if (!ok) return;
+    }
+    setIsModalOpen(true);
+  };
 
   if (isUnlocked) return null;
 
@@ -34,7 +47,7 @@ export default function TradingLockedOverlay() {
         <Button 
           size="sm" 
           className={cn("px-6", isFutures ? "bg-purple-600 hover:bg-purple-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white")}
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleClick}
         >
           <Sparkles size={16} className="mr-2" />
           해금 퀘스트 확인하기

@@ -39,7 +39,8 @@ export class FetchClientError extends Error {
   payload: unknown;
 
   constructor(status: number, userMessage = "", payload: unknown = null) {
-    super(userMessage ? `API 에러: ${status} - ${userMessage}` : `API 에러: ${status}`);
+    // 사용자에게 노출되는 alert/toast 창을 깔끔하고 고급스럽게 유지하기 위해, 기술적인 접두사나 에러 번호 없이 정제된 메시지만 전달합니다.
+    super(userMessage || `일시적인 오류가 발생했습니다. (코드: ${status})`);
     this.name = "FetchClientError";
     this.status = status;
     this.userMessage = userMessage;

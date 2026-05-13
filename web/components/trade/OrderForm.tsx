@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import { useRouter } from "next/navigation";
 import { formatAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
@@ -92,12 +93,61 @@ export default function OrderForm({
   // Mock Wallet Store (Used only in mock mode unless props are provided)
   const mockStore = useMockWalletStore();
   
-  // Decide which data to use (Props vs Store)
+  // Real Trading States
+  const [realUsdtBalance, setRealUsdtBalance] = useState(0);
+  const [realHoldings, setRealHoldings] = useState<OrderHolding[]>([]);
+  const [isFetchingRealPortfolio, setIsFetchingRealPortfolio] = useState(false);
+
+  const fetchRealData = useCallback(async () => {
+    if (mode !== "trade" || !isLogin) return;
+    setIsFetchingRealPortfolio(true);
+    try {
+      const { fetchRealSpotAssetDetail } = await import("@/lib/api/trade");
+      const res = await fetchRealSpotAssetDetail();
+      if (res) {
+        setRealUsdtBalance(res.cashBalance);
+        setRealHoldings(
+          res.holdings.map((h) => ({
+            symbol: h.symbol,
+            quantity: h.quantity,
+            availableQuantity: h.availableQuantity,
+          }))
+        );
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setIsFetchingRealPortfolio(false);
+    }
+  }, [mode, isLogin]);
+
+  useEffect(() => {
+    void fetchRealData();
+  }, [fetchRealData, selectedCoin]);
+
+  // 자산 이체 등 외부 액션 완료 시 실시간 잔고 동기화
+  useEffect(() => {
+    const handler = () => void fetchRealData();
+    window.addEventListener("REFRESH_REAL_SPOT_ASSET", handler);
+    return () => window.removeEventListener("REFRESH_REAL_SPOT_ASSET", handler);
+  }, [fetchRealData]);
+
+  // 실시간 체결 알림 연동
+  useEffect(() => {
+    if (mode !== "trade") return;
+    const eventName = getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED");
+    const handler = () => void fetchRealData();
+    window.addEventListener(eventName, handler);
+    return () => window.removeEventListener(eventName, handler);
+  }, [mode, fetchRealData]);
+
+  // Decide which data to use (Props vs Store vs Real state)
   const isMock = mode === "mock";
-  const isParticipated = props.isParticipated ?? (isMock ? mockStore.isParticipated : false);
-  const isLoadingPortfolio = props.isLoadingPortfolio ?? (isMock ? mockStore.isLoadingPortfolio : false);
-  const usdtBalance = props.usdtBalance ?? (isMock ? mockStore.usdtBalance : 0);
-  const holdings = props.holdings ?? (isMock ? mockStore.holdings : []);
+  const isParticipated = props.isParticipated ?? (isMock ? mockStore.isParticipated : true);
+  const isLoadingPortfolio = props.isLoadingPortfolio ?? (isMock ? mockStore.isLoadingPortfolio : isFetchingRealPortfolio);
+  
+  const usdtBalance = props.usdtBalance ?? (isMock ? mockStore.usdtBalance : realUsdtBalance);
+  const holdings = props.holdings ?? (isMock ? mockStore.holdings : realHoldings);
   
   const [orderTab, setOrderTab] = useState<OrderMainTab>("buy");
   const [execType, setExecType] = useState<OrderExecutionType>("MARKET");
@@ -166,10 +216,6 @@ export default function OrderForm({
   };
 
   const handleSubmit = async () => {
-    if (mode === "trade") {
-      await alert("실전 주문 API는 아직 연결 전입니다.");
-      return;
-    }
 
     if (!isLogin || !user) {
       if (!(await requireLogin())) return;
@@ -190,14 +236,18 @@ export default function OrderForm({
         if (!numPrice || numPrice <= 0) throw new Error("가격을 입력해 주세요.");
         if (!numQty || numQty <= 0) throw new Error("수량을 입력해 주세요.");
         if (expectedLimitAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
-        if (isBuy && estRequired > usdtBalance) throw new Error("가용 자금이 부족합니다.");
-        if (!isBuy && numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
+        if (isMock && isBuy && estRequired > usdtBalance) throw new Error("가용 자금이 부족합니다.");
+        if (isMock && !isBuy && numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
 
         if (isMock) {
           await mockStore.executeLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
         } else if (props.onSubmitLimitOrder) {
           const res = await props.onSubmitLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
           if (!res.success) throw new Error(res.message || "주문 실패");
+        } else {
+          const { placeLimitOrder } = await import("@/lib/api/trade");
+          await placeLimitOrder({ symbol: selectedCoin, assetType: "TRADE_SPOT", side, price: numPrice, quantity: numQty });
+          await fetchRealData();
         }
         
         toast({ title: "지정가 주문 완료", tone: "success" });
@@ -206,11 +256,11 @@ export default function OrderForm({
         if (isBuy) {
           if (!numAmount || numAmount <= 0) throw new Error("금액을 입력해 주세요.");
           if (numAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
-          if (numAmount > usdtBalance) throw new Error("가용 자금이 부족합니다.");
+          if (isMock && numAmount > usdtBalance) throw new Error("가용 자금이 부족합니다.");
         } else {
           if (!numQty || numQty <= 0) throw new Error("수량을 입력해 주세요.");
           if (expectedSellAmount < MIN_ORDER_AMOUNT) throw new Error(`최소 주문 금액은 ${MIN_ORDER_AMOUNT} ${meta.quoteAsset} 이상입니다.`);
-          if (numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
+          if (isMock && numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
         }
 
         if (isMock) {
@@ -226,6 +276,16 @@ export default function OrderForm({
               : { memberId, symbol: selectedCoin, side, quantity: numQty }
           );
           if (!res.success) throw new Error(res.message || "주문 실패");
+        } else {
+          const { placeMarketOrder } = await import("@/lib/api/trade");
+          await placeMarketOrder({
+            symbol: selectedCoin,
+            assetType: "TRADE_SPOT",
+            side,
+            quantity: !isBuy ? numQty : undefined,
+            totalAmount: isBuy ? numAmount : undefined,
+          });
+          await fetchRealData();
         }
         
         toast({ title: "시장가 주문 완료", tone: "success" });
