@@ -196,6 +196,24 @@ public class FuturesPosition {
         // 수량이 남아있으면 entryPrice·leverage·liquidationPrice 변동 없음 (진입가 불변 원칙)
     }
 
+    // 시즌 정산용 강제 청산 — 스냅샷 가격으로 산출한 realizedPnl 만큼 누적하고 포지션을 CLOSE 처리
+    //
+    // 일반 reduce() 와 다른 점
+    //   - 항상 전량 청산 (부분 청산 개념 없음)
+    //   - 호출자가 wallet 을 갱신하지 않음 (시즌 정산 정책: currentMoney 미변경)
+    //
+    // 멱등 가드 — 이미 CLOSE 인 포지션은 변경 없이 즉시 반환 (정산 청크 재실행 안전성)
+    public void settleClose(BigDecimal realizedPnl) {
+        if (this.positionStatus != PositionStatus.OPEN) {
+            return;
+        }
+        this.realizedPnl = this.realizedPnl.add(realizedPnl);
+        this.filledQuantity = BigDecimal.ZERO;
+        this.totalMargin = BigDecimal.ZERO;
+        this.notionalAmount = BigDecimal.ZERO;
+        this.positionStatus = PositionStatus.CLOSE;
+    }
+
     private BigDecimal calculateCloseRatio(BigDecimal closeQuantity) {
         return closeQuantity.divide(this.filledQuantity, 8, RoundingMode.HALF_UP);
     }

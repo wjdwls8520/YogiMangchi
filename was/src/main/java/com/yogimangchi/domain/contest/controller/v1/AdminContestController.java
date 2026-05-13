@@ -10,6 +10,7 @@ import com.yogimangchi.domain.contest.application.dto.response.ContestApplicantD
 import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipantDto;
 import com.yogimangchi.domain.contest.application.dto.response.ContestRejectedApplicantDto;
 import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonDetailDto;
+import com.yogimangchi.domain.contest.season.dto.response.ContestSettlementResultDto;
 import com.yogimangchi.domain.contest.service.AdminContestService;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -181,4 +182,24 @@ public class AdminContestController {
 
         return ResponseEntity.ok(AllSeasons);
     }
+
+    @Operation(
+            summary = "해당 대회 시즌 강제정산(강제종료)",
+            description = """
+                    해당 대회 시즌의 모든 OPEN 포지션을 시즌 종료 시각의 ticker 가격(스냅샷)으로 강제청산하고,
+                    시즌의 모든 대회 지갑을 비활성화 처리합니다. 이미 정산된 시즌에 다시 호출하면
+                    변경 없이 현재 정산 결과를 반환합니다(멱등).
+                    """
+    )
+    @PostMapping("/seasons/{seasonId}/settlement")
+    public ResponseEntity<ContestSettlementResultDto> settleContestSeason(
+            @AuthenticationPrincipal Long adminId,
+            @PathVariable("seasonId") Long seasonId
+    ) {
+        // 정산 오케스트레이션은 AdminContestService 가 일괄 수행 (Phase 1 → 2a → 2b → markSettled)
+        ContestSettlementResultDto result = adminContestService.settleContestSeason(adminId, seasonId);
+
+        return ResponseEntity.ok(result);
+    }
+
 }

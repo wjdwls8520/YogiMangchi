@@ -66,6 +66,12 @@ public class ContestSeason {
     @Comment("대회 시즌 취소 상태 (isCancel: true)")
     private boolean isCancel;
 
+    // 정산(강제종료) 완료 시각 — NULL 이면 미정산, 값이 있으면 그 시각에 정산이 끝났다는 뜻
+    // settleContestSeason() 호출 시 멱등 가드로도 사용됨
+    @Column
+    @Comment("정산(강제종료) 완료 일시 — NULL 이면 아직 정산되지 않음")
+    private LocalDateTime settledAt;
+
     public static ContestSeason create(
             String title,
             String description,
@@ -109,5 +115,15 @@ public class ContestSeason {
     ) {
         this.isPublic = isPublic;
         this.isCancel = isCancel;
+    }
+
+    // 정산 완료 처리 — settledAt 에 시각을 박아 멱등 가드의 기준으로 사용
+    public void markSettled(LocalDateTime settledAt) {
+        this.settledAt = settledAt;
+    }
+
+    // 이미 정산이 끝났는지 여부 — 멱등 호출 시 빠른 분기용
+    public boolean isSettled() {
+        return this.settledAt != null;
     }
 }

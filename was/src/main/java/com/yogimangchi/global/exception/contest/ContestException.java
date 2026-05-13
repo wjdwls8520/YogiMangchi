@@ -85,6 +85,16 @@ public class ContestException extends RuntimeException {
         );
     }
 
+    // 정산 가격 스냅샷 캡처 실패 — 인메모리 ticker 캐시에 일부 심볼의 가격이 없을 때
+    // 어드민이 잠시 후 재시도하도록 유도 (WebSocket 재연결 또는 첫 틱 수신 대기)
+    public static ContestException settlementSnapshotPriceUnavailable(java.util.List<String> missingSymbols) {
+        return new ContestException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "CONTEST_SETTLEMENT_PRICE_UNAVAILABLE",
+                "정산 기준가를 가져올 수 없는 심볼이 있습니다. 잠시 후 다시 시도해 주세요. (missing: " + missingSymbols + ")"
+        );
+    }
+
     public HttpStatus getStatus() {
         return status;
     }
