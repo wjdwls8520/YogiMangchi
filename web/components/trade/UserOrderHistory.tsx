@@ -87,10 +87,11 @@ export default function UserOrderHistory({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // SSE Refresh (Mock Only for now)
+  // SSE Refresh
   useEffect(() => {
-    if (mode !== "mock") return;
-    const eventName = getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED");
+    const eventName = getNotificationSseBridgeEventName(
+      mode === "trade" ? "NOTIFICATION_TRADE_ORDER_COMPLETED" : "NOTIFICATION_MOCK_ORDER_COMPLETED"
+    );
     const handleOrderCompleted = () => setRefreshKey((prev) => prev + 1);
     window.addEventListener(eventName, handleOrderCompleted);
     return () => window.removeEventListener(eventName, handleOrderCompleted);
@@ -98,14 +99,11 @@ export default function UserOrderHistory({
 
   // Fetch Logic
   const loadRows = useCallback(async (isInitial = true) => {
-    if (mode === "trade") {
-      setRows([]);
-      return;
-    }
-
-    if (!hasLoadedPortfolio || !isParticipated) {
-      setRows([]);
-      return;
+    if (mode !== "trade") {
+      if (!hasLoadedPortfolio || !isParticipated) {
+        setRows([]);
+        return;
+      }
     }
 
     if (isInitial) {
@@ -124,14 +122,14 @@ export default function UserOrderHistory({
       if (activeTab === "pending") {
         // 미체결 주문 조회 (배열 응답)
         const response = await fetchOpenOrders({
-          assetType: "MOCK",
+          assetType: mode === "trade" ? "TRADE_SPOT" : "MOCK",
           size: 50, // 미체결은 보통 한 번에 다 보여주거나 넉넉히 가져옴
         });
         content = response;
       } else {
         // 전체/체결 주문 조회 (status 필터 제거하여 500 에러 방지)
         const response = await fetchOrders({
-          assetType: "MOCK",
+          assetType: mode === "trade" ? "TRADE_SPOT" : "MOCK",
           size: 20,
           cursorId: !isInitial ? nextCursorId : null,
         });
@@ -201,13 +199,13 @@ export default function UserOrderHistory({
     void loadRows(true);
   }, [activeTab, historyVersion, hasLoadedPortfolio, isParticipated, refreshKey, mode]);
 
-  // Cancel Logic (Mock Only for now)
+  // Cancel Logic
   const handleCancelOrder = async (orderId: number) => {
     if (!(await confirm("해당 주문을 취소하시겠습니까?"))) return;
     try {
       setCancelingOrderId(orderId);
-      await cancelOrder(orderId, "MOCK");
-      if (ownerMemberId !== null) await loadMockWallet(ownerMemberId, true);
+      await cancelOrder(orderId, mode === "trade" ? "TRADE_SPOT" : "MOCK");
+      if (mode !== "trade" && ownerMemberId !== null) await loadMockWallet(ownerMemberId, true);
       setRefreshKey((c) => c + 1);
       toast({ title: "주문 취소 완료", tone: "success" });
     } catch {
@@ -313,9 +311,7 @@ export default function UserOrderHistory({
           </table>
         ) : (
           <div className="flex h-full flex-col items-center justify-center py-20 px-4 text-center">
-            {mode === "trade" ? (
-              <p className="text-sm font-bold text-gray-500">실전 주문내역은 아직 연결 전입니다.</p>
-            ) : !hasLoadedPortfolio ? (
+            {mode !== "trade" && !hasLoadedPortfolio ? (
               <p className="text-sm font-bold text-gray-500 animate-pulse">Loading...</p>
             ) : !isParticipated ? (
               <p className="text-sm font-bold text-gray-500">모의투자 계좌를 생성하면 내역이 표시됩니다.</p>

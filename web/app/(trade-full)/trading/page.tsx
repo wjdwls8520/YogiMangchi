@@ -74,8 +74,12 @@ export default function IntegratedTradingPage() {
   }, [isCoinListCollapsed]);
 
   const handleTransferSuccess = async () => {
-    if (isFutures) await futures.refreshBaseData();
     setIsTransferModalOpen(false);
+    // 백엔드의 자산 이체 트랜잭션이 DB에 완전히 반영되는 시간차를 고려하여, 0.5초 대기 후 양쪽(현물/선물) 데이터를 모두 확실하게 새로고침합니다.
+    setTimeout(async () => {
+      await futures.refreshBaseData();
+      window.dispatchEvent(new CustomEvent("REFRESH_REAL_SPOT_ASSET"));
+    }, 500);
   };
 
   return (
@@ -335,6 +339,7 @@ export default function IntegratedTradingPage() {
                       onSubmitOpenOrder={futures.submitOpenOrder}
                       onClosePosition={futures.submitCloseOrder}
                       onSubmitLimitCloseOrder={futures.submitLimitCloseOrder}
+                      onOpenTransferModal={() => setIsTransferModalOpen(true)}
                     />
                   ) : (
                     <OrderForm mode="trade" />
