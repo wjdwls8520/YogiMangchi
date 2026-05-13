@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/mock/spot")
 @RequiredArgsConstructor
-@Tag(name = "99-03-SPOT_MOCK", description = "모의투자(현물) 매매 주문 관련 API")
+@Tag(name = "99-02-02-SPOT_MOCK", description = "모의투자(현물) 매매 주문 관련 API")
 public class MockSpotOrderController {
 
     // 공통 서비스 로직을 그대로 주입받아 사용합니다.

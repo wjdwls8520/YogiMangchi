@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/real/spot")
 @RequiredArgsConstructor
-@Tag(name = "99-03-SPOT_REAL", description = "본투자(현물) 매매 주문 관련 API")
+@Tag(name = "99-03-03-SPOT_REAL", description = "본투자(현물) 매매 주문 관련 API")
 public class RealSpotOrderController {
 
     // 공통 서비스 로직을 그대로 주입받아 사용합니다.
