@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.asset.service.mock;
+package com.yogimangchi.domain.asset.service;
 
 import com.yogimangchi.domain.asset.dto.response.AssetPortfolioDetailResponseDto;
 import com.yogimangchi.domain.asset.dto.response.MockAssetStatusResponseDto;
@@ -7,7 +7,6 @@ import com.yogimangchi.domain.asset.entity.Holding;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.asset.repository.AssetRepository;
 import com.yogimangchi.domain.asset.repository.HoldingRepository;
-import com.yogimangchi.domain.asset.service.PortfolioCalculationService;
 import com.yogimangchi.domain.member.entity.Member;
 import com.yogimangchi.domain.spot.service.SpotOrderService;
 import com.yogimangchi.global.support.MemberReader;
