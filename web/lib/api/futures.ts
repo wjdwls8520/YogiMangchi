@@ -150,6 +150,18 @@ const buildFuturesQueryParams = (
 
 /* ────────────────── Real Investment Futures APIs ────────────────── */
 
+export const getRealFuturesWalletBalance = async (): Promise<number> => {
+  try {
+    const payload = await fetchClient("real/assets/transferable?assetType=TRADE_FUTURE");
+    if (payload && typeof payload === "object" && "transferableAmount" in payload) {
+      return Number(payload.transferableAmount) || 0;
+    }
+  } catch {
+    // quiet ignore
+  }
+  return 0;
+};
+
 export const getFuturesOpenPositions = async () => {
   const payload = await fetchClient(`futures/positions/open`);
   return parseArrayResponse<FuturesPositionItem>(payload);

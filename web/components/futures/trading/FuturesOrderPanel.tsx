@@ -52,13 +52,14 @@ export type FuturesOrderPanelProps = {
   onSubmitLimitCloseOrder: (params: ContestFuturesLimitCloseOrderParams) => Promise<FuturesLimitOrderResponse>;
   disabledMessage?: string;
   mode?: "trade" | "mock" | "contest";
+  onOpenTransferModal?: () => void;
 };
 
 /* ────────────────── constants ────────────────── */
 
 const TRADE_FEE_RATE = 0.0005;
 const LIMIT_TRADE_FEE_RATE = 0.0003;
-const LIQUIDATION_FEE_RATE = 0.0005; 
+const LIQUIDATION_FEE_RATE = 0.0005;
 const MIN_ORDER_NOTIONAL_AMOUNT = 10;
 const ORDER_RATIO_OPTIONS = [
   { label: "10%", ratio: 0.1 },
@@ -110,13 +111,14 @@ export default function FuturesOrderPanel({
   onSubmitLimitCloseOrder,
   disabledMessage = "현재 거래가 가능한 상태가 아닙니다.",
   mode = "trade",
+  onOpenTransferModal,
 }: FuturesOrderPanelProps) {
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
   const coinMetaList = useTickerStore((s) => s.coinMetaList);
   const realtime = useTickerStore((s) => s.tickers[s.selectedCoin]);
   const selectedOrderPrice = useTickerStore((s) => s.selectedOrderPrice);
   const setSelectedOrderPrice = useTickerStore((s) => s.setSelectedOrderPrice);
-  const { alert, toast } = useFeedback();
+  const { alert, confirm, toast } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({ loginRedirectMode: "push", verifyRedirectMode: "push" });
 
   const [mainTab, setMainTab] = useState<OrderMainTab>("open");
@@ -156,10 +158,11 @@ export default function FuturesOrderPanel({
   const isDarkMode = useUIStore((s) => s.isDarkMode);
 
   const meta = coinMetaList.find((c) => c.symbol === selectedCoin);
-  if (!meta) return <div className={`h-full animate-pulse ${mode === 'contest' ? 'bg-white/5' : 'bg-gray-100'}`} />;
+  if (!meta) return <div className="h-full animate-pulse bg-futures-trade" />;
 
-  const isContest = mode === "contest";
-  const isDark = isContest || isDarkMode;
+  // 기획 정책: 본투자 선물거래 탭의 오더폼에도 대회선물거래에 사용하는 특화된 다크테마(bg-futures-trade 등)를 완벽하게 동일하게 적용합니다.
+  const isContest = mode === "contest" || mode === "trade";
+  const isDark = true;
 
   const currentPrice = realtime?.price ?? 0;
   const isRealtimeReady = currentPrice > 0;
@@ -175,14 +178,14 @@ export default function FuturesOrderPanel({
   /* ═══════ OPEN tab logic ═══════ */
   const isLimit = execType === "LIMIT";
   const currentFeeRate = isLimit ? LIMIT_TRADE_FEE_RATE : TRADE_FEE_RATE;
-  
+
   const numPrice = Number(orderPrice);
   const numQty = Number(orderQuantity);
   const refPrice = isLimit && Number.isFinite(numPrice) && numPrice > 0 ? numPrice : currentPrice;
-  
+
   const maxNotional = currentLeverage > 0 ? (availableBalance * currentLeverage) / (1 + currentFeeRate * currentLeverage) : 0;
   const maxQty = refPrice > 0 ? maxNotional / refPrice : 0;
-  
+
   const estNotional = Number.isFinite(numQty) && numQty > 0 ? numQty * refPrice : 0;
   const estMargin = currentLeverage > 0 ? estNotional / currentLeverage : 0;
   const estFee = estNotional * currentFeeRate;
@@ -195,7 +198,17 @@ export default function FuturesOrderPanel({
       : refPrice * (1 + 1 / currentLeverage - LIQUIDATION_FEE_RATE)
     : null;
 
-  const handleOpenRatio = (ratio: number) => { if (maxQty > 0) setOrderQuantity(toInputValue(maxQty * ratio)); };
+  const handleOpenRatio = (ratio: number) => {
+    if (availableBalance <= 0) {
+      toast({
+        title: "자산 이체 필요",
+        description: "선물 지갑 잔고가 0원입니다. 자산 이체 후 비율 입력이 가능합니다.",
+        tone: "error",
+      });
+      return;
+    }
+    if (maxQty > 0) setOrderQuantity(toInputValue(maxQty * ratio));
+  };
 
   const handleOpenSubmit = async (side: FuturesPositionSide) => {
     if (!isTradingEnabled) { await alert(disabledMessage); return; }
@@ -209,7 +222,16 @@ export default function FuturesOrderPanel({
     }
     if (!numQty || numQty <= 0) { await alert("수량을 입력해 주세요."); return; }
     if (estNotional < MIN_ORDER_NOTIONAL_AMOUNT) { await alert(`최소 명목금액 ${formatAssetNumber(MIN_ORDER_NOTIONAL_AMOUNT)} 이상이어야 합니다.`); return; }
-    if (estRequired > availableBalance) { await alert("가용 자금을 초과했습니다."); return; }
+    if (availableBalance <= 0) {
+      if (await confirm("주문 가능 금액이 0원입니다.\n자산 이체하시겠습니까?")) {
+        onOpenTransferModal?.();
+      }
+      return;
+    }
+    if (estRequired > availableBalance) {
+      await alert("가용 자금을 초과했습니다.");
+      return;
+    }
 
     try {
       if (isLimit) {
@@ -245,7 +267,7 @@ export default function FuturesOrderPanel({
       if (isCloseLimit) {
         const cp = Number(closePrice);
         if (!cp || cp <= 0) { await alert("지정가를 입력해 주세요."); return; }
-        
+
         // 가격 방향 검증 (익절만 허용)
         if (selectedPosition.positionSide === "LONG" && cp <= currentPrice) {
           await alert("LONG 청산 지정가는 현재가보다 높아야 합니다. (익절)");
@@ -328,8 +350,8 @@ export default function FuturesOrderPanel({
           onClick={() => setMainTab("open")}
           className={cn(
             "py-2.5 text-center text-[13px] font-bold transition-colors border-b-2",
-            mainTab === "open" 
-              ? (isDark ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]") 
+            mainTab === "open"
+              ? (isDark ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]")
               : (isDark ? "text-gray-500 border-transparent hover:text-gray-300" : "text-slate-400 border-transparent hover:text-slate-600")
           )}
         >
@@ -340,8 +362,8 @@ export default function FuturesOrderPanel({
           onClick={() => setMainTab("close")}
           className={cn(
             "py-2.5 text-center text-[13px] font-bold transition-colors border-b-2",
-            mainTab === "close" 
-              ? (isDark ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]") 
+            mainTab === "close"
+              ? (isDark ? "text-white border-[#F0B90B]" : "text-slate-900 border-[#F0B90B]")
               : (isDark ? "text-gray-500 border-transparent hover:text-gray-300" : "text-slate-400 border-transparent hover:text-slate-600")
           )}
         >
@@ -448,8 +470,8 @@ export default function FuturesOrderPanel({
                       }}
                       className={cn(
                         "w-full rounded px-3 py-2 text-left text-[12px] transition-colors border",
-                        isSelected 
-                          ? "bg-[#F0B90B]/10 border-[#F0B90B]/30" 
+                        isSelected
+                          ? "bg-[#F0B90B]/10 border-[#F0B90B]/30"
                           : (isContest ? "bg-white/5 border-futures-border hover:border-futures-border-strong" : "bg-slate-50 border-gray-100 hover:border-gray-200")
                       )}
                     >

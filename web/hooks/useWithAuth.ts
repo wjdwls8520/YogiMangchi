@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 // 로그인 유도 문구와 버튼은 여기서 단일하게 관리합니다.
 const LOGIN_REQUIRED_CONFIRM_OPTIONS = {
-  description: `로그인이 필요합니다.
+  description: `로그인이 필요한 서비스입니다.
 로그인 페이지로 이동하시겠습니까?`,
   confirmText: "로그인 하기",
   cancelText: "취소",

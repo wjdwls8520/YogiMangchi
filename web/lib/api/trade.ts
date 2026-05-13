@@ -1,4 +1,4 @@
-﻿import { fetchClient } from "./client";
+import { fetchClient } from "./client";
 
 // 거래 조회/주문에 사용하는 지갑 타입
 export type AssetType = "MOCK" | "TRADE_SPOT" | "TRADE_FUTURE" | "CONTEST";
@@ -48,6 +48,36 @@ export interface CursorResponse<T> {
   content: T[];
   nextCursorId: number | null;
   hasNext: boolean;
+}
+
+export interface HoldingResponseItem {
+  symbol: string;
+  quantity: number;
+  availableQuantity: number;
+  lockedQuantity: number;
+  averageBuyPrice: number;
+  currentPrice: number;
+  buyAmount: number;
+  coinTotalValue: number;
+  profit: number;
+  roi: number;
+  holdingRatio: number;
+  isPriceStale: boolean;
+}
+
+export interface RealSpotAssetDetailResponse {
+  assetType: string;
+  holdingCount: number;
+  seedMoney: number;
+  cashBalance: number;
+  lockedMoney: number;
+  totalCashAsset: number;
+  totalBuyAmount: number;
+  totalCoinValue: number;
+  totalAsset: number;
+  totalProfit: number;
+  totalRoi: number;
+  holdings: HoldingResponseItem[];
 }
 
 // 주문내역 1건 타입
@@ -150,9 +180,10 @@ const getTradeApiPath = (
 export async function placeMarketOrder(
   params: MarketOrderParams
 ): Promise<string> {
-  const payload = await fetchClient(getTradeApiPath(params.assetType, "market"), {
+  const { assetType, ...requestBody } = params;
+  const payload = await fetchClient(getTradeApiPath(assetType, "market"), {
     method: "POST",
-    body: params as unknown as BodyInit,
+    body: requestBody as unknown as BodyInit,
   });
 
   return getSuccessMessage(payload);
@@ -162,9 +193,10 @@ export async function placeMarketOrder(
 export async function placeLimitOrder(
   params: LimitOrderParams
 ): Promise<string> {
-  const payload = await fetchClient(getTradeApiPath(params.assetType, "limit"), {
+  const { assetType, ...requestBody } = params;
+  const payload = await fetchClient(getTradeApiPath(assetType, "limit"), {
     method: "POST",
-    body: params as unknown as BodyInit,
+    body: requestBody as unknown as BodyInit,
   });
 
   return getSuccessMessage(payload);
@@ -201,6 +233,12 @@ export async function fetchTradeHistories(
   );
 
   return parseCursorResponse<TradeHistoryItem>(payload);
+}
+
+// 본투자 현물 자산 상세 조회
+export async function fetchRealSpotAssetDetail(): Promise<RealSpotAssetDetailResponse | null> {
+  const payload = await fetchClient("asset/real/spot/detail");
+  return payload as RealSpotAssetDetailResponse | null;
 }
 
 // 주문 취소

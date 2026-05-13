@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  getRealFuturesWalletBalance,
   getFuturesOpenPositions,
   getFuturesOrders,
   getFuturesLeverage,
@@ -31,7 +32,7 @@ import type {
  */
 export function useFuturesTradingSession() {
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
-  
+
   // 1. 상태 정의
   const [walletStatus, setWalletStatus] = useState<ContestFuturesWalletStatus>({
     walletId: 0,
@@ -42,20 +43,20 @@ export function useFuturesTradingSession() {
     expiredAt: null,
     retryCount: 0,
   });
-  
+
   const [openPositions, setOpenPositions] = useState<FuturesPositionItem[]>([]);
   const [leverageInfoByKey, setLeverageInfoByKey] = useState<Record<string, FuturesLeverageInfo>>({});
   const [pendingCloseQuantityByPositionKey, setPendingCloseQuantityByPositionKey] = useState<Record<string, number>>({});
-  
+
   const [isLoadingLeverage, setIsLoadingLeverage] = useState(false);
   const [isUpdatingLeverage, setIsUpdatingLeverage] = useState(false);
   const [updatingLeverageKey, setUpdatingLeverageKey] = useState<string | null>(null);
   const [leverageErrorMessage, setLeverageErrorMessage] = useState("");
-  
+
   const [isSubmittingOpenOrder, setIsSubmittingOpenOrder] = useState(false);
   const [closingPositionId, setClosingPositionId] = useState<number | null>(null);
   const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
-  
+
   const [selectedPositionSide, setSelectedPositionSide] = useState<FuturesPositionSide>("LONG");
   const [activityVersion, setActivityVersion] = useState(0); // 포지션/주문 목록 갱신용
   const [isRefreshingBase, setIsRefreshingBase] = useState(false);
@@ -65,13 +66,20 @@ export function useFuturesTradingSession() {
   const refreshBaseData = useCallback(async () => {
     setIsRefreshingBase(true);
     try {
-      const [positions, pendingOrders] = await Promise.all([
+      const [balance, positions, pendingOrders] = await Promise.all([
+        getRealFuturesWalletBalance(),
         getFuturesOpenPositions(),
         getFuturesOrders({ orderStatus: "PENDING" }),
       ]);
 
+      setWalletStatus((prev) => ({
+        ...prev,
+        seedMoney: balance,
+        currentMoney: balance,
+      }));
+
       setOpenPositions(positions);
-      
+
       // 대기 중인 청산 주문 수량 계산
       const pendingCloseQtyMap: Record<string, number> = {};
       pendingOrders.content.forEach((order) => {
@@ -81,7 +89,7 @@ export function useFuturesTradingSession() {
         }
       });
       setPendingCloseQuantityByPositionKey(pendingCloseQtyMap);
-      
+
       setActivityVersion((v) => v + 1);
     } catch (error: any) {
       // 지갑이 없는 경우(404)나 권한이 없는 경우(403)는 에러 로그를 남기지 않음
@@ -192,7 +200,7 @@ export function useFuturesTradingSession() {
   // 6-1. SSE 체결 알림 수신 시 실시간 데이터 갱신
   useEffect(() => {
     const eventName = getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED");
-    
+
     const handleOrderCompleted = () => {
       console.log("Real-time Trade Completed! Refreshing data...");
       void refreshBaseData();

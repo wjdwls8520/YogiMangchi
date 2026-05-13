@@ -1355,7 +1355,7 @@ function DataBox({
   unit,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   unit: string;
 }) {
   return (
