@@ -1,4 +1,4 @@
-package com.yogimangchi.domain.member.dto.response;
+package com.yogimangchi.domain.portfolio.dto.response;
 
 import com.yogimangchi.domain.asset.dto.response.HoldingResponseDto;
 import io.swagger.v3.oas.annotations.media.Schema;

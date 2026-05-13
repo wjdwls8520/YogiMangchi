@@ -1,8 +1,8 @@
-package com.yogimangchi.domain.asset.controller.v1.mock;
+package com.yogimangchi.domain.asset.controller.v1;
 
 import com.yogimangchi.domain.asset.dto.response.MockAssetStatusResponseDto;
 import com.yogimangchi.domain.asset.dto.response.AssetPortfolioDetailResponseDto;
-import com.yogimangchi.domain.asset.service.mock.MockAssetService;
+import com.yogimangchi.domain.asset.service.MockAssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
