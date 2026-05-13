@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 @RequestMapping("/api/v1/real/assets")
 @RequiredArgsConstructor
-@Tag(name = "99-B1-Real Asset", description = "본투자 자산 관리 API")
+@Tag(name = "99-03-01-Real Asset", description = "본투자 이체 관리 API")
 public class AssetTransferController {
 
     private final AssetTransferService assetTransferService;

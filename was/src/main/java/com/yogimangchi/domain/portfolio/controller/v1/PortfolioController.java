@@ -20,7 +20,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/v1/portfolio")
 @RequiredArgsConstructor
-@Tag(name = "Portfolio", description = "멤버 프로필 투자 성과 및 포트폴리오 API")
+@Tag(name = "99-01-Portfolio", description = "멤버 프로필 투자 성과 및 포트폴리오 API")
 public class PortfolioController {
 
     private final PortfolioService portfolioService;
