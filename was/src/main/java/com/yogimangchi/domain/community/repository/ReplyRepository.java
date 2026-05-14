@@ -95,9 +95,13 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
         where p.id = :postId
           and p.deleteYn = 'N'
           and rp.id = :parentId
-          and (:cursorId is null or r.id < :cursorId)
-        order by r.id desc
+          and (:cursorId is null or r.id > :cursorId)
+        order by r.id asc
     """)
+    // 대댓글은 오래된 글이 위, 최신 글이 아래로 쌓이도록 ASC 정렬을 사용합니다.
+    // (지명 기능의 대화 흐름이 자연스럽도록 의도된 정렬이며,
+    //  ASC 정렬에서는 페이지 마지막 id가 페이지 내 최대 id가 되므로
+    //  다음 페이지는 r.id > :cursorId 로 더 최신 글을 가져와야 합니다.)
     List<ReplyDetailDto> findAllChildrenReplysByCursor(@Param("postId") Long postId, @Param("parentId") Long parentId, @Param("cursorId") Long cursorId, Pageable pageable);
 
     @Query("""
