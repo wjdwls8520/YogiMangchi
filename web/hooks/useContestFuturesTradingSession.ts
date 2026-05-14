@@ -7,7 +7,7 @@ import {
   getContestFuturesLeverage,
   getContestFuturesOpenPositions,
   getContestFuturesOrders,
-  getContestFuturesWalletStatus,
+  getFuturesWalletStatus,
   placeContestFuturesCloseLimitOrder,
   placeContestFuturesCloseMarketOrder,
   placeContestFuturesOpenLimitOrder,
@@ -21,11 +21,11 @@ import {
 import { useTickerStore } from "@/stores/useTickerStore";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
 import type {
-  ContestFuturesCloseOrderParams,
-  ContestFuturesLimitCloseOrderParams,
-  ContestFuturesLimitOpenOrderParams,
-  ContestFuturesOpenOrderParams,
-  ContestFuturesWalletStatus,
+  FuturesCloseOrderParams,
+  FuturesLimitCloseOrderParams,
+  FuturesLimitOpenOrderParams,
+  FuturesOpenOrderParams,
+  FuturesWalletStatus,
   FuturesLeverageInfo,
   FuturesPositionItem,
   FuturesPositionSide,
@@ -48,7 +48,7 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   return fallbackMessage;
 };
 
-const getDefaultWalletStatus = (): ContestFuturesWalletStatus => ({
+const getDefaultWalletStatus = (): FuturesWalletStatus => ({
   walletId: null,
   seedMoney: 0,
   currentMoney: 0,
@@ -82,7 +82,7 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   const [seasonInfo, setSeasonInfo] = useState<ContestParticipationSeason | null>(
     null
   );
-  const [walletStatus, setWalletStatus] = useState<ContestFuturesWalletStatus>(
+  const [walletStatus, setWalletStatus] = useState<FuturesWalletStatus>(
     getDefaultWalletStatus()
   );
   const [openPositions, setOpenPositions] = useState<FuturesPositionItem[]>([]);
@@ -225,10 +225,12 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   }, [contestSeasonId]);
 
   const refreshWalletAndOpenPositions = useCallback(async () => {
-    const [nextWalletStatus, nextOpenPositions] = await Promise.all([
-      getContestFuturesWalletStatus(contestSeasonId),
-      getContestFuturesOpenPositions(contestSeasonId),
+    const [nextWalletStatus, nextOpenPositionsResponse] = await Promise.all([
+      getFuturesWalletStatus(contestSeasonId),
+      getContestFuturesOpenPositions(contestSeasonId, { size: 100 }),
     ]);
+
+    const nextOpenPositions = nextOpenPositionsResponse.content;
 
     setWalletStatus(nextWalletStatus);
     setOpenPositions(nextOpenPositions);
@@ -366,10 +368,10 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
       setPageErrorMessage("");
 
       try {
-        const [nextWalletStatus, nextOpenPositions, nextSeasonInfo] =
+        const [nextWalletStatus, nextOpenPositionsResponse, nextSeasonInfo] =
           await Promise.all([
-            getContestFuturesWalletStatus(contestSeasonId),
-            getContestFuturesOpenPositions(contestSeasonId),
+            getFuturesWalletStatus(contestSeasonId),
+            getContestFuturesOpenPositions(contestSeasonId, { size: 100 }),
             findMyContestSeason().catch(() => null),
             refreshPendingOrderSummaries().catch(() => undefined),
           ]);
@@ -377,6 +379,8 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
         if (!isActive) {
           return;
         }
+
+        const nextOpenPositions = nextOpenPositionsResponse.content;
 
         setWalletStatus(nextWalletStatus);
         setOpenPositions(nextOpenPositions);
@@ -565,7 +569,7 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   );
 
   const submitOpenOrder = useCallback(
-    async (params: ContestFuturesOpenOrderParams) => {
+    async (params: FuturesOpenOrderParams) => {
       setIsSubmittingOpenOrder(true);
 
       try {
@@ -595,7 +599,7 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   );
 
   const submitLimitOpenOrder = useCallback(
-    async (params: ContestFuturesLimitOpenOrderParams) => {
+    async (params: FuturesLimitOpenOrderParams) => {
       setIsSubmittingOpenOrder(true);
 
       try {
@@ -625,7 +629,7 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   );
 
   const submitCloseOrder = useCallback(
-    async (params: ContestFuturesCloseOrderParams) => {
+    async (params: FuturesCloseOrderParams) => {
       setClosingPositionId(params.positionId);
 
       try {
@@ -655,7 +659,7 @@ export const useContestFuturesTradingSession = (contestSeasonId: number) => {
   );
 
   const submitLimitCloseOrder = useCallback(
-    async (params: ContestFuturesLimitCloseOrderParams) => {
+    async (params: FuturesLimitCloseOrderParams) => {
       setClosingPositionId(params.positionId);
 
       try {

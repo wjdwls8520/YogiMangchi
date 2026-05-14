@@ -15,7 +15,7 @@ import {
 } from "@/lib/utils/futures";
 import { formatAssetNumber } from "@/lib/utils/number";
 import type {
-  ContestFuturesOrderFilters,
+  FuturesOrderFilters,
   FuturesOrderItem,
   FuturesOrderStatus,
 } from "@/types/futures";
@@ -41,7 +41,7 @@ const MODE_CONFIG: Record<
     loadingText: string;
     emptyText: string;
     errorText: string;
-    filters: Pick<ContestFuturesOrderFilters, "orderStatus">;
+    filters: Pick<FuturesOrderFilters, "orderStatus">;
   }
 > = {
   pending: {

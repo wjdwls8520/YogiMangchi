@@ -65,7 +65,7 @@ export async function fetchClient(
       ? JSON.stringify(options.body)
       : (options.body as BodyInit | null | undefined);
 
-  const res = await fetch(`http://localhost:8080/api/v1/${url}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/${url}`, {
     ...options,
     credentials: "include",
     headers: {

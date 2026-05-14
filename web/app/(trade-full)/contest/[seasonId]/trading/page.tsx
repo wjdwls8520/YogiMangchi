@@ -16,11 +16,11 @@ import { useContestFuturesTradingSession } from "@/hooks/useContestFuturesTradin
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
 import { cn } from "@/lib/utils/cs";
 import { formatAssetNumber } from "@/lib/utils/number";
-import { getContestFuturesWalletStatusLabel } from "@/lib/utils/futures";
-import type { ContestFuturesWalletStatus } from "@/types/futures";
+import { getFuturesWalletStatusLabel } from "@/lib/utils/futures";
+import type { FuturesWalletStatus } from "@/types/futures";
 import Tabs from "@/components/ui/Tabs";
 
-const getStatusTone = (status: ContestFuturesWalletStatus["status"]) => {
+const getStatusTone = (status: FuturesWalletStatus["status"]) => {
   const normalizedStatus = status.toUpperCase();
   if (normalizedStatus === "ACTIVE") return "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
   if (normalizedStatus === "EXPIRED") return "bg-gray-500/10 text-gray-400 border border-gray-500/20";
@@ -80,7 +80,7 @@ export default function ContestTradingPage() {
   }
 
   const holdingSymbols = session.openPositions.map((p) => p.symbol);
-  const walletStatusLabel = getContestFuturesWalletStatusLabel(session.walletStatus.status);
+  const walletStatusLabel = getFuturesWalletStatusLabel(session.walletStatus.status);
   const seasonTitle = session.seasonInfo?.seasonTitle ?? `Season #${contestSeasonId}`;
 
   return (

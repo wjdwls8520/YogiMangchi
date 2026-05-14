@@ -18,10 +18,10 @@ import {
 } from "@/lib/utils/notification-sse";
 import { useTickerStore } from "@/stores/useTickerStore";
 import type {
-  ContestFuturesLimitOpenOrderParams,
-  ContestFuturesLimitCloseOrderParams,
-  ContestFuturesOpenOrderParams,
-  ContestFuturesWalletStatus,
+  FuturesLimitOpenOrderParams,
+  FuturesLimitCloseOrderParams,
+  FuturesOpenOrderParams,
+  FuturesWalletStatus,
   FuturesLeverageInfo,
   FuturesPositionItem,
   FuturesPositionSide,
@@ -34,7 +34,7 @@ export function useFuturesTradingSession() {
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
 
   // 1. 상태 정의
-  const [walletStatus, setWalletStatus] = useState<ContestFuturesWalletStatus>({
+  const [walletStatus, setWalletStatus] = useState<FuturesWalletStatus>({
     walletId: 0,
     seedMoney: 0,
     currentMoney: 0,
@@ -66,9 +66,9 @@ export function useFuturesTradingSession() {
   const refreshBaseData = useCallback(async () => {
     setIsRefreshingBase(true);
     try {
-      const [balance, positions, pendingOrders] = await Promise.all([
+      const [balance, positionsResponse, pendingOrders] = await Promise.all([
         getRealFuturesWalletBalance(),
-        getFuturesOpenPositions(),
+        getFuturesOpenPositions({ size: 100 }),
         getFuturesOrders({ orderStatus: "PENDING" }),
       ]);
 
@@ -78,7 +78,7 @@ export function useFuturesTradingSession() {
         currentMoney: balance,
       }));
 
-      setOpenPositions(positions);
+      setOpenPositions(positionsResponse.content);
 
       // 대기 중인 청산 주문 수량 계산
       const pendingCloseQtyMap: Record<string, number> = {};
@@ -144,7 +144,7 @@ export function useFuturesTradingSession() {
   }, [refreshBaseData]);
 
   // 5. 주문 실행 함수들
-  const submitOpenOrder = useCallback(async (params: ContestFuturesOpenOrderParams) => {
+  const submitOpenOrder = useCallback(async (params: FuturesOpenOrderParams) => {
     setIsSubmittingOpenOrder(true);
     try {
       const res = await placeFuturesOpenMarketOrder(params);
@@ -155,7 +155,7 @@ export function useFuturesTradingSession() {
     }
   }, [refreshBaseData]);
 
-  const submitLimitOpenOrder = useCallback(async (params: ContestFuturesLimitOpenOrderParams) => {
+  const submitLimitOpenOrder = useCallback(async (params: FuturesLimitOpenOrderParams) => {
     setIsSubmittingOpenOrder(true);
     try {
       const res = await placeFuturesOpenLimitOrder(params);
@@ -177,7 +177,7 @@ export function useFuturesTradingSession() {
     }
   }, [refreshBaseData]);
 
-  const submitLimitCloseOrder = useCallback(async (params: ContestFuturesLimitCloseOrderParams) => {
+  const submitLimitCloseOrder = useCallback(async (params: FuturesLimitCloseOrderParams) => {
     setClosingPositionId(params.positionId);
     try {
       const res = await placeFuturesCloseLimitOrder(params);
