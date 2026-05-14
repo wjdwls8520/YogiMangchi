@@ -85,15 +85,21 @@ export function useFuturesTradingSession() {
       pendingOrders.content.forEach((order) => {
         if (order.positionAction === "CLOSE") {
           const key = `${order.symbol}-${order.positionSide}`;
-          pendingCloseQtyMap[key] = (pendingCloseQtyMap[key] || 0) + order.remainingQuantity;
+          pendingCloseQtyMap[key] = (pendingCloseQtyMap[key] || 0) + (order.remainingQuantity ?? 0);
         }
       });
       setPendingCloseQuantityByPositionKey(pendingCloseQtyMap);
 
       setActivityVersion((v) => v + 1);
     } catch (error: any) {
-      // 지갑이 없는 경우(404)나 권한이 없는 경우(403)는 에러 로그를 남기지 않음
-      if (error?.status === 404 || error?.status === 403 || error?.message?.includes("지갑이 없습니다")) {
+      // 지갑이 없는 경우(404), 권한 없음(401/403)은 정상적인 예외 흐름이므로 콘솔 에러 로그를 남기지 않음
+      if (
+        error?.status === 404 ||
+        error?.status === 403 ||
+        error?.status === 401 ||
+        error?.message?.includes("지갑이 없습니다") ||
+        error?.message?.includes("Unauthorized")
+      ) {
         // Quietly skip
         return;
       }

@@ -594,8 +594,17 @@ export const formatNotificationDescription = (notification: NotificationItem) =>
   }
 
   if (type.includes("ASSET_TRANSFER_COMPLETED")) {
-    const from = getPayloadString(notification.payload, "fromAccount", "from");
-    const to = getPayloadString(notification.payload, "toAccount", "to");
+    const rawFrom = getPayloadString(notification.payload, "fromType", "fromAccount", "from");
+    const rawTo = getPayloadString(notification.payload, "toType", "toAccount", "to");
+    
+    const getWalletName = (t?: string | null) => {
+      if (t === "TRADE_SPOT") return "현물 지갑";
+      if (t === "TRADE_FUTURE") return "선물 지갑";
+      return t ?? "";
+    };
+
+    const from = getWalletName(rawFrom);
+    const to = getWalletName(rawTo);
     const amount = getPayloadNumericValue(notification.payload, "amount");
     return `${from} ➔ ${to} (${amount !== null ? formatAssetNumber(amount) : ""})`;
   }
