@@ -5,22 +5,22 @@ import { ChevronLeft, RefreshCcw } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/utils/date";
 import { formatAssetNumber } from "@/lib/utils/number";
-import { getContestFuturesWalletStatusLabel } from "@/lib/utils/futures";
+import { getFuturesWalletStatusLabel } from "@/lib/utils/futures";
 import { cn } from "@/lib/utils/cs";
 import type { ContestParticipationSeason } from "@/lib/api/contest";
-import type { ContestFuturesWalletStatus } from "@/types/futures";
+import type { FuturesWalletStatus } from "@/types/futures";
 
 type ContestTradingHeroProps = {
   contestSeasonId: number;
   seasonInfo: ContestParticipationSeason | null;
-  walletStatus: ContestFuturesWalletStatus;
+  walletStatus: FuturesWalletStatus;
   pendingOpenOrderLockedAmount: number;
   isLoading: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
 };
 
-const getStatusTone = (status: ContestFuturesWalletStatus["status"]) => {
+const getStatusTone = (status: FuturesWalletStatus["status"]) => {
   const normalizedStatus = status.toUpperCase();
 
   if (normalizedStatus === "ACTIVE") {
@@ -83,7 +83,7 @@ export default function ContestTradingHero({
   const lockedOrderAmount = Math.max(0, pendingOpenOrderLockedAmount);
   const accountBasisAmount =
     availableBalance + Math.max(0, walletStatus.marginInUse) + lockedOrderAmount;
-  const walletStatusLabel = getContestFuturesWalletStatusLabel(walletStatus.status);
+  const walletStatusLabel = getFuturesWalletStatusLabel(walletStatus.status);
 
   return (
     <section className="card space-y-6">

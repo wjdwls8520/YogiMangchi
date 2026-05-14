@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CommunityItemSkeleton from "./CommunityItemSkeleton";
 import { usePostStore } from "@/stores/usePostStore";
 import { Post } from "../types/post";
+import { MessageSquareDashed } from "lucide-react";
 
 
 interface Props {
@@ -60,6 +61,13 @@ export default function CommunityList({ posts }: Props) {
     return(
         <article className="contents">
             <ul className="flex flex-col gap-5">
+                {posts?.length === 0 && !isLoading && (
+                    <li className="flex flex-col items-center justify-center py-28 text-slate-400 bg-white rounded-xl border border-slate-100">
+                        <MessageSquareDashed className="w-14 h-14 mb-4 text-slate-200" strokeWidth={1.5} />
+                        <p className="text-[16px] font-bold text-slate-600">게시글이 없습니다.</p>
+                        <p className="text-[14px] text-slate-400 mt-1.5">새로운 글을 작성하여 커뮤니티 활동을 시작해 보세요.</p>
+                    </li>
+                )}
                 {posts?.map((post) => 
                         <li key={`${post.memberId}${post.id}`}>
                             <CommunityItem post={post} />

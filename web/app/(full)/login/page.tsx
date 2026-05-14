@@ -12,12 +12,12 @@ export default function LoginPage() {
   
   const handleKakaoLogin = () => {
     markAuthSyncNeeded();
-    window.location.href = "http://localhost:8080/oauth2/authorization/kakao";
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/oauth2/authorization/kakao`;
   };
 
   const handleGoogleLogin = () => {
     markAuthSyncNeeded();
-    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/oauth2/authorization/google`;
   };
 
   return (

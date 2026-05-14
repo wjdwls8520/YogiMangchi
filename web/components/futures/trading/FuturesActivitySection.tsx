@@ -7,7 +7,7 @@ import PendingOrdersTab from "./PendingOrdersTab";
 import OrderHistoryTab from "./OrderHistoryTab";
 import TradeHistoryTab from "./TradeHistoryTab";
 import type {
-  ContestFuturesLimitCloseOrderParams,
+  FuturesLimitCloseOrderParams,
   FuturesLeverageInfo,
   FuturesLimitOrderResponse,
   FuturesMarketOrderResponse,
@@ -30,7 +30,7 @@ export type FuturesActivitySectionProps = {
     closeQuantity: number;
   }) => Promise<FuturesMarketOrderResponse>;
   onSubmitLimitCloseOrder: (
-    params: ContestFuturesLimitCloseOrderParams
+    params: FuturesLimitCloseOrderParams
   ) => Promise<FuturesLimitOrderResponse>;
   onCancelLimitOrder: (orderId: number) => Promise<void>;
   onUpdatePositionLeverage: (

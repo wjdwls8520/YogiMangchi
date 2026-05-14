@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cs";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 import { useTickerStore } from "@/stores/useTickerStore";
 import type {
-  ContestFuturesLimitCloseOrderParams,
+  FuturesLimitCloseOrderParams,
   FuturesMarketOrderResponse,
   FuturesPositionItem,
   FuturesLimitOrderResponse,
@@ -24,7 +24,7 @@ type OpenPositionsTabProps = {
     closeQuantity: number;
   }) => Promise<FuturesMarketOrderResponse>;
   onSubmitLimitCloseOrder: (
-    params: ContestFuturesLimitCloseOrderParams
+    params: FuturesLimitCloseOrderParams
   ) => Promise<FuturesLimitOrderResponse>;
   disabledMessage?: string;
   mode?: "light" | "dark";
@@ -44,7 +44,7 @@ export default function OpenPositionsTab({
   mode,
 }: OpenPositionsTabProps) {
   const isDark = mode === "dark";
-  const { alert, toast } = useFeedback();
+  const { alert, toast, confirm } = useFeedback();
   const requireVerifiedUser = useRequireVerifiedUser({
     loginRedirectMode: "push",
     verifyRedirectMode: "push",
@@ -69,6 +69,11 @@ export default function OpenPositionsTab({
       await alert("이미 모든 수량에 대해 청산 주문이 대기 중입니다.");
       return;
     }
+
+    const isConfirmed = await confirm(
+      `${formatFuturesPositionSide(p.positionSide)} 포지션 ${formatAssetNumber(closeableQty)}개를 시장가로 전량 청산하시겠습니까?`
+    );
+    if (!isConfirmed) return;
 
     setLocalClosingId(p.positionId);
     try {

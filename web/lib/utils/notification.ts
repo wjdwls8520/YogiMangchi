@@ -55,12 +55,19 @@ const getPayloadRecord = (payload?: NotificationPayload | null) => {
 
 const getPayloadString = (
   payload: NotificationPayload | null | undefined,
-  key: string
+  ...keys: string[]
 ) => {
   const record = getPayloadRecord(payload);
-  const value = record?.[key];
 
-  return typeof value === "string" && value.trim() ? value : null;
+  for (const key of keys) {
+    const value = record?.[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
 };
 
 const getPayloadStringListFirst = (
@@ -514,10 +521,10 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
     return [target, "주문 취소되었습니다."].filter(Boolean).join(" ");
   }
   if (type.includes("LIQUIDATION_COMPLETED")) {
-    return `⚠️ [청산 알림] ${target} 포지션이 강제 청산되었습니다.`;
+    return `[청산 알림] ${target} 포지션이 강제 청산되었습니다.`;
   }
   if (type.includes("ASSET_TRANSFER_COMPLETED")) {
-    return "🔄 자산 이체가 완료되었습니다.";
+    return "자산 이체가 완료되었습니다.";
   }
 
   switch (type) {
