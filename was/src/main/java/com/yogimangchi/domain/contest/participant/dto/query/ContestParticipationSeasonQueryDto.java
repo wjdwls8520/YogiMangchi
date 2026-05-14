@@ -19,7 +19,9 @@ public record ContestParticipationSeasonQueryDto(
         LocalDateTime seasonCreatedAt,
         LocalDateTime seasonUpdatedAt,
         boolean isPublic,
-        boolean isCancel
+        boolean isCancel,
+        // settledAt — 정산 완료 시각. null 이면 미정산. displayStatus 가 SETTLED 로 분기되는 기준.
+        LocalDateTime settledAt
 ) {
     public ContestParticipationSeasonDto toResponseDto(LocalDateTime now) {
         ContestSeasonDisplayInfo displayInfo = ContestSeasonDisplayInfo.from(
@@ -29,6 +31,7 @@ public record ContestParticipationSeasonQueryDto(
                 recruitmentEndAt,
                 contestStartAt,
                 contestEndAt,
+                settledAt,
                 now
         );
 

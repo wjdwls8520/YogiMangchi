@@ -1,6 +1,7 @@
 package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.season.dto.response.ContestSettlementResultDto;
+import com.yogimangchi.domain.contest.season.enums.SettlementRunPhase;
 import com.yogimangchi.domain.futures.service.FuturesAssetService;
 import com.yogimangchi.domain.contest.season.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.application.dto.query.ContestApplicantQueryDto;
@@ -29,6 +30,7 @@ import com.yogimangchi.domain.contest.season.validator.ContestSeasonValidator;
 import com.yogimangchi.global.dto.CursorResponseDto;
 import com.yogimangchi.global.exception.contest.ContestException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminContestService {
@@ -49,10 +52,12 @@ public class AdminContestService {
 
     private final FuturesAssetService futuresAssetsService;
 
-    // 시즌 정산(강제종료) 3단계 처리용 서비스들
-    private final ContestSettlementSnapshotService settlementSnapshotService;       // Phase 1 — 가격 스냅샷
+    // 시즌 정산(강제종료) 처리용 서비스들
+    private final ContestSettlementSnapshotService settlementSnapshotService;       // Phase 1  — 가격 스냅샷
     private final ContestSettlementPositionCloser settlementPositionCloser;         // Phase 2a — 포지션 청산
     private final ContestSettlementWalletDeactivator settlementWalletDeactivator;   // Phase 2b — 지갑 비활성화
+    private final ContestSettlementAggregator settlementAggregator;                 // Phase 2c — 참가자 결과 박제
+    private final ContestSettlementRunService settlementRunService;                 // 감사 로그 라이프사이클
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
@@ -301,10 +306,26 @@ public class AdminContestService {
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
-    // 대회 강제종료(정산) — 어드민 버튼 또는 (미래) 스케줄러에서 호출되는 단일 진입점
+    // 대회 강제종료(정산) — 어드민 버튼 진입점
+    //
+    // 호출자 정보(adminId)는 향후 감사 로그(settlement_run 테이블) 도입 시 triggeredBy 로 저장 예정.
+    // 현재는 로그 라인에 표기하는 용도로만 사용.
+    public ContestSettlementResultDto settleContestSeason(Long adminId, Long seasonId) {
+        return doSettleContestSeason(seasonId, "ADMIN:" + adminId);
+    }
+
+    // 대회 강제종료(정산) — 스케줄러 자동 진입점
+    //
+    // ContestSettlementScheduler 가 contestEndAt 지난 미정산 시즌에 대해 호출.
+    // 멱등성 + 동시성 가드는 doSettleContestSeason 내부에서 동일하게 보장됨.
+    public ContestSettlementResultDto settleContestSeasonBySystem(Long seasonId) {
+        return doSettleContestSeason(seasonId, "SYSTEM_SCHEDULER");
+    }
+
+    // 대회 강제종료(정산) — 어드민 버튼 또는 스케줄러에서 호출되는 단일 진입점
     //
     // 이 메서드는 의도적으로 @Transactional 없음
-    //   - 각 Phase 가 자기 트랜잭션을 관리 (Phase 1: 단일, Phase 2a: 청크별 REQUIRES_NEW, Phase 2b: 단일)
+    //   - 각 Phase 가 자기 트랜잭션을 관리 (Phase 1: 단일, Phase 2a: 청크별 REQUIRES_NEW, Phase 2b: 단일, Phase 2c: 단일)
     //   - 외부 트랜잭션이 있으면 Phase 2a 의 REQUIRES_NEW 가 Phase 1 미커밋 데이터를 못 보는 문제 발생
     //   - 단계별 부분 커밋이지만 모든 Phase 가 멱등하므로 중간 실패 시 재실행 안전
     //
@@ -313,18 +334,20 @@ public class AdminContestService {
     //   2) 사후 markSettledIfNotYet CAS — 동시 두 호출의 race window 보호
     //      (둘 다 사전 체크 통과 → 둘 다 Phase 진행 → CAS 에서 한쪽만 성공)
     //
-    // 처리 단계
-    //   Phase 1  : 가격 스냅샷 캡처 (시즌 종료 시각의 ticker 가격 박제)
-    //   Phase 2a : 포지션 일괄 청산 (스냅샷 기준, 청크 트랜잭션)
-    //   Phase 2b : 지갑 일괄 비활성화 (단일 bulk UPDATE)
-    //   Phase 3  : CAS 마킹 으로 정산 완료 상태 박제
-    public ContestSettlementResultDto settleContestSeason(Long adminId, Long seasonId) {
+    // 처리 단계 (Phase 순서 중요 — 뒷 단계가 앞 단계 결과에 의존)
+    //   Phase 1  : 가격 스냅샷 캡처     (시즌 종료 시각의 ticker 가격 박제)
+    //   Phase 2a : 포지션 일괄 청산     (스냅샷 기준, 청크 트랜잭션)
+    //   Phase 2b : 지갑 일괄 비활성화   (단일 bulk UPDATE)
+    //   Phase 2c : 참가자 결과 박제     (2a 결과의 realizedPnl 을 합산 → 수익률/순위 산출)
+    //   Phase 3  : CAS 마킹             (정산 완료 상태 박제)
+    private ContestSettlementResultDto doSettleContestSeason(Long seasonId, String triggeredBy) {
         // 1) 시즌 조회 + 사전 멱등 체크
         ContestSeason season = adminContestRepository.findById(seasonId)
                 .orElseThrow(ContestException::contestSeasonNotFound);
 
         if (season.isSettled()) {
             // 이미 정산된 시즌 — 추가 처리 없이 기존 결과 반환 (대부분의 멱등 호출이 이 분기로 빠짐)
+            log.info("[정산] 이미 정산된 시즌 — seasonId={}, triggeredBy={}", seasonId, triggeredBy);
             return ContestSettlementResultDto.alreadySettled(
                     season.getId(),
                     season.getTitle(),
@@ -333,41 +356,87 @@ public class AdminContestService {
             );
         }
 
-        // 2) 정산 기준 시각 — 스냅샷 캡처, markSettled 모두 동일 시각 사용 (감사 일관성)
+        log.info("[정산] 시작 — seasonId={}, triggeredBy={}", seasonId, triggeredBy);
+
+        // 2) 정산 기준 시각 — 스냅샷 캡처, markSettled, contestEndAt 동기화 모두 동일 시각 사용 (감사 일관성)
         LocalDateTime settledAt = LocalDateTime.now();
 
-        // 3) Phase 1 — 가격 스냅샷 캡처
-        settlementSnapshotService.captureForSeason(seasonId, settledAt);
-
-        // 4) Phase 2a — 포지션 일괄 청산 (스냅샷 가격 기준)
-        int closedPositions = settlementPositionCloser.closeAllOpenPositions(seasonId);
-
-        // 5) Phase 2b — 지갑 일괄 비활성화
-        int deactivatedWallets = settlementWalletDeactivator.deactivateForSeason(seasonId);
-
-        // 6) CAS 마킹 — 단일 UPDATE 원자성으로 동시 두 호출 중 한쪽만 성공
-        int affected = adminContestRepository.markSettledIfNotYet(seasonId, settledAt);
-        if (affected == 0) {
-            // 다른 호출이 먼저 markSettled 도달 (드문 race) — 이미 정산됨 응답
-            // 리로드하는 이유: 첫 호출의 settledAt 시각을 정확히 반환하기 위함
-            ContestSeason reloaded = adminContestRepository.findById(seasonId)
-                    .orElseThrow(ContestException::contestSeasonNotFound);
-            return ContestSettlementResultDto.alreadySettled(
-                    reloaded.getId(),
-                    reloaded.getTitle(),
-                    reloaded.getSettledAt(),
-                    reloaded.getParticipantCount().intValue()
-            );
+        // 3) contestEndAt 동기화 — 어드민이 contestEndAt 이전에 강제종료 버튼을 누른 케이스 대응
+        //    거래 쿼리 가드(cs.contestEndAt >= :now)가 즉시 작동해 Phase 2a 진행 중 신규 거래 차단
+        //    WHERE cs.contestEndAt > :alignedAt 가드로 이미 지난 시즌(스케줄러 케이스)에선 영향 0
+        int aligned = adminContestRepository.alignContestEndAtBeforeSettlement(seasonId, settledAt);
+        if (aligned > 0) {
+            log.info("[정산] contestEndAt 동기화 (강제종료 케이스) — seasonId={}, alignedAt={}", seasonId, settledAt);
         }
 
-        // 7) 정상 정산 완료 — 카운트 포함 결과 반환
-        return ContestSettlementResultDto.of(
-                season.getId(),
-                season.getTitle(),
-                settledAt,
-                deactivatedWallets,
-                closedPositions,
-                season.getParticipantCount().intValue()
-        );
+        // 4) settlement_run 시작 — 이후 모든 Phase 가 이 run 에 기록됨
+        //    "이미 정산됨" 분기는 위에서 처리되어 여기까지 오지 않음 → 노이즈 없는 이력
+        Long runId = settlementRunService.start(seasonId, triggeredBy);
+
+        try {
+            // 5) Phase 1 — 가격 스냅샷 캡처
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_1_SNAPSHOT);
+            settlementSnapshotService.captureForSeason(seasonId, settledAt);
+
+            // 6) Phase 2a — 포지션 일괄 청산 (스냅샷 가격 기준)
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2A_POSITION_CLOSE);
+            int closedPositions = settlementPositionCloser.closeAllOpenPositions(seasonId);
+            settlementRunService.recordPositionClose(runId, closedPositions);
+
+            // 7) Phase 2b — 지갑 일괄 비활성화
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2B_WALLET_DEACTIVATE);
+            int deactivatedWallets = settlementWalletDeactivator.deactivateForSeason(seasonId);
+            settlementRunService.recordWalletDeactivate(runId, deactivatedWallets);
+
+            // 8) Phase 2c — 참가자별 최종 결과 박제 (2a 의 realizedPnl 을 기반으로 집계)
+            //    반드시 2a 이후에 실행해야 함 — 2a 가 모든 포지션을 CLOSE 시켜야 집계가 정확함
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2C_AGGREGATE);
+            int finalizedParticipants = settlementAggregator.aggregateForSeason(seasonId);
+            settlementRunService.recordParticipantFinalize(runId, finalizedParticipants);
+
+            // 9) Phase 3 — CAS 마킹. 단일 UPDATE 원자성으로 동시 두 호출 중 한쪽만 성공
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_3_MARK_SETTLED);
+            int affected = adminContestRepository.markSettledIfNotYet(seasonId, settledAt);
+            if (affected == 0) {
+                // 다른 호출이 먼저 markSettled 도달 (드문 race) — 이미 정산됨 응답
+                // 우리 쪽 Phase 1~2c 작업은 멱등하므로 데이터 손상 없음. run 은 정상 완료로 마감.
+                log.info("[정산] CAS 경합 — 다른 호출이 먼저 markSettled 완료. seasonId={}, triggeredBy={}",
+                        seasonId, triggeredBy);
+                settlementRunService.markCompleted(runId);
+
+                ContestSeason reloaded = adminContestRepository.findById(seasonId)
+                        .orElseThrow(ContestException::contestSeasonNotFound);
+                return ContestSettlementResultDto.alreadySettled(
+                        reloaded.getId(),
+                        reloaded.getTitle(),
+                        reloaded.getSettledAt(),
+                        reloaded.getParticipantCount().intValue()
+                );
+            }
+
+            // 9) 정상 종결 — settlement_run COMPLETED
+            settlementRunService.markCompleted(runId);
+
+            log.info("[정산] 완료 — seasonId={}, triggeredBy={}, runId={}, closedPositions={}, deactivatedWallets={}, finalizedParticipants={}",
+                    seasonId, triggeredBy, runId, closedPositions, deactivatedWallets, finalizedParticipants);
+
+            // 10) 정상 정산 완료 — 카운트 포함 결과 반환
+            return ContestSettlementResultDto.of(
+                    season.getId(),
+                    season.getTitle(),
+                    settledAt,
+                    deactivatedWallets,
+                    closedPositions,
+                    season.getParticipantCount().intValue(),
+                    finalizedParticipants
+            );
+
+        } catch (Exception e) {
+            // 어느 Phase 에서든 예외 발생 시 settlement_run 을 FAILED 로 마감하고 원인 예외 그대로 흘림
+            // markFailed 자체는 예외를 swallow 하므로 원인 예외가 가려지지 않음
+            log.error("[정산] 실패 — seasonId={}, triggeredBy={}, runId={}", seasonId, triggeredBy, runId, e);
+            settlementRunService.markFailed(runId, e.getMessage());
+            throw e;
+        }
     }
 }
