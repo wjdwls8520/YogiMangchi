@@ -1,7 +1,7 @@
 package com.yogimangchi.domain.asset.controller.v1;
 
-import com.yogimangchi.domain.asset.dto.response.AssetPortfolioDetailResponseDto;
-import com.yogimangchi.domain.asset.service.AssetSpotService;
+import com.yogimangchi.domain.asset.dto.response.RealAssetUnifiedResponseDto;
+import com.yogimangchi.domain.asset.service.RealAssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,26 +12,18 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/asset/real")
 @RequiredArgsConstructor
-@Tag(name = "99-03-02Real Asset", description = "본투자 자산 관리 API")
+@Tag(name = "Real Asset", description = "본투자 자산 관리 API")
 public class RealAssetController {
 
-    private final AssetSpotService assetSpotService;
+    private final RealAssetService realAssetService;
 
-    @Operation(summary = "본투자 현물 자산 상세 조회", description = "본투자 현물(SPOT) 지갑의 잔고 및 보유 코인을 조회합니다.")
-    @GetMapping("/spot/detail")
-    public ResponseEntity<AssetPortfolioDetailResponseDto> getRealSpotAssetDetail(
+    @Operation(summary = "본투자 통합 자산 조회 (현물 + 선물)", 
+               description = "본투자 진입 시 한 번의 API 호출로 현물 자산, 선물 자산, 통합 총자산을 반환합니다. 프론트엔드 실시간 렌더링의 기준점(Snapshot)으로 사용하세요.")
+    @GetMapping("/detail")
+    public ResponseEntity<RealAssetUnifiedResponseDto> getUnifiedRealAssetDetail(
             @AuthenticationPrincipal Long memberId) {
 
-        AssetPortfolioDetailResponseDto responseDto = assetSpotService.getMySpotPortfolio(memberId);
+        RealAssetUnifiedResponseDto responseDto = realAssetService.getUnifiedRealAssetPortfolio(memberId);
         return ResponseEntity.ok(responseDto);
-    }
-
-    @Operation(summary = "본투자 선물 자산 상세 조회", description = "본투자 선물(FUTURES) 지갑의 증거금 및 포지션을 조회합니다. (현재 미구현)")
-    @GetMapping("/futures/detail")
-    public ResponseEntity<AssetPortfolioDetailResponseDto> getRealFuturesAssetDetail(
-            @AuthenticationPrincipal Long memberId) {
-
-        // 추후 AssetFuturesService 연동 시 구현
-        throw new UnsupportedOperationException("현재 선물(FUTURES) 자산 조회 기능은 준비 중입니다.");
     }
 }
