@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Search, Star } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
-import SegmentTabs from "@/components/ui/SegmentTabs";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useFavoriteStore } from "@/stores/useFavoriteStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -181,19 +180,19 @@ export default function CoinList({
     return "목록이 존재하지 않습니다.";
   };
 
-  const isMock = mode === "mock";
   const isFutures = mode === "contest" || selectedMarketType === "futures" || (availableMarketTypes.length === 1 && availableMarketTypes[0] === "futures");
-  const bgMain = isFutures 
-    ? "bg-futures-trade text-white border-futures-border" 
-    : (isMock ? "bg-white dark:bg-zinc-950 text-slate-900 dark:text-gray-100 border-gray-200 dark:border-gray-800" : "bg-[#161A1E] dark:bg-zinc-950 text-white dark:text-gray-100 border-futures-border dark:border-gray-800");
-  const borderSub = isFutures ? "border-futures-border" : (isMock ? "border-gray-100 dark:border-gray-800" : "border-futures-border dark:border-gray-800");
-  const bgInput = isFutures ? "bg-white/5" : (isMock ? "bg-slate-50 dark:bg-gray-900" : "bg-[#1E2329] dark:bg-gray-900");
-  const textMain = isFutures ? "text-white" : (isMock ? "text-slate-900 dark:text-gray-100" : "text-gray-200 dark:text-gray-100");
-  const textMuted = isFutures ? "text-white/30" : (isMock ? "text-slate-500 dark:text-gray-500" : "text-gray-500 dark:text-gray-500");
-  const textQty = isFutures ? "text-white/40" : (isMock ? "text-slate-600 dark:text-gray-400" : "text-gray-300 dark:text-gray-400");
-  const bgHeader = isFutures ? "bg-futures-trade" : (isMock ? "bg-slate-50 dark:bg-zinc-900" : "bg-[#161A1E] dark:bg-zinc-900");
-  const rowHover = isFutures ? "hover:bg-white/5" : (isMock ? "hover:bg-slate-50 dark:hover:bg-zinc-800/50" : "hover:bg-white/5 dark:hover:bg-zinc-800/50");
-  const rowSelected = isFutures ? "bg-white/10" : (isMock ? "bg-blue-50 dark:bg-blue-900/30" : "bg-blue-500/10 dark:bg-blue-900/40");
+
+  // 전체 다크모드 설정(dark:)을 무시하고, 선물 계좌는 항상 다크 테마 / 현물 계좌는 항상 라이트 테마로 명시적 고정
+  const bgMain = isFutures ? "bg-futures-trade text-white border-futures-border" : "bg-white text-gray-900 border-gray-200";
+  const borderSub = isFutures ? "border-futures-border" : "border-gray-100";
+  const bgInput = isFutures ? "bg-white/5 text-white" : "bg-gray-50 text-gray-900";
+  const textMain = isFutures ? "text-white" : "text-gray-900";
+  const textMuted = isFutures ? "text-white/40" : "text-gray-400";
+  const textQty = isFutures ? "text-white/50" : "text-gray-600";
+  const bgHeader = isFutures ? "bg-futures-trade" : "bg-gray-50";
+  const rowHover = isFutures ? "hover:bg-white/5" : "hover:bg-gray-50";
+  const rowSelected = isFutures ? "bg-white/10" : "bg-blue-50";
+  const scrollStyle = isFutures ? "scrollbar-custom" : "scrollbar-light";
 
   return (
     <aside className={cn("w-full h-full min-h-0 flex flex-col shrink-0 overflow-hidden border-r", bgMain)}>
@@ -214,7 +213,7 @@ export default function CoinList({
           <Search className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
         </div>
 
-        <SegmentTabs
+        <Tabs
           activeTab={coinTab}
           onChange={(value) => setCoinTab(value as CoinTab)}
           tabs={[
@@ -222,10 +221,14 @@ export default function CoinList({
             { label: "보유", value: "have" },
             { label: "관심", value: "favorite" },
           ]}
+          size="sm"
+          fullWidth={true}
+          mode={isFutures ? "dark" : undefined}
+          activeColor={isFutures ? "text-trade-long border-trade-long" : undefined}
         />
       </div>
 
-      <div className={cn("flex-1 overflow-y-auto px-3", isMock ? "scrollbar-light" : "scrollbar-custom")}>
+      <div className={cn("flex-1 overflow-y-auto", scrollStyle)}>
         <table className="w-full text-[11px] whitespace-nowrap">
           <thead className={cn("sticky top-0 z-10 text-[12px] font-bold border-b", bgHeader, textMuted, borderSub)}>
             <tr>
@@ -307,7 +310,7 @@ export default function CoinList({
                   }}
                   className={cn("cursor-pointer transition-colors border-b active:bg-white/10", borderSub, isSelected ? rowSelected : rowHover)}
                 >
-                  <td className="py-3.5 lg:py-3 px-3 flex items-center gap-2">
+                  <td className="py-3.5 lg:py-3 px-1 flex items-center gap-2">
                     <button
                       onClick={(e) => handleToggleFavorite(coin.symbol, e)}
                       className="p-1.5 active:scale-90 transition-transform group"

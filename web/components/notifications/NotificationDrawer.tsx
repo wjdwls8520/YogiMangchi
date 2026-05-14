@@ -67,6 +67,7 @@ export default function NotificationDrawer({
   const previousNotificationsRef = useRef<NotificationItem[]>([]);
   const visibleNotifications = notifications.filter(
     (notification) =>
+      !notification.isRead &&
       !pendingNotifications.some(
         (pendingNotification) =>
           pendingNotification.notificationId === notification.notificationId
