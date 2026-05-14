@@ -3,6 +3,7 @@ package com.yogimangchi.domain.futures.service;
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.dto.query.FuturesOrderQueryDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesClosedPositionSearchConditionDto;
+import com.yogimangchi.domain.futures.dto.request.FuturesOpenPositionSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesOrderSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.response.ContestFuturesWalletStatusResponseDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesCursorResponseDto;
@@ -55,19 +56,39 @@ public class FuturesQueryService {
         return new FuturesCursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
-    // OPEN 포지션 조회 — 해당 지갑의 모든 OPEN 포지션 (커서 없음, 최대 보유량이 적음)
+    // OPEN 포지션 조회 — 커서 방식 무한스크롤, 선택적 심볼 필터
     @Transactional(readOnly = true)
-    public List<FuturesPositionResponseDto> getOpenPositions(Long memberId, Long contestSeasonId) {
+    public FuturesCursorResponseDto<FuturesPositionResponseDto> getOpenPositions(
+            Long memberId, Long contestSeasonId, FuturesOpenPositionSearchConditionDto condition) {
 
         Assets wallet = (contestSeasonId == null)
                 ? futuresWalletReader.getReadableRealWallet(memberId)
                 : futuresWalletReader.getReadableContestWallet(memberId, contestSeasonId);
 
-        return futuresPositionRepository
-                .findAllByAssetsAndPositionStatus(wallet, PositionStatus.OPEN)
-                .stream()
+        int limitSize = condition.getOrDefaultSize();
+        String symbol = condition.symbol() != null ? condition.symbol().trim().toUpperCase() : null;
+
+        List<com.yogimangchi.domain.futures.entity.FuturesPosition> positions =
+                futuresPositionRepository.findOpenPositionsWithCursor(
+                        wallet,
+                        PositionStatus.OPEN,
+                        symbol,
+                        condition.cursorId(),
+                        PageRequest.of(0, limitSize + 1)
+                );
+
+        boolean hasNext = positions.size() > limitSize;
+        if (hasNext) {
+            positions.remove(limitSize);
+        }
+
+        Long nextCursorId = positions.isEmpty() ? null : positions.get(positions.size() - 1).getId();
+
+        List<FuturesPositionResponseDto> content = positions.stream()
                 .map(FuturesPositionResponseDto::from)
                 .toList();
+
+        return new FuturesCursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
     // CLOSE 포지션 내역 조회 — 커서 방식 무한스크롤, 선택적 심볼 필터

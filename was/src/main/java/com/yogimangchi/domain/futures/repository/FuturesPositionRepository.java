@@ -55,8 +55,23 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             @Param("positionStatus") PositionStatus positionStatus
     );
 
-    // 포지션 조회 — 해당 지갑의 OPEN 포지션 전체 (락 없음, 읽기 전용)
-    List<FuturesPosition> findAllByAssetsAndPositionStatus(Assets assets, PositionStatus positionStatus);
+    // 포지션 조회 — 해당 지갑의 OPEN 포지션 커서 방식 (락 없음, 선택적 심볼 필터)
+    @Query("""
+            SELECT fp
+            FROM FuturesPosition fp
+            WHERE fp.assets = :assets
+              AND fp.positionStatus = :positionStatus
+              AND (:symbol IS NULL OR fp.symbol = :symbol)
+              AND (:cursorId IS NULL OR fp.id < :cursorId)
+            ORDER BY fp.id DESC
+            """)
+    List<FuturesPosition> findOpenPositionsWithCursor(
+            @Param("assets") Assets assets,
+            @Param("positionStatus") PositionStatus positionStatus,
+            @Param("symbol") String symbol,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
 
     // 포지션 조회 — 해당 지갑의 CLOSE 포지션 커서 방식 (락 없음, 선택적 심볼 필터)
     @Query("""
