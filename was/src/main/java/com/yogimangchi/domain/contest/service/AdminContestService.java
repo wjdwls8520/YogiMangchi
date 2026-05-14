@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.contest.service;
 
+import com.yogimangchi.domain.contest.season.dto.response.ContestSettlementResultDto;
 import com.yogimangchi.domain.futures.service.FuturesAssetService;
 import com.yogimangchi.domain.contest.season.dto.query.ContestSeasonQueryDto;
 import com.yogimangchi.domain.contest.application.dto.query.ContestApplicantQueryDto;
@@ -47,6 +48,11 @@ public class AdminContestService {
     private final ContestSeasonValidator contestSeasonValidator;
 
     private final FuturesAssetService futuresAssetsService;
+
+    // 시즌 정산(강제종료) 3단계 처리용 서비스들
+    private final ContestSettlementSnapshotService settlementSnapshotService;       // Phase 1 — 가격 스냅샷
+    private final ContestSettlementPositionCloser settlementPositionCloser;         // Phase 2a — 포지션 청산
+    private final ContestSettlementWalletDeactivator settlementWalletDeactivator;   // Phase 2b — 지갑 비활성화
 
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
@@ -293,5 +299,75 @@ public class AdminContestService {
             .toList();
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
+
+    // 대회 강제종료(정산) — 어드민 버튼 또는 (미래) 스케줄러에서 호출되는 단일 진입점
+    //
+    // 이 메서드는 의도적으로 @Transactional 없음
+    //   - 각 Phase 가 자기 트랜잭션을 관리 (Phase 1: 단일, Phase 2a: 청크별 REQUIRES_NEW, Phase 2b: 단일)
+    //   - 외부 트랜잭션이 있으면 Phase 2a 의 REQUIRES_NEW 가 Phase 1 미커밋 데이터를 못 보는 문제 발생
+    //   - 단계별 부분 커밋이지만 모든 Phase 가 멱등하므로 중간 실패 시 재실행 안전
+    //
+    // 동시성 가드 (2중 방어)
+    //   1) 사전 isSettled() 체크 — 빠른 분기 (락 없이, 가장 흔한 멱등 호출 케이스 처리)
+    //   2) 사후 markSettledIfNotYet CAS — 동시 두 호출의 race window 보호
+    //      (둘 다 사전 체크 통과 → 둘 다 Phase 진행 → CAS 에서 한쪽만 성공)
+    //
+    // 처리 단계
+    //   Phase 1  : 가격 스냅샷 캡처 (시즌 종료 시각의 ticker 가격 박제)
+    //   Phase 2a : 포지션 일괄 청산 (스냅샷 기준, 청크 트랜잭션)
+    //   Phase 2b : 지갑 일괄 비활성화 (단일 bulk UPDATE)
+    //   Phase 3  : CAS 마킹 으로 정산 완료 상태 박제
+    public ContestSettlementResultDto settleContestSeason(Long adminId, Long seasonId) {
+        // 1) 시즌 조회 + 사전 멱등 체크
+        ContestSeason season = adminContestRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        if (season.isSettled()) {
+            // 이미 정산된 시즌 — 추가 처리 없이 기존 결과 반환 (대부분의 멱등 호출이 이 분기로 빠짐)
+            return ContestSettlementResultDto.alreadySettled(
+                    season.getId(),
+                    season.getTitle(),
+                    season.getSettledAt(),
+                    season.getParticipantCount().intValue()
+            );
+        }
+
+        // 2) 정산 기준 시각 — 스냅샷 캡처, markSettled 모두 동일 시각 사용 (감사 일관성)
+        LocalDateTime settledAt = LocalDateTime.now();
+
+        // 3) Phase 1 — 가격 스냅샷 캡처
+        settlementSnapshotService.captureForSeason(seasonId, settledAt);
+
+        // 4) Phase 2a — 포지션 일괄 청산 (스냅샷 가격 기준)
+        int closedPositions = settlementPositionCloser.closeAllOpenPositions(seasonId);
+
+        // 5) Phase 2b — 지갑 일괄 비활성화
+        int deactivatedWallets = settlementWalletDeactivator.deactivateForSeason(seasonId);
+
+        // 6) CAS 마킹 — 단일 UPDATE 원자성으로 동시 두 호출 중 한쪽만 성공
+        int affected = adminContestRepository.markSettledIfNotYet(seasonId, settledAt);
+        if (affected == 0) {
+            // 다른 호출이 먼저 markSettled 도달 (드문 race) — 이미 정산됨 응답
+            // 리로드하는 이유: 첫 호출의 settledAt 시각을 정확히 반환하기 위함
+            ContestSeason reloaded = adminContestRepository.findById(seasonId)
+                    .orElseThrow(ContestException::contestSeasonNotFound);
+            return ContestSettlementResultDto.alreadySettled(
+                    reloaded.getId(),
+                    reloaded.getTitle(),
+                    reloaded.getSettledAt(),
+                    reloaded.getParticipantCount().intValue()
+            );
+        }
+
+        // 7) 정상 정산 완료 — 카운트 포함 결과 반환
+        return ContestSettlementResultDto.of(
+                season.getId(),
+                season.getTitle(),
+                settledAt,
+                deactivatedWallets,
+                closedPositions,
+                season.getParticipantCount().intValue()
+        );
     }
 }

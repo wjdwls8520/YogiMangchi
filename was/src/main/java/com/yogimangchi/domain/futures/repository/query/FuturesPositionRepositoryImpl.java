@@ -85,6 +85,52 @@ public class FuturesPositionRepositoryImpl implements FuturesPositionRepositoryC
                 .fetch();
     }
 
+    @Override
+    public List<String> findDistinctOpenSymbolsByContestSeason(Long contestSeasonId) {
+        // 대회 정산 Phase 1 — 시즌 내 OPEN 포지션의 심볼 distinct 목록
+        // 어느 심볼들의 가격을 스냅샷으로 박제해야 하는지 판단하는 데 사용
+        //
+        // 지갑 활성/만료 필터는 적용하지 않음 — 정산은 시즌 내 "모든 잔여 OPEN 포지션"을 정리해야 하므로
+        // 비활성 지갑(예: 사전에 어드민이 개별 비활성화한 경우)의 OPEN 포지션도 스냅샷 대상에 포함되어야 함
+        //
+        // assets.contestSeason.id 비교는 contest_season FK 컬럼 직접 비교로 변환되어
+        // contest_season 테이블에 대한 추가 JOIN 은 발생하지 않음
+        return queryFactory
+                .select(futuresPosition.symbol)
+                .distinct()
+                .from(futuresPosition)
+                .join(futuresPosition.assets, assets)
+                .where(
+                        openPosition(),
+                        assets.contestSeason.id.eq(contestSeasonId)
+                )
+                .fetch();
+    }
+
+    @Override
+    public List<Long> findOpenPositionIdsByContestSeasonAfterId(Long contestSeasonId, Long lastId, int size) {
+        // 대회 정산 Phase 2 — 시즌 내 OPEN 포지션 ID keyset 페이징
+        //
+        // keyset 페이징을 쓰는 이유
+        //   OFFSET 페이징은 N 번째 청크가 N*size 행을 스캔 → deep pagination 비효율
+        //   id > lastId 조건은 PK 인덱스 시크로 즉시 점프 → 청크 수에 관계없이 일정 비용
+        //
+        // 활성/만료 필터 미적용 — 정산은 시즌 내 모든 잔여 OPEN 포지션을 정리해야 하므로
+        // (Phase 1 스냅샷 캡처와 동일 정책)
+        return queryFactory
+                .select(futuresPosition.id)
+                .from(futuresPosition)
+                .join(futuresPosition.assets, assets)
+                .where(
+                        openPosition(),
+                        assets.contestSeason.id.eq(contestSeasonId),
+                        futuresPosition.id.gt(lastId)
+                )
+                .orderBy(futuresPosition.id.asc())
+                .limit(size)
+                .fetch();
+    }
+
     // 활성 상태 지갑만 — 비활성/만료 지갑의 포지션은 청산 대상에서 제외
     private BooleanExpression activeAssetStatus() {
         return assets.status.eq("ACTIVE");
