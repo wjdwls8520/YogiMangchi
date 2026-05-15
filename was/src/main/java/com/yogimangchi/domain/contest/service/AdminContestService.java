@@ -59,6 +59,8 @@ public class AdminContestService {
     private final ContestSettlementAggregator settlementAggregator;                 // Phase 2c — 참가자 결과 박제
     private final ContestSettlementRunService settlementRunService;                 // 감사 로그 라이프사이클
 
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @Transactional
     public ContestSeasonDetailDto createContest(Long adminId, ContestCreateDto request) {
         contestSeasonValidator.validateCreateRequest(request);
@@ -175,6 +177,13 @@ public class AdminContestService {
 
         // 참가자 신청이 승낙되면 대회용 선물지갑을 생성한다.
         futuresAssetsService.createNewContestFuturesWallet(adminId, savedContestParticipant.getContestSeason(), savedContestParticipant.getMember());
+
+        // 대회 승인 알림 이벤트 발행
+        eventPublisher.publishEvent(new com.yogimangchi.domain.contest.event.ContestApplicationApprovedEvent(
+                savedContestParticipant.getMember().getId(),
+                savedContestParticipant.getContestSeason().getId(),
+                savedContestParticipant.getContestSeason().getTitle()
+        ));
     }
 
     @Transactional
@@ -201,6 +210,14 @@ public class AdminContestService {
 
         // 반려가 끝난 신청서는 대기 목록에서 제거한다.
         contestApplicantRepository.delete(contestApplicant);
+
+        // 대회 반려 알림 이벤트 발행
+        eventPublisher.publishEvent(new com.yogimangchi.domain.contest.event.ContestApplicationRejectedEvent(
+                contestApplicant.getMember().getId(),
+                contestApplicant.getContestSeason().getId(),
+                contestApplicant.getContestSeason().getTitle(),
+                request.rejectReason()
+        ));
     }
 
     @Transactional(readOnly = true)

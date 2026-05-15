@@ -30,5 +30,11 @@ public enum NotificationType {
     FOLLOW_CREATED,
 
     @Schema(description = "자산 이체 완료 알림")
-    ASSET_TRANSFER_COMPLETED
+    ASSET_TRANSFER_COMPLETED,
+
+    @Schema(description = "대회 참가 승인 알림")
+    CONTEST_APPLICATION_APPROVED,
+
+    @Schema(description = "대회 참가 반려 알림")
+    CONTEST_APPLICATION_REJECTED
 }
