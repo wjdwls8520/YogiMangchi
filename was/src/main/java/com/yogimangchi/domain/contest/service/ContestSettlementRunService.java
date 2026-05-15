@@ -68,6 +68,13 @@ public class ContestSettlementRunService {
         // dirty checking — 커밋 시 UPDATE 발생
     }
 
+    /** 인메모리 동기화 결과 기록 — 차감한 미체결 주문 수와 오픈 포지션 수 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordRegistrySync(Long runId, int pendingOrders, int openPositions) {
+        ContestSettlementRun run = findRunOrThrow(runId);
+        run.recordRegistrySync(pendingOrders, openPositions);
+    }
+
     /** Phase 2a 결과 기록 — 청산된 포지션 수 */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordPositionClose(Long runId, int count) {

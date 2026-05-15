@@ -73,9 +73,19 @@ public class FuturesLiquidationRegistry {
 
     // 포지션 청산 시 호출 — 보유자 수 -1, 0이 되면 Map에서 제거
     public void deregister(String symbol) {
+        deregister(symbol, 1);
+    }
+
+    // 일괄 차감 — 대회 정산 시 시즌 단위로 한 번에 카운트 차감
+    // count <= 0 이면 무시. 차감 결과가 0 이하면 항목 자체 제거.
+    public void deregister(String symbol, int count) {
+        if (count <= 0) {
+            return;
+        }
         String key = normalize(symbol);
-        holderCounts.computeIfPresent(key, (k, count) -> {
-            return count.decrementAndGet() <= 0 ? null : count; // 1 감소 후 0이면 null 반환 → ConcurrentHashMap이 항목을 자동 제거
+        holderCounts.computeIfPresent(key, (k, atomic) -> {
+            int remaining = atomic.addAndGet(-count);
+            return remaining <= 0 ? null : atomic;
         });
     }
 

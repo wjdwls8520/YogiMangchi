@@ -131,6 +131,26 @@ public class FuturesPositionRepositoryImpl implements FuturesPositionRepositoryC
                 .fetch();
     }
 
+    @Override
+    public List<FuturesOpenPositionSymbolCountDto> findOpenPositionCountsByContestSeason(Long contestSeasonId) {
+        // 대회 정산 시 인메모리 Registry 차감용 — 해당 시즌의 OPEN 포지션을 심볼별 카운트
+        // 지갑 활성/만료 필터 미적용 — 정산은 시즌 내 모든 잔여 OPEN 포지션을 정리해야 하므로
+        return queryFactory
+                .select(Projections.constructor(
+                        FuturesOpenPositionSymbolCountDto.class,
+                        futuresPosition.symbol,
+                        futuresPosition.count()
+                ))
+                .from(futuresPosition)
+                .join(futuresPosition.assets, assets)
+                .where(
+                        openPosition(),
+                        assets.contestSeason.id.eq(contestSeasonId)
+                )
+                .groupBy(futuresPosition.symbol)
+                .fetch();
+    }
+
     // 활성 상태 지갑만 — 비활성/만료 지갑의 포지션은 청산 대상에서 제외
     private BooleanExpression activeAssetStatus() {
         return assets.status.eq("ACTIVE");
