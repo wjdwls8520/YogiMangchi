@@ -31,4 +31,7 @@ public interface ContestParticipantRepositoryCustom {
 
     // 대회 종료 후 전체 순위 조회 — 박제된(frozen) 데이터를 기반으로 순위순 정렬하여 반환 (커서 기반 무한 스크롤)
     List<ContestRankingDto> findContestRankings(Long seasonId, ContestCursorSearchDto request);
+
+    // 특정 회원의 특정 시즌 순위 정보 조회 — 박제된(frozen) 데이터를 기반으로 반환
+    Optional<ContestRankingDto> findContestRankingByMemberId(Long seasonId, Long memberId);
 }

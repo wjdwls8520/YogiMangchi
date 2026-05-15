@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -283,5 +284,28 @@ public class ContestService {
                 : null;
 
         return new CursorResponseDto<>(rankings, nextCursorId, hasNext);
+    }
+
+    /**
+     * 특정 회원의 특정 시즌 순위 정보를 조회한다.
+     *
+     * @param seasonId 조회할 시즌 ID
+     * @param memberId 조회할 회원 ID
+     * @return 특정 회원의 순위 정보
+     */
+    @Transactional(readOnly = true)
+    public ContestRankingDto getMemberContestRanking(Long seasonId, Long memberId) {
+        // 시즌 존재 여부 확인
+        ContestSeason season = contestSeasonRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        // 정산이 완료되지 않은 시즌은 랭킹 데이터(final_*)가 없으므로 409 Conflict 반환
+        if (season.getSettledAt() == null) {
+            throw ContestException.contestSeasonNotSettled();
+        }
+
+        // 특정 회원의 박제된 순위 정보 조회
+        return contestParticipantRepository.findContestRankingByMemberId(seasonId, memberId)
+                .orElseThrow(ContestException::contestParticipantNotFound);
     }
 }
