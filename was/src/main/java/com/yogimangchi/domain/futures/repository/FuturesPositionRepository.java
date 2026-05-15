@@ -73,6 +73,9 @@ public interface FuturesPositionRepository extends JpaRepository<FuturesPosition
             Pageable pageable
     );
 
+    // 포지션 조회 — 해당 지갑의 OPEN 포지션 전체 (락 없음, 읽기 전용)
+    List<FuturesPosition> findAllByAssetsAndPositionStatus(Assets assets, PositionStatus positionStatus);
+
     // 포지션 조회 — 해당 지갑의 CLOSE 포지션 커서 방식 (락 없음, 선택적 심볼 필터)
     @Query("""
             SELECT fp
