@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 대회 시즌 정산 Phase 2c — 참가자별 최종 결과 박제 (Frozen Aggregate)
+ * 대회 시즌 정산 단계 — 참가자별 최종 결과 산출 및 저장 (Frozen Aggregate)
  *
- * <p>Phase 2a 완료 후(=시즌 내 모든 포지션이 CLOSE 상태) 호출되어, 각 참가자의 최종 실현손익/수익률/순위를
+ * <p>포지션 일괄 청산 완료 후(=시즌 내 모든 포지션이 CLOSE 상태) 호출되어, 각 참가자의 최종 실현손익/수익률/순위를
  * 산정하고 {@code contest_participant} 테이블에 한 번만 박는다. 이후로는 read-only.</p>
  *
  * <h3>처리 단계</h3>

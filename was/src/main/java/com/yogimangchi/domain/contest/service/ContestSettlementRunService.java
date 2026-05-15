@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 /**
  * 대회 시즌 정산 실행 이력(settlement_run) 라이프사이클 관리 서비스
  *
- * <p>오케스트레이터(AdminContestService) 가 각 Phase 진입 직전/직후로 본 서비스의 메서드를 호출해
+ * <p>오케스트레이터(AdminContestService) 가 각 단계 진입 직전/직후로 본 서비스의 메서드를 호출해
  * 어드민이 "정산 어디까지 진행됐는지" / "어디서 실패했는지" 를 실시간으로 추적할 수 있게 한다.</p>
  *
  * <h3>설계 메모</h3>

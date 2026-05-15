@@ -87,7 +87,7 @@ public class FuturesPositionRepositoryImpl implements FuturesPositionRepositoryC
 
     @Override
     public List<String> findDistinctOpenSymbolsByContestSeason(Long contestSeasonId) {
-        // 대회 정산 Phase 1 — 시즌 내 OPEN 포지션의 심볼 distinct 목록
+        // 대회 정산 스냅샷 캡처 단계 — 시즌 내 OPEN 포지션의 심볼 distinct 목록
         // 어느 심볼들의 가격을 스냅샷으로 박제해야 하는지 판단하는 데 사용
         //
         // 지갑 활성/만료 필터는 적용하지 않음 — 정산은 시즌 내 "모든 잔여 OPEN 포지션"을 정리해야 하므로
@@ -109,14 +109,14 @@ public class FuturesPositionRepositoryImpl implements FuturesPositionRepositoryC
 
     @Override
     public List<Long> findOpenPositionIdsByContestSeasonAfterId(Long contestSeasonId, Long lastId, int size) {
-        // 대회 정산 Phase 2 — 시즌 내 OPEN 포지션 ID keyset 페이징
+        // 대회 정산 포지션 일괄 청산 단계 — 시즌 내 OPEN 포지션 ID keyset 페이징
         //
         // keyset 페이징을 쓰는 이유
         //   OFFSET 페이징은 N 번째 청크가 N*size 행을 스캔 → deep pagination 비효율
         //   id > lastId 조건은 PK 인덱스 시크로 즉시 점프 → 청크 수에 관계없이 일정 비용
         //
         // 활성/만료 필터 미적용 — 정산은 시즌 내 모든 잔여 OPEN 포지션을 정리해야 하므로
-        // (Phase 1 스냅샷 캡처와 동일 정책)
+        // (스냅샷 캡처 단계와 동일 정책)
         return queryFactory
                 .select(futuresPosition.id)
                 .from(futuresPosition)

@@ -26,7 +26,7 @@ public record ContestSettlementResultDto(
         @Schema(description = "정산 대상 참가자 수", example = "1234")
         int participantCount,
 
-        @Schema(description = "Phase 2c 에서 최종 결과(수익금/수익률/순위) 박제 처리된 참가자 수", example = "1234")
+        @Schema(description = "최종 결과(수익금/수익률/순위)가 확정되어 저장된 참가자 수", example = "1234")
         int finalizedParticipantCount,
 
         @Schema(description = "이미 정산된 시즌에 다시 호출됐는지 여부 (true면 이번 호출에서 실제 변경 없음)", example = "false")

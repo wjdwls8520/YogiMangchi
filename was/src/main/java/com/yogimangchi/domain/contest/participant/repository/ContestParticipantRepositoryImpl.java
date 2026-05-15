@@ -142,7 +142,7 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
         return cursorId != null ? contestParticipant.id.lt(cursorId) : null;
     }
 
-    // 시즌 정산 Phase 2c 집계 — 참가자별 (실현손익 합, 시드머니 합) 산출
+    // 참가자 최종 결과 산출 집계 — 참가자별 (실현손익 합, 시드머니 합) 산출
     //
     // 구현 전략
     //   하나의 큰 JOIN(participant × assets × position)은 시드머니가 포지션 수만큼 곱해져 SUM 이 부풀려진다.

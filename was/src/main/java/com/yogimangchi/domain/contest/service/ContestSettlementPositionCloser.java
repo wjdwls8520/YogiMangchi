@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 대회 시즌 정산 Phase 2 — 포지션 일괄 청산 오케스트레이션
+ * 대회 시즌 정산 단계 — 포지션 일괄 청산 오케스트레이션
  *
- * Phase 1 에서 저장된 스냅샷 가격을 기준으로 시즌 내 모든 OPEN 포지션을 CLOSE 처리한다.
+ * 1단계(스냅샷 캡처)에서 저장된 스냅샷 가격을 기준으로 시즌 내 모든 OPEN 포지션을 CLOSE 처리한다.
  *
  * 처리 흐름
  *   1. 시즌의 스냅샷을 한 번에 로드 → 심볼→가격 Map 구성 (이후 청크마다 in-memory lookup)
@@ -121,7 +121,7 @@ public class ContestSettlementPositionCloser {
             Thread.sleep(CHUNK_THROTTLE_MILLIS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Phase 2a 청크 사이 스로틀 대기 중 인터럽트 발생", e);
+            throw new RuntimeException("포지션 일괄 청산 청크 사이 스로틀 대기 중 인터럽트 발생", e);
         }
     }
 

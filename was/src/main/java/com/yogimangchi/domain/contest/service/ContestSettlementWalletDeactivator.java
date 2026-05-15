@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * 대회 시즌 정산 Phase 2 — 지갑 일괄 비활성화 서비스
+ * 대회 시즌 정산 단계 — 지갑 일괄 비활성화 서비스
  *
  * 시즌 내 ACTIVE 상태인 대회 지갑들을 단일 SQL UPDATE 로 INACTIVE 전환한다.
  *
@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  * 부수효과
  *   - 비활성화된 지갑의 PENDING 지정가 주문은 별도 취소 처리하지 않음
  *     (이전 작업으로 지정가 체결 트리거 쿼리가 status='ACTIVE' 조건을 보므로 절대 체결되지 않음)
- *   - 비활성화된 지갑의 OPEN 포지션은 Phase 2 의 포지션 청산 단계에서 별도 처리
+ *   - 비활성화된 지갑의 OPEN 포지션은 포지션 일괄 청산 단계에서 별도 처리
  */
 @Slf4j
 @Service

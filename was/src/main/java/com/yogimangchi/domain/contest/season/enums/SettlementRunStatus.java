@@ -4,8 +4,8 @@ package com.yogimangchi.domain.contest.season.enums;
  * 정산 실행 상태 — settlement_run 한 행의 라이프사이클을 나타낸다.
  *
  * <ul>
- *   <li>{@link #RUNNING}   — 정산 진행 중 (현재 어느 Phase 인지는 currentPhase 컬럼이 알려줌)</li>
- *   <li>{@link #COMPLETED} — Phase 3(markSettled) 까지 정상 완료</li>
+ *   <li>{@link #RUNNING}   — 정산 진행 중 (현재 어느 단계인지는 currentPhase 컬럼이 알려줌)</li>
+ *   <li>{@link #COMPLETED} — 마지막 완료 마킹 단계까지 정상 완료</li>
  *   <li>{@link #FAILED}    — 중간에 예외 발생. lastErrorMessage / failedPhase 로 원인 추적</li>
  * </ul>
  *

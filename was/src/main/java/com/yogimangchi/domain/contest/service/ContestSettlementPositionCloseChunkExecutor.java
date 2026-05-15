@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 대회 시즌 정산 Phase 2 — 포지션 청산 청크 트랜잭션 실행기
+ * 대회 시즌 정산 단계 — 포지션 청산 청크 트랜잭션 실행기
  *
  * 청크 한 묶음을 별도 트랜잭션(REQUIRES_NEW)으로 처리한다.
  *  - 별도 빈으로 분리한 이유: Spring AOP 프록시는 같은 클래스 내부 호출엔 트랜잭션 어노테이션이 안 먹힘
@@ -60,7 +60,7 @@ public class ContestSettlementPositionCloseChunkExecutor {
 
             BigDecimal snapshotPrice = snapshotPrices.get(position.getSymbol());
             if (snapshotPrice == null) {
-                // Phase 1 사전 검증을 통과했다면 도달 불가 — 방어적으로 로그 + skip
+                // 스냅샷 캡처 단계 사전 검증을 통과했다면 도달 불가 — 방어적으로 로그 + skip
                 // (운영 중 발생하면 스냅샷 캡처와 청산 사이에 새 심볼 포지션이 끼어든 경우)
                 log.error("[정산 청크] 스냅샷 가격 누락 — positionId={}, symbol={}",
                         position.getId(), position.getSymbol());

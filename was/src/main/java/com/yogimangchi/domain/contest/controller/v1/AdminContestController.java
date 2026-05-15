@@ -196,7 +196,7 @@ public class AdminContestController {
             @AuthenticationPrincipal Long adminId,
             @PathVariable("seasonId") Long seasonId
     ) {
-        // 정산 오케스트레이션은 AdminContestService 가 일괄 수행 (Phase 1 → 2a → 2b → markSettled)
+        // 정산 로직은 AdminContestService가 순서대로 일괄 수행 (가격스냅샷 → 포지션청산 → 지갑비활성 → 결과저장 → 완료마킹)
         ContestSettlementResultDto result = adminContestService.settleContestSeason(adminId, seasonId);
 
         return ResponseEntity.ok(result);

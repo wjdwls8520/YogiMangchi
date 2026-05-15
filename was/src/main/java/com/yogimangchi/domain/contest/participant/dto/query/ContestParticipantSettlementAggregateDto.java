@@ -3,7 +3,7 @@ package com.yogimangchi.domain.contest.participant.dto.query;
 import java.math.BigDecimal;
 
 /**
- * 시즌 정산 Phase 2c 집계 결과 단위.
+ * 정산 과정 중 참가자 최종 실현손익 합산 결과 단위.
  *
  * <p>참가자 한 명에 대해 시즌 전체에서 합산한 두 값을 들고 있는 운반체.
  * Aggregator 가 두 개의 단순 쿼리(실현손익 합 / 시드머니 합)를 각각 실행하고
