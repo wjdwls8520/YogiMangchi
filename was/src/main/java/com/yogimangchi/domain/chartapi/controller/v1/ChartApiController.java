@@ -15,7 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/chartapi")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+//@CrossOrigin(origins = "http://localhost:3000")
 @Tag(name = "chart-api", description = "바이낸스 차트 api (was만 사용)") // 도메인 구분
 public class ChartApiController {
 
