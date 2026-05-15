@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/asset/real")
 @RequiredArgsConstructor
-@Tag(name = "Real Asset", description = "본투자 자산 관리 API")
+@Tag(name = "99-03-02-Real Asset", description = "본투자 자산 관리 API")
 public class RealAssetController {
 
     private final RealAssetService realAssetService;

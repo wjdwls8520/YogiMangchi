@@ -14,13 +14,14 @@ import com.yogimangchi.global.exception.notification.NotificationException;
 import com.yogimangchi.global.sse.enums.CommunitySseEventType;
 import com.yogimangchi.global.sse.enums.TradeSseEventType;
 import com.yogimangchi.global.support.MemberReader;
-import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -188,14 +189,14 @@ public class NotificationSseService {
                 notificationEmitterRegistry.countAllEmitters());
     }
 
-    @PreDestroy
+    @EventListener(ContextClosedEvent.class)
     public void closeAllEmitters() {
         Map<Long, Map<String, SseEmitter>> emittersByMemberId = notificationEmitterRegistry.findAll();
         int emitterCount = emittersByMemberId.values().stream()
                 .mapToInt(Map::size)
                 .sum();
 
-        log.info("서버 종료로 알림 SSE 연결 정리를 시작합니다. emitterCount={}", emitterCount);
+        log.info("서버 종료 이벤트를 감지하여 알림 SSE 연결 정리를 시작합니다. (Graceful Shutdown 지연 방지) emitterCount={}", emitterCount);
 
         emittersByMemberId.forEach((memberId, emitters) ->
                 emitters.forEach((emitterId, emitter) -> {
@@ -208,7 +209,7 @@ public class NotificationSseService {
         );
 
         notificationEmitterRegistry.clear();
-        log.info("서버 종료로 알림 SSE 연결 정리를 완료했습니다. emitterCount={}", emitterCount);
+        log.info("알림 SSE 연결 정리를 완료했습니다. 서버가 빠르게 종료됩니다. emitterCount={}", emitterCount);
     }
 
     private void replayMissedNotifications(Long memberId, Long lastEventId, SseEmitter emitter) throws IOException {
