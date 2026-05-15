@@ -3,12 +3,13 @@ package com.yogimangchi.domain.community.service;
 import com.yogimangchi.domain.community.dto.event.PostCreatedUxEventDto;
 import com.yogimangchi.domain.community.support.CommunityUxEmitterRegistry;
 import com.yogimangchi.global.sse.enums.CommunityUxSseEventType;
-import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -150,14 +151,14 @@ public class CommunityUxSseService {
                 communityUxEmitterRegistry.countAllEmitters());
     }
 
-    @PreDestroy
+    @EventListener(ContextClosedEvent.class)
     public void closeAllEmitters() {
         Map<String, Map<String, SseEmitter>> emittersByTopic = communityUxEmitterRegistry.findAll();
         int emitterCount = emittersByTopic.values().stream()
                 .mapToInt(Map::size)
                 .sum();
 
-        log.info("서버 종료로 커뮤니티 UX SSE 연결 정리를 시작합니다. emitterCount={}", emitterCount);
+        log.info("서버 종료 이벤트를 감지하여 커뮤니티 UX SSE 연결 정리를 시작합니다. (Graceful Shutdown 지연 방지) emitterCount={}", emitterCount);
 
         emittersByTopic.forEach((topic, emitters) ->
                 emitters.forEach((emitterId, emitter) -> {
@@ -170,6 +171,6 @@ public class CommunityUxSseService {
         );
 
         communityUxEmitterRegistry.clear();
-        log.info("서버 종료로 커뮤니티 UX SSE 연결 정리를 완료했습니다. emitterCount={}", emitterCount);
+        log.info("커뮤니티 UX SSE 연결 정리를 완료했습니다. 서버가 빠르게 종료됩니다. emitterCount={}", emitterCount);
     }
 }
