@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.contest.controller.v1;
 
+import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto;
 import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
 import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipationSeasonDto;
@@ -99,5 +100,19 @@ public class ContestController {
 
         // 신청이 생성되었으므로 201 Created 로 응답한다.
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @Operation(
+            summary = "대회 종료 후 참가자 순위 리스트 조회",
+            description = "정산이 완료된 대회의 모든 참가자 순위 리스트를 커서 기반 무한 스크롤로 조회합니다. 순위, 닉네임, 실현손익, 수익률 정보를 포함하며 순위순으로 정렬되어 반환됩니다."
+    )
+    @GetMapping("/seasons/{seasonId}/rankings")
+    public ResponseEntity<CursorResponseDto<ContestRankingDto>> getContestRankings(
+            @PathVariable("seasonId") Long seasonId,
+            @Valid @ParameterObject @ModelAttribute ContestCursorSearchDto request
+    ) {
+        CursorResponseDto<ContestRankingDto> rankings = contestService.getContestRankings(seasonId, request);
+
+        return ResponseEntity.ok(rankings);
     }
 }

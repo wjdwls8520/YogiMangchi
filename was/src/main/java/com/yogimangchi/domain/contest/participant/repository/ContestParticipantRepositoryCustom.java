@@ -7,6 +7,7 @@ import com.yogimangchi.domain.contest.participant.dto.query.MyContestSeasonResul
 import com.yogimangchi.domain.contest.application.dto.request.ContestApplicantSearchDto;
 import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
 
+import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -27,4 +28,7 @@ public interface ContestParticipantRepositoryCustom {
     // 참가자 행이 없으면 Optional.empty() 반환 → 서비스에서 NotFound 예외 변환.
     // 참가자 행은 있지만 settledAt 이 NULL 인 케이스도 Optional 비어있지 않게 반환됨 → 서비스에서 분기.
     Optional<MyContestSeasonResultQueryDto> findMyContestSeasonResult(Long memberId, Long seasonId);
+
+    // 대회 종료 후 전체 순위 조회 — 박제된(frozen) 데이터를 기반으로 순위순 정렬하여 반환 (커서 기반 무한 스크롤)
+    List<ContestRankingDto> findContestRankings(Long seasonId, ContestCursorSearchDto request);
 }

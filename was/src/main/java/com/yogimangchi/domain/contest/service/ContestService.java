@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.contest.service;
 
+import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto;
 import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipationSeasonQueryDto;
 import com.yogimangchi.domain.contest.participant.dto.query.MyContestSeasonResultQueryDto;
 import com.yogimangchi.domain.contest.participant.dto.response.MyContestSeasonResultDto;
@@ -247,5 +248,40 @@ public class ContestService {
         }
 
         return result.toResponseDto();
+    }
+
+    /**
+     * 특정 시즌의 전체 순위 리스트를 조회한다. (무한 스크롤)
+     *
+     * @param seasonId 조회할 시즌 ID
+     * @param request  커서 및 사이즈 조건
+     * @return 순위순으로 정렬된 커서 응답
+     */
+    @Transactional(readOnly = true)
+    public CursorResponseDto<ContestRankingDto> getContestRankings(Long seasonId, ContestCursorSearchDto request) {
+        // 시즌 존재 여부 확인
+        ContestSeason season = contestSeasonRepository.findById(seasonId)
+                .orElseThrow(ContestException::contestSeasonNotFound);
+
+        // 정산이 완료되지 않은 시즌은 랭킹 데이터(final_*)가 없으므로 빈 리스트 반환
+        if (season.getSettledAt() == null) {
+            return new CursorResponseDto<>(List.of(), null, false);
+        }
+
+        // 박제된 데이터를 기반으로 순위순 조회 (N+1 방지 및 커서 페이징 지원 쿼리 사용)
+        List<ContestRankingDto> rankings = contestParticipantRepository.findContestRankings(seasonId, request);
+
+        int limitSize = request.getOrDefaultSize();
+        boolean hasNext = rankings.size() > limitSize;
+
+        if (hasNext) {
+            rankings = new ArrayList<>(rankings.subList(0, limitSize));
+        }
+
+        Long nextCursorId = hasNext
+                ? rankings.get(rankings.size() - 1).participantId()
+                : null;
+
+        return new CursorResponseDto<>(rankings, nextCursorId, hasNext);
     }
 }
