@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 // 대회 시즌 정산(강제종료) 결과 응답 DTO
-// 어드민 페이지에서 "지갑 1,234개 비활성화 / 포지션 567건 청산 완료" 형태로 즉시 노출하기 위한 요약 정보
+// 어드민 페이지에서 "지갑 1,234개 비활성화 / 포지션 567건 청산 / 참가자 1,234명 박제 완료" 형태로 즉시 노출하기 위한 요약 정보
 public record ContestSettlementResultDto(
 
         @Schema(description = "정산된 대회 시즌 ID", example = "1")
@@ -26,17 +26,21 @@ public record ContestSettlementResultDto(
         @Schema(description = "정산 대상 참가자 수", example = "1234")
         int participantCount,
 
+        @Schema(description = "Phase 2c 에서 최종 결과(수익금/수익률/순위) 박제 처리된 참가자 수", example = "1234")
+        int finalizedParticipantCount,
+
         @Schema(description = "이미 정산된 시즌에 다시 호출됐는지 여부 (true면 이번 호출에서 실제 변경 없음)", example = "false")
         boolean alreadySettled
 ) {
-    // 신규 정산 완료 — 실제로 지갑/포지션이 처리된 경우
+    // 신규 정산 완료 — 실제로 지갑/포지션/참가자 박제가 처리된 경우
     public static ContestSettlementResultDto of(
             Long seasonId,
             String seasonTitle,
             LocalDateTime settledAt,
             int deactivatedWalletCount,
             int liquidatedPositionCount,
-            int participantCount
+            int participantCount,
+            int finalizedParticipantCount
     ) {
         return new ContestSettlementResultDto(
                 seasonId,
@@ -45,6 +49,7 @@ public record ContestSettlementResultDto(
                 deactivatedWalletCount,
                 liquidatedPositionCount,
                 participantCount,
+                finalizedParticipantCount,
                 false
         );
     }
@@ -63,6 +68,7 @@ public record ContestSettlementResultDto(
                 0,
                 0,
                 participantCount,
+                0,
                 true
         );
     }

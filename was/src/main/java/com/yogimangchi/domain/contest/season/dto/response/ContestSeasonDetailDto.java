@@ -94,6 +94,7 @@ public record ContestSeasonDetailDto(
                 contestSeason.recruitmentEndAt(),
                 contestSeason.contestStartAt(),
                 contestSeason.contestEndAt(),
+                contestSeason.settledAt(),
                 now
         );
 

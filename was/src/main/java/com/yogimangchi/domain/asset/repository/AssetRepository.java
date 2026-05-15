@@ -97,6 +97,34 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
             @Param("now") LocalDateTime now
     );
 
+    // 정산 완료(또는 비활성화)된 대회 지갑 사후 조회용 — 락 없음, 상태/시각 필터 없음
+    //
+    // 용도
+    //   대회가 끝나고 settledAt 이 박힌 후 사용자가 "정산 직후 내 지갑 상태"를 조회할 때.
+    //   findTradableContestWallet 은 status='ACTIVE' AND contestEndAt >= now 가드 때문에
+    //   정산 완료 시즌의 지갑(INACTIVE 또는 종료된 시즌)을 반환하지 않음 — 그 빈틈을 메움.
+    //
+    // 필터
+    //   - (member, contestSeason, type=CONTEST) 만으로 고유 식별
+    //   - status / isCancel / 시각 필터 없음 → 어떤 상태의 지갑이든 반환
+    //   - 비참가자 호출 시 결과 없음 → 자연 인가
+    //
+    // 안전성
+    //   - 락 없음 (읽기 전용)
+    //   - 단순 SELECT — 데드락 / 부하 우려 없음
+    @Query("""
+            SELECT a
+            FROM Assets a
+            WHERE a.member.id = :memberId
+              AND a.type = :assetType
+              AND a.contestSeason.id = :contestSeasonId
+            """)
+    Optional<Assets> findContestWalletByMemberAndSeason(
+            @Param("memberId") Long memberId,
+            @Param("assetType") AssetType assetType,
+            @Param("contestSeasonId") Long contestSeasonId
+    );
+
     // 대회 정산 Phase 2 — 시즌 내 ACTIVE 상태 대회 지갑을 일괄 INACTIVE 처리
     //
     // 정합성/멱등성 보장

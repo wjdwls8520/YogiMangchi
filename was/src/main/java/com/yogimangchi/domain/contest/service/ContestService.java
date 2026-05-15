@@ -1,6 +1,8 @@
 package com.yogimangchi.domain.contest.service;
 
 import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipationSeasonQueryDto;
+import com.yogimangchi.domain.contest.participant.dto.query.MyContestSeasonResultQueryDto;
+import com.yogimangchi.domain.contest.participant.dto.response.MyContestSeasonResultDto;
 import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
 import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipationSeasonDto;
@@ -217,5 +219,33 @@ public class ContestService {
                 : null;
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
+
+    // 내 시즌 정산 결과 조회 — settledAt 분기 후 박제값(final_*) 단일 SELECT 응답
+    //
+    // 분기 로직
+    //   1) 참가자 존재 안 함 → CONTEST_PARTICIPANT_NOT_FOUND (404)
+    //   2) 참가자는 존재하지만 시즌이 미정산(settledAt IS NULL) → CONTEST_SEASON_NOT_SETTLED (409)
+    //      프론트는 이 코드로 "정산 대기 중" UI 분기. 진행 중 실시간 PnL 은 별도 wallet/포지션 API 에서 처리.
+    //   3) 정산 완료 → 박제값 그대로 응답 (실시간 계산 없음, 단일 SELECT)
+    //
+    // 비정규화(Frozen Aggregate) 의 효과
+    //   - 정산 시점에 한 번 박힌 final_realized_pnl/profit_rate/rank 를 그대로 SELECT 만 함
+    //   - 매 호출마다 다시 합산/순위 산정하지 않으므로 응답 일관성 + 빠른 응답 보장
+    @Transactional(readOnly = true)
+    public MyContestSeasonResultDto getMyContestSeasonResult(Long loginMemberId, Long seasonId) {
+        // 인증 가드 — 비활성/탈퇴 회원 차단
+        Member member = memberReader.getAuthenticated(loginMemberId);
+
+        MyContestSeasonResultQueryDto result = contestParticipantRepository
+                .findMyContestSeasonResult(member.getId(), seasonId)
+                .orElseThrow(ContestException::contestParticipantNotFound);
+
+        // 정산 미완료 시즌은 박제 컬럼이 모두 NULL — 명시적 분기로 사용자에게 의도를 알림
+        if (result.settledAt() == null) {
+            throw ContestException.contestSeasonNotSettled();
+        }
+
+        return result.toResponseDto();
     }
 }

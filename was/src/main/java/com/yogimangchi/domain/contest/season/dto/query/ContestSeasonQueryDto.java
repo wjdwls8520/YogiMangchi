@@ -13,5 +13,7 @@ public record ContestSeasonQueryDto(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         boolean isPublic,
-        boolean isCancel
+        boolean isCancel,
+        // settledAt — 정산 완료 시각. null 이면 미정산. displayStatus 분기에 사용.
+        LocalDateTime settledAt
 ) { }

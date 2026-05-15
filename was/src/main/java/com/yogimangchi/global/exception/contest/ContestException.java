@@ -95,6 +95,25 @@ public class ContestException extends RuntimeException {
         );
     }
 
+    // 시즌 결과 조회 시 — 사용자가 해당 시즌의 참가자가 아닐 때
+    public static ContestException contestParticipantNotFound() {
+        return new ContestException(
+                HttpStatus.NOT_FOUND,
+                "CONTEST_PARTICIPANT_NOT_FOUND",
+                "해당 대회 시즌의 참가자가 아닙니다."
+        );
+    }
+
+    // 시즌 결과 조회 시 — 아직 정산되지 않은 시즌 (settledAt IS NULL)
+    // 프론트는 이 코드로 "정산 대기" UI 분기 가능
+    public static ContestException contestSeasonNotSettled() {
+        return new ContestException(
+                HttpStatus.CONFLICT,
+                "CONTEST_SEASON_NOT_SETTLED",
+                "아직 정산이 완료되지 않은 대회 시즌입니다."
+        );
+    }
+
     public HttpStatus getStatus() {
         return status;
     }

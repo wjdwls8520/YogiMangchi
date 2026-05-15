@@ -137,4 +137,23 @@ public class FuturesQueryService {
 
         return ContestFuturesWalletStatusResponseDto.of(wallet, marginInUse);
     }
+
+    // 정산 완료/종료된 대회 지갑 상태 조회 (사후 조회용)
+    //
+    // 활성 가드(ACTIVE + contestEndAt >= now) 가 깨진 시즌도 본인 지갑 정보를 사후 확인 가능.
+    // OPEN 포지션은 정산이 끝났으면 0건이므로 marginInUse 도 0 으로 떨어지는 것이 자연스럽다.
+    //
+    // 응답 포맷은 진행 중 조회와 동일한 DTO 사용 — 프론트는 status(INACTIVE) 로 사후 케이스를 인지.
+    @Transactional(readOnly = true)
+    public ContestFuturesWalletStatusResponseDto getFinishedContestWalletStatus(Long memberId, Long contestSeasonId) {
+
+        Assets wallet = futuresWalletReader.getFinishedContestWallet(memberId, contestSeasonId);
+
+        // 정상 정산 이후엔 OPEN 포지션이 없으므로 marginInUse=0 이 정상.
+        // 다만 비활성화 직전 데이터 잔존 케이스 대비 동일한 합산 쿼리 재사용.
+        BigDecimal marginInUse = futuresPositionRepository
+                .sumTotalMarginByAssetsAndPositionStatus(wallet, PositionStatus.OPEN);
+
+        return ContestFuturesWalletStatusResponseDto.of(wallet, marginInUse);
+    }
 }
