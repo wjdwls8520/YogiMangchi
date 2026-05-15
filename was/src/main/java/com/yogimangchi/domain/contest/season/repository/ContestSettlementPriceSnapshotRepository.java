@@ -8,10 +8,10 @@ import java.util.List;
 /**
  * 대회 시즌 정산용 가격 스냅샷 리포지토리
  *
- *  Phase 1 (캡처):
+ *  스냅샷 캡처 단계:
  *   - existsByContestSeason_IdAndSymbol(...) 으로 멱등 체크 후 save
  *
- *  Phase 2 (정산):
+ *  포지션 일괄 청산 단계:
  *   - findAllByContestSeason_Id(...) 으로 시즌의 모든 스냅샷을 한 번에 로드해
  *     심볼 → 가격 맵을 구성, 포지션 청산 시 lookup 으로 사용
  */

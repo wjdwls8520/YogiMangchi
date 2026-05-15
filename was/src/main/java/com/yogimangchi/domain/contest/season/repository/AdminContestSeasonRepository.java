@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,7 @@ public interface AdminContestSeasonRepository extends JpaRepository<ContestSeaso
     //
     // 영속성 컨텍스트
     //   - clearAutomatically=true 로 1차 캐시 클리어 → 같은 트랜잭션에서 reload 시 최신 값 보장
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             UPDATE ContestSeason cs
@@ -61,7 +63,7 @@ public interface AdminContestSeasonRepository extends JpaRepository<ContestSeaso
     // 목적
     //   어드민이 contestEndAt 이전에 강제종료 버튼을 누른 케이스 대응. 거래 쿼리 가드
     //   (findTradableContestWalletForUpdate 의 cs.contestEndAt >= :now) 가 즉시 작동해
-    //   Phase 2a 진행 중 신규 거래 진입을 자연 차단.
+    //   포지션 일괄 청산 진행 중 신규 거래 진입을 자연 차단.
     //
     // WHERE 절 가드
     //   - cs.contestEndAt > :alignedAt : 이미 지난 시즌은 건드리지 않음
@@ -71,6 +73,7 @@ public interface AdminContestSeasonRepository extends JpaRepository<ContestSeaso
     //
     // 영속성 컨텍스트
     //   - clearAutomatically=true 로 1차 캐시 초기화 → 같은 트랜잭션 안에서 reload 시 최신 값 보장
+    @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             UPDATE ContestSeason cs

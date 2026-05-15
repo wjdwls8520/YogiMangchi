@@ -15,7 +15,7 @@ import java.util.List;
  *
  * <p>역할: contestEndAt 이 지난 미정산 시즌을 주기적으로 탐색하고 AdminContestService 의
  * 시스템 진입점({@link AdminContestService#settleContestSeasonBySystem(Long)})을 호출해
- * Phase 1(가격 스냅샷) → Phase 2a(포지션 청산) → Phase 2b(지갑 비활성화) → Phase 3(markSettled)
+ * 1단계(스냅샷 캡처) → 2단계(포지션 일괄 청산) → 3단계(지갑 일괄 비활성화) → 4단계(결과 산출) → 5단계(완료 마킹)
  * 전체 흐름을 자동 트리거한다.</p>
  *
  * <h3>설계 원칙</h3>

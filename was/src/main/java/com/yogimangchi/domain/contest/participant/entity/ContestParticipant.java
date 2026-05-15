@@ -74,7 +74,7 @@ public class ContestParticipant {
     @Comment("참가자 수정 일시")
     private LocalDateTime updatedAt;
 
-    // 정산 박제 필드 — 시즌 정산(Phase 2c)에서 한 번만 채워지고 그 이후 불변
+    // 최종 결과 저장 필드 — 참가자 최종 결과 산출 시 한 번만 채워지고 그 이후 불변
     //
     // NULL 일 때: 아직 정산되지 않은 참가자 (진행 중 시즌 또는 정산 직전 상태)
     // 값이 있을 때: 정산 완료된 최종 결과. 사용자 조회 API 는 settledAt 분기 후 이 값을 단일 SELECT 로 사용
@@ -106,7 +106,7 @@ public class ContestParticipant {
         return contestParticipant;
     }
 
-    // 정산 결과 박제 — Phase 2c(ContestSettlementAggregator)에서 한 번만 호출되어 최종 결과를 영구 저장
+    // 정산 결과 저장 — 최종 결과 산출 단계(ContestSettlementAggregator)에서 한 번만 호출되어 최종 결과를 영구 저장
     //
     // 멱등 가드: 이미 박제된 참가자는 덮어쓰기 허용 (재실행 시 같은 값 → 안전)
     // 단, 박제는 정산 트리거 1회당 1번만 일어나야 하므로 호출자 측에서 흐름 통제 필요

@@ -19,7 +19,7 @@ public interface ContestParticipantRepositoryCustom {
 
     List<ContestParticipationSeasonQueryDto> searchContestParticipationSeasons(Long memberId, ContestCursorSearchDto request, LocalDateTime now);
 
-    // 시즌 정산 Phase 2c 용 — 참가자별 (실현손익 합, 시드머니 합) 집계.
+    // 참가자 최종 결과 산출용 — 참가자별 (실현손익 합, 시드머니 합) 집계.
     // 두 단순 쿼리를 자바 단에서 묶어 반환. 단일 거대 JOIN 보다 행 중복 위험이 없고 읽기도 쉬움.
     List<ContestParticipantSettlementAggregateDto> findSettlementAggregates(Long seasonId);
 

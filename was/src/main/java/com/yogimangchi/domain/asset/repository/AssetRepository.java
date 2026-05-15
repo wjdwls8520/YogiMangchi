@@ -125,7 +125,7 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
             @Param("contestSeasonId") Long contestSeasonId
     );
 
-    // 대회 정산 Phase 2 — 시즌 내 ACTIVE 상태 대회 지갑을 일괄 INACTIVE 처리
+    // 대회 지갑 정산 처리 — 시즌 내 ACTIVE 상태인 대회 지갑을 일괄 INACTIVE로 변경
     //
     // 정합성/멱등성 보장
     //   - WHERE 절의 status='ACTIVE' 조건으로 이미 비활성인 지갑은 변경 대상에서 제외

@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 대회 시즌 정산 Phase 1 — 가격 스냅샷 캡처 서비스
+ * 대회 시즌 정산 단계 — 가격 스냅샷 캡처 서비스
  *
  * 흐름
  *  1. 시즌 내 OPEN 포지션의 심볼 distinct 목록 조회
