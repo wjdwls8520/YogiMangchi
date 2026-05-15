@@ -1016,6 +1016,67 @@ public class NotificationService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public void notifyContestApplicationApproved(Long memberId, Long seasonId, String contestName) {
+        Member notificationReceiver = memberRepository.findActiveById(memberId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("대회 참가 승인 알림 수신 회원을 찾을 수 없습니다. memberId={}", memberId);
+            return;
+        }
+
+        com.yogimangchi.domain.notification.dto.payload.ContestApplicationApprovedNotificationPayload payload = 
+                new com.yogimangchi.domain.notification.dto.payload.ContestApplicationApprovedNotificationPayload(
+                        seasonId,
+                        contestName
+                );
+
+        log.info("대회 참가 승인 알림 payload 생성 완료. memberId={}, seasonId={}, contestName={}", memberId, seasonId, contestName);
+
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        NotificationCategory.CONTEST,
+                        NotificationType.CONTEST_APPLICATION_APPROVED,
+                        serializePayload(payload)
+                ),
+                com.yogimangchi.global.sse.enums.ContestSseEventType.NOTIFICATION_CONTEST_APPLICATION_APPROVED.name()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public void notifyContestApplicationRejected(Long memberId, Long seasonId, String contestName, String rejectReason) {
+        Member notificationReceiver = memberRepository.findActiveById(memberId)
+                .orElse(null);
+
+        if (notificationReceiver == null) {
+            log.warn("대회 참가 반려 알림 수신 회원을 찾을 수 없습니다. memberId={}", memberId);
+            return;
+        }
+
+        com.yogimangchi.domain.notification.dto.payload.ContestApplicationRejectedNotificationPayload payload = 
+                new com.yogimangchi.domain.notification.dto.payload.ContestApplicationRejectedNotificationPayload(
+                        seasonId,
+                        contestName,
+                        rejectReason
+                );
+
+        log.info("대회 참가 반려 알림 payload 생성 완료. memberId={}, seasonId={}, contestName={}", memberId, seasonId, contestName);
+
+        saveAndSend(
+                Notification.create(
+                        notificationReceiver,
+                        null,
+                        NotificationCategory.CONTEST,
+                        NotificationType.CONTEST_APPLICATION_REJECTED,
+                        serializePayload(payload)
+                ),
+                com.yogimangchi.global.sse.enums.ContestSseEventType.NOTIFICATION_CONTEST_APPLICATION_REJECTED.name()
+        );
+    }
+
     private TradeSseEventType resolveLiquidationSseEventType(AssetType assetType) {
         return switch (assetType) {
             case TRADE_FUTURE -> TradeSseEventType.NOTIFICATION_TRADE_LIQUIDATION_COMPLETED;

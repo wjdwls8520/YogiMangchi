@@ -286,6 +286,8 @@ public class NotificationSseService {
             case POST_LIKED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_POST_LIKED_UPDATED.name();
             case REPLY_LIKED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED.name();
             case FOLLOW_CREATED -> CommunitySseEventType.NOTIFICATION_COMMUNITY_FOLLOW_CREATED.name();
+            case CONTEST_APPLICATION_APPROVED -> com.yogimangchi.global.sse.enums.ContestSseEventType.NOTIFICATION_CONTEST_APPLICATION_APPROVED.name();
+            case CONTEST_APPLICATION_REJECTED -> com.yogimangchi.global.sse.enums.ContestSseEventType.NOTIFICATION_CONTEST_APPLICATION_REJECTED.name();
             default -> notificationType.name();
         };
     }
