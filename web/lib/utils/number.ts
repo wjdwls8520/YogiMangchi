@@ -57,3 +57,13 @@ export const formatSignedAssetNumber = (
 
   return `${value > 0 ? "+" : ""}${formatAssetNumber(value, options)}`;
 };
+
+export const formatNumber = formatAssetNumber;
+export const formatSignedNumber = formatSignedAssetNumber;
+
+export const formatSignedPercent = (value?: number | null) => {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "0.00%";
+  }
+  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+};

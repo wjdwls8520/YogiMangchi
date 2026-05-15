@@ -15,6 +15,7 @@ import {
 import {
   getAdminContestSeasonById,
   updateContestSeasonStatus,
+  settleContestSeason,
 } from "@/lib/api/admin-contest";
 import ContestMembersManager, {
   type ContestMembersTab,
@@ -75,6 +76,7 @@ export default function AdminContestDetailPage() {
   const [isLoadingSeason, setIsLoadingSeason] = useState(true);
   const [seasonError, setSeasonError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
   const [updatingStatusField, setUpdatingStatusField] = useState<
     "isPublic" | "isCancel" | null
   >(null);
@@ -223,6 +225,54 @@ export default function AdminContestDetailPage() {
     }
   };
 
+  const handleSettleSeason = async () => {
+    if (!season) return;
+
+    if (season.settledAt) {
+      await alert("이미 정산(강제 종료)이 완료된 대회입니다.");
+      return;
+    }
+
+    const shouldProceed = await confirm({
+      description: "이 대회를 강제 종료하시겠습니까?\n모든 참가자의 포지션이 현재 시장가로 즉시 청산되며,\n 대회용 지갑이 비활성화됩니다.\n참가자들의 최종 수익률 및 순위도 확정(박제)됩니다.\n이 작업은 절대 되돌릴 수 없습니다.",
+      confirmText: "강제 정산 실행",
+      tone: "danger",
+    });
+
+    if (!shouldProceed) return;
+
+    setIsSettling(true);
+    try {
+      const result = await settleContestSeason(seasonId);
+
+      if (result.alreadySettled) {
+        toast({
+          title: "이미 정산이 완료된 대회입니다.",
+        });
+      } else {
+        toast({
+          title: "대회가 성공적으로 정산되었습니다.",
+          description: `지갑 ${result.deactivatedWalletCount}개 비활성화, 포지션 ${result.liquidatedPositionCount}건 청산, ${result.finalizedParticipantCount}명 참가자 결과 박제 완료.`,
+          tone: "success",
+        });
+      }
+
+      void loadSeason();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("401")) {
+        await alert(ADMIN_LOGIN_REQUIRED_MESSAGE);
+      } else if (message.includes("403")) {
+        await alert(getAdminForbiddenMessage("대회를 정산할 수 없습니다."));
+      } else {
+        console.error("대회 정산 실패:", error);
+        await alert("대회 정산에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 pb-12 px-4 sm:px-6">
       {/* 1. 상단 헤더 & 컨트롤 바 */}
@@ -244,22 +294,22 @@ export default function AdminContestDetailPage() {
                   {normalizedStatus}
                 </span>
                 {progressBadges.length > 0 ? (
-                    progressBadges.map((badge) => (
-                      <span
-                        key={badge}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${getProgressBadgeClassName(
-                          badge
-                        )}`}
-                      >
-                        {badge === "Live" ? (
-                          <span aria-hidden="true" className="relative flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-                            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
-                          </span>
-                        ) : null}
-                        {badge}
-                      </span>
-                    ))
+                  progressBadges.map((badge) => (
+                    <span
+                      key={badge}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${getProgressBadgeClassName(
+                        badge
+                      )}`}
+                    >
+                      {badge === "Live" ? (
+                        <span aria-hidden="true" className="relative flex h-3 w-3">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                          <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+                        </span>
+                      ) : null}
+                      {badge}
+                    </span>
+                  ))
                 ) : (
                   <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs font-bold text-gray-500 dark:text-gray-400 ring-1 ring-gray-200/50 dark:ring-gray-700/50">
                     대기중
@@ -270,6 +320,16 @@ export default function AdminContestDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {season && !season.settledAt && (
+            <Button
+              variant="white"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 shadow-sm font-bold"
+              onClick={() => void handleSettleSeason()}
+              disabled={isSettling}
+            >
+              {isSettling ? "정산 중..." : "대회 강제 정산"}
+            </Button>
+          )}
           <Button
             variant="white"
             className="shadow-sm font-bold"
@@ -290,10 +350,10 @@ export default function AdminContestDetailPage() {
         </div>
       ) : season ? (
         <div className="space-y-8">
-          
+
           {/* 2. 대회 정보 대시보드 (기존 개요 탭 통합) */}
           <div className="grid gap-6 lg:grid-cols-3">
-            
+
             {/* 대회 기본 설명 */}
             <div className="lg:col-span-2 space-y-6">
               <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
@@ -388,6 +448,18 @@ export default function AdminContestDetailPage() {
                       {updatedAtValue ? formatDateTime(updatedAtValue) : "-"}
                     </dd>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <dt className="text-xs text-gray-500 dark:text-gray-400">정산 상태</dt>
+                    <dd className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                      {season.settledAt ? (
+                        <span className="text-red-600 dark:text-red-400 font-bold">
+                          {formatDateTime(season.settledAt)} 완료
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400">미정산</span>
+                      )}
+                    </dd>
+                  </div>
                 </dl>
               </section>
             </div>
@@ -406,11 +478,10 @@ export default function AdminContestDetailPage() {
                     <button
                       key={tab.value}
                       onClick={() => setActiveTab(tab.value)}
-                      className={`whitespace-nowrap border-b-2 py-4 px-2 text-sm font-bold transition-all ${
-                        isActive
-                          ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                          : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                      }`}
+                      className={`whitespace-nowrap border-b-2 py-4 px-2 text-sm font-bold transition-all ${isActive
+                        ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                        : "border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
+                        }`}
                     >
                       {tab.label}
                     </button>

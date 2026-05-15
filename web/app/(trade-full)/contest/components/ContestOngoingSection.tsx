@@ -26,7 +26,19 @@ export default function ContestOngoingSection({
   }
 
   if (contests.length === 0) {
-    return null;
+    return (
+      <section className="space-y-3">
+        <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-2">
+          <span className="w-1 h-4 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
+          내 진행 중인 대회
+        </h2>
+        <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50">
+          <p className="text-sm font-bold text-gray-400 dark:text-gray-500">
+            진행 중인 대회가 없습니다.
+          </p>
+        </div>
+      </section>
+    );
   }
 
   const handlePrev = () => {
@@ -52,7 +64,7 @@ export default function ContestOngoingSection({
         <h3 className="text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight line-clamp-1">
           {contest.title}
         </h3>
-        
+
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/60">
           <div className="space-y-0.5">
             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">현재 수익률</p>
@@ -60,16 +72,16 @@ export default function ContestOngoingSection({
               {typeof contest.myYield === "number" ? `${contest.myYield}%` : "-"}
             </p>
           </div>
-          <div className="space-y-0.5">
+          {/* <div className="space-y-0.5">
             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">나의 순위</p>
             <p className="text-sm font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
               {typeof contest.myRank === "number" ? `${contest.myRank}위` : "-"}
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
 
-      <button 
+      <button
         onClick={() => onMoveTrading?.(contest.id)}
         className="w-full inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-500 active:scale-95"
       >

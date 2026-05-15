@@ -7,7 +7,6 @@ import type {
   FuturesLimitOpenOrderParams,
   FuturesOpenOrderParams,
   FuturesOrderFilters,
-  FuturesClosedPositionFilters,
   FuturesOpenPositionFilters,
   FuturesWalletStatus,
   FuturesCursorResponse,

@@ -291,7 +291,7 @@ export default function FeedbackProvider({ children }: { children: ReactNode }) 
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
               <Info className="h-6 w-6" strokeWidth={2.5} />
             </div>
-            <p className="max-w-[240px] whitespace-pre-line text-[16px] font-medium leading-relaxed tracking-tight text-zinc-800 dark:text-zinc-100">
+            <p className="max-w-[380px] whitespace-pre-line text-[16px] font-medium leading-relaxed tracking-tight text-zinc-800 dark:text-zinc-100">
               {alertState.description}
             </p>
           </div>
@@ -331,7 +331,7 @@ export default function FeedbackProvider({ children }: { children: ReactNode }) 
             >
               <CircleAlert className="h-6 w-6" strokeWidth={2.5} />
             </div>
-            <p className="max-w-[240px] whitespace-pre-line text-[16px] font-medium leading-relaxed tracking-tight text-zinc-800 dark:text-zinc-100">
+            <p className="max-w-[380px] whitespace-pre-line text-[16px] font-medium leading-relaxed tracking-tight text-zinc-800 dark:text-zinc-100">
               {confirmState.description}
             </p>
           </div>

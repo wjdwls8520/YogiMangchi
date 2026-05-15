@@ -26,6 +26,7 @@ export type ContestSeason = {
   isLive?: boolean;
   isPublic?: boolean;
   isCancel?: boolean;
+  settledAt?: string;
   displayStatus?: ContestDisplayStatusCode | string;
   appliedByMe?: boolean;
 };
@@ -222,3 +223,23 @@ export const getMyLatestRejectedContestApplication = async () => {
     "me/contest/rejected-applications/latest"
   ) as Promise<MyContestLatestRejectedApplication>;
 };
+
+export type MyContestSeasonResult = {
+  participantId: number;
+  seasonId: number;
+  seasonTitle: string;
+  contestStartAt: string;
+  contestEndAt: string;
+  settledAt: string;
+  finalRealizedPnl: number;
+  finalProfitRate: number;
+  finalRank: number;
+};
+
+// 내 특정 시즌 정산 결과 조회 (순위 포함)
+export const getMyContestSeasonResult = async (seasonId: number) => {
+  return fetchClient(`me/contest/seasons/${seasonId}/result`, {
+    method: "GET",
+  }) as Promise<MyContestSeasonResult>;
+};
+

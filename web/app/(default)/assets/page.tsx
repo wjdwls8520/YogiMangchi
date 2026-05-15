@@ -13,9 +13,12 @@ import {
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Select from "@/components/ui/Select";
+import { cn, getProfitColorClass, getSideColorClass } from "@/lib/utils/cs";
 import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
+import TickerCell from "@/components/trade/TickerCell";
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useMarketStore, type MarketSymbolMeta } from "@/stores/useMarketStore";
 import { formatDateTime } from "@/lib/utils/date";
 import {
   getBaseAssetLabel,
@@ -23,7 +26,13 @@ import {
   getDisplaySymbolLabel,
 } from "@/lib/utils/market-display";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
-import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
+import { 
+  formatAssetNumber, 
+  formatSignedAssetNumber,
+  formatNumber,
+  formatSignedNumber,
+  formatSignedPercent 
+} from "@/lib/utils/number";
 
 
 type AssetTab = "trade" | "contest" | "mock";
@@ -55,13 +64,6 @@ type MockPortfolio = {
   holdings: MockHolding[];
 };
 
-type MarketSymbolMeta = {
-  symbol: string;
-  displayNameKr: string;
-  displayNameEn: string;
-  baseAsset: string;
-  quoteAsset: string;
-};
 
 type OpenOrderItem = {
   orderId: number;
@@ -200,21 +202,6 @@ const TRADE_STATUS_OPTIONS = [
   { label: "취소", value: "CANCELED" },
 ];
 
-const formatNumber = (value?: number | null) => {
-  return formatAssetNumber(value);
-};
-
-const formatSignedNumber = (value?: number | null) => {
-  return formatSignedAssetNumber(value);
-};
-
-const formatSignedPercent = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0%";
-  }
-
-  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
-};
 
 
 const formatOrderStatus = (status?: string) => {
@@ -442,48 +429,10 @@ const isNoMockWalletMessage = (message: string) => {
   );
 };
 
-const getProfitColorClass = (value?: number | null) => {
-  if ((value ?? 0) > 0) return "text-red-500 font-black";
-  if ((value ?? 0) < 0) return "text-blue-500 font-black";
-  return "text-gray-900 font-black";
-};
-
-const getSideColorClass = (side: "BUY" | "SELL") => {
-  return side === "BUY" ? "text-red-500 font-black" : "text-blue-500 font-black";
-};
 
 /**
  * 특정 심볼의 실시간 시세를 구독하여 해당 셀만 업데이트하는 컴포넌트
  */
-function TickerCell({ 
-  symbol, 
-  fallbackPrice, 
-  quantity, 
-  buyAmount, 
-  type = "price" 
-}: { 
-  symbol: string; 
-  fallbackPrice: number; 
-  quantity: number; 
-  buyAmount: number;
-  type?: "price" | "value" | "profit" | "roi" | "ratio" | "totalAsset";
-  currentTotalAsset?: number;
-}) {
-  const realtimePrice = useTickerStore((state) => state.tickers[symbol]?.price ?? fallbackPrice);
-  
-  if (type === "price") return <>{formatAssetNumber(realtimePrice)}</>;
-  
-  const value = quantity * realtimePrice;
-  if (type === "value") return <span className="font-bold text-gray-900">{formatAssetNumber(value)}</span>;
-  
-  const profit = value - buyAmount;
-  if (type === "profit") return <span className={getProfitColorClass(profit)}>{formatSignedAssetNumber(profit)}</span>;
-  
-  const roi = buyAmount > 0 ? (profit / buyAmount) * 100 : 0;
-  if (type === "roi") return <span className={getProfitColorClass(profit)}>{formatSignedPercent(roi)}</span>;
-
-  return null;
-}
 
 /**
  * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
@@ -562,13 +511,13 @@ export default function AssetsPage() {
   const [tradesHasNext, setTradesHasNext] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingTrades, setIsLoadingTrades] = useState(false);
-  const [isFetchingMoreOpenOrders, setIsFetchingMoreOpenOrders] =
-    useState(false);
+  const [isFetchingMoreOpenOrders, setIsFetchingMoreOpenOrders] = useState(false);
   const [isFetchingMoreOrders, setIsFetchingMoreOrders] = useState(false);
   const [isFetchingMoreTrades, setIsFetchingMoreTrades] = useState(false);
   const [ordersErrorMessage, setOrdersErrorMessage] = useState("");
   const [tradesErrorMessage, setTradesErrorMessage] = useState("");
-  const [marketSymbols, setMarketSymbols] = useState<MarketSymbolMeta[]>([]);
+  const marketSymbols = useMarketStore((state: any) => state.marketSymbols);
+  const fetchMarketSymbols = useMarketStore((state: any) => state.fetchMarketSymbols);
   const [orderFilters, setOrderFilters] = useState<TradeListFilters>(
     createDefaultOrderFilters
   );
@@ -648,39 +597,8 @@ export default function AssetsPage() {
   };
 
   useEffect(() => {
-    let isActive = true;
-
-    const loadMarketSymbols = async () => {
-      try {
-        const response = await fetch(
-          "http://localhost:8080/api/v1/market/spot/symbols",
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (!response.ok) {
-          return;
-        }
-
-        const json = await getJson(response);
-
-        if (!isActive) return;
-
-        setMarketSymbols(getArrayContent<MarketSymbolMeta>(json));
-      } catch (error) {
-        if (!isActive) return;
-        console.error("마켓 심볼 목록 조회 실패:", error);
-      }
-    };
-
-    void loadMarketSymbols();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    void fetchMarketSymbols();
+  }, [fetchMarketSymbols]);
 
   useEffect(() => {
     if (assetTab !== "mock") return;
@@ -1243,7 +1161,7 @@ export default function AssetsPage() {
           "수익률",
         ],
         headerClasses: [
-          "text-center",
+          "text-left",
           "text-right",
           "text-right",
           "text-right",
@@ -1259,24 +1177,24 @@ export default function AssetsPage() {
                 item.symbol,
                 marketSymbols
               ),
-              "text-center"
+              "text-left"
             ),
             cell(formatNumber(item.quantity), "text-right"),
             cell(formatNumber(item.averageBuyPrice), "text-right"),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="price" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="price" />,
               "text-right"
             ),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />,
               "text-right font-bold"
             ),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />,
               "text-right"
             ),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />,
               "text-right"
             ),
           ];
@@ -1296,7 +1214,7 @@ export default function AssetsPage() {
           "비중",
         ],
         headerClasses: [
-          "text-center",
+          "text-left",
           "text-right",
           "text-right",
           "text-right",
@@ -1311,19 +1229,19 @@ export default function AssetsPage() {
                 item.symbol,
                 marketSymbols
               ),
-              "text-center"
+              "text-left"
             ),
             cell(formatNumber(item.buyAmount), "text-right"),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />,
               "text-right"
             ),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />,
               "text-right"
             ),
             cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, 
+              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />,
               "text-right"
             ),
             cell(formatNumber(item.holdingRatio) + "%", "text-right"),
@@ -1346,8 +1264,8 @@ export default function AssetsPage() {
           "상태",
         ],
         headerClasses: [
-          "text-center",
-          "text-center",
+          "text-left",
+          "text-left",
           "text-center",
           "text-center",
           "text-right",
@@ -1356,8 +1274,8 @@ export default function AssetsPage() {
           "text-center",
         ],
         rows: orderHistories.map((item) => [
-          cell(formatDateTime(item.orderedAt), "text-center text-gray-500"),
-          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
+          cell(formatDateTime(item.orderedAt), "text-left text-gray-500"),
+          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
           cell(
             item.side === "BUY" ? "매수" : "매도",
             `text-center ${getSideColorClass(item.side)}`
@@ -1394,8 +1312,8 @@ export default function AssetsPage() {
           withQuoteAssetHeader("실현손익"),
         ],
         headerClasses: [
-          "text-center",
-          "text-center",
+          "text-left",
+          "text-left",
           "text-center",
           "text-right",
           "text-right",
@@ -1404,8 +1322,8 @@ export default function AssetsPage() {
           "text-right",
         ],
         rows: tradeHistories.map((item) => [
-          cell(formatDateTime(item.executedAt || item.orderedAt), "text-center text-gray-500"),
-          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
+          cell(formatDateTime(item.executedAt || item.orderedAt), "text-left text-gray-500"),
+          cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
           cell(
             item.side === "BUY" ? "매수" : "매도",
             `text-center ${getSideColorClass(item.side)}`
@@ -1435,8 +1353,8 @@ export default function AssetsPage() {
         "상태",
       ],
       headerClasses: [
-        "text-center",
-        "text-center",
+        "text-left",
+        "text-left",
         "text-center",
         "text-right",
         "text-right",
@@ -1445,8 +1363,8 @@ export default function AssetsPage() {
         "text-center",
       ],
       rows: openOrders.map((item) => [
-        cell(formatDateTime(item.orderedAt), "text-center text-gray-500"),
-        cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-center"),
+        cell(formatDateTime(item.orderedAt), "text-left text-gray-500"),
+        cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
         cell(
           item.side === "BUY" ? "매수" : "매도",
           `text-center ${getSideColorClass(item.side)}`
@@ -1885,16 +1803,15 @@ function DetailTable({
   rows: DetailTableCell[][];
 }) {
   return (
-    <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[980px] text-sm whitespace-nowrap">
-        <thead className="bg-gray-50/80 dark:bg-gray-800/80 text-gray-500 text-center dark:text-gray-400 font-bold border-b border-gray-200 dark:border-gray-700">
+    <div className="w-full overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+      <table className="w-full min-w-[980px] text-sm whitespace-nowrap border-separate border-spacing-0">
+        <thead className="sticky top-0 z-10 bg-gray-50/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 font-bold backdrop-blur-md">
           <tr>
             {headers.map((header, index) => (
               <th
                 key={header}
-                className={`py-4 px-6 first:pl-8 last:pr-8 tracking-tight ${
-                  headerClasses[index] ?? "text-center"
-                }`}
+                className={`py-4 px-6 first:pl-8 last:pr-8 text-[12px] uppercase tracking-tight border-b border-gray-200 dark:border-gray-700 ${headerClasses[index] ?? "text-center"
+                  }`}
               >
                 {header}
               </th>
@@ -1906,12 +1823,12 @@ function DetailTable({
           {rows.map((row, rowIndex) => (
             <tr
               key={`row-${rowIndex}`}
-              className="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
+              className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
             >
               {row.map((item, cellIndex) => (
                 <td
                   key={`cell-${rowIndex}-${cellIndex}`}
-                  className={`py-4 px-6 first:pl-8 last:pr-8 ${item.className || ""}`}
+                  className={`py-4 px-6 first:pl-8 last:pr-8 border-b border-gray-50 dark:border-gray-800 group-last:border-0 ${item.className || ""}`}
                 >
                   {item.value}
                 </td>

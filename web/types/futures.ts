@@ -41,13 +41,16 @@ export type FuturesPositionItem = {
   positionStatus: "OPEN" | "CLOSE";
   filledQuantity: number;
   entryPrice: number;
+  exitPrice?: number | null;
   totalMargin: number;
   leverage: number;
   notionalAmount: number;
   liquidationPrice: number;
   realizedPnl: number | null;
+  totalFee?: number | null;
   createdAt: string | null;
   updatedAt: string | null;
+  closedAt?: string | null;
 };
 
 export type FuturesOrderItem = {
