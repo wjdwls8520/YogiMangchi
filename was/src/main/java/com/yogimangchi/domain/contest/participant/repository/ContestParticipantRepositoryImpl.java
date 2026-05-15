@@ -1,5 +1,7 @@
 package com.yogimangchi.domain.contest.participant.repository;
 
+import com.querydsl.jpa.JPAExpressions;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -245,5 +247,50 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
                 .fetchOne();
 
         return Optional.ofNullable(result);
+    }
+
+    @Override
+    public List<ContestRankingDto> findContestRankings(Long seasonId, ContestCursorSearchDto request) {
+        return queryFactory
+                .select(Projections.constructor(
+                        ContestRankingDto.class,
+                        contestParticipant.finalRank,
+                        contestParticipant.id,
+                        member.id,
+                        member.nickname,
+                        member.profileImgUrl,
+                        contestParticipant.finalRealizedPnl,
+                        contestParticipant.finalProfitRate
+                ))
+                .from(contestParticipant)
+                .join(contestParticipant.member, member)
+                .where(
+                        contestParticipant.contestSeason.id.eq(seasonId),
+                        contestParticipant.finalRank.isNotNull(),
+                        rankingCursorCondition(request.cursorId())
+                )
+                .orderBy(contestParticipant.finalRank.asc(), contestParticipant.id.asc())
+                .limit(request.getOrDefaultSize() + 1L)
+                .fetch();
+    }
+
+    private BooleanExpression rankingCursorCondition(Long cursorId) {
+        if (cursorId == null) {
+            return null;
+        }
+
+        // 현재 커서(참가자 ID)의 순위를 서브쿼리로 가져와 비교한다. (순위 ASC, ID ASC 정렬 기준)
+        // (rank > lastRank) OR (rank == lastRank AND id > lastId)
+        return contestParticipant.finalRank.gt(
+                JPAExpressions.select(contestParticipant.finalRank)
+                        .from(contestParticipant)
+                        .where(contestParticipant.id.eq(cursorId))
+        ).or(
+                contestParticipant.finalRank.eq(
+                        JPAExpressions.select(contestParticipant.finalRank)
+                                .from(contestParticipant)
+                                .where(contestParticipant.id.eq(cursorId))
+                ).and(contestParticipant.id.gt(cursorId))
+        );
     }
 }
