@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useBinanceWebSocket } from "@/hooks/useBinanceWebSocket";
 import { useTickerStore } from "@/stores/useTickerStore";
+import { useMarketStore, type MarketSymbolMeta } from "@/stores/useMarketStore";
 import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
+import { cn, getProfitColorClass, getSideColorClass } from "@/lib/utils/cs";
+
 import {
   cancelReportedPost,
   cancelReportedReply,
@@ -46,18 +49,48 @@ import {
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
+import TickerCell from "@/components/trade/TickerCell";
 import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
+import {
+  formatNumber,
+  formatSignedNumber,
+  formatSignedPercent
+} from "@/lib/utils/number";
 import {
   getBaseAssetLabel,
   getDefaultQuoteAssetLabel,
   getDisplaySymbolLabel,
 } from "@/lib/utils/market-display";
 
+import {
+  getUnifiedRealAssetDetail,
+  type RealAssetUnifiedResponse,
+  type AssetPortfolioDetail,
+  type FuturesPortfolioDetail,
+  type FuturesPositionDetail
+} from "@/lib/api/asset";
+import {
+  getMyParticipatingContestSeasons,
+  getMyContestSeasonResult,
+  type ContestParticipationSeason,
+  type MyContestSeasonResult
+} from "@/lib/api/contest";
+import { 
+  getFuturesWalletStatus,
+  getContestFuturesOpenPositions,
+  type FuturesWalletStatus 
+} from "@/lib/api/contest-futures";
+import type { FuturesPositionItem } from "@/types/futures";
+
+
+
 type MainTab = "portfolio" | "community";
 type PortfolioTab = "trade" | "contest" | "mock";
+type TradingSubTab = "spot" | "futures";
 type CommunityTab = "posts" | "replies" | "likedPosts" | "likedReplies" | "reports";
 type FollowListType = "followers" | "followings";
+
 
 type MockHolding = {
   symbol: string;
@@ -85,13 +118,6 @@ type MockPortfolio = {
   holdings: MockHolding[];
 };
 
-type MarketSymbolMeta = {
-  symbol: string;
-  displayNameKr: string;
-  displayNameEn: string;
-  baseAsset: string;
-  quoteAsset: string;
-};
 
 const CHART_COLORS = [
   "#0058FF",
@@ -105,31 +131,6 @@ const CHART_COLORS = [
 
 const FOLLOW_MEMBERS_PAGE_SIZE = 5;
 
-const formatNumber = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0";
-  }
-
-  return value.toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  });
-};
-
-const formatSignedNumber = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0";
-  }
-
-  return `${value > 0 ? "+" : ""}${formatNumber(value)}`;
-};
-
-const formatSignedPercent = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0%";
-  }
-
-  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
-};
 
 const getJson = async (response: Response) => {
   return response.json().catch(() => null);
@@ -159,47 +160,10 @@ const isNoMockWalletMessage = (message: string) => {
   );
 };
 
-const getProfitColorClass = (value?: number | null) => {
-  if ((value ?? 0) > 0) return "text-red-500 font-black";
-  if ((value ?? 0) < 0) return "text-blue-500 font-black";
-  return "text-gray-900 font-black";
-};
-
-const getSideColorClass = (side: "BUY" | "SELL") => {
-  return side === "BUY" ? "text-red-500 font-black" : "text-blue-500 font-black";
-};
 
 /**
  * 특정 심볼의 실시간 시세를 구독하여 해당 셀만 업데이트하는 컴포넌트
  */
-function TickerCell({ 
-  symbol, 
-  fallbackPrice, 
-  quantity, 
-  buyAmount, 
-  type = "price" 
-}: { 
-  symbol: string; 
-  fallbackPrice: number; 
-  quantity: number; 
-  buyAmount: number;
-  type?: "price" | "value" | "profit" | "roi";
-}) {
-  const realtimePrice = useTickerStore((state) => state.tickers[symbol]?.price ?? fallbackPrice);
-  
-  if (type === "price") return <>{formatNumber(realtimePrice)}</>;
-  
-  const value = quantity * realtimePrice;
-  if (type === "value") return <span className="font-bold text-gray-900">{formatNumber(value)}</span>;
-  
-  const profit = value - buyAmount;
-  if (type === "profit") return <span className={getProfitColorClass(profit)}>{formatSignedNumber(profit)}</span>;
-  
-  const roi = buyAmount > 0 ? (profit / buyAmount) * 100 : 0;
-  if (type === "roi") return <span className={getProfitColorClass(profit)}>{formatSignedPercent(roi)}</span>;
-
-  return null;
-}
 
 /**
  * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
@@ -251,15 +215,35 @@ export default function MePage() {
   const [profileErrorMessage, setProfileErrorMessage] = useState("");
   const [memberProfile, setMemberProfile] = useState<MyMemberProfile | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>("portfolio");
-  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("mock");
+  const [portfolioTab, setPortfolioTab] = useState<PortfolioTab>("trade");
+  const [tradingSubTab, setTradingSubTab] = useState<TradingSubTab>("spot");
   const [communityTab, setCommunityTab] = useState<CommunityTab>("posts");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [isLoadingMock, setIsLoadingMock] = useState(false);
+  const [isLoadingReal, setIsLoadingReal] = useState(false);
+  const [isLoadingContests, setIsLoadingContests] = useState(false);
+  const [isLoadingContestResult, setIsLoadingContestResult] = useState(false);
+  
   const [mockErrorMessage, setMockErrorMessage] = useState("");
-  const [marketSymbols, setMarketSymbols] = useState<MarketSymbolMeta[]>([]);
+  const [realErrorMessage, setRealErrorMessage] = useState("");
+  const [contestErrorMessage, setContestErrorMessage] = useState("");
+  
+  const marketSymbols = useMarketStore((state: any) => state.marketSymbols);
+  const fetchMarketSymbols = useMarketStore((state: any) => state.fetchMarketSymbols);
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
+  const [realAsset, setRealAsset] = useState<RealAssetUnifiedResponse | null>(null);
+  const [participatingContests, setParticipatingContests] = useState<ContestParticipationSeason[]>([]);
+  const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+  const [contestResult, setContestResult] = useState<MyContestSeasonResult | null>(null);
+  const [contestWallet, setContestWallet] = useState<FuturesWalletStatus | null>(null);
+  const [contestPositions, setContestPositions] = useState<FuturesPositionItem[]>([]);
+  const [isLoadingContestWallet, setIsLoadingContestWallet] = useState(false);
+  const [isLoadingContestPositions, setIsLoadingContestPositions] = useState(false);
+
+
+
   const [communityPosts, setCommunityPosts] = useState<Post[]>([]);
   const [communityReplies, setCommunityReplies] = useState<Reply[]>([]);
   const [likedPosts, setLikedPosts] = useState<LikedPost[]>([]);
@@ -333,42 +317,13 @@ export default function MePage() {
 
   useEffect(() => {
     if (!isMounted) return;
+    void fetchMarketSymbols();
+  }, [fetchMarketSymbols]);
+
+  useEffect(() => {
+    if (!isMounted) return;
 
     let isActive = true;
-
-    const loadMarketSymbols = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/market/spot/symbols`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (!response.ok) {
-          return;
-        }
-
-        const json = await getJson(response);
-
-        if (!isActive) return;
-
-        const nextMarketSymbols =
-          Array.isArray(json)
-            ? (json as MarketSymbolMeta[])
-            : isRecord(json) && Array.isArray(json.data)
-            ? (json.data as MarketSymbolMeta[])
-            : [];
-
-        setMarketSymbols(nextMarketSymbols);
-      } catch (error) {
-        if (!isActive) return;
-        console.error("failed to load market symbols:", error);
-      }
-    };
-
-    void loadMarketSymbols();
 
     const loadMemberProfile = async () => {
       try {
@@ -419,6 +374,117 @@ export default function MePage() {
       isActive = false;
     };
   }, [isMounted, logout, router]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile || portfolioTab !== "trade") return;
+
+    const loadRealData = async () => {
+      setIsLoadingReal(true);
+      setRealErrorMessage("");
+
+      try {
+        const data = await getUnifiedRealAssetDetail();
+        setRealAsset(data);
+      } catch (error) {
+        console.error("failed to load real asset:", error);
+        setRealErrorMessage("트레이딩 자산 정보를 불러오지 못했습니다.");
+      } finally {
+        setIsLoadingReal(false);
+      }
+    };
+
+    void loadRealData();
+  }, [isMounted, memberProfile, portfolioTab, refreshKey]);
+
+  useEffect(() => {
+    if (!isMounted || !memberProfile || portfolioTab !== "contest") return;
+
+    const loadContests = async () => {
+      setIsLoadingContests(true);
+      setContestErrorMessage("");
+
+      try {
+        const response = await getMyParticipatingContestSeasons();
+        const content = response.content || [];
+        setParticipatingContests(content);
+        
+        if (content.length > 0 && !selectedContestId) {
+          setSelectedContestId(content[0].seasonId);
+        }
+      } catch (error) {
+        console.error("failed to load participating contests:", error);
+        setContestErrorMessage("참여 중인 대회 목록을 불러오지 못했습니다.");
+      } finally {
+        setIsLoadingContests(false);
+      }
+    };
+
+    void loadContests();
+  }, [isMounted, memberProfile, portfolioTab]);
+
+  useEffect(() => {
+    if (!isMounted || !selectedContestId || portfolioTab !== "contest") return;
+
+    const loadContestResult = async () => {
+      setIsLoadingContestResult(true);
+      try {
+        const result = await getMyContestSeasonResult(selectedContestId);
+        setContestResult(result);
+      } catch (error: any) {
+        // 아직 정산되지 않은 시즌은 에러 로그를 남기지 않고 결과만 비웁니다.
+        if (error?.status === 409 || error?.message?.includes("정산")) {
+          setContestResult(null);
+        } else {
+          console.error("failed to load contest result:", error);
+          setContestResult(null);
+        }
+      } finally {
+        setIsLoadingContestResult(false);
+      }
+    };
+
+    void loadContestResult();
+  }, [isMounted, selectedContestId, portfolioTab]);
+
+  useEffect(() => {
+    if (!isMounted || !selectedContestId || portfolioTab !== "contest") return;
+
+    const loadContestWallet = async () => {
+      setIsLoadingContestWallet(true);
+      try {
+        const wallet = await getFuturesWalletStatus(selectedContestId);
+        setContestWallet(wallet);
+      } catch (error) {
+        console.error("failed to load contest wallet:", error);
+        setContestWallet(null);
+      } finally {
+        setIsLoadingContestWallet(false);
+      }
+    };
+
+    void loadContestWallet();
+  }, [isMounted, selectedContestId, portfolioTab]);
+
+  useEffect(() => {
+    if (!isMounted || !selectedContestId || portfolioTab !== "contest") return;
+
+    const loadContestPositions = async () => {
+      setIsLoadingContestPositions(true);
+      try {
+        const response = await getContestFuturesOpenPositions(selectedContestId);
+        setContestPositions(response.content || []);
+      } catch (error) {
+        console.error("failed to load contest positions:", error);
+        setContestPositions([]);
+      } finally {
+        setIsLoadingContestPositions(false);
+      }
+    };
+
+    void loadContestPositions();
+  }, [isMounted, selectedContestId, portfolioTab]);
+
+
 
   useEffect(() => {
     if (!isMounted || !memberProfile || portfolioTab !== "mock") return;
@@ -940,6 +1006,105 @@ export default function MePage() {
     return holdingsData.filter((item) => item.value > 0);
   }, [portfolioTab, mockPortfolio, marketSymbols]);
 
+  const realSpotPieData = useMemo(() => {
+    if (portfolioTab !== "trade" || !realAsset) return [];
+
+    const holdingsData = realAsset.spot.holdings
+      .filter((item) => item.quantity > 0)
+      .map((item, index) => {
+        const price = item.currentPrice;
+        const totalValue = item.quantity * price;
+
+        return {
+          name: getBaseAssetLabel(item.symbol, marketSymbols),
+          value: realAsset.spot.totalAsset > 0 ? (totalValue / realAsset.spot.totalAsset) * 100 : 0,
+          color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
+        };
+      });
+
+    const cashRatio =
+      realAsset.spot.totalAsset > 0 ? (realAsset.spot.cashBalance / realAsset.spot.totalAsset) * 100 : 0;
+
+    if (cashRatio > 0) {
+      holdingsData.unshift({
+        name: getDefaultQuoteAssetLabel(marketSymbols) || "현금",
+        value: cashRatio,
+        color: CHART_COLORS[0],
+      });
+    }
+
+    return holdingsData.filter((item) => item.value > 0);
+  }, [portfolioTab, realAsset, marketSymbols]);
+
+  const futuresAssetPieData = useMemo(() => {
+    if (portfolioTab !== "trade" || !realAsset) return [];
+
+    const totalAsset = realAsset.futures.totalAsset;
+    const totalMargin = realAsset.futures.totalMargin;
+    const availableBalance = realAsset.futures.cashBalance;
+
+    return [
+      { name: "사용 중인 증거금", value: totalAsset > 0 ? (totalMargin / totalAsset) * 100 : 0, color: "#0058FF" },
+      { name: "사용 가능 잔고", value: totalAsset > 0 ? (availableBalance / totalAsset) * 100 : 0, color: "#E0E7FF" },
+    ].filter(item => item.value > 0);
+  }, [portfolioTab, realAsset]);
+
+  const futuresLongShortData = useMemo(() => {
+    if (portfolioTab !== "trade" || !realAsset) return { long: 0, short: 0 };
+
+    let longMargin = 0;
+    let shortMargin = 0;
+
+    realAsset.futures.positions.forEach(pos => {
+      if (pos.positionSide === "LONG") longMargin += pos.margin;
+      else shortMargin += pos.margin;
+    });
+
+    const totalMargin = longMargin + shortMargin;
+    if (totalMargin === 0) return { long: 0, short: 0 };
+
+    return {
+      long: (longMargin / totalMargin) * 100,
+      short: (shortMargin / totalMargin) * 100,
+    };
+  }, [portfolioTab, realAsset]);
+
+  const contestAssetPieData = useMemo(() => {
+    if (portfolioTab !== "contest" || !contestWallet) return [];
+
+    const totalAsset = contestWallet.currentMoney;
+    const totalMargin = contestWallet.marginInUse;
+    const availableBalance = totalAsset - totalMargin;
+
+    return [
+      { name: "대회 증거금", value: totalAsset > 0 ? (totalMargin / totalAsset) * 100 : 0, color: "#1D7CA7" },
+      { name: "사용 가능 잔고", value: totalAsset > 0 ? (availableBalance / totalAsset) * 100 : 0, color: "#F0F9FF" },
+    ].filter(item => item.value > 0);
+  }, [portfolioTab, contestWallet]);
+
+  const contestLongShortData = useMemo(() => {
+    if (portfolioTab !== "contest" || contestPositions.length === 0) return { long: 0, short: 0 };
+
+    let longMargin = 0;
+    let shortMargin = 0;
+
+    contestPositions.forEach(pos => {
+      if (pos.positionSide === "LONG") longMargin += pos.totalMargin;
+      else shortMargin += pos.totalMargin;
+    });
+
+    const totalMargin = longMargin + shortMargin;
+    if (totalMargin === 0) return { long: 0, short: 0 };
+
+    return {
+      long: (longMargin / totalMargin) * 100,
+      short: (shortMargin / totalMargin) * 100,
+    };
+  }, [portfolioTab, contestPositions]);
+
+
+
+
   const reportItems = useMemo<ProfileReportItem[]>(() => {
     const normalizedReportedPosts = reportedPosts.map((post) => ({
       type: "post" as const,
@@ -1021,6 +1186,376 @@ export default function MePage() {
   );
 
   const renderPortfolioTabContent = (tab: PortfolioTab) => {
+    if (tab === "trade") {
+      if (isLoadingReal) {
+        return <div className="py-24 text-center text-gray-300 font-bold">트레이딩 데이터를 불러오는 중입니다.</div>;
+      }
+
+      if (!realAsset) {
+        return <div className="py-24 text-center text-gray-300 font-bold">{realErrorMessage || "트레이딩 데이터가 없습니다."}</div>;
+      }
+
+      return (
+        <div className="space-y-6">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTradingSubTab("spot")}
+              className={cn(
+                "px-6 py-2 rounded-full text-sm font-black transition-all",
+                tradingSubTab === "spot"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                  : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+              )}
+            >
+              현물
+            </button>
+            <button
+              onClick={() => setTradingSubTab("futures")}
+              className={cn(
+                "px-6 py-2 rounded-full text-sm font-black transition-all",
+                tradingSubTab === "futures"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-100"
+                  : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+              )}
+            >
+              선물
+            </button>
+          </div>
+
+          {tradingSubTab === "spot" ? (
+            <div className="space-y-10">
+              <div>
+                <h3 className="mb-8 text-lg font-black text-gray-900">
+                  현물 자산 포트폴리오 비중
+                </h3>
+
+                {realSpotPieData.length === 0 ? (
+                  <div className="py-24 text-center text-gray-300 font-bold">
+                    비중을 표시할 자산이 없습니다.
+                  </div>
+                ) : (
+                  <div className="flex flex-col md:flex-row items-center gap-10">
+                    <div className="h-64 w-full md:w-1/2 relative">
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie
+                            data={realSpotPieData}
+                            innerRadius={75}
+                            outerRadius={100}
+                            paddingAngle={5}
+                            dataKey="value"
+                            animationDuration={400}
+                            animationEasing="ease-out"
+                          >
+                            {realSpotPieData.map((entry, i) => (
+                              <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
+                            ))}
+                            <Label
+                              value="보유 비중(%)"
+                              position="center"
+                              fill="#999"
+                              style={{ fontSize: "12px", fontWeight: "bold" }}
+                            />
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                            formatter={(value) => {
+                              const parsedValue = Array.isArray(value)
+                                ? Number(value[0])
+                                : Number(value ?? 0);
+                              const safeValue = Number.isFinite(parsedValue) ? parsedValue : 0;
+
+                              return [`${safeValue.toFixed(2)}%`, "비중"];
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-4 w-full md:w-1/2">
+                      {realSpotPieData.map((item) => (
+                        <div
+                          key={item.name}
+                          className="flex justify-between items-center border-b border-gray-50 pb-2"
+                        >
+                          <span className="text-xs font-bold text-gray-500 flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            {item.name}
+                          </span>
+                          <span className="text-sm font-black text-gray-900">
+                            {item.value.toFixed(2)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-10">
+                <div className="mb-6">
+                  <h3 className="text-lg font-black text-gray-900">현물 보유자산 목록</h3>
+                </div>
+                {realAsset.spot.holdings.length > 0 ? (
+                  <div className="space-y-4">
+                    {realAsset.spot.holdings.map((item) => (
+                      <HoldingRow
+                        key={item.symbol}
+                        item={item as unknown as MockHolding}
+                        marketSymbols={marketSymbols}
+                        quoteAssetName={getDefaultQuoteAssetLabel(marketSymbols)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ProfileEmptyState text="보유 중인 현물 자산이 없습니다." />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="card p-6">
+                  <h4 className="text-sm font-black text-gray-900 mb-6">증거금 사용 비중</h4>
+                  <div className="h-48 relative">
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie
+                          data={futuresAssetPieData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {futuresAssetPieData.map((entry, i) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                          formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-xxs font-bold text-gray-400">증거금</span>
+                      <span className="text-sm font-black text-blue-600">
+                        {futuresAssetPieData.find(d => d.name === "사용 중인 증거금")?.value.toFixed(1) || 0}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {futuresAssetPieData.map(item => (
+                      <div key={item.name} className="flex justify-between items-center text-xxs font-bold">
+                        <span className="text-gray-500 flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          {item.name}
+                        </span>
+                        <span className="text-gray-900">{item.value.toFixed(2)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="card p-6">
+                  <h4 className="text-sm font-black text-gray-900 mb-6">롱/숏 포지션 비율</h4>
+                  <div className="flex flex-col justify-center h-full -mt-4">
+                    <div className="flex justify-between text-xxs font-black mb-2">
+                      <span className="text-red-500 uppercase">Long {futuresLongShortData.long.toFixed(1)}%</span>
+                      <span className="text-blue-500 uppercase">Short {futuresLongShortData.short.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
+                      <div 
+                        className="h-full bg-red-500 transition-all duration-500" 
+                        style={{ width: `${futuresLongShortData.long}%` }} 
+                      />
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-500" 
+                        style={{ width: `${futuresLongShortData.short}%` }} 
+                      />
+                    </div>
+                    <p className="mt-4 text-[11px] text-gray-400 font-medium leading-relaxed">
+                      현재 보유 중인 모든 포지션의 증거금 합계를 기준으로 계산된 투자 방향 비중입니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-10">
+                <div className="mb-6">
+                  <h3 className="text-lg font-black text-gray-900">선물 포지션 현황</h3>
+                </div>
+                {realAsset.futures.positions.length > 0 ? (
+                  <div className="space-y-4">
+                    {realAsset.futures.positions.map((position) => (
+                      <PositionRow
+                        key={`${position.symbol}-${position.positionSide}`}
+                        position={position}
+                        marketSymbols={marketSymbols}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ProfileEmptyState text="보유 중인 선물 포지션이 없습니다." />
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    if (tab === "contest") {
+      if (isLoadingContests) {
+        return <div className="py-24 text-center text-gray-300 font-bold">참여 중인 대회 목록을 불러오는 중입니다.</div>;
+      }
+
+      if (participatingContests.length === 0) {
+        return <div className="py-24 text-center text-gray-300 font-bold">참여 중인 대회가 없습니다.</div>;
+      }
+
+      return (
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <label className="text-sm font-bold text-gray-500">참여 대회 선택</label>
+            <select
+              className="w-full p-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 outline-none focus:border-blue-500"
+              value={selectedContestId || ""}
+              onChange={(e) => setSelectedContestId(Number(e.target.value))}
+            >
+              {participatingContests.map((contest) => (
+                <option key={contest.seasonId} value={contest.seasonId}>
+                  {contest.seasonTitle}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {contestResult ? (
+            <div className="card p-8 bg-blue-50/30 border-blue-100 mb-10">
+              <div className="flex flex-col items-center justify-center gap-4 py-6">
+                <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-black">
+                  {contestResult.finalRank}위
+                </div>
+                <div className="text-center">
+                  <h4 className="text-xl font-black text-gray-900">{contestResult.seasonTitle}</h4>
+                  <p className="text-sm font-bold text-gray-500 mt-1">최종 순위: {contestResult.finalRank}위</p>
+                </div>
+                <div className="grid grid-cols-2 gap-8 w-full mt-6 border-t border-gray-100 pt-6">
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">실현 손익</p>
+                    <p className={cn("text-lg font-black", getProfitColorClass(contestResult.finalRealizedPnl))}>
+                      {formatSignedNumber(contestResult.finalRealizedPnl)} USDT
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">수익률</p>
+                    <p className={cn("text-lg font-black", getProfitColorClass(contestResult.finalProfitRate))}>
+                      {formatSignedPercent(contestResult.finalProfitRate)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="card p-6">
+                <h4 className="text-sm font-black text-gray-900 mb-6">대회 증거금 비중</h4>
+                <div className="h-48 relative">
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={contestAssetPieData}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {contestAssetPieData.map((entry, i) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                        formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xxs font-bold text-gray-400">증거금</span>
+                    <span className="text-sm font-black text-cyan-600">
+                      {contestAssetPieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {contestAssetPieData.map(item => (
+                    <div key={item.name} className="flex justify-between items-center text-xxs font-bold">
+                      <span className="text-gray-500 flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                        {item.name}
+                      </span>
+                      <span className="text-gray-900">{item.value.toFixed(2)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card p-6">
+                <h4 className="text-sm font-black text-gray-900 mb-6">대회 포지션 비율</h4>
+                <div className="flex flex-col justify-center h-full -mt-4">
+                  <div className="flex justify-between text-xxs font-black mb-2">
+                    <span className="text-red-500 uppercase">Long {contestLongShortData.long.toFixed(1)}%</span>
+                    <span className="text-blue-500 uppercase">Short {contestLongShortData.short.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
+                    <div 
+                      className="h-full bg-red-500 transition-all duration-500" 
+                      style={{ width: `${contestLongShortData.long}%` }} 
+                    />
+                    <div 
+                      className="h-full bg-blue-500 transition-all duration-500" 
+                      style={{ width: `${contestLongShortData.short}%` }} 
+                    />
+                  </div>
+                  <p className="mt-4 text-[11px] text-gray-400 font-medium leading-relaxed">
+                    선택한 대회에서 보유 중인 포지션의 증거금 합계를 기준으로 계산된 비중입니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-10">
+              <div className="mb-6">
+                <h3 className="text-lg font-black text-gray-900">대회 포지션 현황</h3>
+              </div>
+              {isLoadingContestPositions ? (
+                <div className="py-12 text-center text-gray-400 font-bold">포지션 정보를 불러오는 중...</div>
+              ) : contestPositions.length > 0 ? (
+                <div className="space-y-4">
+                  {contestPositions.map((position) => (
+                    <PositionRow
+                      key={`${position.symbol}-${position.positionSide}`}
+                      position={position as unknown as FuturesPositionDetail}
+                      marketSymbols={marketSymbols}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ProfileEmptyState text="현재 보유 중인 대회 포지션이 없습니다." />
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (tab !== "mock") {
       return (
         <div className="py-24 text-center text-gray-300 font-bold">
@@ -1191,10 +1726,34 @@ export default function MePage() {
             }
           />
 
-          {mockPortfolio ? (
+          {portfolioTab === "mock" && mockPortfolio ? (
             <RealtimeAssetSummary 
               portfolio={mockPortfolio} 
               title="모의투자 자산"
+            />
+          ) : portfolioTab === "trade" && realAsset ? (
+            <AssetSummaryCard
+              summary={{
+                title: "트레이딩 자산",
+                cashBalance: realAsset.totalAsset - (realAsset.spot.totalCoinValue + realAsset.futures.totalMargin),
+                totalAsset: realAsset.totalAsset,
+                totalBuyAmount: realAsset.spot.totalBuyAmount,
+                totalCoinValue: realAsset.spot.totalCoinValue + realAsset.futures.totalMargin,
+                totalProfit: realAsset.totalProfit,
+                totalRoi: (realAsset.totalProfit / (realAsset.totalAsset - realAsset.totalProfit)) * 100,
+              }}
+            />
+          ) : portfolioTab === "contest" && contestWallet ? (
+            <AssetSummaryCard
+              summary={{
+                title: "대회 자산",
+                cashBalance: contestWallet.currentMoney - contestWallet.marginInUse,
+                totalAsset: contestWallet.currentMoney,
+                totalBuyAmount: contestWallet.seedMoney,
+                totalCoinValue: contestWallet.marginInUse,
+                totalProfit: contestWallet.currentMoney - contestWallet.seedMoney,
+                totalRoi: contestWallet.seedMoney > 0 ? ((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100 : 0,
+              }}
             />
           ) : (
             <AssetSummaryCard
@@ -1214,6 +1773,8 @@ export default function MePage() {
               }}
             />
           )}
+
+
 
           <Button
             variant="white"
@@ -1372,3 +1933,75 @@ function DataBox({
     </div>
   );
 }
+
+function PositionRow({
+  position,
+  marketSymbols,
+}: {
+  position: FuturesPositionDetail;
+  marketSymbols: MarketSymbolMeta[];
+}) {
+  const baseAssetName = getBaseAssetLabel(position.symbol, marketSymbols);
+  const displaySymbol = getDisplaySymbolLabel(position.symbol, marketSymbols);
+
+  return (
+    <div className="card p-6">
+      <div className="flex justify-between items-start mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-xxs font-black text-gray-400">
+            {baseAssetName}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-black text-gray-900">
+                {baseAssetName}
+              </h4>
+              <span className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-black",
+                position.positionSide === "LONG" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
+              )}>
+                {position.positionSide} {position.leverage}x
+              </span>
+            </div>
+            <p className="text-xxs text-gray-400 font-bold uppercase">
+              {displaySymbol}
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className={cn("text-sm font-black", getProfitColorClass(position.unrealizedPnl))}>
+            {formatSignedNumber(position.unrealizedPnl)} USDT
+          </p>
+          <p className={cn("text-xxs font-bold", getProfitColorClass(position.unrealizedPnl))}>
+            {formatSignedPercent(position.roi)}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
+        <DataBox
+          label="포지션 수량"
+          value={formatNumber(position.quantity)}
+          unit={baseAssetName}
+        />
+        <DataBox
+          label="진입가격"
+          value={formatNumber(position.entryPrice)}
+          unit="USDT"
+        />
+        <DataBox
+          label="현재가격"
+          value={formatNumber(position.currentPrice)}
+          unit="USDT"
+        />
+        <DataBox
+          label="청산추정가"
+          value={formatNumber(position.liquidationPrice)}
+          unit="USDT"
+        />
+      </div>
+    </div>
+  );
+}
+

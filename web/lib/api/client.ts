@@ -48,10 +48,10 @@ export class FetchClientError extends Error {
   }
 }
 
-export async function fetchClient(
+export async function fetchClient<T = any>(
   url: string,
   options: FetchClientOptions = {}
-) {
+): Promise<T | null> {
   const isFormData = options.body instanceof FormData;
 
   const isObject =

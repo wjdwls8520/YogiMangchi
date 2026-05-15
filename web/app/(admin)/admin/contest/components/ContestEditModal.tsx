@@ -108,6 +108,16 @@ export default function ContestEditModal({
       return;
     }
 
+    if (new Date(form.contestStartAt) < new Date(form.recruitmentStartAt)) {
+      await alert("대회 시작 시점은 모집 시작 시점 이전일 수 없습니다.");
+      return;
+    }
+
+    if (new Date(form.recruitmentEndAt) > new Date(form.contestEndAt)) {
+      await alert("모집 마감 시점은 대회 종료 시점 이후일 수 없습니다.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

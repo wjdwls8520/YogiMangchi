@@ -46,27 +46,13 @@ const getDateByOffset = (
 };
 
 const getDefaultContestCreateForm = (): ContestCreateForm => {
-  const today = new Date();
-
-  // 기본 운영 정책:
-  // 모집 시작은 오늘 오전 10시, 모집 종료는 +6일 오후 10시,
-  // 대회 시작은 +7일 오전 10시, 대회 종료는 +14일 오후 10시로 잡아둡니다.
-  // 이후 운영 정책이 바뀌면 아래 dayOffset / hour 값만 바꾸면 됩니다.
   return {
     title: "",
     description: "",
-    recruitmentStartAt: toDateTimeLocalString(
-      getDateByOffset(today, 0, 10, 0)
-    ),
-    recruitmentEndAt: toDateTimeLocalString(
-      getDateByOffset(today, 6, 22, 0)
-    ),
-    contestStartAt: toDateTimeLocalString(
-      getDateByOffset(today, 7, 10, 0)
-    ),
-    contestEndAt: toDateTimeLocalString(
-      getDateByOffset(today, 14, 22, 0)
-    ),
+    recruitmentStartAt: toDateTimeLocalString(getDateByOffset(new Date(), 0, 0, 0)),
+    recruitmentEndAt: "",
+    contestStartAt: "",
+    contestEndAt: "",
   };
 };
 
@@ -126,6 +112,16 @@ export default function ContestCreateModal({
 
     if (new Date(form.contestStartAt) >= new Date(form.contestEndAt)) {
       await alert("대회 종료일은 대회 시작일보다 뒤여야 합니다.");
+      return;
+    }
+
+    if (new Date(form.contestStartAt) < new Date(form.recruitmentStartAt)) {
+      await alert("대회 시작 시점은 모집 시작 시점 이전일 수 없습니다.");
+      return;
+    }
+
+    if (new Date(form.recruitmentEndAt) > new Date(form.contestEndAt)) {
+      await alert("모집 마감 시점은 대회 종료 시점 이후일 수 없습니다.");
       return;
     }
 

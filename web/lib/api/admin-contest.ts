@@ -57,6 +57,17 @@ export type ContestRejectedApplicant = {
   rejectedByAdminProfileImgUrl?: string;
 };
 
+export type ContestSettlementResult = {
+  seasonId: number;
+  seasonTitle: string;
+  settledAt: string;
+  deactivatedWalletCount: number;
+  liquidatedPositionCount: number;
+  participantCount: number;
+  finalizedParticipantCount: number;
+  alreadySettled: boolean;
+};
+
 export type ContestCursorResponse<T> = {
   content?: T[];
   nextCursorId?: number | null;
@@ -272,4 +283,11 @@ export const rejectContestApplicant = async (
       },
     }
   );
+};
+
+// 대회 강제 종료 (정산)
+export const settleContestSeason = async (seasonId: number) => {
+  return fetchClient(`admin/contest/seasons/${seasonId}/settlement`, {
+    method: "POST",
+  }) as Promise<ContestSettlementResult>;
 };

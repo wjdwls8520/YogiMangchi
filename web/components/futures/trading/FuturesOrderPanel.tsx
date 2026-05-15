@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LeverageModal from "@/components/futures/trading/LeverageModal";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import { useRequireVerifiedUser } from "@/hooks/useWithAuth";
 import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
 import { formatFuturesPositionSide } from "@/lib/utils/futures";
 import { useTickerStore } from "@/stores/useTickerStore";
-import { useUIStore } from "@/stores/useUIStore";
 import type {
   FuturesLimitOpenOrderParams,
   FuturesLimitCloseOrderParams,
@@ -125,7 +124,10 @@ export default function FuturesOrderPanel({
   const [execType, setExecType] = useState<OrderExecutionType>("LIMIT");
   const [orderPrice, setOrderPrice] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
+  const [selectedOpenRatio, setSelectedOpenRatio] = useState<number | null>(null);
   const [isLeverageModalOpen, setIsLeverageModalOpen] = useState(false);
+  const orderPriceInputRef = useRef<HTMLInputElement>(null);
+  const orderQuantityInputRef = useRef<HTMLInputElement>(null);
 
   // Close tab states
   const [selectedPositionId, setSelectedPositionId] = useState<number | null>(null);
@@ -155,8 +157,6 @@ export default function FuturesOrderPanel({
     };
   }, [selectedOrderPrice, mainTab, setSelectedOrderPrice]);
 
-  const isDarkMode = useUIStore((s) => s.isDarkMode);
-
   const meta = coinMetaList.find((c) => c.symbol === selectedCoin);
   if (!meta) return <div className="h-full animate-pulse bg-futures-trade" />;
 
@@ -171,8 +171,6 @@ export default function FuturesOrderPanel({
     (leverageInfo?.positionSide === side ? leverageInfo : undefined);
   const longLeverageInfo = getSideLeverageInfo("LONG");
   const shortLeverageInfo = getSideLeverageInfo("SHORT");
-  const currentSideLeverageInfo = getSideLeverageInfo(positionSide);
-  const currentLeverage = currentSideLeverageInfo?.leverage ?? 1;
   const availableBalance = Math.max(0, walletStatus.currentMoney);
 
   /* ═══════ OPEN tab logic ═══════ */
@@ -181,24 +179,100 @@ export default function FuturesOrderPanel({
 
   const numPrice = Number(orderPrice);
   const numQty = Number(orderQuantity);
-  const refPrice = isLimit && Number.isFinite(numPrice) && numPrice > 0 ? numPrice : currentPrice;
+  const hasValidLimitPrice = Number.isFinite(numPrice) && numPrice > 0;
+  const canCalculateOpenOrder = !isLimit || hasValidLimitPrice;
+  const refPrice = canCalculateOpenOrder
+    ? isLimit
+      ? numPrice
+      : currentPrice
+    : 0;
 
-  const maxNotional = currentLeverage > 0 ? (availableBalance * currentLeverage) / (1 + currentFeeRate * currentLeverage) : 0;
-  const maxQty = refPrice > 0 ? maxNotional / refPrice : 0;
+  const showLimitPriceRequiredToast = () => {
+    if (!isLimit || hasValidLimitPrice) {
+      return false;
+    }
 
-  const estNotional = Number.isFinite(numQty) && numQty > 0 ? numQty * refPrice : 0;
-  const estMargin = currentLeverage > 0 ? estNotional / currentLeverage : 0;
-  const estFee = estNotional * currentFeeRate;
-  const estRequired = estMargin + estFee;
+    toast({
+      title: "지정가를 입력해 주세요.",
+      description: "수량 계산은 지정가 입력 후 가능합니다.",
+      tone: "error",
+    });
 
-  // 예상 청산가 계산 (Isolated 기준)
-  const estLiquidationPrice = (estNotional > 0 && currentLeverage > 0)
-    ? positionSide === "LONG"
-      ? refPrice * (1 - 1 / currentLeverage + LIQUIDATION_FEE_RATE)
-      : refPrice * (1 + 1 / currentLeverage - LIQUIDATION_FEE_RATE)
-    : null;
+    window.requestAnimationFrame(() => {
+      orderPriceInputRef.current?.focus();
+    });
+
+    return true;
+  };
+
+  const getOpenEstimate = (side: FuturesPositionSide) => {
+    const sideLeverageInfo = getSideLeverageInfo(side);
+    const leverage = sideLeverageInfo?.leverage ?? 0;
+    const balanceMaxNotional =
+      leverage > 0
+        ? (availableBalance * leverage) / (1 + currentFeeRate * leverage)
+        : 0;
+    const leverageMaxNotional =
+      sideLeverageInfo && sideLeverageInfo.availableOrderNotionalAmount > 0
+        ? sideLeverageInfo.availableOrderNotionalAmount
+        : balanceMaxNotional;
+    const maxNotional =
+      balanceMaxNotional > 0 && leverageMaxNotional > 0
+        ? Math.min(balanceMaxNotional, leverageMaxNotional)
+        : Math.max(balanceMaxNotional, leverageMaxNotional);
+    const maxQty = refPrice > 0 ? maxNotional / refPrice : 0;
+    const orderQty =
+      selectedOpenRatio !== null
+        ? maxQty * selectedOpenRatio
+        : numQty;
+    const estNotional =
+      Number.isFinite(orderQty) && orderQty > 0 && refPrice > 0
+        ? orderQty * refPrice
+        : 0;
+    const estMargin = leverage > 0 ? estNotional / leverage : 0;
+    const estFee = estNotional * currentFeeRate;
+    const estRequired = estMargin + estFee;
+    const estLiquidationPrice =
+      estNotional > 0 && leverage > 0
+        ? side === "LONG"
+          ? refPrice * (1 - 1 / leverage + LIQUIDATION_FEE_RATE)
+          : refPrice * (1 + 1 / leverage - LIQUIDATION_FEE_RATE)
+        : null;
+
+    return {
+      side,
+      leverage,
+      maxQty,
+      orderQty,
+      estNotional,
+      estRequired,
+      estFee,
+      estLiquidationPrice,
+    };
+  };
+
+  const longOpenEstimate = getOpenEstimate("LONG");
+  const shortOpenEstimate = getOpenEstimate("SHORT");
+  const openEstimates = [longOpenEstimate, shortOpenEstimate];
+  const getOpenEstimateBySide = (side: FuturesPositionSide) =>
+    side === "LONG" ? longOpenEstimate : shortOpenEstimate;
+  const hasMinOrderNotionalError =
+    openEstimates.some(
+      (estimate) =>
+        estimate.estNotional > 0 &&
+        estimate.estNotional < MIN_ORDER_NOTIONAL_AMOUNT
+    );
+  const hasBalanceExceeded = openEstimates.some(
+    (estimate) =>
+      estimate.estNotional > 0 &&
+      estimate.estRequired > availableBalance
+  );
 
   const handleOpenRatio = (ratio: number) => {
+    if (showLimitPriceRequiredToast()) {
+      return;
+    }
+
     if (availableBalance <= 0) {
       toast({
         title: "자산 이체 필요",
@@ -207,10 +281,35 @@ export default function FuturesOrderPanel({
       });
       return;
     }
-    if (maxQty > 0) setOrderQuantity(toInputValue(maxQty * ratio));
+
+    if (!longLeverageInfo && !shortLeverageInfo) {
+      toast({
+        title: "레버리지 확인 필요",
+        description: "레버리지 정보를 불러온 뒤 비율 입력이 가능합니다.",
+        tone: "error",
+      });
+      return;
+    }
+
+    setSelectedOpenRatio(ratio);
+    setOrderQuantity("");
+  };
+
+  const activateManualOrderQuantityInput = () => {
+    if (showLimitPriceRequiredToast()) {
+      return;
+    }
+
+    setSelectedOpenRatio(null);
+    window.requestAnimationFrame(() => {
+      orderQuantityInputRef.current?.focus();
+    });
   };
 
   const handleOpenSubmit = async (side: FuturesPositionSide) => {
+    const openEstimate = getOpenEstimateBySide(side);
+    const openQty = openEstimate.orderQty;
+
     if (!isTradingEnabled) { await alert(disabledMessage); return; }
     if (!(await requireVerifiedUser())) return;
     if (!getSideLeverageInfo(side)) { await alert(`${side} 레버리지 정보를 확인한 뒤 다시 시도해 주세요.`); return; }
@@ -220,27 +319,30 @@ export default function FuturesOrderPanel({
       if (side === "LONG" && numPrice >= currentPrice) { await alert("LONG 지정가는 현재가보다 낮아야 합니다."); return; }
       if (side === "SHORT" && numPrice <= currentPrice) { await alert("SHORT 지정가는 현재가보다 높아야 합니다."); return; }
     }
-    if (!numQty || numQty <= 0) { await alert("수량을 입력해 주세요."); return; }
-    if (estNotional < MIN_ORDER_NOTIONAL_AMOUNT) { await alert(`최소 명목금액 ${formatAssetNumber(MIN_ORDER_NOTIONAL_AMOUNT)} 이상이어야 합니다.`); return; }
+    if (!openQty || openQty <= 0) { await alert("수량을 입력해 주세요."); return; }
+    if (openEstimate.estNotional < MIN_ORDER_NOTIONAL_AMOUNT) { await alert(`최소 명목금액 ${formatAssetNumber(MIN_ORDER_NOTIONAL_AMOUNT)} 이상이어야 합니다.`); return; }
     if (availableBalance <= 0) {
       if (await confirm("주문 가능 금액이 0원입니다.\n자산 이체하시겠습니까?")) {
         onOpenTransferModal?.();
       }
       return;
     }
-    if (estRequired > availableBalance) {
+    if (openEstimate.estRequired > availableBalance) {
       await alert("가용 자금을 초과했습니다.");
       return;
     }
 
     try {
+      onPositionSideChange(side);
+
       if (isLimit) {
-        await onSubmitLimitOpenOrder({ symbol: selectedCoin, positionSide: side, orderPrice: numPrice, orderQuantity: numQty });
+        await onSubmitLimitOpenOrder({ symbol: selectedCoin, positionSide: side, orderPrice: numPrice, orderQuantity: openQty });
       } else {
-        await onSubmitOpenOrder({ symbol: selectedCoin, positionSide: side, orderQuantity: numQty });
+        await onSubmitOpenOrder({ symbol: selectedCoin, positionSide: side, orderQuantity: openQty });
       }
       toast({ title: `${formatFuturesPositionSide(side)} ${isLimit ? "지정가 진입 주문 등록" : "시장가 진입 완료"}`, tone: "success" });
       setOrderQuantity("");
+      setSelectedOpenRatio(null);
     } catch (e) {
       await alert(e instanceof Error ? e.message || "주문 실패" : "주문 실패");
     }
@@ -319,6 +421,47 @@ export default function FuturesOrderPanel({
     "flex-1 min-w-0 bg-transparent text-right text-[13px] outline-none font-bold",
     isDark ? "text-white" : "text-slate-900"
   );
+  const mutedTextCls = isDark ? "text-gray-400" : "text-slate-400";
+  const openEstimatePairCls = "flex min-w-0 items-center justify-end gap-x-1 overflow-x-auto whitespace-nowrap text-right text-[11px] font-bold tabular-nums no-scrollbar";
+  const getOpenSideColorClass = (side: FuturesPositionSide) =>
+    side === "LONG"
+      ? (isContest ? "text-trade-long" : "text-[#2EBD85]")
+      : (isContest ? "text-trade-short" : "text-[#F6465D]");
+  const formatOpenBaseValue = (value?: number | null) =>
+    value && value > 0 ? formatQty(value) : "--";
+  const formatOpenQuoteValue = (value?: number | null) =>
+    value && value > 0 ? formatAssetNumber(value) : "--";
+  const renderOpenEstimateValues = ({
+    longValue,
+    shortValue,
+    formatter,
+  }: {
+    longValue?: number | null;
+    shortValue?: number | null;
+    formatter: (value?: number | null) => string;
+  }) => (
+    <>
+      <span className={getOpenSideColorClass("LONG")}>{formatter(longValue)}</span>
+      <span className="text-gray-600">/</span>
+      <span className={getOpenSideColorClass("SHORT")}>{formatter(shortValue)}</span>
+    </>
+  );
+  const renderOpenEstimatePair = ({
+    longValue,
+    shortValue,
+    formatter,
+    unit,
+  }: {
+    longValue?: number | null;
+    shortValue?: number | null;
+    formatter: (value?: number | null) => string;
+    unit: string;
+  }) => (
+    <span className={openEstimatePairCls}>
+      {renderOpenEstimateValues({ longValue, shortValue, formatter })}
+      <span className={mutedTextCls}>{unit}</span>
+    </span>
+  );
 
   return (
     <section className={cn("flex flex-col overflow-y-auto", isContest ? "bg-futures-trade text-white" : (isDark ? "bg-gray-800 text-gray-100" : "bg-white text-slate-900"))}>
@@ -393,7 +536,15 @@ export default function FuturesOrderPanel({
           {isLimit ? (
             <div className={inputCls}>
               <span className={labelCls}>가격</span>
-              <input type="text" inputMode="decimal" placeholder="0" value={orderPrice} onChange={(e) => setOrderPrice(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
+              <input
+                ref={orderPriceInputRef}
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={orderPrice}
+                onChange={(e) => setOrderPrice(sanitizeDecimalInput(e.target.value))}
+                className={fieldCls}
+              />
               <span className="text-[12px] font-medium ml-2 shrink-0 text-gray-500">{meta.quoteAsset}</span>
             </div>
           ) : (
@@ -406,28 +557,121 @@ export default function FuturesOrderPanel({
           {/* Quantity */}
           <div className={inputCls}>
             <span className={labelCls}>수량</span>
-            <input type="text" inputMode="decimal" placeholder="0" value={orderQuantity} onChange={(e) => setOrderQuantity(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
+            {selectedOpenRatio !== null ? (
+              <button
+                type="button"
+                onClick={activateManualOrderQuantityInput}
+                className={cn(fieldCls, openEstimatePairCls)}
+              >
+                {renderOpenEstimateValues({
+                  longValue: longOpenEstimate.orderQty,
+                  shortValue: shortOpenEstimate.orderQty,
+                  formatter: formatOpenBaseValue,
+                })}
+              </button>
+            ) : (
+              <input
+                ref={orderQuantityInputRef}
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={orderQuantity}
+                onFocus={() => {
+                  showLimitPriceRequiredToast();
+                }}
+                onChange={(e) => {
+                  if (showLimitPriceRequiredToast()) {
+                    return;
+                  }
+
+                  setSelectedOpenRatio(null);
+                  setOrderQuantity(sanitizeDecimalInput(e.target.value));
+                }}
+                className={fieldCls}
+              />
+            )}
             <span className="text-[12px] font-medium ml-2 shrink-0 text-gray-500">{meta.baseAsset}</span>
           </div>
 
           {/* Ratio */}
           <div className="flex gap-1.5">
             {ORDER_RATIO_OPTIONS.map((o) => (
-              <button key={o.label} type="button" onClick={() => handleOpenRatio(o.ratio)} className={cn("flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors", isDark ? "bg-zinc-900 text-gray-400 hover:bg-zinc-800" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}>{o.label}</button>
+              <button
+                key={o.label}
+                type="button"
+                onClick={() => handleOpenRatio(o.ratio)}
+                className={cn(
+                  "flex-1 rounded-[4px] py-1 text-center text-[11px] font-bold transition-colors",
+                  selectedOpenRatio === o.ratio
+                    ? "bg-[#F0B90B]/15 text-[#F0B90B]"
+                    : (isDark ? "bg-zinc-900 text-gray-400 hover:bg-zinc-800" : "bg-slate-100 text-slate-500 hover:bg-slate-200")
+                )}
+              >
+                {o.label}
+              </button>
             ))}
           </div>
 
           {/* Validation */}
-          {estNotional > 0 && estNotional < MIN_ORDER_NOTIONAL_AMOUNT && <p className="text-[11px] font-semibold text-[#F6465D]">최소 명목금액 {formatAssetNumber(MIN_ORDER_NOTIONAL_AMOUNT)} 이상</p>}
-          {estRequired > availableBalance && estNotional > 0 && <p className="text-[11px] font-semibold text-[#F6465D]">가용 자금 초과</p>}
+          {hasMinOrderNotionalError && <p className="text-[11px] font-semibold text-[#F6465D]">최소 명목금액 {formatAssetNumber(MIN_ORDER_NOTIONAL_AMOUNT)} 이상</p>}
+          {hasBalanceExceeded && <p className="text-[11px] font-semibold text-[#F6465D]">가용 자금 초과</p>}
 
           {/* Info */}
           <div className="space-y-[6px] text-[12px] pt-1">
-            <div className="flex justify-between"><span className={isDark ? "text-gray-400" : "text-slate-400"}>명목가치</span><span className={isDark ? "text-white" : "text-slate-900"}>{estNotional > 0 ? formatAssetNumber(estNotional) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isDark ? "text-gray-400" : "text-slate-400"}>비용</span><span className={isDark ? "text-white" : "text-slate-900"}>{estRequired > 0 ? formatAssetNumber(estRequired) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isDark ? "text-gray-400" : "text-slate-400"}>수수료 ({(currentFeeRate * 100).toFixed(2)}%)</span><span className={isDark ? "text-white" : "text-slate-900"}>{estFee > 0 ? formatAssetNumber(estFee) : "--"} {meta.quoteAsset}</span></div>
-            <div className="flex justify-between"><span className={isDark ? "text-gray-400" : "text-slate-400"}>예상 청산가</span><span className="text-[#F6465D] font-bold">{estLiquidationPrice ? formatAssetNumber(estLiquidationPrice) : "--"} {meta.quoteAsset}</span></div>
-            <div className={cn("flex justify-between pt-1 border-t", isContest ? "border-futures-border" : (isDark ? "border-gray-700" : "border-gray-100"))}><span className={isDark ? "text-gray-400" : "text-slate-400"}>주문 가능</span><span className={cn("font-bold", isDark ? "text-white" : "text-slate-900")}>{formatAssetNumber(availableBalance)} {meta.quoteAsset}</span></div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={mutedTextCls}>최대 수량</span>
+              {renderOpenEstimatePair({
+                longValue: longOpenEstimate.maxQty,
+                shortValue: shortOpenEstimate.maxQty,
+                formatter: formatOpenBaseValue,
+                unit: meta.baseAsset,
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={mutedTextCls}>명목가치</span>
+              {renderOpenEstimatePair({
+                longValue: longOpenEstimate.estNotional,
+                shortValue: shortOpenEstimate.estNotional,
+                formatter: formatOpenQuoteValue,
+                unit: meta.quoteAsset,
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={mutedTextCls}>비용</span>
+              {renderOpenEstimatePair({
+                longValue: longOpenEstimate.estRequired,
+                shortValue: shortOpenEstimate.estRequired,
+                formatter: formatOpenQuoteValue,
+                unit: meta.quoteAsset,
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={mutedTextCls}>수수료 ({(currentFeeRate * 100).toFixed(2)}%)</span>
+              {renderOpenEstimatePair({
+                longValue: longOpenEstimate.estFee,
+                shortValue: shortOpenEstimate.estFee,
+                formatter: formatOpenQuoteValue,
+                unit: meta.quoteAsset,
+              })}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={mutedTextCls}>예상 청산가</span>
+              {renderOpenEstimatePair({
+                longValue: longOpenEstimate.estLiquidationPrice,
+                shortValue: shortOpenEstimate.estLiquidationPrice,
+                formatter: formatOpenQuoteValue,
+                unit: meta.quoteAsset,
+              })}
+            </div>
+            <div className={cn("flex items-center justify-between gap-3 pt-1 border-t", isContest ? "border-futures-border" : (isDark ? "border-gray-700" : "border-gray-100"))}>
+              <span className={mutedTextCls}>주문 가능</span>
+              {renderOpenEstimatePair({
+                longValue: availableBalance,
+                shortValue: availableBalance,
+                formatter: formatOpenQuoteValue,
+                unit: meta.quoteAsset,
+              })}
+            </div>
           </div>
 
           {/* Long / Short Buttons */}

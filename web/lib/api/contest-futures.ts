@@ -7,7 +7,6 @@ import type {
   FuturesLimitOpenOrderParams,
   FuturesOpenOrderParams,
   FuturesOrderFilters,
-  FuturesClosedPositionFilters,
   FuturesOpenPositionFilters,
   FuturesWalletStatus,
   FuturesCursorResponse,
@@ -17,6 +16,24 @@ import type {
   FuturesOrderItem,
   FuturesPositionItem,
 } from "@/types/futures";
+
+export type {
+  FuturesClosedPositionFilters,
+  FuturesCloseOrderParams,
+  FuturesLeverageParams,
+  FuturesLimitCloseOrderParams,
+  FuturesLimitOpenOrderParams,
+  FuturesOpenOrderParams,
+  FuturesOrderFilters,
+  FuturesOpenPositionFilters,
+  FuturesWalletStatus,
+  FuturesCursorResponse,
+  FuturesLeverageInfo,
+  FuturesLimitOrderResponse,
+  FuturesMarketOrderResponse,
+  FuturesOrderItem,
+  FuturesPositionItem,
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
@@ -151,7 +168,7 @@ const buildContestFuturesQueryParams = (
 };
 
 export const getFuturesWalletStatus = async (contestSeasonId: number) => {
-  const payload = await fetchClient(
+  const payload = await fetchClient<any>(
     `futures/contest/${contestSeasonId}/wallet/status`
   );
 
