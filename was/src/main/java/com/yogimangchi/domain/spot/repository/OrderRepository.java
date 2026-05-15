@@ -1,5 +1,6 @@
 package com.yogimangchi.domain.spot.repository;
 
+import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.spot.entity.Order;
 import com.yogimangchi.domain.spot.enums.OrderStatus;
 import jakarta.persistence.LockModeType;
@@ -25,7 +26,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReposi
     Optional<Order> findByIdAndMemberIdAndAssetTypeForUpdate(
             @Param("orderId") Long orderId,
             @Param("memberId") Long memberId,
-            @Param("assetType") com.yogimangchi.domain.asset.enums.AssetType assetType
+            @Param("assetType") AssetType assetType
     );
 
     // 지정가 주문 체결 실행 시 잠금을 걸고 조회

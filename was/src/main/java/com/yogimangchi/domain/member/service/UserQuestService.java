@@ -12,6 +12,7 @@ import com.yogimangchi.domain.spot.event.SpotOrderExecutedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -29,7 +30,8 @@ public class UserQuestService {
     // 현물 주문 체결 이벤트 리스너
     // 주문 트랜잭션이 성공적으로 커밋된 후(AFTER_COMMIT)에만 실행되어 데이터 정합성을 보장합니다.
     // SpEL(condition)을 사용하여 불필요한 프록시 호출 없이 MOCK 이벤트일 때만 수신합니다.
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // SpEL 안에서 자바의 Enum이나 정적 변수에 접근할 때는 import 여부와 상관없이 무조건 T(풀 패키지 경로) 형태로 적어야만 스프링이 인식이 가능함
     @TransactionalEventListener(
             phase = TransactionPhase.AFTER_COMMIT,
             condition = "#event.assetType == T(com.yogimangchi.domain.asset.enums.AssetType).MOCK"
@@ -46,7 +48,7 @@ public class UserQuestService {
 
     // 회원 인증 완료 이벤트 리스너
     // 인증이 늦게 완료되었을 때 퀘스트 해금 조건이 충족되었는지 다시 한번 확인합니다.
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMemberVerified(MemberVerifiedEvent event) {
         Long memberId = event.memberId();

@@ -10,6 +10,7 @@ import com.yogimangchi.domain.asset.entity.Holding;
 import com.yogimangchi.domain.chartapi.dto.ChartPriceDto;
 import com.yogimangchi.domain.chartapi.repository.ChartPriceRepository;
 import com.yogimangchi.domain.futures.entity.FuturesPosition;
+import com.yogimangchi.domain.futures.enums.PositionSide;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -195,7 +196,7 @@ public class PortfolioCalculationService {
 
             BigDecimal unrealizedPnl;
             // 롱(LONG) 포지션: (현재가 - 진입가) * 수량
-            if (position.getPositionSide() == com.yogimangchi.domain.futures.enums.PositionSide.LONG) {
+            if (position.getPositionSide() == PositionSide.LONG) {
                 unrealizedPnl = currentPrice.subtract(entryPrice).multiply(quantity).setScale(4, RoundingMode.HALF_UP);
             } 
             // 숏(SHORT) 포지션: (진입가 - 현재가) * 수량
