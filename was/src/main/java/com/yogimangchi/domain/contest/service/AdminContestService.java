@@ -53,10 +53,11 @@ public class AdminContestService {
     private final FuturesAssetService futuresAssetsService;
 
     // 시즌 정산(강제종료) 처리용 서비스들
-    private final ContestSettlementSnapshotService settlementSnapshotService;       // Phase 1  — 가격 스냅샷
-    private final ContestSettlementPositionCloser settlementPositionCloser;         // Phase 2a — 포지션 청산
-    private final ContestSettlementWalletDeactivator settlementWalletDeactivator;   // Phase 2b — 지갑 비활성화
-    private final ContestSettlementAggregator settlementAggregator;                 // Phase 2c — 참가자 결과 박제
+    private final ContestSettlementSnapshotService settlementSnapshotService;       // 가격 스냅샷
+    private final ContestSettlementRegistrySynchronizer registrySynchronizer;       // 인메모리 감시 카운트 동기화
+    private final ContestSettlementPositionCloser settlementPositionCloser;         // 포지션 청산
+    private final ContestSettlementWalletDeactivator settlementWalletDeactivator;   // 지갑 비활성화
+    private final ContestSettlementAggregator settlementAggregator;                 // 참가자 결과 박제
     private final ContestSettlementRunService settlementRunService;                 // 감사 로그 라이프사이클
 
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
@@ -391,27 +392,37 @@ public class AdminContestService {
         Long runId = settlementRunService.start(seasonId, triggeredBy);
 
         try {
-            // 1단계: 종료 시점의 가격 스냅샷 캡처
+            // ── 1단계: 종료 시점의 가격 스냅샷 캡처 ──
             settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_1_SNAPSHOT);
             settlementSnapshotService.captureForSeason(seasonId, settledAt);
 
-            // 2단계: 포지션 일괄 청산 (스냅샷 가격 기준)
-            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2A_POSITION_CLOSE);
-            int closedPositions = settlementPositionCloser.closeAllOpenPositions(seasonId);
-            settlementRunService.recordPositionClose(runId, closedPositions);
+            // ── 1.5단계: 인메모리 감시 카운트 동기화 (코디네이터 정합성) ──
+            // settleClose()는 PositionClosedEvent를 발행하지 않아 Registry 카운트가 감소하지 않으므로
+            // 포지션 청산 전에 해당 시즌의 PENDING 주문/OPEN 포지션 카운트를 선제 차감한다.
+            // contestEndAt 동기화로 신규 거래가 차단된 상태이므로 DB 카운트가 정확하다.
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_1B_REGISTRY_SYNC);
+            int registrySynced = registrySynchronizer.synchronize(seasonId);
 
-            // 3단계: 정산 대상 지갑들 일괄 비활성화
-            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2B_WALLET_DEACTIVATE);
+            // ── 2단계: 정산 대상 지갑들 일괄 비활성화 ──
+            // 포지션 청산보다 먼저 실행 — 코디네이터의 강제청산 쿼리에 activeAssetStatus 조건이 있어
+            // 지갑이 INACTIVE가 되면 코디네이터가 해당 포지션을 DB에서부터 자동 필터링한다.
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2A_WALLET_DEACTIVATE);
             int deactivatedWallets = settlementWalletDeactivator.deactivateForSeason(seasonId);
             settlementRunService.recordWalletDeactivate(runId, deactivatedWallets);
 
-            // 4단계: 참가자별 최종 실현손익 및 순위 산출/저장 (청산 결과의 realizedPnl 을 기반으로 집계)
-            //    반드시 포지션 일괄 청산 이후에 실행해야 함 — 모든 포지션이 CLOSE 되어야 집계가 정확함
+            // ── 3단계: 포지션 일괄 청산 (스냅샷 가격 기준) ──
+            settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2B_POSITION_CLOSE);
+            int closedPositions = settlementPositionCloser.closeAllOpenPositions(seasonId);
+            settlementRunService.recordPositionClose(runId, closedPositions);
+
+            // ── 4단계: 참가자별 최종 실현손익 및 순위 산출/저장 ──
+            //    반드시 포지션 일괄 청산 이후에 실행 — 모든 포지션이 CLOSE 되어야 집계가 정확함
             settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_2C_AGGREGATE);
             int finalizedParticipants = settlementAggregator.aggregateForSeason(seasonId);
             settlementRunService.recordParticipantFinalize(runId, finalizedParticipants);
 
-            // 5단계: 정산 완료 상태 최종 업데이트 (CAS 마킹). 단일 UPDATE 원자성으로 동시 두 호출 중 한쪽만 성공
+            // ── 5단계: 정산 완료 상태 최종 업데이트 (CAS 마킹) ──
+            // 단일 UPDATE 원자성으로 동시 두 호출 중 한쪽만 성공
             settlementRunService.markPhase(runId, SettlementRunPhase.PHASE_3_MARK_SETTLED);
             int affected = adminContestRepository.markSettledIfNotYet(seasonId, settledAt);
             if (affected == 0) {
@@ -431,13 +442,13 @@ public class AdminContestService {
                 );
             }
 
-            // 9) 정상 종결 — settlement_run COMPLETED
+            // 정상 종결 — settlement_run COMPLETED
             settlementRunService.markCompleted(runId);
 
-            log.info("[정산] 완료 — seasonId={}, triggeredBy={}, runId={}, closedPositions={}, deactivatedWallets={}, finalizedParticipants={}",
-                    seasonId, triggeredBy, runId, closedPositions, deactivatedWallets, finalizedParticipants);
+            log.info("[정산] 완료 — seasonId={}, triggeredBy={}, runId={}, registrySynced={}, closedPositions={}, deactivatedWallets={}, finalizedParticipants={}",
+                    seasonId, triggeredBy, runId, registrySynced, closedPositions, deactivatedWallets, finalizedParticipants);
 
-            // 10) 정상 정산 완료 — 카운트 포함 결과 반환
+            // 정상 정산 완료 — 카운트 포함 결과 반환
             return ContestSettlementResultDto.of(
                     season.getId(),
                     season.getTitle(),

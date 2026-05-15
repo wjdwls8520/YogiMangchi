@@ -33,4 +33,7 @@ public interface FuturesPositionRepositoryCustom {
     //
     // 정렬: id ASC — keyset 페이징 안전성 보장
     List<Long> findOpenPositionIdsByContestSeasonAfterId(Long contestSeasonId, Long lastId, int size);
+
+    // 대회 정산 시 — 해당 시즌의 OPEN 포지션을 심볼별 카운트 (인메모리 차감용)
+    List<FuturesOpenPositionSymbolCountDto> findOpenPositionCountsByContestSeason(Long contestSeasonId);
 }

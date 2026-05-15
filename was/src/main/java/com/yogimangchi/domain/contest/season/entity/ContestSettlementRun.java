@@ -74,6 +74,14 @@ public class ContestSettlementRun {
     // 정산의 각 세부 진행 단계별 처리 결과 카운트 — 해당 단계가 완료될 때 채워짐
     // 미완 상태에서는 null/0 일 수 있음
 
+    @Column(name = "registry_pending_orders_deregistered")
+    @Comment("인메모리 동기화 단계 결과 — 차감한 미체결 지정가 주문 수")
+    private Integer registryPendingOrdersDeregistered;
+
+    @Column(name = "registry_open_positions_deregistered")
+    @Comment("인메모리 동기화 단계 결과 — 차감한 오픈 포지션 수")
+    private Integer registryOpenPositionsDeregistered;
+
     @Column(name = "positions_closed_count")
     @Comment("포지션 일괄 청산 단계 결과 — 새로 CLOSE 처리된 포지션 수")
     private Integer positionsClosedCount;
@@ -113,6 +121,12 @@ public class ContestSettlementRun {
     // 현재 진행 중인 정산 단계 기록 — 각 단계 진입 직전 호출
     public void markPhase(SettlementRunPhase phase) {
         this.currentPhase = phase;
+    }
+
+    // 인메모리 동기화 결과 기록 — 차감한 미체결 주문 수와 오픈 포지션 수
+    public void recordRegistrySync(int pendingOrders, int openPositions) {
+        this.registryPendingOrdersDeregistered = pendingOrders;
+        this.registryOpenPositionsDeregistered = openPositions;
     }
 
     // 포지션 청산 결과 기록 — 포지션 청산 직후
