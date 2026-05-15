@@ -2,6 +2,7 @@ package com.yogimangchi.domain.contest.controller.v1;
 
 import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
 import com.yogimangchi.domain.contest.participant.dto.response.ContestParticipationSeasonDto;
+import com.yogimangchi.domain.contest.participant.dto.response.MyContestSeasonResultDto;
 import com.yogimangchi.domain.contest.application.dto.response.MyContestPendingApplicationDto;
 import com.yogimangchi.domain.contest.application.dto.response.MyContestLatestRejectedApplicationDto;
 import com.yogimangchi.domain.contest.service.ContestService;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -74,5 +76,26 @@ public class MyContestController {
         }
 
         return ResponseEntity.ok(latestRejectedApplication);
+    }
+
+    @Operation(
+            summary = "내 특정 시즌 정산 결과 조회",
+            description = """
+                    로그인한 회원의 해당 대회 시즌 최종 정산 결과(실현 손익 / 수익률 / 순위)를 조회합니다.
+                    정산이 완료된 시즌에 한해 박제된 값을 반환하며, 매 호출마다 재계산하지 않으므로 응답이 일관됩니다.
+
+                    분기:
+                      - 참가자가 아니면 404 (CONTEST_PARTICIPANT_NOT_FOUND)
+                      - 아직 정산되지 않은 시즌이면 409 (CONTEST_SEASON_NOT_SETTLED) — 프론트는 "정산 대기 중" UI 로 분기
+                      - 정산 완료된 시즌이면 200 + 박제값 응답
+                    """
+    )
+    @GetMapping("/seasons/{seasonId}/result")
+    public ResponseEntity<MyContestSeasonResultDto> getMyContestSeasonResult(
+            @AuthenticationPrincipal Long loginMemberId,
+            @PathVariable("seasonId") Long seasonId
+    ) {
+        MyContestSeasonResultDto result = contestService.getMyContestSeasonResult(loginMemberId, seasonId);
+        return ResponseEntity.ok(result);
     }
 }

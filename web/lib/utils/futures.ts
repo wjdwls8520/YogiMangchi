@@ -1,5 +1,5 @@
 import type {
-  ContestFuturesWalletStatus,
+  FuturesWalletStatus,
   FuturesOrderStatus,
   FuturesPositionAction,
   FuturesPositionSide,
@@ -87,8 +87,8 @@ export const getFuturesPositionTone = (positionSide?: FuturesPositionSide | null
   };
 };
 
-export const getContestFuturesWalletStatusLabel = (
-  status?: ContestFuturesWalletStatus["status"]
+export const getFuturesWalletStatusLabel = (
+  status?: FuturesWalletStatus["status"]
 ) => {
   if (!status) {
     return "상태 확인 중";

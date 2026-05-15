@@ -55,12 +55,19 @@ const getPayloadRecord = (payload?: NotificationPayload | null) => {
 
 const getPayloadString = (
   payload: NotificationPayload | null | undefined,
-  key: string
+  ...keys: string[]
 ) => {
   const record = getPayloadRecord(payload);
-  const value = record?.[key];
 
-  return typeof value === "string" && value.trim() ? value : null;
+  for (const key of keys) {
+    const value = record?.[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
 };
 
 const getPayloadStringListFirst = (
@@ -514,10 +521,10 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
     return [target, "주문 취소되었습니다."].filter(Boolean).join(" ");
   }
   if (type.includes("LIQUIDATION_COMPLETED")) {
-    return `⚠️ [청산 알림] ${target} 포지션이 강제 청산되었습니다.`;
+    return `[청산 알림] ${target} 포지션이 강제 청산되었습니다.`;
   }
   if (type.includes("ASSET_TRANSFER_COMPLETED")) {
-    return "🔄 자산 이체가 완료되었습니다.";
+    return "자산 이체가 완료되었습니다.";
   }
 
   switch (type) {
@@ -594,8 +601,17 @@ export const formatNotificationDescription = (notification: NotificationItem) =>
   }
 
   if (type.includes("ASSET_TRANSFER_COMPLETED")) {
-    const from = getPayloadString(notification.payload, "fromAccount", "from");
-    const to = getPayloadString(notification.payload, "toAccount", "to");
+    const rawFrom = getPayloadString(notification.payload, "fromType", "fromAccount", "from");
+    const rawTo = getPayloadString(notification.payload, "toType", "toAccount", "to");
+    
+    const getWalletName = (t?: string | null) => {
+      if (t === "TRADE_SPOT") return "현물 지갑";
+      if (t === "TRADE_FUTURE") return "선물 지갑";
+      return t ?? "";
+    };
+
+    const from = getWalletName(rawFrom);
+    const to = getWalletName(rawTo);
     const amount = getPayloadNumericValue(notification.payload, "amount");
     return `${from} ➔ ${to} (${amount !== null ? formatAssetNumber(amount) : ""})`;
   }

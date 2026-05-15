@@ -9,10 +9,10 @@ import { formatFuturesPositionSide } from "@/lib/utils/futures";
 import { useTickerStore } from "@/stores/useTickerStore";
 import { useUIStore } from "@/stores/useUIStore";
 import type {
-  ContestFuturesLimitOpenOrderParams,
-  ContestFuturesLimitCloseOrderParams,
-  ContestFuturesOpenOrderParams,
-  ContestFuturesWalletStatus,
+  FuturesLimitOpenOrderParams,
+  FuturesLimitCloseOrderParams,
+  FuturesOpenOrderParams,
+  FuturesWalletStatus,
   FuturesLeverageInfo,
   FuturesLimitOrderResponse,
   FuturesMarketOrderResponse,
@@ -27,7 +27,7 @@ type OrderMainTab = "open" | "close";
 type OrderExecutionType = "MARKET" | "LIMIT";
 
 export type FuturesOrderPanelProps = {
-  walletStatus: ContestFuturesWalletStatus;
+  walletStatus: FuturesWalletStatus;
   leverageInfo: FuturesLeverageInfo | null;
   leverageInfoByKey: Record<string, FuturesLeverageInfo>;
   leverageErrorMessage: string;
@@ -46,10 +46,10 @@ export type FuturesOrderPanelProps = {
     positionSide: FuturesPositionSide,
     leverage: number
   ) => Promise<FuturesLeverageInfo>;
-  onSubmitOpenOrder: (params: ContestFuturesOpenOrderParams) => Promise<unknown>;
-  onSubmitLimitOpenOrder: (params: ContestFuturesLimitOpenOrderParams) => Promise<unknown>;
+  onSubmitOpenOrder: (params: FuturesOpenOrderParams) => Promise<unknown>;
+  onSubmitLimitOpenOrder: (params: FuturesLimitOpenOrderParams) => Promise<unknown>;
   onClosePosition: (params: { positionId: number; closeQuantity: number }) => Promise<FuturesMarketOrderResponse>;
-  onSubmitLimitCloseOrder: (params: ContestFuturesLimitCloseOrderParams) => Promise<FuturesLimitOrderResponse>;
+  onSubmitLimitCloseOrder: (params: FuturesLimitCloseOrderParams) => Promise<FuturesLimitOrderResponse>;
   disabledMessage?: string;
   mode?: "trade" | "mock" | "contest";
   onOpenTransferModal?: () => void;
@@ -259,24 +259,33 @@ export default function FuturesOrderPanel({
     if (!selectedPosition) { await alert("청산할 포지션을 선택해 주세요."); return; }
     if (!isTradingEnabled) { await alert(disabledMessage); return; }
     if (!(await requireVerifiedUser())) return;
-    const qty = numCloseQty > 0 ? numCloseQty : closeableQty;
-    if (qty <= 0) { await alert("청산 수량을 입력해 주세요."); return; }
+    const qty = numCloseQty;
+    if (!qty || qty <= 0) { await alert("청산 수량을 입력해 주세요."); return; }
     if (qty > closeableQty) { await alert("청산 가능 수량을 초과했습니다."); return; }
+
+    if (isCloseLimit) {
+      const cp = Number(closePrice);
+      if (!cp || cp <= 0) { await alert("지정가를 입력해 주세요."); return; }
+
+      // 가격 방향 검증 (익절만 허용)
+      if (selectedPosition.positionSide === "LONG" && cp <= currentPrice) {
+        await alert("LONG 청산 지정가는 현재가보다 높아야 합니다. (익절)");
+        return;
+      }
+      if (selectedPosition.positionSide === "SHORT" && cp >= currentPrice) {
+        await alert("SHORT 청산 지정가는 현재가보다 낮아야 합니다. (익절)");
+        return;
+      }
+    }
+
+    const isConfirmed = await confirm(
+      `${formatFuturesPositionSide(selectedPosition.positionSide)} 포지션 ${formatQty(qty)}개를 ${isCloseLimit ? '지정가' : '시장가'}로 청산하시겠습니까?`
+    );
+    if (!isConfirmed) return;
 
     try {
       if (isCloseLimit) {
         const cp = Number(closePrice);
-        if (!cp || cp <= 0) { await alert("지정가를 입력해 주세요."); return; }
-
-        // 가격 방향 검증 (익절만 허용)
-        if (selectedPosition.positionSide === "LONG" && cp <= currentPrice) {
-          await alert("LONG 청산 지정가는 현재가보다 높아야 합니다. (익절)");
-          return;
-        }
-        if (selectedPosition.positionSide === "SHORT" && cp >= currentPrice) {
-          await alert("SHORT 청산 지정가는 현재가보다 낮아야 합니다. (익절)");
-          return;
-        }
 
         await onSubmitLimitCloseOrder({ positionId: selectedPosition.positionId, closeQuantity: qty, orderPrice: cp });
         toast({ title: `${formatFuturesPositionSide(selectedPosition.positionSide)} 지정가 청산 주문 등록`, tone: "success" });
@@ -518,7 +527,7 @@ export default function FuturesOrderPanel({
               {/* Close Quantity */}
               <div className={inputCls}>
                 <span className={labelCls}>수량</span>
-                <input type="text" inputMode="decimal" placeholder={formatQty(closeableQty)} value={closeQuantity} onChange={(e) => setCloseQuantity(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
+                <input type="text" inputMode="decimal" placeholder="0" value={closeQuantity} onChange={(e) => setCloseQuantity(sanitizeDecimalInput(e.target.value))} className={fieldCls} />
                 <span className="text-[12px] font-medium ml-2 shrink-0 text-gray-500">{meta.baseAsset}</span>
               </div>
 

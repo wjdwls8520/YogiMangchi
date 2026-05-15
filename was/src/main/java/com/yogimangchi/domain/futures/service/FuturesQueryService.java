@@ -3,6 +3,7 @@ package com.yogimangchi.domain.futures.service;
 import com.yogimangchi.domain.asset.entity.Assets;
 import com.yogimangchi.domain.futures.dto.query.FuturesOrderQueryDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesClosedPositionSearchConditionDto;
+import com.yogimangchi.domain.futures.dto.request.FuturesOpenPositionSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesOrderSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.response.ContestFuturesWalletStatusResponseDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesCursorResponseDto;
@@ -55,19 +56,39 @@ public class FuturesQueryService {
         return new FuturesCursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
-    // OPEN 포지션 조회 — 해당 지갑의 모든 OPEN 포지션 (커서 없음, 최대 보유량이 적음)
+    // OPEN 포지션 조회 — 커서 방식 무한스크롤, 선택적 심볼 필터
     @Transactional(readOnly = true)
-    public List<FuturesPositionResponseDto> getOpenPositions(Long memberId, Long contestSeasonId) {
+    public FuturesCursorResponseDto<FuturesPositionResponseDto> getOpenPositions(
+            Long memberId, Long contestSeasonId, FuturesOpenPositionSearchConditionDto condition) {
 
         Assets wallet = (contestSeasonId == null)
                 ? futuresWalletReader.getReadableRealWallet(memberId)
                 : futuresWalletReader.getReadableContestWallet(memberId, contestSeasonId);
 
-        return futuresPositionRepository
-                .findAllByAssetsAndPositionStatus(wallet, PositionStatus.OPEN)
-                .stream()
+        int limitSize = condition.getOrDefaultSize();
+        String symbol = condition.symbol() != null ? condition.symbol().trim().toUpperCase() : null;
+
+        List<com.yogimangchi.domain.futures.entity.FuturesPosition> positions =
+                futuresPositionRepository.findOpenPositionsWithCursor(
+                        wallet,
+                        PositionStatus.OPEN,
+                        symbol,
+                        condition.cursorId(),
+                        PageRequest.of(0, limitSize + 1)
+                );
+
+        boolean hasNext = positions.size() > limitSize;
+        if (hasNext) {
+            positions.remove(limitSize);
+        }
+
+        Long nextCursorId = positions.isEmpty() ? null : positions.get(positions.size() - 1).getId();
+
+        List<FuturesPositionResponseDto> content = positions.stream()
                 .map(FuturesPositionResponseDto::from)
                 .toList();
+
+        return new FuturesCursorResponseDto<>(content, nextCursorId, hasNext);
     }
 
     // CLOSE 포지션 내역 조회 — 커서 방식 무한스크롤, 선택적 심볼 필터
@@ -111,6 +132,25 @@ public class FuturesQueryService {
 
         Assets wallet = futuresWalletReader.getReadableContestWallet(memberId, contestSeasonId);
 
+        BigDecimal marginInUse = futuresPositionRepository
+                .sumTotalMarginByAssetsAndPositionStatus(wallet, PositionStatus.OPEN);
+
+        return ContestFuturesWalletStatusResponseDto.of(wallet, marginInUse);
+    }
+
+    // 정산 완료/종료된 대회 지갑 상태 조회 (사후 조회용)
+    //
+    // 활성 가드(ACTIVE + contestEndAt >= now) 가 깨진 시즌도 본인 지갑 정보를 사후 확인 가능.
+    // OPEN 포지션은 정산이 끝났으면 0건이므로 marginInUse 도 0 으로 떨어지는 것이 자연스럽다.
+    //
+    // 응답 포맷은 진행 중 조회와 동일한 DTO 사용 — 프론트는 status(INACTIVE) 로 사후 케이스를 인지.
+    @Transactional(readOnly = true)
+    public ContestFuturesWalletStatusResponseDto getFinishedContestWalletStatus(Long memberId, Long contestSeasonId) {
+
+        Assets wallet = futuresWalletReader.getFinishedContestWallet(memberId, contestSeasonId);
+
+        // 정상 정산 이후엔 OPEN 포지션이 없으므로 marginInUse=0 이 정상.
+        // 다만 비활성화 직전 데이터 잔존 케이스 대비 동일한 합산 쿼리 재사용.
         BigDecimal marginInUse = futuresPositionRepository
                 .sumTotalMarginByAssetsAndPositionStatus(wallet, PositionStatus.OPEN);
 

@@ -85,6 +85,35 @@ public class ContestException extends RuntimeException {
         );
     }
 
+    // 정산 가격 스냅샷 캡처 실패 — 인메모리 ticker 캐시에 일부 심볼의 가격이 없을 때
+    // 어드민이 잠시 후 재시도하도록 유도 (WebSocket 재연결 또는 첫 틱 수신 대기)
+    public static ContestException settlementSnapshotPriceUnavailable(java.util.List<String> missingSymbols) {
+        return new ContestException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "CONTEST_SETTLEMENT_PRICE_UNAVAILABLE",
+                "정산 기준가를 가져올 수 없는 심볼이 있습니다. 잠시 후 다시 시도해 주세요. (missing: " + missingSymbols + ")"
+        );
+    }
+
+    // 시즌 결과 조회 시 — 사용자가 해당 시즌의 참가자가 아닐 때
+    public static ContestException contestParticipantNotFound() {
+        return new ContestException(
+                HttpStatus.NOT_FOUND,
+                "CONTEST_PARTICIPANT_NOT_FOUND",
+                "해당 대회 시즌의 참가자가 아닙니다."
+        );
+    }
+
+    // 시즌 결과 조회 시 — 아직 정산되지 않은 시즌 (settledAt IS NULL)
+    // 프론트는 이 코드로 "정산 대기" UI 분기 가능
+    public static ContestException contestSeasonNotSettled() {
+        return new ContestException(
+                HttpStatus.CONFLICT,
+                "CONTEST_SEASON_NOT_SETTLED",
+                "아직 정산이 완료되지 않은 대회 시즌입니다."
+        );
+    }
+
     public HttpStatus getStatus() {
         return status;
     }

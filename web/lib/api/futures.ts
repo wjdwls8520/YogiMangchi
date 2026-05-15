@@ -1,13 +1,15 @@
 import { fetchClient } from "./client";
 import type {
-  ContestFuturesClosedPositionFilters,
-  ContestFuturesCloseOrderParams,
-  ContestFuturesLeverageParams,
-  ContestFuturesLimitCloseOrderParams,
-  ContestFuturesLimitOpenOrderParams,
-  ContestFuturesOpenOrderParams,
-  ContestFuturesOrderFilters,
-  ContestFuturesWalletStatus,
+  FuturesClosedPositionFilters,
+  FuturesCloseOrderParams,
+  FuturesLeverageParams,
+  FuturesLimitCloseOrderParams,
+  FuturesLimitOpenOrderParams,
+  FuturesOpenOrderParams,
+  FuturesOrderFilters,
+  FuturesClosedPositionFilters,
+  FuturesOpenPositionFilters,
+  FuturesWalletStatus,
   FuturesCursorResponse,
   FuturesLeverageInfo,
   FuturesLimitOrderResponse,
@@ -109,7 +111,7 @@ const parseObjectResponse = <T,>(payload: unknown, fallbackValue: T) => {
 };
 
 const buildFuturesQueryParams = (
-  filters: ContestFuturesOrderFilters | ContestFuturesClosedPositionFilters
+  filters: FuturesOrderFilters | FuturesClosedPositionFilters | FuturesOpenPositionFilters
 ) => {
   const params = new URLSearchParams();
 
@@ -162,13 +164,17 @@ export const getRealFuturesWalletBalance = async (): Promise<number> => {
   return 0;
 };
 
-export const getFuturesOpenPositions = async () => {
-  const payload = await fetchClient(`futures/positions/open`);
-  return parseArrayResponse<FuturesPositionItem>(payload);
+export const getFuturesOpenPositions = async (
+  filters: FuturesOpenPositionFilters = {}
+) => {
+  const query = buildFuturesQueryParams(filters);
+  const suffix = query ? `?${query}` : "";
+  const payload = await fetchClient(`futures/positions/open${suffix}`);
+  return parseCursorResponse<FuturesPositionItem>(payload);
 };
 
 export const getFuturesClosedPositions = async (
-  filters: ContestFuturesClosedPositionFilters = {}
+  filters: FuturesClosedPositionFilters = {}
 ) => {
   const query = buildFuturesQueryParams(filters);
   const suffix = query ? `?${query}` : "";
@@ -177,7 +183,7 @@ export const getFuturesClosedPositions = async (
 };
 
 export const getFuturesOrders = async (
-  filters: ContestFuturesOrderFilters = {}
+  filters: FuturesOrderFilters = {}
 ) => {
   const query = buildFuturesQueryParams(filters);
   const suffix = query ? `?${query}` : "";
@@ -187,7 +193,7 @@ export const getFuturesOrders = async (
 
 export const getFuturesLeverage = async (
   symbol: string,
-  positionSide: ContestFuturesLeverageParams["positionSide"]
+  positionSide: FuturesLeverageParams["positionSide"]
 ) => {
   const params = new URLSearchParams();
   params.set("symbol", symbol);
@@ -205,7 +211,7 @@ export const getFuturesLeverage = async (
 };
 
 export const updateFuturesLeverage = async (
-  params: ContestFuturesLeverageParams
+  params: FuturesLeverageParams
 ) => {
   const payload = await fetchClient(`futures/leverage`, {
     method: "PUT",
@@ -222,7 +228,7 @@ export const updateFuturesLeverage = async (
 };
 
 export const placeFuturesOpenMarketOrder = async (
-  params: ContestFuturesOpenOrderParams
+  params: FuturesOpenOrderParams
 ) => {
   const payload = await fetchClient(`futures/order/market/open`, {
     method: "POST",
@@ -237,7 +243,7 @@ export const placeFuturesOpenMarketOrder = async (
 };
 
 export const placeFuturesOpenLimitOrder = async (
-  params: ContestFuturesLimitOpenOrderParams
+  params: FuturesLimitOpenOrderParams
 ) => {
   const payload = await fetchClient(`futures/order/limit/open`, {
     method: "POST",
@@ -260,7 +266,7 @@ export const placeFuturesOpenLimitOrder = async (
 };
 
 export const placeFuturesCloseMarketOrder = async (
-  params: ContestFuturesCloseOrderParams
+  params: FuturesCloseOrderParams
 ) => {
   const payload = await fetchClient(`futures/order/market/close`, {
     method: "POST",
@@ -275,7 +281,7 @@ export const placeFuturesCloseMarketOrder = async (
 };
 
 export const placeFuturesCloseLimitOrder = async (
-  params: ContestFuturesLimitCloseOrderParams
+  params: FuturesLimitCloseOrderParams
 ) => {
   const payload = await fetchClient(`futures/order/limit/close`, {
     method: "POST",

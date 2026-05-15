@@ -5,6 +5,7 @@ import com.yogimangchi.domain.futures.dto.request.FuturesLimitOrderCloseRequestD
 import com.yogimangchi.domain.futures.dto.request.FuturesLimitOrderOpenRequestDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderCloseRequestDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesMarketOrderOpenRequestDto;
+import com.yogimangchi.domain.futures.dto.request.FuturesOpenPositionSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.request.FuturesOrderSearchConditionDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesCursorResponseDto;
 import com.yogimangchi.domain.futures.dto.response.FuturesLimitOrderResponseDto;
@@ -23,8 +24,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/futures")
@@ -104,13 +103,14 @@ public class FuturesOrderController {
     }
 
     @Operation(summary = "본투자 OPEN 포지션 조회",
-            description = "본투자 선물 지갑에서 현재 보유 중인 OPEN 포지션 전체를 조회합니다.")
+            description = "본투자 선물 지갑에서 현재 보유 중인 OPEN 포지션을 커서 방식 무한스크롤로 조회합니다.")
     @PreAuthorize("hasAnyRole('VERIFIED_USER', 'ADMIN')")
     @GetMapping("/positions/open")
-    public ResponseEntity<List<FuturesPositionResponseDto>> getOpenPositions(
-            @AuthenticationPrincipal Long memberId
+    public ResponseEntity<FuturesCursorResponseDto<FuturesPositionResponseDto>> getOpenPositions(
+            @AuthenticationPrincipal Long memberId,
+            @ParameterObject @ModelAttribute FuturesOpenPositionSearchConditionDto condition
     ) {
-        return ResponseEntity.ok(futuresQueryService.getOpenPositions(memberId, null));
+        return ResponseEntity.ok(futuresQueryService.getOpenPositions(memberId, null, condition));
     }
 
     @Operation(summary = "본투자 CLOSE 포지션 내역 조회",

@@ -16,7 +16,7 @@ export type FuturesCursorResponse<T> = {
   hasNext: boolean;
 };
 
-export type ContestFuturesWalletStatus = {
+export type FuturesWalletStatus = {
   walletId: number | null;
   seedMoney: number;
   currentMoney: number;
@@ -120,34 +120,34 @@ export type FuturesLimitOrderResponse = {
   createdAt: string | null;
 };
 
-export type ContestFuturesOpenOrderParams = {
+export type FuturesOpenOrderParams = {
   symbol: string;
   positionSide: FuturesPositionSide;
   orderQuantity: number;
 };
 
-export type ContestFuturesLimitOpenOrderParams =
-  ContestFuturesOpenOrderParams & {
+export type FuturesLimitOpenOrderParams =
+  FuturesOpenOrderParams & {
     orderPrice: number;
   };
 
-export type ContestFuturesCloseOrderParams = {
+export type FuturesCloseOrderParams = {
   positionId: number;
   closeQuantity: number;
 };
 
-export type ContestFuturesLimitCloseOrderParams =
-  ContestFuturesCloseOrderParams & {
+export type FuturesLimitCloseOrderParams =
+  FuturesCloseOrderParams & {
     orderPrice: number;
   };
 
-export type ContestFuturesLeverageParams = {
+export type FuturesLeverageParams = {
   symbol: string;
   positionSide: FuturesPositionSide;
   leverage: number;
 };
 
-export type ContestFuturesOrderFilters = {
+export type FuturesOrderFilters = {
   cursorId?: number | null;
   size?: number;
   symbol?: string;
@@ -158,7 +158,13 @@ export type ContestFuturesOrderFilters = {
   endDate?: string;
 };
 
-export type ContestFuturesClosedPositionFilters = {
+export type FuturesClosedPositionFilters = {
+  cursorId?: number | null;
+  size?: number;
+  symbol?: string;
+};
+
+export type FuturesOpenPositionFilters = {
   cursorId?: number | null;
   size?: number;
   symbol?: string;

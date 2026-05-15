@@ -33,7 +33,8 @@ public class AdminContestSeasonRepositoryImpl implements AdminContestSeasonRepos
                         contestSeason.createdAt,
                         contestSeason.updatedAt,
                         contestSeason.isPublic,
-                        contestSeason.isCancel
+                        contestSeason.isCancel,
+                        contestSeason.settledAt
                 ))
                 .from(contestSeason)
                 .where(cursorIdLt(request.cursorId()))

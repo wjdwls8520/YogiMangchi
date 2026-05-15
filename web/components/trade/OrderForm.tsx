@@ -205,12 +205,20 @@ export default function OrderForm({
 
   const handleRatio = (ratio: number) => {
     if (isBuy) {
+      if (usdtBalance <= 0) {
+        toast({ title: "가용 자금이 부족합니다.", tone: "error" });
+        return;
+      }
       if (isLimit) {
         setOrderQuantity(toInputValue(maxBuyQty * ratio));
       } else {
         setOrderAmount(toInputValue(usdtBalance * ratio, 2));
       }
     } else {
+      if (availableHolding <= 0) {
+        toast({ title: "보유 수량이 부족합니다.", tone: "error" });
+        return;
+      }
       setOrderQuantity(toInputValue(availableHolding * ratio));
     }
   };
@@ -223,6 +231,15 @@ export default function OrderForm({
 
     if (isMock && !isParticipated) {
       await alert("먼저 모의투자 계좌를 생성해 주세요.");
+      return;
+    }
+
+    if (isBuy && usdtBalance <= 0) {
+      toast({ title: "주문 가능한 자금이 없습니다.", tone: "error" });
+      return;
+    }
+    if (!isBuy && availableHolding <= 0) {
+      toast({ title: "매도 가능한 보유 수량이 없습니다.", tone: "error" });
       return;
     }
 
@@ -421,10 +438,12 @@ export default function OrderForm({
           
           {isBuy ? (
             <div className="flex justify-between min-w-0">
-              <span className={`${textMuted} shrink-0`}>예상 매수량</span>
+              <span className={`${textMuted} shrink-0`}>
+                {isLimit ? "예상 지출액" : "예상 매수량"}
+              </span>
               <span className="text-[#fb2c36] font-bold truncate ml-2">
                 {isLimit 
-                  ? `${formatAssetNumber(numQty)} ${meta.baseAsset}`
+                  ? `${formatAssetNumber(estRequired)} ${meta.quoteAsset}`
                   : `${formatAssetNumber(expectedBuyQuantity)} ${meta.baseAsset}`}
               </span>
             </div>

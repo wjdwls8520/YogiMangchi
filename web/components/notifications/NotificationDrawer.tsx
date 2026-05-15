@@ -67,6 +67,7 @@ export default function NotificationDrawer({
   const previousNotificationsRef = useRef<NotificationItem[]>([]);
   const visibleNotifications = notifications.filter(
     (notification) =>
+      !notification.isRead &&
       !pendingNotifications.some(
         (pendingNotification) =>
           pendingNotification.notificationId === notification.notificationId
@@ -242,12 +243,7 @@ export default function NotificationDrawer({
               <Bell className="h-6 w-6 text-gray-300 dark:text-zinc-600" strokeWidth={1.8} />
             </div>
             <p className="mt-4 text-[13px] font-semibold text-gray-500 dark:text-gray-400">
-              아직 알림이 없습니다
-            </p>
-            <p className="mt-1.5 text-[12px] leading-[18px] text-gray-400 dark:text-gray-500">
-              새로운 알림이 도착하면 여기에서
-              <br />
-              바로 확인할 수 있어요.
+              최근 알림이 없습니다
             </p>
           </div>
         ) : null}

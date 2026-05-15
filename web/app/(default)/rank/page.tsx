@@ -63,7 +63,7 @@ export default function RankPage() {
 
   return (
     <div className="flex flex-col gap-6 min-h-screen transition-colors">
-      <div className="border-b border-gray-100 dark:border-gray-700">
+      <div className="">
         <div className="max-w-7xl mx-auto px-4">
           <Tabs
             tabs={menus}

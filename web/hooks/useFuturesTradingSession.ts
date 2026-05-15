@@ -18,10 +18,10 @@ import {
 } from "@/lib/utils/notification-sse";
 import { useTickerStore } from "@/stores/useTickerStore";
 import type {
-  ContestFuturesLimitOpenOrderParams,
-  ContestFuturesLimitCloseOrderParams,
-  ContestFuturesOpenOrderParams,
-  ContestFuturesWalletStatus,
+  FuturesLimitOpenOrderParams,
+  FuturesLimitCloseOrderParams,
+  FuturesOpenOrderParams,
+  FuturesWalletStatus,
   FuturesLeverageInfo,
   FuturesPositionItem,
   FuturesPositionSide,
@@ -34,7 +34,7 @@ export function useFuturesTradingSession() {
   const selectedCoin = useTickerStore((s) => s.selectedCoin);
 
   // 1. 상태 정의
-  const [walletStatus, setWalletStatus] = useState<ContestFuturesWalletStatus>({
+  const [walletStatus, setWalletStatus] = useState<FuturesWalletStatus>({
     walletId: 0,
     seedMoney: 0,
     currentMoney: 0,
@@ -66,9 +66,9 @@ export function useFuturesTradingSession() {
   const refreshBaseData = useCallback(async () => {
     setIsRefreshingBase(true);
     try {
-      const [balance, positions, pendingOrders] = await Promise.all([
+      const [balance, positionsResponse, pendingOrders] = await Promise.all([
         getRealFuturesWalletBalance(),
-        getFuturesOpenPositions(),
+        getFuturesOpenPositions({ size: 100 }),
         getFuturesOrders({ orderStatus: "PENDING" }),
       ]);
 
@@ -78,22 +78,28 @@ export function useFuturesTradingSession() {
         currentMoney: balance,
       }));
 
-      setOpenPositions(positions);
+      setOpenPositions(positionsResponse.content);
 
       // 대기 중인 청산 주문 수량 계산
       const pendingCloseQtyMap: Record<string, number> = {};
       pendingOrders.content.forEach((order) => {
         if (order.positionAction === "CLOSE") {
           const key = `${order.symbol}-${order.positionSide}`;
-          pendingCloseQtyMap[key] = (pendingCloseQtyMap[key] || 0) + order.remainingQuantity;
+          pendingCloseQtyMap[key] = (pendingCloseQtyMap[key] || 0) + (order.remainingQuantity ?? 0);
         }
       });
       setPendingCloseQuantityByPositionKey(pendingCloseQtyMap);
 
       setActivityVersion((v) => v + 1);
     } catch (error: any) {
-      // 지갑이 없는 경우(404)나 권한이 없는 경우(403)는 에러 로그를 남기지 않음
-      if (error?.status === 404 || error?.status === 403 || error?.message?.includes("지갑이 없습니다")) {
+      // 지갑이 없는 경우(404), 권한 없음(401/403)은 정상적인 예외 흐름이므로 콘솔 에러 로그를 남기지 않음
+      if (
+        error?.status === 404 ||
+        error?.status === 403 ||
+        error?.status === 401 ||
+        error?.message?.includes("지갑이 없습니다") ||
+        error?.message?.includes("Unauthorized")
+      ) {
         // Quietly skip
         return;
       }
@@ -138,7 +144,7 @@ export function useFuturesTradingSession() {
   }, [refreshBaseData]);
 
   // 5. 주문 실행 함수들
-  const submitOpenOrder = useCallback(async (params: ContestFuturesOpenOrderParams) => {
+  const submitOpenOrder = useCallback(async (params: FuturesOpenOrderParams) => {
     setIsSubmittingOpenOrder(true);
     try {
       const res = await placeFuturesOpenMarketOrder(params);
@@ -149,7 +155,7 @@ export function useFuturesTradingSession() {
     }
   }, [refreshBaseData]);
 
-  const submitLimitOpenOrder = useCallback(async (params: ContestFuturesLimitOpenOrderParams) => {
+  const submitLimitOpenOrder = useCallback(async (params: FuturesLimitOpenOrderParams) => {
     setIsSubmittingOpenOrder(true);
     try {
       const res = await placeFuturesOpenLimitOrder(params);
@@ -171,7 +177,7 @@ export function useFuturesTradingSession() {
     }
   }, [refreshBaseData]);
 
-  const submitLimitCloseOrder = useCallback(async (params: ContestFuturesLimitCloseOrderParams) => {
+  const submitLimitCloseOrder = useCallback(async (params: FuturesLimitCloseOrderParams) => {
     setClosingPositionId(params.positionId);
     try {
       const res = await placeFuturesCloseLimitOrder(params);
