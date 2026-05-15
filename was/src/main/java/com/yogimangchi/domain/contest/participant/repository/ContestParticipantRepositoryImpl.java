@@ -293,4 +293,29 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
                 ).and(contestParticipant.id.gt(cursorId))
         );
     }
+
+    @Override
+    public Optional<ContestRankingDto> findContestRankingByMemberId(Long seasonId, Long memberId) {
+        ContestRankingDto result = queryFactory
+                .select(Projections.constructor(
+                        ContestRankingDto.class,
+                        contestParticipant.finalRank,
+                        contestParticipant.id,
+                        member.id,
+                        member.nickname,
+                        member.profileImgUrl,
+                        contestParticipant.finalRealizedPnl,
+                        contestParticipant.finalProfitRate
+                ))
+                .from(contestParticipant)
+                .join(contestParticipant.member, member)
+                .where(
+                        contestParticipant.contestSeason.id.eq(seasonId),
+                        contestParticipant.member.id.eq(memberId),
+                        contestParticipant.finalRank.isNotNull()
+                )
+                .fetchOne();
+
+        return Optional.ofNullable(result);
+    }
 }
