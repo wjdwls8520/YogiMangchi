@@ -58,7 +58,7 @@ import {
 import { useMarketStore, type MarketSymbolMeta } from "@/stores/useMarketStore";
 import TickerCell from "@/components/trade/TickerCell";
 import type { FuturesPositionItem } from "@/types/futures";
-import type { FuturesPositionDetail } from "@/lib/api/asset";
+import { getUnifiedRealAssetDetail, type FuturesPositionDetail } from "@/lib/api/asset";
 
 const CHART_COLORS = ["#0058FF", "#00C2FF", "#00E0FF", "#00FFC2", "#FFC200", "#FF5800"];
 
@@ -75,6 +75,7 @@ export default function MemberProfilePage() {
   const memberId = Number(params.memberId);
   const isLogin = useAuthStore((state) => state.isLogin);
   const currentUser = useAuthStore((state) => state.user);
+  const isOwnProfile = currentUser?.memberId === memberId;
   const { alert, toast } = useFeedback();
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -261,8 +262,29 @@ export default function MemberProfilePage() {
     const loadFuturesPortfolio = async () => {
       setIsLoadingPortfolio(true);
       try {
-        const data = await getMemberPortfolio(memberProfile.memberId, "TRADE_FUTURE");
-        setFuturesPortfolioData(data);
+        if (isOwnProfile) {
+          const res = await getUnifiedRealAssetDetail();
+          if (res) {
+            setFuturesPortfolioData({
+              assetType: "TRADE_FUTURE",
+              holdingCount: res.futures.positions.length,
+              seedMoney: res.futures.cashBalance,
+              cashBalance: res.futures.cashBalance,
+              totalBuyAmount: res.futures.totalMargin,
+              totalCoinValue: 0,
+              totalAsset: res.futures.totalAsset,
+              totalProfit: res.totalProfit,
+              totalRoi: 0,
+              updatedAt: new Date().toISOString(),
+              holdings: res.futures.positions as any,
+            });
+          } else {
+            setFuturesPortfolioData(null);
+          }
+        } else {
+          const data = await getMemberPortfolio(memberProfile.memberId, "TRADE_FUTURE");
+          setFuturesPortfolioData(data);
+        }
       } catch (error) {
         console.error("failed to load member futures portfolio:", error);
         setFuturesPortfolioData(null);
@@ -272,7 +294,7 @@ export default function MemberProfilePage() {
     };
 
     void loadFuturesPortfolio();
-  }, [memberProfile, mainTab, portfolioTab, tradingSubTab]);
+  }, [memberProfile, mainTab, portfolioTab, tradingSubTab, isOwnProfile]);
 
   // Load Mock Portfolio
   useEffect(() => {
@@ -338,15 +360,20 @@ export default function MemberProfilePage() {
         let wallet;
         let positionsContent: FuturesPositionItem[] = [];
 
-        if (isFinished) {
-          wallet = await getFinishedContestWalletStatus(selectedContestId);
+        if (isOwnProfile) {
+          if (isFinished) {
+            wallet = await getFinishedContestWalletStatus(selectedContestId);
+          } else {
+            const [w, pos] = await Promise.all([
+              getFuturesWalletStatus(selectedContestId),
+              getContestFuturesOpenPositions(selectedContestId)
+            ]);
+            wallet = w;
+            positionsContent = pos.content || [];
+          }
         } else {
-          const [w, pos] = await Promise.all([
-            getFuturesWalletStatus(selectedContestId),
-            getContestFuturesOpenPositions(selectedContestId)
-          ]);
-          wallet = w;
-          positionsContent = pos.content || [];
+          wallet = null;
+          positionsContent = [];
         }
 
         setContestWallet(wallet);
@@ -362,7 +389,7 @@ export default function MemberProfilePage() {
     };
 
     void loadContestData();
-  }, [selectedContestId, mainTab, portfolioTab, participatingContests]);
+  }, [selectedContestId, mainTab, portfolioTab, participatingContests, isOwnProfile]);
 
   // Load Contest Result (Public version if exists, else handle)
   useEffect(() => {
@@ -490,8 +517,6 @@ export default function MemberProfilePage() {
   if (!memberProfile) {
     return <div className="p-20 text-center">회원 정보를 찾을 수 없습니다.</div>;
   }
-
-  const isOwnProfile = currentUser?.memberId === memberProfile.memberId;
 
   const handleToggleFollow = async () => {
     if (isSubmittingFollow || isOwnProfile) return;
