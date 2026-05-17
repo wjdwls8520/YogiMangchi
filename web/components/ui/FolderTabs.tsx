@@ -36,8 +36,8 @@ export default function FolderTabs({
 
   return (
     <div className="w-full">
-      {/* 1. 탭 타이틀 영역 (왼쪽 상단 정렬) */}
-      <div className="flex items-end gap-0.5 h-12 rounded-t-md bg-gray-900 dark:bg-zinc-950">
+      {/* 1. 탭 타이틀 영역 (왼쪽 상단 정렬 + 모바일 가로 스크롤 대응) */}
+      <div className="flex items-end gap-0.5 min-h-[48px] rounded-t-md bg-gray-900 dark:bg-zinc-950 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {tabs.map((tab) => {
           const isActive = currentActiveId === tab.id;
 
@@ -46,7 +46,7 @@ export default function FolderTabs({
               key={tab.id}
               onClick={() => handleChange(tab.id)}
               className={`
-                relative flex items-center justify-center px-6 transition-colors duration-200 rounded-t-lg text-sm
+                relative flex items-center justify-center px-3 sm:px-6 transition-colors duration-200 rounded-t-lg text-xs sm:text-sm whitespace-nowrap shrink-0
                 ${
                   isActive
                     ? // [활성 상태] 바디와 선이 연결되도록 z-index를 높이고 밑으로 2px 당겨서 덮습니다.

@@ -8,9 +8,9 @@ const selectTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-white text-gray-900 border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF] disabled:bg-gray-100 disabled:text-gray-500",
-        error: "bg-white text-red-900 border-red-500 focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500",
-        noStyle: "border-0 h-auto gap-1 bg-transparent text-gray-900 disabled:text-gray-500",
+        default: "bg-white text-gray-900 border-gray-200 hover:border-gray-300 focus:border-[#0058FF] focus:ring-[#0058FF] disabled:bg-gray-100 disabled:text-gray-500 dark:bg-zinc-900 dark:text-gray-100 dark:border-gray-700 dark:hover:border-gray-600 dark:focus:border-blue-500 dark:disabled:bg-zinc-800 dark:disabled:text-gray-600",
+        error: "bg-white text-red-900 border-red-500 focus:border-red-500 focus:ring-red-500 disabled:bg-gray-100 disabled:text-gray-500 dark:bg-zinc-900 dark:text-red-400 dark:border-red-500",
+        noStyle: "border-0 h-auto gap-1 bg-transparent text-gray-900 disabled:text-gray-500 dark:text-gray-100",
         dark: "bg-[#1A1F26] border-white/10 text-gray-200 hover:bg-white/5 focus:border-white/20 focus:ring-0 disabled:bg-white/5 disabled:text-gray-600"
       },
       size: {
@@ -81,7 +81,7 @@ export default function Select({
         className={`${selectTriggerVariants({ variant, size })} ${fullWidth ? "w-full" : ""}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <span className={selectedOption ? (variant === "dark" ? "text-gray-200" : "text-gray-900") : "text-gray-500"}>
+        <span className={selectedOption ? (variant === "dark" ? "text-gray-200" : "text-gray-900 dark:text-gray-100") : "text-gray-500 dark:text-gray-400"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
 
@@ -99,11 +99,13 @@ export default function Select({
       </button>
 
       {isOpen && (
-        <ul className={`absolute z-50 mt-1 max-h-60 min-w-full w-max overflow-auto rounded-xl border py-1 shadow-lg animate-in fade-in slide-in-from-top-2 ${variant === "dark" ? "border-white/10 bg-[#1A1F26]" : "border-gray-200 bg-white"}`}>
+        <ul className={`absolute z-50 mt-1 max-h-60 min-w-full w-max overflow-auto rounded-xl border py-1 shadow-lg animate-in fade-in slide-in-from-top-2 ${variant === "dark" ? "border-white/10 bg-[#1A1F26]" : "border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-900"}`}>
           {options.map((option) => {
             const isSelected = value === option.value;
             const darkItemClass = isSelected ? "bg-white/10 font-bold text-white" : "text-gray-400 hover:bg-white/5 hover:text-gray-200";
-            const lightItemClass = isSelected ? "bg-blue-50 font-bold text-[#0058FF]" : "text-gray-700 hover:bg-blue-50 hover:text-[#0058FF]";
+            const lightItemClass = isSelected 
+              ? "bg-blue-50 font-bold text-[#0058FF] dark:bg-white/10 dark:text-white" 
+              : "text-gray-700 hover:bg-blue-50 hover:text-[#0058FF] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-200";
 
             return (
               <li
