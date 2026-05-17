@@ -1006,7 +1006,7 @@ export default function MePage() {
     setIsDeletingAccount(true);
 
     try {
-      const response = await fetch(`/api/v1/member/me`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/member/me`, {
         method: "DELETE",
         credentials: "include",
       });

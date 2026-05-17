@@ -183,7 +183,7 @@ export default function MeSettingPage() {
 
     try {
       const response = await fetch(
-        `/api/v1/member/nickname/duplication?nickname=${encodeURIComponent(nickname)}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/member/nickname/duplication?nickname=${encodeURIComponent(nickname)}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
