@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -42,6 +42,14 @@ function InlineFeedback({
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm font-bold text-gray-400 animate-pulse">불러오는 중...</div>}>
+      <SignupContent />
+    </Suspense>
+  );
+}
+
+function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? ""; // 백엔드에서 넘겨주는 소셜로그인 토큰

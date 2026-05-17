@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, Info } from "lucide-react";
@@ -38,6 +38,14 @@ const logUnexpectedApiError = (label: string, error: unknown) => {
 };
 
 export default function VerifyDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm font-bold text-gray-400 animate-pulse">불러오는 중...</div>}>
+      <VerifyDetailContent />
+    </Suspense>
+  );
+}
+
+function VerifyDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);

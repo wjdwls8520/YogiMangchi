@@ -176,6 +176,16 @@ export const getNotificationNavigationTarget = (
           } satisfies NotificationNavigationTarget)
         : null;
     }
+    case "CONTEST_APPLICATION_APPROVED":
+    case "CONTEST_APPLICATION_REJECTED":
+    case "CONTEST_APPROVED":
+    case "CONTEST_REJECTED":
+    case "NOTIFICATION_CONTEST_APPLICATION_APPROVED":
+    case "NOTIFICATION_CONTEST_APPLICATION_REJECTED":
+      return {
+        href: "/assets?assetTab=contest#asset-detail-tabs",
+        label: "대회 현황 확인",
+      } satisfies NotificationNavigationTarget;
     default:
       return null;
   }

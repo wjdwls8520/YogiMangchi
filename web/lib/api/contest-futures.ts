@@ -183,6 +183,23 @@ export const getFuturesWalletStatus = async (contestSeasonId: number) => {
   });
 };
 
+export const getFinishedContestWalletStatus = async (contestSeasonId: number) => {
+  const payload = await fetchClient<any>(
+    `futures/contest/${contestSeasonId}/wallet/status/finished`
+  );
+
+  return parseObjectResponse<FuturesWalletStatus>(payload, {
+    walletId: null,
+    seedMoney: 0,
+    currentMoney: 0,
+    marginInUse: 0,
+    status: "",
+    expiredAt: null,
+    retryCount: 0,
+  });
+};
+
+
 export const getContestFuturesOpenPositions = async (
   contestSeasonId: number,
   filters: FuturesOpenPositionFilters = {}

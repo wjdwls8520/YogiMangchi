@@ -43,12 +43,20 @@ const NOTIFICATION_EVENT_NAMES = [
   "NOTIFICATION_COMMUNITY_REPLY_LIKED_CREATED",
   "NOTIFICATION_COMMUNITY_REPLY_LIKED_UPDATED",
   "NOTIFICATION_COMMUNITY_FOLLOW_CREATED",
+  "NOTIFICATION_CONTEST_APPLICATION_APPROVED",
+  "NOTIFICATION_CONTEST_APPLICATION_REJECTED",
+  "CONTEST_APPLICATION_APPROVED",
+  "CONTEST_APPLICATION_REJECTED",
+  "CONTEST_APPROVED",
+  "CONTEST_REJECTED",
 ];
 
 export default function SSEProvider({ children }: Props) {
-  const isLogin = useAuthStore((state) => state.isLogin);
-  const hasHydratedAuth = useAuthStore((state) => state.hasHydrated);
+  const isLogin = useAuthStore((state) => state.user !== null);
+  const user = useAuthStore((state) => state.user);
   const isAuthResolved = useAuthStore((state) => state.isAuthResolved);
+  const hasHydratedAuth = useAuthStore((state) => state.hasHydrated);
+
   const hydrateStatus = useNotificationStore((state) => state.hydrateStatus);
   const receiveNotification = useNotificationStore((state) => state.receiveNotification);
   const resetNotifications = useNotificationStore((state) => state.reset);
@@ -63,18 +71,24 @@ export default function SSEProvider({ children }: Props) {
       return;
     }
 
-    const eventSource = subscribeNotifications();
-
     const handleIncomingNotification = (
       event: Event,
       sourceEventName?: string
     ) => {
+      console.log(`[SSE Notification] Raw Event Name: ${sourceEventName || 'message'}`);
+      
       if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
+        console.warn("[SSE Notification] Invalid event data", event);
         return;
       }
 
       try {
         const notification = JSON.parse(event.data) as NotificationItem;
+        console.log("[SSE Notification] Parsed Notification Data:", notification);
+
+        // 만약 sourceEventName이 없는데(onmessage) 데이터 내부에 타입이 있다면 이를 기반으로 처리
+        const effectiveType = sourceEventName || notification.type;
+        console.log(`[SSE Notification] Effective Type: ${effectiveType}`);
 
         if (
           sourceEventName?.endsWith(GROUPED_NOTIFICATION_UPDATED_EVENT_SUFFIX) &&
@@ -85,9 +99,12 @@ export default function SSEProvider({ children }: Props) {
 
         receiveNotification(notification);
       } catch (error) {
-        console.error("알림 SSE 데이터 파싱 실패", error);
+        console.error("알림 SSE 데이터 파싱 실패", error, event.data);
       }
     };
+
+    console.log(`[SSE] Subscribing for Member ID: ${user?.memberId || 'Unknown'}`);
+    const eventSource = subscribeNotifications();
 
     const handleStatusEvent = (event: Event) => {
       if (!(event instanceof MessageEvent) || typeof event.data !== "string") {
@@ -96,6 +113,7 @@ export default function SSEProvider({ children }: Props) {
 
       try {
         const status = JSON.parse(event.data) as NotificationStatusResponse;
+        console.log("[SSE Status] Received:", status);
         hydrateStatus(status);
       } catch (error) {
         console.error("알림 STATUS SSE 데이터 파싱 실패", error);
@@ -144,9 +162,16 @@ export default function SSEProvider({ children }: Props) {
       eventSource.addEventListener(eventName, listener);
     });
 
+    eventSource.onopen = () => {
+      console.log("[SSE] Connection established successfully.");
+    };
+
     eventSource.onerror = (error) => {
+      console.error("[SSE] Connection error occurred:", error);
       if (eventSource.readyState === EventSource.CLOSED) {
-        console.error("알림 SSE 연결이 종료되었습니다.", error);
+        console.error("알림 SSE 연결이 종료되었습니다.");
+      } else if (eventSource.readyState === EventSource.CONNECTING) {
+        console.warn("알림 SSE 연결을 재시도 중입니다...");
       }
     };
 

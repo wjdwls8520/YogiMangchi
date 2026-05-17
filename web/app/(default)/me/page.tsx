@@ -49,6 +49,7 @@ import {
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import TickerCell from "@/components/trade/TickerCell";
 import AssetSummaryCard, { type AssetSummary } from "@/components/asset/AssetSummaryCard";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
@@ -72,14 +73,16 @@ import {
 } from "@/lib/api/asset";
 import {
   getMyParticipatingContestSeasons,
+  getContestParticipationSeasonsByMember,
   getMyContestSeasonResult,
   type ContestParticipationSeason,
   type MyContestSeasonResult
 } from "@/lib/api/contest";
-import { 
+import {
   getFuturesWalletStatus,
+  getFinishedContestWalletStatus,
   getContestFuturesOpenPositions,
-  type FuturesWalletStatus 
+  type FuturesWalletStatus
 } from "@/lib/api/contest-futures";
 import type { FuturesPositionItem } from "@/types/futures";
 
@@ -155,10 +158,31 @@ const extractErrorMessage = (payload: unknown) => {
 const isNoMockWalletMessage = (message: string) => {
   return (
     message.includes("현재 참여중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("현재 참여 중인 모의투자 계좌가 존재하지 않습니다.") ||
     message.includes("활성화된 모의투자 지갑을 찾을 수 없습니다.") ||
     message.includes("참가하기를 먼저 진행해주세요.")
   );
 };
+
+const isWalletNotCreatedOrInactive = (error: any) => {
+  const message = error?.message;
+  if (!message) return false;
+  return (
+    message.includes("본투자 지갑이 비활성화 상태입니다") ||
+    message.includes("인증 및 모의투자 3회를 완료") ||
+    message.includes("활성화해주세요") ||
+    message.includes("현재 참여중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("현재 참여 중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("생성된 모의투자 지갑을 찾을 수 없습니다.") ||
+    message.includes("참가하기를 먼저 진행해주세요.") ||
+    message.includes("참여 중인 대회가 존재하지 않습니다.") ||
+    message.includes("지갑을 찾을 수 없습니다") ||
+    message.includes("접근 권한이 없습니다.") ||
+    message.includes("거래 가능한 대회 선물 지갑이 없습니다") ||
+    message.includes("거래 가능한 대회 선물 지갑을 찾을 수 없습니다")
+  );
+};
+
 
 
 /**
@@ -168,17 +192,17 @@ const isNoMockWalletMessage = (message: string) => {
 /**
  * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
  */
-function RealtimeAssetSummary({ 
-  portfolio, 
+function RealtimeAssetSummary({
+  portfolio,
   title,
   className
-}: { 
-  portfolio: MockPortfolio; 
+}: {
+  portfolio: MockPortfolio;
   title: string;
   className?: string;
 }) {
   const tickers = useTickerStore((state) => state.tickers);
-  
+
   // 시세 기반 실시간 계산
   let totalCoinValue = 0;
   let totalBuyAmount = 0;
@@ -224,11 +248,11 @@ export default function MePage() {
   const [isLoadingReal, setIsLoadingReal] = useState(false);
   const [isLoadingContests, setIsLoadingContests] = useState(false);
   const [isLoadingContestResult, setIsLoadingContestResult] = useState(false);
-  
+
   const [mockErrorMessage, setMockErrorMessage] = useState("");
   const [realErrorMessage, setRealErrorMessage] = useState("");
   const [contestErrorMessage, setContestErrorMessage] = useState("");
-  
+
   const marketSymbols = useMarketStore((state: any) => state.marketSymbols);
   const fetchMarketSymbols = useMarketStore((state: any) => state.fetchMarketSymbols);
 
@@ -385,9 +409,15 @@ export default function MePage() {
       try {
         const data = await getUnifiedRealAssetDetail();
         setRealAsset(data);
-      } catch (error) {
-        console.error("failed to load real asset:", error);
-        setRealErrorMessage("트레이딩 자산 정보를 불러오지 못했습니다.");
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Real wallet is not created or inactive:", error.message);
+          setRealAsset(null);
+          setRealErrorMessage("보유 중인 본투자 자산이 없습니다.");
+        } else {
+          console.error("failed to load real asset:", error);
+          setRealErrorMessage("트레이딩 자산 정보를 불러오지 못했습니다.");
+        }
       } finally {
         setIsLoadingReal(false);
       }
@@ -404,16 +434,22 @@ export default function MePage() {
       setContestErrorMessage("");
 
       try {
-        const response = await getMyParticipatingContestSeasons();
+        const response = await getContestParticipationSeasonsByMember(memberProfile.memberId, { size: 50 });
         const content = response.content || [];
         setParticipatingContests(content);
-        
+
         if (content.length > 0 && !selectedContestId) {
           setSelectedContestId(content[0].seasonId);
         }
-      } catch (error) {
-        console.error("failed to load participating contests:", error);
-        setContestErrorMessage("참여 중인 대회 목록을 불러오지 못했습니다.");
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Contests load skipped: wallet inactive/not created.");
+          setParticipatingContests([]);
+          setContestErrorMessage("참여 중인 대회가 존재하지 않습니다.");
+        } else {
+          console.error("failed to load participating contests:", error);
+          setContestErrorMessage("참여 중인 대회 목록을 불러오지 못했습니다.");
+        }
       } finally {
         setIsLoadingContests(false);
       }
@@ -452,18 +488,29 @@ export default function MePage() {
     const loadContestWallet = async () => {
       setIsLoadingContestWallet(true);
       try {
-        const wallet = await getFuturesWalletStatus(selectedContestId);
+        const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+        const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+
+        const wallet = isFinished
+          ? await getFinishedContestWalletStatus(selectedContestId)
+          : await getFuturesWalletStatus(selectedContestId);
+
         setContestWallet(wallet);
-      } catch (error) {
-        console.error("failed to load contest wallet:", error);
-        setContestWallet(null);
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Contest wallet load skipped: wallet inactive/not created.");
+          setContestWallet(null);
+        } else {
+          console.error("failed to load contest wallet:", error);
+          setContestWallet(null);
+        }
       } finally {
         setIsLoadingContestWallet(false);
       }
     };
 
     void loadContestWallet();
-  }, [isMounted, selectedContestId, portfolioTab]);
+  }, [isMounted, selectedContestId, portfolioTab, participatingContests]);
 
   useEffect(() => {
     if (!isMounted || !selectedContestId || portfolioTab !== "contest") return;
@@ -471,18 +518,30 @@ export default function MePage() {
     const loadContestPositions = async () => {
       setIsLoadingContestPositions(true);
       try {
-        const response = await getContestFuturesOpenPositions(selectedContestId);
-        setContestPositions(response.content || []);
-      } catch (error) {
-        console.error("failed to load contest positions:", error);
-        setContestPositions([]);
+        const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+        const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+
+        if (isFinished) {
+          setContestPositions([]);
+        } else {
+          const response = await getContestFuturesOpenPositions(selectedContestId);
+          setContestPositions(response.content || []);
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Contest positions load skipped: wallet inactive/not created.");
+          setContestPositions([]);
+        } else {
+          console.error("failed to load contest positions:", error);
+          setContestPositions([]);
+        }
       } finally {
         setIsLoadingContestPositions(false);
       }
     };
 
     void loadContestPositions();
-  }, [isMounted, selectedContestId, portfolioTab]);
+  }, [isMounted, selectedContestId, portfolioTab, participatingContests]);
 
 
 
@@ -531,10 +590,16 @@ export default function MePage() {
           return;
         }
 
-      } catch (error) {
-        console.error("포트폴리오 조회 실패:", error);
-        setMockPortfolio(null);
-        setMockErrorMessage("모의투자 포트폴리오를 불러오지 못했습니다.");
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Mock portfolio load skipped: wallet inactive/not created.");
+          setMockPortfolio(null);
+          setMockErrorMessage("모의투자 계좌를 생성하면 데이터가 표시됩니다.");
+        } else {
+          console.error("포트폴리오 조회 실패:", error);
+          setMockPortfolio(null);
+          setMockErrorMessage("모의투자 포트폴리오를 불러오지 못했습니다.");
+        }
       }
 
       setIsLoadingMock(false);
@@ -595,11 +660,11 @@ export default function MePage() {
         const response =
           followListType === "followers"
             ? await getMemberFollowers(memberProfile.memberId, {
-                size: FOLLOW_MEMBERS_PAGE_SIZE,
-              })
+              size: FOLLOW_MEMBERS_PAGE_SIZE,
+            })
             : await getMemberFollowings(memberProfile.memberId, {
-                size: FOLLOW_MEMBERS_PAGE_SIZE,
-              });
+              size: FOLLOW_MEMBERS_PAGE_SIZE,
+            });
 
         if (!isActive) return;
 
@@ -839,13 +904,13 @@ export default function MePage() {
       const response =
         followListType === "followers"
           ? await getMemberFollowers(memberProfile.memberId, {
-              cursorId: nextFollowMembersCursorId,
-              size: FOLLOW_MEMBERS_PAGE_SIZE,
-            })
+            cursorId: nextFollowMembersCursorId,
+            size: FOLLOW_MEMBERS_PAGE_SIZE,
+          })
           : await getMemberFollowings(memberProfile.memberId, {
-              cursorId: nextFollowMembersCursorId,
-              size: FOLLOW_MEMBERS_PAGE_SIZE,
-            });
+            cursorId: nextFollowMembersCursorId,
+            size: FOLLOW_MEMBERS_PAGE_SIZE,
+          });
 
       setFollowMembers((prev) => [
         ...prev,
@@ -1257,7 +1322,7 @@ export default function MePage() {
                               style={{ fontSize: "12px", fontWeight: "bold" }}
                             />
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                             formatter={(value) => {
                               const parsedValue = Array.isArray(value)
@@ -1334,7 +1399,7 @@ export default function MePage() {
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                           formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
                         />
@@ -1368,13 +1433,13 @@ export default function MePage() {
                       <span className="text-blue-500 uppercase">Short {futuresLongShortData.short.toFixed(1)}%</span>
                     </div>
                     <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
-                      <div 
-                        className="h-full bg-red-500 transition-all duration-500" 
-                        style={{ width: `${futuresLongShortData.long}%` }} 
+                      <div
+                        className="h-full bg-red-500 transition-all duration-500"
+                        style={{ width: `${futuresLongShortData.long}%` }}
                       />
-                      <div 
-                        className="h-full bg-blue-500 transition-all duration-500" 
-                        style={{ width: `${futuresLongShortData.short}%` }} 
+                      <div
+                        className="h-full bg-blue-500 transition-all duration-500"
+                        style={{ width: `${futuresLongShortData.short}%` }}
                       />
                     </div>
                     <p className="mt-4 text-[11px] text-gray-400 font-medium leading-relaxed">
@@ -1422,17 +1487,32 @@ export default function MePage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4">
             <label className="text-sm font-bold text-gray-500">참여 대회 선택</label>
-            <select
-              className="w-full p-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-900 outline-none focus:border-blue-500"
+            <Select
+              fullWidth={true}
+              options={participatingContests.map((contest) => {
+                const isFinished = contest.displayStatus === "FINISHED" || contest.displayStatus === "SETTLED";
+                return {
+                  label: (
+                    <div className="flex items-center justify-between gap-4 w-full">
+                      <span className="font-bold text-gray-900 dark:text-gray-100 truncate">{contest.seasonTitle}</span>
+                      {isFinished ? (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-gray-50 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700">
+                          종료
+                        </span>
+                      ) : (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-50 dark:bg-blue-950/30 text-[#0058FF] dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                          진행중
+                        </span>
+                      )}
+                    </div>
+                  ),
+                  value: contest.seasonId,
+                };
+              })}
               value={selectedContestId || ""}
-              onChange={(e) => setSelectedContestId(Number(e.target.value))}
-            >
-              {participatingContests.map((contest) => (
-                <option key={contest.seasonId} value={contest.seasonId}>
-                  {contest.seasonTitle}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedContestId(Number(val))}
+              placeholder="대회 선택"
+            />
           </div>
 
           {contestResult ? (
@@ -1481,7 +1561,7 @@ export default function MePage() {
                           <Cell key={entry.name} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                         formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
                       />
@@ -1515,13 +1595,13 @@ export default function MePage() {
                     <span className="text-blue-500 uppercase">Short {contestLongShortData.short.toFixed(1)}%</span>
                   </div>
                   <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-500" 
-                      style={{ width: `${contestLongShortData.long}%` }} 
+                    <div
+                      className="h-full bg-red-500 transition-all duration-500"
+                      style={{ width: `${contestLongShortData.long}%` }}
                     />
-                    <div 
-                      className="h-full bg-blue-500 transition-all duration-500" 
-                      style={{ width: `${contestLongShortData.short}%` }} 
+                    <div
+                      className="h-full bg-blue-500 transition-all duration-500"
+                      style={{ width: `${contestLongShortData.short}%` }}
                     />
                   </div>
                   <p className="mt-4 text-[11px] text-gray-400 font-medium leading-relaxed">
@@ -1617,7 +1697,7 @@ export default function MePage() {
                         style={{ fontSize: "12px", fontWeight: "bold" }}
                       />
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                       formatter={(value) => {
                         const parsedValue = Array.isArray(value)
@@ -1727,8 +1807,8 @@ export default function MePage() {
           />
 
           {portfolioTab === "mock" && mockPortfolio ? (
-            <RealtimeAssetSummary 
-              portfolio={mockPortfolio} 
+            <RealtimeAssetSummary
+              portfolio={mockPortfolio}
               title="모의투자 자산"
             />
           ) : portfolioTab === "trade" && realAsset ? (
@@ -1776,14 +1856,16 @@ export default function MePage() {
 
 
 
-          <Button
-            variant="white"
-            fullWidth={true}
-            onClick={handleWithdraw}
-            disabled={isDeletingAccount}
-          >
-            {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
-          </Button>
+          <div className="hidden lg:block">
+            <Button
+              variant="white"
+              fullWidth={true}
+              onClick={handleWithdraw}
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
+            </Button>
+          </div>
 
         </aside>
 
@@ -1826,6 +1908,18 @@ export default function MePage() {
             </div>
           )}
         </main>
+      </div>
+
+      {/* Mobile-only Account Deletion Button at the bottom of the page */}
+      <div className="block lg:hidden mt-8 w-full">
+        <Button
+          variant="white"
+          fullWidth={true}
+          onClick={handleWithdraw}
+          disabled={isDeletingAccount}
+        >
+          {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
+        </Button>
       </div>
 
       <FollowMembersModal

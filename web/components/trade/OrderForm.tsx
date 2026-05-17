@@ -257,7 +257,8 @@ export default function OrderForm({
         if (isMock && !isBuy && numQty > availableHolding) throw new Error("보유 수량이 부족합니다.");
 
         if (isMock) {
-          await mockStore.executeLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
+          const res = await mockStore.executeLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
+          if (!res.success) throw new Error(res.message || "주문 실패");
         } else if (props.onSubmitLimitOrder) {
           const res = await props.onSubmitLimitOrder({ memberId, symbol: selectedCoin, side, price: numPrice, quantity: numQty });
           if (!res.success) throw new Error(res.message || "주문 실패");
@@ -281,11 +282,12 @@ export default function OrderForm({
         }
 
         if (isMock) {
-          await mockStore.executeMarketOrder(
+          const res = await mockStore.executeMarketOrder(
             isBuy 
               ? { memberId, symbol: selectedCoin, side, totalAmount: numAmount }
               : { memberId, symbol: selectedCoin, side, quantity: numQty }
           );
+          if (!res.success) throw new Error(res.message || "주문 실패");
         } else if (props.onSubmitMarketOrder) {
           const res = await props.onSubmitMarketOrder(
             isBuy 

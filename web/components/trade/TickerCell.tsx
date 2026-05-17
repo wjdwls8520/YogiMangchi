@@ -7,16 +7,16 @@ import { getProfitColorClass } from "@/lib/utils/cs";
 interface TickerCellProps {
   symbol: string;
   fallbackPrice: number;
-  quantity: number;
-  buyAmount: number;
+  quantity?: number;
+  buyAmount?: number;
   type?: "price" | "value" | "profit" | "roi";
 }
 
 export default function TickerCell({
   symbol,
   fallbackPrice,
-  quantity,
-  buyAmount,
+  quantity = 0,
+  buyAmount = 0,
   type = "price",
 }: TickerCellProps) {
   const realtimePrice = useTickerStore((state) => state.tickers[symbol]?.price ?? fallbackPrice);
