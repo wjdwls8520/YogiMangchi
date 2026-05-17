@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 나중에 EC2에서 Docker로 배포하실 계획이라면 아래 주석을 푸시면 좋습니다. (빌드 용량 최적화)
-  // output: 'standalone', 
-
+  output: "standalone", //  도커 빌드를 위한 핵심 옵션 추가!
   images: {
     domains: [
       "localhost", 
