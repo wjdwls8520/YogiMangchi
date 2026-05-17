@@ -127,7 +127,7 @@ export const translateContestDisplayStatus = ({
     return "공개중";
   }
 
-  if (displayStatus === "FINISHED") {
+  if (displayStatus === "FINISHED" || displayStatus === "SETTLED") {
     return "종료";
   }
 

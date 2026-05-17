@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   PieChart,
@@ -25,14 +25,46 @@ import {
   getDefaultQuoteAssetLabel,
   getDisplaySymbolLabel,
 } from "@/lib/utils/market-display";
-import { getNotificationSseBridgeEventName } from "@/lib/utils/notification-sse";
-import { 
-  formatAssetNumber, 
-  formatSignedAssetNumber,
+import { getNotificationSseBridgeEventName, type ForwardedNotificationEventName } from "@/lib/utils/notification-sse";
+import {
+  formatAssetNumber,
   formatNumber,
   formatSignedNumber,
-  formatSignedPercent 
+  formatSignedPercent
 } from "@/lib/utils/number";
+import {
+  getUnifiedRealAssetDetail,
+  type RealAssetUnifiedResponse,
+  type AssetPortfolioDetail,
+} from "@/lib/api/asset";
+import { fetchClient } from "@/lib/api/client";
+import {
+  getMyParticipatingContestSeasons,
+  getContestParticipationSeasonsByMember,
+  type ContestParticipationSeason,
+} from "@/lib/api/contest";
+import {
+  getFuturesWalletStatus,
+  getFinishedContestWalletStatus,
+  getContestFuturesOpenPositions,
+  getContestFuturesOrders,
+  getContestFuturesClosedPositions,
+  type FuturesWalletStatus
+} from "@/lib/api/contest-futures";
+import {
+  fetchOrders,
+  fetchOpenOrders,
+  fetchTradeHistories,
+  type OrderItem as SpotOrderItem,
+  type TradeHistoryItem as SpotTradeItem,
+  type AssetType
+} from "@/lib/api/trade";
+import {
+  getFuturesOrders,
+  getFuturesOpenPositions,
+  getFuturesClosedPositions,
+} from "@/lib/api/futures";
+import type { FuturesPositionItem, FuturesOrderItem } from "@/types/futures";
 
 
 type AssetTab = "trade" | "contest" | "mock";
@@ -64,46 +96,34 @@ type MockPortfolio = {
   holdings: MockHolding[];
 };
 
-
-type OpenOrderItem = {
-  orderId: number;
-  assetType: string;
+// Unified types for the table
+type UnifiedOrderItem = {
+  id: number;
   symbol: string;
   displayNameKr: string;
+  side: string;
   orderType: string;
-  side: "BUY" | "SELL";
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
+  orderStatus: string;
   orderPrice: number | null;
   orderQuantity: number | null;
   orderAmount: number | null;
   filledQuantity: number | null;
-  remainingQuantity: number | null;
   avgFilledPrice: number | null;
   executedAmount: number | null;
-  totalFee: number | null;
   orderedAt: string;
-  executedAt: string | null;
-  canceledAt: string | null;
 };
 
-type OrderHistoryItem = OpenOrderItem;
-
-type TradeHistoryItem = {
-  tradeId: number;
-  orderId: number;
-  assetType: string;
+type UnifiedTradeItem = {
+  id: number;
   symbol: string;
   displayNameKr: string;
-  side: "BUY" | "SELL";
-  orderType: string;
-  orderStatus: "PENDING" | "PARTIALLY_FILLED" | "COMPLETED" | "CANCELED";
+  side: string;
   price: number;
   quantity: number;
   totalAmount: number;
   fee: number;
   realizedProfit: number | null;
-  orderedAt: string;
-  executedAt: string | null;
+  executedAt: string;
 };
 
 type DetailTableCell = {
@@ -116,12 +136,6 @@ type DetailTableData = {
   headerClasses: string[];
   rows: DetailTableCell[][];
   emptyText: string;
-};
-
-type CursorPage<T> = {
-  content: T[];
-  nextCursorId: number | null;
-  hasNext: boolean;
 };
 
 const ASSET_TAB_VALUES: AssetTab[] = ["trade", "contest", "mock"];
@@ -166,10 +180,10 @@ const DEFAULT_TRADE_LIST_FILTERS: TradeListFilters = {
   status: "",
   startDate: "",
   endDate: "",
-  size: 5,
+  size: 10,
 };
 
-const OPEN_ORDER_PAGE_SIZE = 5;
+const OPEN_ORDER_PAGE_SIZE = 10;
 
 const createDefaultOrderFilters = (): TradeListFilters => ({
   ...DEFAULT_TRADE_LIST_FILTERS,
@@ -182,8 +196,8 @@ const createDefaultTradeHistoryFilters = (): TradeListFilters => ({
 
 const SIDE_OPTIONS = [
   { label: "구분", value: "" },
-  { label: "매수", value: "BUY" },
-  { label: "매도", value: "SELL" },
+  { label: "매수/롱", value: "BUY" },
+  { label: "매도/숏", value: "SELL" },
 ];
 
 const ORDER_STATUS_OPTIONS = [
@@ -197,9 +211,6 @@ const ORDER_STATUS_OPTIONS = [
 const TRADE_STATUS_OPTIONS = [
   { label: "상태", value: "" },
   { label: "체결완료", value: "COMPLETED" },
-  { label: "부분체결", value: "PARTIALLY_FILLED" },
-  { label: "대기중", value: "PENDING" },
-  { label: "취소", value: "CANCELED" },
 ];
 
 
@@ -227,7 +238,7 @@ const getAssetCellValue = (
 
   return (
     <div className="flex flex-col">
-      <span className="font-black text-gray-900">{assetLabel}</span>
+      <span className="font-black text-gray-900 dark:text-gray-100">{assetLabel}</span>
       <span className="text-xs font-medium text-gray-400">
         {getDisplaySymbolLabel(symbol, marketSymbols)}
       </span>
@@ -282,173 +293,105 @@ const getMarketSearchMatches = (
     .slice(0, 8);
 };
 
-const normalizeSymbolFilter = (
-  keyword: string,
-  marketSymbols: MarketSymbolMeta[]
-) => {
-  const rawKeyword = keyword.trim();
-
-  if (!rawKeyword) return "";
-
-  const upperKeyword = rawKeyword.toUpperCase();
-  const lowerKeyword = rawKeyword.toLowerCase();
-  const isEnglishLike = /^[A-Z0-9]+$/i.test(rawKeyword);
-
-  const exactMatch = marketSymbols.find((market) => {
-    return (
-      market.symbol.toUpperCase() === upperKeyword ||
-      market.baseAsset.toUpperCase() === upperKeyword ||
-      market.displayNameKr === rawKeyword ||
-      market.displayNameEn.toLowerCase() === lowerKeyword
-    );
-  });
-
-  if (exactMatch) {
-    return exactMatch.symbol;
-  }
-
-  const matchedMarkets = getMarketSearchMatches(rawKeyword, marketSymbols);
-
-  if (matchedMarkets.length === 1) {
-    return matchedMarkets[0].symbol;
-  }
-
-  if (matchedMarkets.length > 1) {
-    return "";
-  }
-
-  if (isEnglishLike) {
-    if (upperKeyword.endsWith("USDT")) {
-      return upperKeyword;
-    }
-
-    return upperKeyword.length >= 3 ? `${upperKeyword}USDT` : "";
-  }
-
-  return "";
-};
-
-const getJson = async (response: Response) => {
-  return response.json().catch(() => null);
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null;
-};
-
-const getCursorPage = <T,>(payload: unknown): CursorPage<T> => {
-  const emptyPage: CursorPage<T> = {
-    content: [],
-    nextCursorId: null,
-    hasNext: false,
-  };
-
-  if (!isRecord(payload)) return emptyPage;
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  const nestedData = data && isRecord(data.data) ? data.data : null;
-
-  const source =
-    Array.isArray(payload.content) || "nextCursorId" in payload || "hasNext" in payload
-      ? payload
-      : data &&
-        (Array.isArray(data.content) || "nextCursorId" in data || "hasNext" in data)
-      ? data
-      : nestedData;
-
-  if (!source || !isRecord(source)) return emptyPage;
-
-  return {
-    content: Array.isArray(source.content) ? (source.content as T[]) : [],
-    nextCursorId:
-      typeof source.nextCursorId === "number" ? source.nextCursorId : null,
-    hasNext: source.hasNext === true,
-  };
-};
-
-const getArrayContent = <T,>(payload: unknown): T[] => {
-  if (Array.isArray(payload)) return payload as T[];
-  if (!isRecord(payload)) return [];
-
-  if (Array.isArray(payload.data)) return payload.data as T[];
-  if (Array.isArray(payload.content)) return payload.content as T[];
-
-  return [];
-};
-
-const extractErrorMessage = (payload: unknown) => {
-  if (!isRecord(payload)) return "";
-
-  if (typeof payload.message === "string") return payload.message;
-  if (typeof payload.error === "string") return payload.error;
-
-  const data = isRecord(payload.data) ? payload.data : null;
-  if (data && typeof data.message === "string") return data.message;
-
-  return "";
-};
-
-const buildTradeListQuery = ({
-  assetType,
-  filters,
-  marketSymbols,
-  cursorId,
-  fallbackStatus = "",
-}: {
-  assetType: "MOCK" | "TRADE_SPOT" | "TRADE_FUTURE" | "CONTEST";
-  filters: TradeListFilters;
-  marketSymbols: MarketSymbolMeta[];
-  cursorId?: number | null;
-  fallbackStatus?: string;
-}) => {
-  const params = new URLSearchParams();
-  const status = filters.status || fallbackStatus;
-  const normalizedSymbol = normalizeSymbolFilter(filters.symbol, marketSymbols);
-
-  params.set("assetType", assetType);
-  params.set("size", String(filters.size));
-
-  if (cursorId !== null && cursorId !== undefined) {
-    params.set("cursorId", String(cursorId));
-  }
-
-  if (normalizedSymbol) params.set("symbol", normalizedSymbol);
-  if (filters.side) params.set("side", filters.side);
-  if (status) params.set("status", status);
-  if (filters.startDate) params.set("startDate", filters.startDate);
-  if (filters.endDate) params.set("endDate", filters.endDate);
-
-  return params.toString();
-};
-
-const isNoMockWalletMessage = (message: string) => {
+const isNoMockWalletMessage = (message: string | null | undefined) => {
+  if (!message) return false;
   return (
     message.includes("현재 참여중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("현재 참여 중인 모의투자 계좌가 존재하지 않습니다.") ||
     message.includes("생성된 모의투자 지갑을 찾을 수 없습니다.") ||
     message.includes("참가하기를 먼저 진행해주세요.")
   );
 };
 
+const isWalletNotCreatedOrInactive = (error: any) => {
+  const message = error?.message;
+  if (!message) return false;
+  return (
+    message.includes("본투자 지갑이 비활성화 상태입니다") ||
+    message.includes("인증 및 모의투자 3회를 완료") ||
+    message.includes("활성화해주세요") ||
+    message.includes("현재 참여중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("현재 참여 중인 모의투자 계좌가 존재하지 않습니다.") ||
+    message.includes("생성된 모의투자 지갑을 찾을 수 없습니다.") ||
+    message.includes("참가하기를 먼저 진행해주세요.") ||
+    message.includes("참여 중인 대회가 존재하지 않습니다.") ||
+    message.includes("지갑을 찾을 수 없습니다") ||
+    message.includes("접근 권한이 없습니다.") ||
+    message.includes("거래 가능한 대회 선물 지갑이 없습니다") ||
+    message.includes("거래 가능한 대회 선물 지갑을 찾을 수 없습니다")
+  );
+};
 
-/**
- * 특정 심볼의 실시간 시세를 구독하여 해당 셀만 업데이트하는 컴포넌트
- */
+// Mappers for Unified types
+const mapSpotOrderToUnified = (item: SpotOrderItem): UnifiedOrderItem => ({
+  id: item.orderId,
+  symbol: item.symbol,
+  displayNameKr: item.displayNameKr,
+  side: item.side,
+  orderType: item.orderType,
+  orderStatus: item.orderStatus,
+  orderPrice: item.orderPrice,
+  orderQuantity: item.orderQuantity,
+  orderAmount: item.orderAmount,
+  filledQuantity: item.filledQuantity,
+  avgFilledPrice: item.avgFilledPrice,
+  executedAmount: item.executedAmount,
+  orderedAt: item.orderedAt,
+});
 
-/**
- * 자산 요약 카드만 실시간으로 업데이트하는 래퍼 컴포넌트
- */
-function RealtimeAssetSummary({ 
-  portfolio, 
+const mapFuturesOrderToUnified = (item: FuturesOrderItem): UnifiedOrderItem => ({
+  id: item.orderId,
+  symbol: item.symbol,
+  displayNameKr: item.displayNameKr || item.symbol,
+  side: item.positionSide,
+  orderType: item.orderType,
+  orderStatus: item.orderStatus,
+  orderPrice: item.orderPrice,
+  orderQuantity: item.orderQuantity,
+  orderAmount: item.notionalAmount,
+  filledQuantity: item.filledQuantity,
+  avgFilledPrice: item.executedPrice,
+  executedAmount: item.notionalAmount,
+  orderedAt: item.createdAt || "",
+});
+
+const mapSpotTradeToUnified = (item: SpotTradeItem): UnifiedTradeItem => ({
+  id: item.tradeId,
+  symbol: item.symbol,
+  displayNameKr: item.displayNameKr,
+  side: item.side,
+  price: item.price,
+  quantity: item.quantity,
+  totalAmount: item.totalAmount,
+  fee: item.fee,
+  realizedProfit: item.realizedProfit,
+  executedAt: item.executedAt || "",
+});
+
+const mapFuturesPositionToTradeUnified = (item: FuturesPositionItem): UnifiedTradeItem => ({
+  id: item.positionId,
+  symbol: item.symbol,
+  displayNameKr: item.symbol,
+  side: item.positionSide,
+  price: item.exitPrice || item.entryPrice,
+  quantity: item.filledQuantity,
+  totalAmount: item.notionalAmount,
+  fee: item.totalFee ?? 0,
+  realizedProfit: item.realizedPnl,
+  executedAt: item.closedAt || item.updatedAt || "",
+});
+
+function RealtimeAssetSummary({
+  portfolio,
   title,
   className
-}: { 
-  portfolio: MockPortfolio; 
+}: {
+  portfolio: MockPortfolio;
   title: string;
   className?: string;
 }) {
   const tickers = useTickerStore((state) => state.tickers);
-  
-  // 시세 기반 실시간 계산
+
   let totalCoinValue = 0;
   let totalBuyAmount = 0;
 
@@ -481,34 +424,43 @@ const cell = (value: ReactNode, className = ""): DetailTableCell => ({
 });
 
 export default function AssetsPage() {
+  return (
+    <Suspense fallback={<EmptyState text="잠시만 기다려 주세요..." />}>
+      <AssetsPageContent />
+    </Suspense>
+  );
+}
+
+function AssetsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchAssetTab = searchParams.get("assetTab");
   const searchDetailTab = searchParams.get("detailTab");
 
   const [assetTab, setAssetTab] = useState<AssetTab>(
-    isAssetTab(searchAssetTab) ? searchAssetTab : "mock"
+    isAssetTab(searchAssetTab) ? searchAssetTab : "trade"
   );
   const [detailTab, setDetailTab] = useState<DetailTab>(
     isDetailTab(searchDetailTab) ? searchDetailTab : "holdings"
   );
+  const [tradingSubTab, setTradingSubTab] = useState<"spot" | "futures">("spot");
 
-  const [isLoadingMock, setIsLoadingMock] = useState(false);
-  const [mockErrorMessage, setMockErrorMessage] = useState("");
+  const [isLoadingMain, setIsLoadingMain] = useState(false);
+  const [mainErrorMessage, setMainErrorMessage] = useState("");
 
   const [mockPortfolio, setMockPortfolio] = useState<MockPortfolio | null>(null);
-  const [openOrders, setOpenOrders] = useState<OpenOrderItem[]>([]);
-  const [openOrdersNextCursorId, setOpenOrdersNextCursorId] = useState<
-    number | null
-  >(null);
+  const [openOrders, setOpenOrders] = useState<UnifiedOrderItem[]>([]);
+  const [openOrdersNextCursorId, setOpenOrdersNextCursorId] = useState<number | null>(null);
   const [openOrdersHasNext, setOpenOrdersHasNext] = useState(false);
-  const [orderHistories, setOrderHistories] = useState<OrderHistoryItem[]>([]);
-  const [tradeHistories, setTradeHistories] = useState<TradeHistoryItem[]>([]);
-  // 주문내역 / 거래내역은 각각 커서를 따로 관리해야 무한스크롤이 꼬이지 않습니다.
+
+  const [orderHistories, setOrderHistories] = useState<UnifiedOrderItem[]>([]);
+  const [tradeHistories, setTradeHistories] = useState<UnifiedTradeItem[]>([]);
+
   const [ordersNextCursorId, setOrdersNextCursorId] = useState<number | null>(null);
   const [tradesNextCursorId, setTradesNextCursorId] = useState<number | null>(null);
   const [ordersHasNext, setOrdersHasNext] = useState(false);
   const [tradesHasNext, setTradesHasNext] = useState(false);
+
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isLoadingTrades, setIsLoadingTrades] = useState(false);
   const [isFetchingMoreOpenOrders, setIsFetchingMoreOpenOrders] = useState(false);
@@ -516,72 +468,432 @@ export default function AssetsPage() {
   const [isFetchingMoreTrades, setIsFetchingMoreTrades] = useState(false);
   const [ordersErrorMessage, setOrdersErrorMessage] = useState("");
   const [tradesErrorMessage, setTradesErrorMessage] = useState("");
-  const marketSymbols = useMarketStore((state: any) => state.marketSymbols);
-  const fetchMarketSymbols = useMarketStore((state: any) => state.fetchMarketSymbols);
-  const [orderFilters, setOrderFilters] = useState<TradeListFilters>(
-    createDefaultOrderFilters
-  );
-  const [tradeFilters, setTradeFilters] = useState<TradeListFilters>(
-    createDefaultTradeHistoryFilters
-  );
+
+  const [realAsset, setRealAsset] = useState<RealAssetUnifiedResponse | null>(null);
+  const [isLoadingReal, setIsLoadingReal] = useState(false);
+
+  const [participatingContests, setParticipatingContests] = useState<ContestParticipationSeason[]>([]);
+  const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+  const [contestWallet, setContestWallet] = useState<FuturesWalletStatus | null>(null);
+  const [contestPositions, setContestPositions] = useState<FuturesPositionItem[]>([]);
+  const [isLoadingContests, setIsLoadingContests] = useState(false);
+  const [isLoadingContestData, setIsLoadingContestData] = useState(false);
+
+  const marketSymbols = useMarketStore((state) => state.marketSymbols);
+  const fetchMarketSymbols = useMarketStore((state) => state.fetchMarketSymbols);
+
+  const [orderFilters, setOrderFilters] = useState<TradeListFilters>(createDefaultOrderFilters);
+  const [tradeFilters, setTradeFilters] = useState<TradeListFilters>(createDefaultTradeHistoryFilters);
+
   const [orderSymbolInput, setOrderSymbolInput] = useState("");
   const [tradeSymbolInput, setTradeSymbolInput] = useState("");
   const [isSymbolInputFocused, setIsSymbolInputFocused] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // 실시간 시세 웹소켓 연결
   useBinanceWebSocket();
 
-  // 실시간 갱신 로직은 이제 개별 컴포넌트 내부로 이동하거나 
-  // 필요한 최소 단위로 쪼개어 처리합니다.
-  const [realtimeMockSummary, setRealtimeMockSummary] = useState<{
-    totalAsset: number;
-    totalProfit: number;
-    totalRoi: number;
-    totalCoinValue: number;
-  } | null>(null);
-
-  // 시세 변화 시 자산 요약 정보를 업데이트하는 로직은
-  // 성능을 위해 메모이제이션되거나 전용 컴포넌트에서 처리하도록 구조를 변경합니다.
-  // (여기서는 일단 무한 루프 방지 및 전체 리렌더링 차단을 위해 구독을 제거합니다)
-
-  // SSE 체결 알림 수신 시 모든 자산 데이터 리프레시
   useEffect(() => {
-    const handleTradeCompleted = () => {
-      console.log("Real-time Assets Refreshing...");
-      setRefreshTrigger((prev) => prev + 1);
-    };
+    void fetchMarketSymbols();
+  }, [fetchMarketSymbols]);
 
-    const events = [
-      "NOTIFICATION_MOCK_ORDER_COMPLETED",
-      "NOTIFICATION_TRADE_ORDER_COMPLETED",
-      "NOTIFICATION_CONTEST_ORDER_COMPLETED",
+  // SSE Refresh Logic
+  useEffect(() => {
+    const tradeEvent = getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED");
+    const mockEvent = getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED");
+    const contestEvent = getNotificationSseBridgeEventName("NOTIFICATION_CONTEST_ORDER_COMPLETED");
+
+    const contestEvents: ForwardedNotificationEventName[] = [
+      "NOTIFICATION_CONTEST_APPLICATION_APPROVED",
+      "NOTIFICATION_CONTEST_APPLICATION_REJECTED",
+      "CONTEST_APPLICATION_APPROVED",
+      "CONTEST_APPLICATION_REJECTED",
+      "CONTEST_APPROVED",
+      "CONTEST_REJECTED",
     ];
 
-    const unsubs = events.map((event) => {
-      const eventName = getNotificationSseBridgeEventName(event as any);
-      window.addEventListener(eventName, handleTradeCompleted);
-      return () => window.removeEventListener(eventName, handleTradeCompleted);
+    const handleRefresh = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+
+    window.addEventListener(tradeEvent, handleRefresh);
+    window.addEventListener(mockEvent, handleRefresh);
+    window.addEventListener(contestEvent, handleRefresh);
+
+    const contestEventListeners = contestEvents.map(evt => {
+      const bridgeEvent = getNotificationSseBridgeEventName(evt);
+      window.addEventListener(bridgeEvent, handleRefresh);
+      return { bridgeEvent, handleRefresh };
     });
 
     return () => {
-      unsubs.forEach((unsub) => unsub());
+      window.removeEventListener(tradeEvent, handleRefresh);
+      window.removeEventListener(mockEvent, handleRefresh);
+      window.removeEventListener(contestEvent, handleRefresh);
+      contestEventListeners.forEach(({ bridgeEvent, handleRefresh }) => {
+        window.removeEventListener(bridgeEvent, handleRefresh);
+      });
     };
   }, []);
 
-  // URL 쿼리 파라미터 변화 감지 및 내부 상태 동기화 (뒤로가기/앞으로가기 대응)
+  // Unified data loader for Main Portfolio Information
   useEffect(() => {
-    const urlAssetTab = isAssetTab(searchAssetTab) ? searchAssetTab : "mock";
-    const urlDetailTab = isDetailTab(searchDetailTab) ? searchDetailTab : "holdings";
+    let isActive = true;
 
-    // 현재 상태와 URL이 다를 때만 업데이트하여 루프 방지
-    if (assetTab !== urlAssetTab) setAssetTab(urlAssetTab);
-    if (detailTab !== urlDetailTab) setDetailTab(urlDetailTab);
-  }, [searchAssetTab, searchDetailTab]);
+    const loadPortfolioData = async () => {
+      setIsLoadingMain(true);
+      setMainErrorMessage("");
 
-  // 탭 변경 시 상태와 URL을 동시에 업데이트하는 도우미 함수
+      try {
+        if (assetTab === "trade") {
+          const data = await getUnifiedRealAssetDetail();
+          if (isActive) setRealAsset(data);
+        } else if (assetTab === "mock") {
+          const json = await fetchClient<any>("asset/mock/portfolio");
+          if (isActive) {
+            if (json) {
+              setMockPortfolio(json.data || json);
+            } else {
+              setMockPortfolio(null);
+              setMainErrorMessage("모의투자 정보를 불러오지 못했습니다.");
+            }
+          }
+        } else if (assetTab === "contest") {
+          const memberInfo = await fetchClient<any>("member/me/info");
+          const memberId = memberInfo?.data?.memberId || memberInfo?.memberId;
+
+          if (memberId) {
+            const response = await getContestParticipationSeasonsByMember(memberId, { size: 50 });
+            const seasons = response.content || [];
+            if (isActive) {
+              setParticipatingContests(seasons);
+              if (seasons.length > 0 && !selectedContestId) {
+                setSelectedContestId(seasons[0].seasonId);
+              }
+            }
+          } else {
+            const response = await getMyParticipatingContestSeasons({ size: 50 });
+            const seasons = response.content || [];
+            if (isActive) {
+              setParticipatingContests(seasons);
+              if (seasons.length > 0 && !selectedContestId) {
+                setSelectedContestId(seasons[0].seasonId);
+              }
+            }
+          }
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Wallet not created or inactive:", error.message);
+          if (isActive) {
+            if (assetTab === "trade") {
+              setRealAsset(null);
+            } else if (assetTab === "mock") {
+              setMockPortfolio(null);
+              setMainErrorMessage("모의투자 계좌를 생성하면 데이터가 표시됩니다.");
+            }
+          }
+        } else {
+          console.error("Failed to load portfolio:", error);
+          if (isActive) {
+            if (assetTab === "mock" && isNoMockWalletMessage(error.message)) {
+              setMainErrorMessage("모의투자 계좌를 생성하면 데이터가 표시됩니다.");
+            } else {
+              setMainErrorMessage("정보를 불러오지 못했습니다. 다시 시도해 주세요.");
+            }
+          }
+        }
+      } finally {
+        if (isActive) setIsLoadingMain(false);
+      }
+    };
+
+    void loadPortfolioData();
+    return () => { isActive = false; };
+  }, [assetTab, refreshTrigger, selectedContestId]);
+
+  // Load Contest Specific Data
+  useEffect(() => {
+    if (assetTab !== "contest" || !selectedContestId) return;
+
+    let isActive = true;
+    const loadContestData = async () => {
+      setIsLoadingContestData(true);
+      try {
+        const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+        const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+
+        let wallet;
+        let positionsContent: FuturesPositionItem[] = [];
+
+        if (isFinished) {
+          wallet = await getFinishedContestWalletStatus(selectedContestId);
+        } else {
+          const [w, pos] = await Promise.all([
+            getFuturesWalletStatus(selectedContestId),
+            getContestFuturesOpenPositions(selectedContestId, { size: 50 })
+          ]);
+          wallet = w;
+          positionsContent = pos.content || [];
+        }
+
+        if (isActive) {
+          setContestWallet(wallet);
+          setContestPositions(positionsContent);
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Contest wallet is not created or inactive:", error.message);
+          if (isActive) {
+            setContestWallet(null);
+            setContestPositions([]);
+          }
+        } else {
+          console.error("Failed to load contest data:", error);
+        }
+      } finally {
+        if (isActive) setIsLoadingContestData(false);
+      }
+    };
+
+    void loadContestData();
+    return () => { isActive = false; };
+  }, [assetTab, selectedContestId, refreshTrigger, participatingContests]);
+
+  // Load Open Orders (Holdings/Positions or Pending)
+  useEffect(() => {
+    let isActive = true;
+
+    const loadOpenOrders = async () => {
+
+      try {
+        let items: UnifiedOrderItem[] = [];
+        let nextCursor: number | null = null;
+        let hasNext = false;
+
+        if (assetTab === "contest" && selectedContestId) {
+          const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+          const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+          if (isFinished) {
+            items = [];
+          } else {
+            const response = await getContestFuturesOrders(selectedContestId, { orderStatus: "PENDING", size: OPEN_ORDER_PAGE_SIZE });
+            items = response.content.map(mapFuturesOrderToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
+        } else if (assetTab === "trade") {
+          if (tradingSubTab === "spot") {
+            const response = await fetchOpenOrders({ assetType: "TRADE_SPOT", size: OPEN_ORDER_PAGE_SIZE });
+            items = response.map(mapSpotOrderToUnified);
+          } else {
+            const response = await getFuturesOrders({ orderStatus: "PENDING", size: OPEN_ORDER_PAGE_SIZE });
+            items = response.content.map(mapFuturesOrderToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
+        } else if (assetTab === "mock") {
+          const response = await fetchOpenOrders({ assetType: "MOCK", size: OPEN_ORDER_PAGE_SIZE });
+          items = response.map(mapSpotOrderToUnified);
+        }
+
+        if (isActive) {
+          setOpenOrders(items);
+          setOpenOrdersNextCursorId(nextCursor);
+          setOpenOrdersHasNext(hasNext);
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Open orders load skipped: wallet inactive/not created.");
+          if (isActive) {
+            setOpenOrders([]);
+          }
+        } else {
+          console.error("Failed to load open orders:", error);
+        }
+      }
+    };
+
+    void loadOpenOrders();
+    return () => { isActive = false; };
+  }, [assetTab, tradingSubTab, selectedContestId, refreshTrigger, participatingContests]);
+
+  // Load Order History
+  useEffect(() => {
+    if (detailTab !== "orders") return;
+
+    let isActive = true;
+    const loadOrders = async () => {
+      setIsLoadingOrders(true);
+      setOrdersErrorMessage("");
+      try {
+        let items: UnifiedOrderItem[] = [];
+        let nextCursor: number | null = null;
+        let hasNext = false;
+
+        if (assetTab === "contest" && selectedContestId) {
+          const response = await getContestFuturesOrders(selectedContestId, {
+            symbol: orderFilters.symbol,
+            size: orderFilters.size
+          });
+          items = response.content.map(mapFuturesOrderToUnified);
+          nextCursor = response.nextCursorId;
+          hasNext = response.hasNext;
+        } else if (assetTab === "trade") {
+          if (tradingSubTab === "spot") {
+            const response = await fetchOrders({
+              assetType: "TRADE_SPOT",
+              symbol: orderFilters.symbol,
+              side: orderFilters.side as any,
+              status: orderFilters.status as any,
+              startDate: orderFilters.startDate,
+              endDate: orderFilters.endDate,
+              size: orderFilters.size
+            });
+            items = response.content.map(mapSpotOrderToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          } else {
+            const response = await getFuturesOrders({
+              symbol: orderFilters.symbol,
+              size: orderFilters.size
+            });
+            items = response.content.map(mapFuturesOrderToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
+        } else if (assetTab === "mock") {
+          const response = await fetchOrders({
+            assetType: "MOCK",
+            symbol: orderFilters.symbol,
+            size: orderFilters.size
+          });
+          items = response.content.map(mapSpotOrderToUnified);
+          nextCursor = response.nextCursorId;
+          hasNext = response.hasNext;
+        }
+
+        if (isActive) {
+          setOrderHistories(items);
+          setOrdersNextCursorId(nextCursor);
+          setOrdersHasNext(hasNext);
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Orders load skipped: wallet inactive/not created.");
+          if (isActive) {
+            setOrderHistories([]);
+            setOrdersErrorMessage(""); // Leave empty to naturally fall back to default empty message
+          }
+        } else {
+          console.error("Failed to load orders:", error);
+          if (isActive) setOrdersErrorMessage(error.message || "주문내역을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isActive) setIsLoadingOrders(false);
+      }
+    };
+
+    void loadOrders();
+    return () => { isActive = false; };
+  }, [assetTab, tradingSubTab, detailTab, selectedContestId, orderFilters, refreshTrigger]);
+
+  // Load Trade History
+  useEffect(() => {
+    if (detailTab !== "trades") return;
+
+    let isActive = true;
+    const loadTrades = async () => {
+      setIsLoadingTrades(true);
+      setTradesErrorMessage("");
+      try {
+        let items: UnifiedTradeItem[] = [];
+        let nextCursor: number | null = null;
+        let hasNext = false;
+
+        if (assetTab === "contest" && selectedContestId) {
+          const response = await getContestFuturesClosedPositions(selectedContestId, {
+            symbol: tradeFilters.symbol,
+            size: tradeFilters.size
+          });
+          items = response.content.map(mapFuturesPositionToTradeUnified);
+          nextCursor = response.nextCursorId;
+          hasNext = response.hasNext;
+        } else if (assetTab === "trade") {
+          if (tradingSubTab === "spot") {
+            const response = await fetchTradeHistories({
+              assetType: "TRADE_SPOT",
+              symbol: tradeFilters.symbol,
+              size: tradeFilters.size
+            });
+            items = response.content.map(mapSpotTradeToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          } else {
+            const response = await getFuturesClosedPositions({
+              symbol: tradeFilters.symbol,
+              size: tradeFilters.size
+            });
+            items = response.content.map(mapFuturesPositionToTradeUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
+        } else if (assetTab === "mock") {
+          const response = await fetchTradeHistories({
+            assetType: "MOCK",
+            symbol: tradeFilters.symbol,
+            size: tradeFilters.size
+          });
+          items = response.content.map(mapSpotTradeToUnified);
+          nextCursor = response.nextCursorId;
+          hasNext = response.hasNext;
+        }
+
+        if (isActive) {
+          setTradeHistories(items);
+          setTradesNextCursorId(nextCursor);
+          setTradesHasNext(hasNext);
+        }
+      } catch (error: any) {
+        if (isWalletNotCreatedOrInactive(error)) {
+          console.warn("Trades load skipped: wallet inactive/not created.");
+          if (isActive) {
+            setTradeHistories([]);
+            setTradesErrorMessage(""); // Leave empty to naturally fall back to default empty message
+          }
+        } else {
+          console.error("Failed to load trades:", error);
+          if (isActive) setTradesErrorMessage(error.message || "거래내역을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isActive) setIsLoadingTrades(false);
+      }
+    };
+
+    void loadTrades();
+    return () => { isActive = false; };
+  }, [assetTab, tradingSubTab, detailTab, selectedContestId, tradeFilters, refreshTrigger]);
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    if (!loadMoreRef.current || !scrollContainerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // Infinite scroll logic can be added here if needed for more than initial pages
+        }
+      },
+      { root: scrollContainerRef.current }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [detailTab]);
+
+
   const handleAssetTabChange = (value: AssetTab) => {
     setAssetTab(value);
     const params = new URLSearchParams(searchParams.toString());
@@ -596,703 +908,161 @@ export default function AssetsPage() {
     router.replace(`/assets?${params.toString()}`, { scroll: false });
   };
 
-  useEffect(() => {
-    void fetchMarketSymbols();
-  }, [fetchMarketSymbols]);
-
-  useEffect(() => {
-    if (assetTab !== "mock") return;
-
-    let isActive = true;
-
-    const loadMockData = async () => {
-      setIsLoadingMock(true);
-      setMockErrorMessage("");
-
-      try {
-        const portfolioResponse = await fetch(
-          "http://localhost:8080/api/v1/asset/mock/portfolio",
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (portfolioResponse.status === 401 || portfolioResponse.status === 403) {
-          router.replace("/login");
-          return;
-        }
-
-        const portfolioJson = await getJson(portfolioResponse);
-        const portfolioMessage = extractErrorMessage(portfolioJson);
-
-        if (!isActive) return;
-
-        if (portfolioResponse.ok) {
-          const portfolioData =
-            isRecord(portfolioJson) && "data" in portfolioJson
-              ? (portfolioJson.data as MockPortfolio)
-              : (portfolioJson as MockPortfolio);
-
-          setMockPortfolio(portfolioData);
-        } else {
-          setMockPortfolio(null);
-          setMockErrorMessage(
-            isNoMockWalletMessage(portfolioMessage)
-              ? "모의투자 계좌를 생성하면 자산 정보가 표시됩니다."
-              : portfolioMessage || "모의투자 포트폴리오를 불러오지 못했습니다."
-          );
-          setOpenOrders([]);
-          setOpenOrdersNextCursorId(null);
-          setOpenOrdersHasNext(false);
-          setIsFetchingMoreOpenOrders(false);
-          setOrderHistories([]);
-          setTradeHistories([]);
-          setOrdersNextCursorId(null);
-          setTradesNextCursorId(null);
-          setOrdersHasNext(false);
-          setTradesHasNext(false);
-          setIsLoadingMock(false);
-          return;
-        }
-      } catch (error) {
-        if (!isActive) return;
-        console.error("모의투자 포트폴리오 조회 실패:", error);
-        setMockPortfolio(null);
-        setMockErrorMessage("모의투자 포트폴리오를 불러오지 못했습니다.");
-        setOpenOrders([]);
-        setOpenOrdersNextCursorId(null);
-        setOpenOrdersHasNext(false);
-        setIsFetchingMoreOpenOrders(false);
-        setOrderHistories([]);
-        setTradeHistories([]);
-        setOrdersNextCursorId(null);
-        setTradesNextCursorId(null);
-        setOrdersHasNext(false);
-        setTradesHasNext(false);
-      }
-
-      try {
-        const openOrdersResponse = await fetch(
-          `http://localhost:8080/api/v1/mock/spot/orders/open?assetType=MOCK&size=${OPEN_ORDER_PAGE_SIZE}`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (openOrdersResponse.status === 401 || openOrdersResponse.status === 403) {
-          router.replace("/login");
-          return;
-        }
-
-        if (!isActive) return;
-
-        if (openOrdersResponse.ok) {
-          const openOrdersJson = await getJson(openOrdersResponse);
-          const page = getCursorPage<OpenOrderItem>(openOrdersJson);
-
-          setOpenOrders(page.content);
-          setOpenOrdersNextCursorId(page.nextCursorId);
-          setOpenOrdersHasNext(page.hasNext);
-          setIsFetchingMoreOpenOrders(false);
-        } else {
-          setOpenOrders([]);
-          setOpenOrdersNextCursorId(null);
-          setOpenOrdersHasNext(false);
-          setIsFetchingMoreOpenOrders(false);
-        }
-      } catch (error) {
-        if (!isActive) return;
-        console.error("미체결 주문 조회 실패:", error);
-        setOpenOrders([]);
-        setOpenOrdersNextCursorId(null);
-        setOpenOrdersHasNext(false);
-        setIsFetchingMoreOpenOrders(false);
-      }
-
-      if (isActive) {
-        setIsLoadingMock(false);
-      }
-    };
-
-    void loadMockData();
-
-    return () => {
-      isActive = false;
-    };
-  }, [assetTab, router, refreshTrigger]);
-
-  useEffect(() => {
-    if (assetTab !== "mock" || detailTab !== "orders" || !mockPortfolio) return;
-
-    let isActive = true;
-
-    const loadInitialOrders = async () => {
-      const query = buildTradeListQuery({
-        assetType: "MOCK",
-        filters: orderFilters,
-        marketSymbols,
-      });
-
-      setIsLoadingOrders(true);
-      setOrdersErrorMessage("");
-      setOrderHistories([]);
-      setOrdersNextCursorId(null);
-      setOrdersHasNext(false);
-
-      try {
-        const response = await fetch(
-          `http://localhost:8080/api/v1/mock/spot/orders?${query}`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (response.status === 401 || response.status === 403) {
-          router.replace("/login");
-          return;
-        }
-
-        const json = await getJson(response);
-
-        if (!isActive) return;
-
-        if (!response.ok) {
-          setOrdersErrorMessage(
-            extractErrorMessage(json) || "주문내역을 불러오지 못했습니다."
-          );
-          return;
-        }
-
-        const page = getCursorPage<OrderHistoryItem>(json);
-
-        setOrderHistories(page.content);
-        setOrdersNextCursorId(page.nextCursorId);
-        setOrdersHasNext(page.hasNext);
-      } catch (error) {
-        if (!isActive) return;
-        console.error("주문내역 초기 조회 실패:", error);
-        setOrdersErrorMessage("주문내역을 불러오지 못했습니다.");
-      } finally {
-        if (isActive) {
-          setIsLoadingOrders(false);
-        }
-      }
-    };
-
-    void loadInitialOrders();
-
-    return () => {
-      isActive = false;
-    };
-  }, [assetTab, detailTab, mockPortfolio, orderFilters, router, marketSymbols, refreshTrigger]);
-
-  useEffect(() => {
-    if (assetTab !== "mock" || detailTab !== "trades" || !mockPortfolio) return;
-
-    let isActive = true;
-
-    const loadInitialTrades = async () => {
-      const query = buildTradeListQuery({
-        assetType: "MOCK",
-        filters: tradeFilters,
-        marketSymbols,
-      });
-
-      setIsLoadingTrades(true);
-      setTradesErrorMessage("");
-      setTradeHistories([]);
-      setTradesNextCursorId(null);
-      setTradesHasNext(false);
-
-      try {
-        const response = await fetch(
-          `http://localhost:8080/api/v1/mock/spot/histories?${query}`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
-
-        if (response.status === 401 || response.status === 403) {
-          router.replace("/login");
-          return;
-        }
-
-        const json = await getJson(response);
-
-        if (!isActive) return;
-
-        if (!response.ok) {
-          setTradesErrorMessage(
-            extractErrorMessage(json) || "거래내역을 불러오지 못했습니다."
-          );
-          return;
-        }
-
-        const page = getCursorPage<TradeHistoryItem>(json);
-
-        setTradeHistories(page.content);
-        setTradesNextCursorId(page.nextCursorId);
-        setTradesHasNext(page.hasNext);
-      } catch (error) {
-        if (!isActive) return;
-        console.error("거래내역 초기 조회 실패:", error);
-        setTradesErrorMessage("거래내역을 불러오지 못했습니다.");
-      } finally {
-        if (isActive) {
-          setIsLoadingTrades(false);
-        }
-      }
-    };
-
-    void loadInitialTrades();
-
-    return () => {
-      isActive = false;
-    };
-  }, [assetTab, detailTab, mockPortfolio, router, tradeFilters, marketSymbols, refreshTrigger]);
-
-  // SSE 이벤트를 리스닝하여 주문 체결 시 데이터를 갱신합니다.
-  useEffect(() => {
-    const handleSseRefresh = () => {
-      setRefreshTrigger((prev) => prev + 1);
-    };
-
-    const events = [
-      getNotificationSseBridgeEventName("NOTIFICATION_MOCK_ORDER_COMPLETED"),
-      getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED"),
-      getNotificationSseBridgeEventName("NOTIFICATION_CONTEST_ORDER_COMPLETED"),
-    ];
-
-    events.forEach((eventName) => {
-      window.addEventListener(eventName, handleSseRefresh);
-    });
-
-    return () => {
-      events.forEach((eventName) => {
-        window.removeEventListener(eventName, handleSseRefresh);
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    if (assetTab !== "mock") return;
-    if (
-      detailTab !== "open" &&
-      detailTab !== "orders" &&
-      detailTab !== "trades"
-    ) {
-      return;
-    }
-    if (!scrollContainerRef.current) return;
-    if (!loadMoreRef.current) return;
-
-    const canLoadOpenOrders =
-      detailTab === "open" &&
-      openOrdersHasNext &&
-      !isLoadingMock &&
-      !isFetchingMoreOpenOrders &&
-      openOrdersNextCursorId !== null;
-
-    const canLoadOrders =
-      detailTab === "orders" &&
-      ordersHasNext &&
-      !isLoadingOrders &&
-      !isFetchingMoreOrders &&
-      ordersNextCursorId !== null;
-
-    const canLoadTrades =
-      detailTab === "trades" &&
-      tradesHasNext &&
-      !isLoadingTrades &&
-      !isFetchingMoreTrades &&
-      tradesNextCursorId !== null;
-
-    if (!canLoadOpenOrders && !canLoadOrders && !canLoadTrades) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-
-        if (!entry?.isIntersecting) return;
-
-        // 테이블 맨 아래가 보이면 다음 커서로 이어서 불러옵니다.
-        if (detailTab === "open" && openOrdersNextCursorId !== null) {
-          setIsFetchingMoreOpenOrders(true);
-
-          const loadMoreOpenOrders = async () => {
-            try {
-              const params = new URLSearchParams();
-              params.set("assetType", "MOCK");
-              params.set("size", String(OPEN_ORDER_PAGE_SIZE));
-              params.set("cursorId", String(openOrdersNextCursorId));
-
-              const response = await fetch(
-                `http://localhost:8080/api/v1/mock/spot/orders/open?${params.toString()}`,
-                {
-                  method: "GET",
-                  credentials: "include",
-                }
-              );
-
-              if (response.status === 401 || response.status === 403) {
-                router.replace("/login");
-                return;
-              }
-
-              const json = await getJson(response);
-
-              if (!response.ok) {
-                console.error(
-                  "미체결내역 추가 조회 실패:",
-                  extractErrorMessage(json) || "요청 실패"
-                );
-                setOpenOrdersHasNext(false);
-                return;
-              }
-
-              const page = getCursorPage<OpenOrderItem>(json);
-
-              setOpenOrders((prev) => [...prev, ...page.content]);
-              setOpenOrdersNextCursorId(page.nextCursorId);
-              setOpenOrdersHasNext(page.hasNext);
-            } catch (error) {
-              console.error("미체결내역 추가 조회 실패:", error);
-              setOpenOrdersHasNext(false);
-            } finally {
-              setIsFetchingMoreOpenOrders(false);
-            }
-          };
-
-          void loadMoreOpenOrders();
-          return;
-        }
-
-        if (detailTab === "orders" && ordersNextCursorId !== null) {
-          setIsFetchingMoreOrders(true);
-
-          const loadMoreOrders = async () => {
-            try {
-              const query = buildTradeListQuery({
-                assetType: "MOCK",
-                filters: orderFilters,
-                marketSymbols,
-                cursorId: ordersNextCursorId,
-              });
-
-              const response = await fetch(
-                `http://localhost:8080/api/v1/mock/spot/orders?${query}`,
-                {
-                  method: "GET",
-                  credentials: "include",
-                }
-              );
-
-              if (response.status === 401 || response.status === 403) {
-                router.replace("/login");
-                return;
-              }
-
-              const json = await getJson(response);
-
-              if (!response.ok) {
-                console.error(
-                  "주문내역 추가 조회 실패:",
-                  extractErrorMessage(json) || "요청 실패"
-                );
-                setOrdersHasNext(false);
-                return;
-              }
-
-              const page = getCursorPage<OrderHistoryItem>(json);
-
-              setOrderHistories((prev) => [...prev, ...page.content]);
-              setOrdersNextCursorId(page.nextCursorId);
-              setOrdersHasNext(page.hasNext);
-            } catch (error) {
-              console.error("주문내역 추가 조회 실패:", error);
-              setOrdersHasNext(false);
-            } finally {
-              setIsFetchingMoreOrders(false);
-            }
-          };
-
-          void loadMoreOrders();
-          return;
-        }
-
-        if (detailTab === "trades" && tradesNextCursorId !== null) {
-          setIsFetchingMoreTrades(true);
-
-          const loadMoreTrades = async () => {
-            try {
-              const query = buildTradeListQuery({
-                assetType: "MOCK",
-                filters: tradeFilters,
-                marketSymbols,
-                cursorId: tradesNextCursorId,
-              });
-
-              const response = await fetch(
-                `http://localhost:8080/api/v1/mock/spot/histories?${query}`,
-                {
-                  method: "GET",
-                  credentials: "include",
-                }
-              );
-
-              if (response.status === 401 || response.status === 403) {
-                router.replace("/login");
-                return;
-              }
-
-              const json = await getJson(response);
-
-              if (!response.ok) {
-                console.error(
-                  "거래내역 추가 조회 실패:",
-                  extractErrorMessage(json) || "요청 실패"
-                );
-                setTradesHasNext(false);
-                return;
-              }
-
-              const page = getCursorPage<TradeHistoryItem>(json);
-
-              setTradeHistories((prev) => [...prev, ...page.content]);
-              setTradesNextCursorId(page.nextCursorId);
-              setTradesHasNext(page.hasNext);
-            } catch (error) {
-              console.error("거래내역 추가 조회 실패:", error);
-              setTradesHasNext(false);
-            } finally {
-              setIsFetchingMoreTrades(false);
-            }
-          };
-
-          void loadMoreTrades();
-        }
-      },
-      {
-        root: scrollContainerRef.current,
-        rootMargin: detailTab === "open" ? "0px" : "80px 0px",
-      }
-    );
-
-    observer.observe(loadMoreRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [
-    assetTab,
-    detailTab,
-    openOrdersHasNext,
-    openOrdersNextCursorId,
-    ordersHasNext,
-    ordersNextCursorId,
-    tradesHasNext,
-    tradesNextCursorId,
-    isLoadingMock,
-    isLoadingOrders,
-    isLoadingTrades,
-    isFetchingMoreOpenOrders,
-    isFetchingMoreOrders,
-    isFetchingMoreTrades,
-    orderFilters,
-    router,
-    tradeFilters,
-    marketSymbols,
-  ]);
-
   const pieData = useMemo(() => {
-    if (assetTab !== "mock" || !mockPortfolio) return [];
-
-    const totalAsset = realtimeMockSummary?.totalAsset ?? mockPortfolio.totalAsset;
-
-    const holdingsData = mockPortfolio.holdings
-      .filter((item) => item.quantity > 0)
-      .map((item, index) => {
-        // 차트의 안정성을 위해 실시간 시세 대신 포트폴리오 로드 시점의 가격 사용
-        const price = item.currentPrice;
-        const totalValue = item.quantity * price;
-
-        return {
+    if (assetTab === "mock") {
+      if (!mockPortfolio) return [];
+      const totalAsset = mockPortfolio.totalAsset;
+      const holdingsData = mockPortfolio.holdings
+        .filter((item) => item.quantity > 0)
+        .map((item, index) => ({
           name: getBaseAssetLabel(item.symbol, marketSymbols),
-          value: mockPortfolio.totalAsset > 0 ? (totalValue / mockPortfolio.totalAsset) * 100 : 0,
+          value: totalAsset > 0 ? (item.quantity * item.currentPrice / totalAsset) * 100 : 0,
           color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
-        };
-      });
-
-    const cashRatio =
-      totalAsset > 0 ? (mockPortfolio.cashBalance / totalAsset) * 100 : 0;
-
-    if (cashRatio > 0) {
-      holdingsData.unshift({
-        name: getDefaultQuoteAssetLabel(marketSymbols) || "현금",
-        value: cashRatio,
-        color: CHART_COLORS[0],
-      });
+        }));
+      const cashRatio = totalAsset > 0 ? (mockPortfolio.cashBalance / totalAsset) * 100 : 0;
+      if (cashRatio > 0) {
+        holdingsData.unshift({
+          name: "현금",
+          value: cashRatio,
+          color: CHART_COLORS[0],
+        });
+      }
+      return holdingsData.filter((item) => item.value > 0);
     }
 
-    return holdingsData.filter((item) => item.value > 0);
-  }, [assetTab, marketSymbols, mockPortfolio]);
+    if (assetTab === "trade") {
+      if (!realAsset) return [];
+      const portfolio = tradingSubTab === "spot" ? realAsset.spot : null;
+      if (!portfolio) {
+        // If futures subtab, show margin usage
+        return [
+          { name: "사용 중인 증거금", value: realAsset.futures.totalAsset > 0 ? (realAsset.futures.totalMargin / realAsset.futures.totalAsset) * 100 : 0, color: "#0058FF" },
+          { name: "사용 가능 잔고", value: realAsset.futures.totalAsset > 0 ? (realAsset.futures.cashBalance / realAsset.futures.totalAsset) * 100 : 0, color: "#E0E7FF" },
+        ].filter(i => i.value > 0);
+      }
+
+      const totalAsset = portfolio.totalAsset;
+      const holdingsData = portfolio.holdings
+        .filter((item) => item.quantity > 0)
+        .map((item, index) => ({
+          name: getBaseAssetLabel(item.symbol, marketSymbols),
+          value: totalAsset > 0 ? (item.coinTotalValue / totalAsset) * 100 : 0,
+          color: CHART_COLORS[(index + 1) % CHART_COLORS.length],
+        }));
+      const cashRatio = totalAsset > 0 ? (portfolio.cashBalance / totalAsset) * 100 : 0;
+      if (cashRatio > 0) {
+        holdingsData.unshift({
+          name: "현금",
+          value: cashRatio,
+          color: CHART_COLORS[0],
+        });
+      }
+      return holdingsData.filter((item) => item.value > 0);
+    }
+
+    if (assetTab === "contest") {
+      if (!contestWallet) return [];
+      const totalAsset = contestWallet.currentMoney;
+      return [
+        { name: "대회 증거금", value: totalAsset > 0 ? (contestWallet.marginInUse / totalAsset) * 100 : 0, color: "#1D7CA7" },
+        { name: "사용 가능 잔고", value: totalAsset > 0 ? ((totalAsset - contestWallet.marginInUse) / totalAsset) * 100 : 0, color: "#F0F9FF" },
+      ].filter(item => item.value > 0);
+    }
+
+    return [];
+  }, [assetTab, marketSymbols, mockPortfolio, realAsset, tradingSubTab, contestWallet]);
+
+  const contestLongShortData = useMemo(() => {
+    if (assetTab !== "contest" || contestPositions.length === 0) return { long: 0, short: 0 };
+    let longMargin = 0;
+    let shortMargin = 0;
+    contestPositions.forEach(pos => {
+      if (pos.positionSide === "LONG") longMargin += pos.totalMargin;
+      else shortMargin += pos.totalMargin;
+    });
+    const total = longMargin + shortMargin;
+    if (total === 0) return { long: 0, short: 0 };
+    return { long: (longMargin / total) * 100, short: (shortMargin / total) * 100 };
+  }, [assetTab, contestPositions]);
 
   const defaultQuoteAssetLabel = getDefaultQuoteAssetLabel(marketSymbols);
   const withQuoteAssetHeader = useCallback(
-    (label: string) =>
-      defaultQuoteAssetLabel ? `${label}(${defaultQuoteAssetLabel})` : label,
+    (label: string) => defaultQuoteAssetLabel ? `${label}(${defaultQuoteAssetLabel})` : label,
     [defaultQuoteAssetLabel]
   );
 
   const detailTable = useMemo<DetailTableData>(() => {
+    const isFutures = assetTab === "contest" || (assetTab === "trade" && tradingSubTab === "futures");
+
     if (detailTab === "holdings") {
+      if (isFutures) {
+        const positions = assetTab === "contest" ? contestPositions : (realAsset?.futures?.positions ?? []);
+        return {
+          headers: ["포지션", "방향", "레버리지", "진입가", "현재가", "증거금", "미실현손익", "수익률"],
+          headerClasses: ["text-left", "text-center", "text-center", "text-right", "text-right", "text-right", "text-right", "text-right"],
+          rows: positions.map((pos: any) => [
+            cell(getAssetCellValue(null, pos.symbol, marketSymbols), "text-left"),
+            cell(pos.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${pos.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
+            cell(`${pos.leverage}x`, "text-center font-bold text-gray-600"),
+            cell(formatNumber(pos.entryPrice), "text-right tabular-nums"),
+            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} type="price" />, "text-right tabular-nums font-bold"),
+            cell(formatNumber(pos.totalMargin), "text-right tabular-nums font-black"),
+            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="profit" />, "text-right tabular-nums font-bold"),
+            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="roi" />, "text-right tabular-nums font-bold"),
+          ]),
+          emptyText: "보유 중인 포지션이 없습니다.",
+        };
+      }
+
+      const holdings = assetTab === "mock" ? (mockPortfolio?.holdings ?? []) : (realAsset?.spot?.holdings ?? []);
       return {
-        headers: [
-          "자산",
-          "보유수량",
-          withQuoteAssetHeader("평균매수가"),
-          withQuoteAssetHeader("현재가"),
-          withQuoteAssetHeader("평가금액"),
-          withQuoteAssetHeader("평가손익"),
-          "수익률",
-        ],
-        headerClasses: [
-          "text-left",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-        ],
-        rows: (mockPortfolio?.holdings ?? []).map((item) => {
-          return [
-            cell(
-              getAssetCellValue(
-                getBaseAssetLabel(item.symbol, marketSymbols),
-                item.symbol,
-                marketSymbols
-              ),
-              "text-left"
-            ),
-            cell(formatNumber(item.quantity), "text-right"),
-            cell(formatNumber(item.averageBuyPrice), "text-right"),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="price" />,
-              "text-right"
-            ),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />,
-              "text-right font-bold"
-            ),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />,
-              "text-right"
-            ),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />,
-              "text-right"
-            ),
-          ];
-        }),
+        headers: ["자산", "보유수량", withQuoteAssetHeader("평균매수가"), withQuoteAssetHeader("현재가"), withQuoteAssetHeader("평가금액"), withQuoteAssetHeader("평가손익"), "수익률"],
+        headerClasses: ["text-left", "text-right", "text-right", "text-right", "text-right", "text-right", "text-right"],
+        rows: holdings.map((item) => [
+          cell(getAssetCellValue(getBaseAssetLabel(item.symbol, marketSymbols), item.symbol, marketSymbols), "text-left"),
+          cell(formatNumber(item.quantity), "text-right tabular-nums text-gray-600"),
+          cell(formatNumber(item.averageBuyPrice), "text-right tabular-nums"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} type="price" />, "text-right tabular-nums font-bold"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} type="value" />, "text-right tabular-nums font-black"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, "text-right tabular-nums font-bold"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, "text-right tabular-nums font-bold"),
+        ]),
         emptyText: "보유 중인 자산이 없습니다.",
       };
     }
 
     if (detailTab === "pnl") {
+      const holdings = assetTab === "mock" ? (mockPortfolio?.holdings ?? []) : (realAsset?.spot?.holdings ?? []);
       return {
-        headers: [
-          "자산",
-          withQuoteAssetHeader("총매수"),
-          withQuoteAssetHeader("총평가"),
-          withQuoteAssetHeader("평가손익"),
-          "수익률",
-          "비중",
-        ],
-        headerClasses: [
-          "text-left",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-        ],
-        rows: (mockPortfolio?.holdings ?? []).map((item) => {
-          return [
-            cell(
-              getAssetCellValue(
-                getBaseAssetLabel(item.symbol, marketSymbols),
-                item.symbol,
-                marketSymbols
-              ),
-              "text-left"
-            ),
-            cell(formatNumber(item.buyAmount), "text-right"),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="value" />,
-              "text-right"
-            ),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />,
-              "text-right"
-            ),
-            cell(
-              <TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />,
-              "text-right"
-            ),
-            cell(formatNumber(item.holdingRatio) + "%", "text-right"),
-          ];
-        }),
+        headers: ["자산", withQuoteAssetHeader("총매수"), withQuoteAssetHeader("총평가"), withQuoteAssetHeader("평가손익"), "수익률", "비중"],
+        headerClasses: ["text-left", "text-right", "text-right", "text-right", "text-right", "text-right"],
+        rows: holdings.map((item) => [
+          cell(getAssetCellValue(getBaseAssetLabel(item.symbol, marketSymbols), item.symbol, marketSymbols), "text-left"),
+          cell(formatNumber(item.buyAmount), "text-right tabular-nums"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} type="value" />, "text-right tabular-nums font-black"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="profit" />, "text-right tabular-nums font-bold"),
+          cell(<TickerCell symbol={item.symbol} fallbackPrice={item.currentPrice} quantity={item.quantity} buyAmount={item.buyAmount} type="roi" />, "text-right tabular-nums font-bold"),
+          cell(formatNumber(item.holdingRatio) + "%", "text-right tabular-nums text-gray-500"),
+        ]),
         emptyText: "손익현황을 표시할 자산이 없습니다.",
       };
     }
 
     if (detailTab === "orders") {
       return {
-        headers: [
-          "주문일시",
-          "자산",
-          "구분",
-          "주문유형",
-          withQuoteAssetHeader("주문가격"),
-          "주문수량",
-          withQuoteAssetHeader("주문금액"),
-          "상태",
-        ],
-        headerClasses: [
-          "text-left",
-          "text-left",
-          "text-center",
-          "text-center",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-center",
-        ],
+        headers: ["주문일시", "자산", "구분", "주문유형", withQuoteAssetHeader("주문가격"), "주문수량", withQuoteAssetHeader("주문금액"), "상태"],
+        headerClasses: ["text-left", "text-left", "text-center", "text-center", "text-right", "text-right", "text-right", "text-center"],
         rows: orderHistories.map((item) => [
-          cell(formatDateTime(item.orderedAt), "text-left text-gray-500"),
+          cell(formatDateTime(item.orderedAt), "text-left text-gray-500 tabular-nums"),
           cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
           cell(
-            item.side === "BUY" ? "매수" : "매도",
-            `text-center ${getSideColorClass(item.side)}`
+            isFutures ? (item.side === "BUY" || item.side === "LONG" ? "롱" : "숏") : (item.side === "BUY" ? "매수" : "매도"),
+            `text-center font-bold ${getSideColorClass(item.side as any)}`
           ),
           cell(formatOrderType(item.orderType), "text-center text-gray-600"),
-          cell(
-            formatNumber(item.avgFilledPrice ?? item.orderPrice),
-            "text-right"
-          ),
-          cell(
-            formatNumber(item.filledQuantity ?? item.orderQuantity),
-            "text-right"
-          ),
-          cell(
-            formatNumber(item.executedAmount ?? item.orderAmount),
-            "text-right font-bold"
-          ),
+          cell(formatNumber(item.orderPrice), "text-right tabular-nums"),
+          cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
+          cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
           cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
         ]),
         emptyText: ordersErrorMessage || "주문내역이 없습니다.",
@@ -1301,85 +1071,50 @@ export default function AssetsPage() {
 
     if (detailTab === "trades") {
       return {
-        headers: [
-          "체결일시",
-          "자산",
-          "구분",
-          withQuoteAssetHeader("체결가"),
-          "체결수량",
-          withQuoteAssetHeader("총금액"),
-          withQuoteAssetHeader("수수료"),
-          withQuoteAssetHeader("실현손익"),
-        ],
-        headerClasses: [
-          "text-left",
-          "text-left",
-          "text-center",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-          "text-right",
-        ],
+        headers: ["체결일시", "자산", "구분", withQuoteAssetHeader("체결가"), "체결수량", withQuoteAssetHeader("총금액"), withQuoteAssetHeader("수수료"), withQuoteAssetHeader("실현손익")],
+        headerClasses: ["text-left", "text-left", "text-center", "text-right", "text-right", "text-right", "text-right", "text-right"],
         rows: tradeHistories.map((item) => [
-          cell(formatDateTime(item.executedAt || item.orderedAt), "text-left text-gray-500"),
+          cell(formatDateTime(item.executedAt), "text-left text-gray-500 tabular-nums"),
           cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
           cell(
-            item.side === "BUY" ? "매수" : "매도",
-            `text-center ${getSideColorClass(item.side)}`
+            isFutures ? (item.side === "BUY" || item.side === "LONG" ? "롱" : "숏") : (item.side === "BUY" ? "매수" : "매도"),
+            `text-center font-bold ${getSideColorClass(item.side as any)}`
           ),
-          cell(formatNumber(item.price), "text-right"),
-          cell(formatNumber(item.quantity), "text-right"),
-          cell(formatNumber(item.totalAmount), "text-right font-bold"),
-          cell(formatNumber(item.fee), "text-right"),
-          cell(
-            formatSignedNumber(item.realizedProfit ?? 0),
-            `text-right ${getProfitColorClass(item.realizedProfit)}`
-          ),
+          cell(formatNumber(item.price), "text-right tabular-nums"),
+          cell(formatNumber(item.quantity), "text-right tabular-nums"),
+          cell(formatNumber(item.totalAmount), "text-right tabular-nums font-black"),
+          cell(formatNumber(item.fee), "text-right tabular-nums text-gray-400"),
+          cell(formatSignedNumber(item.realizedProfit ?? 0), `text-right tabular-nums font-bold ${getProfitColorClass(item.realizedProfit)}`),
         ]),
         emptyText: tradesErrorMessage || "거래내역이 없습니다.",
       };
     }
 
     return {
-      headers: [
-        "주문일시",
-        "자산",
-        "구분",
-        withQuoteAssetHeader("주문가격"),
-        "주문수량",
-        "미체결수량",
-        withQuoteAssetHeader("주문금액"),
-        "상태",
-      ],
-      headerClasses: [
-        "text-left",
-        "text-left",
-        "text-center",
-        "text-right",
-        "text-right",
-        "text-right",
-        "text-right",
-        "text-center",
-      ],
+      headers: ["주문일시", "자산", "구분", withQuoteAssetHeader("주문가격"), "주문수량", "미체결수량", withQuoteAssetHeader("주문금액"), "상태"],
+      headerClasses: ["text-left", "text-left", "text-center", "text-right", "text-right", "text-right", "text-right", "text-center"],
       rows: openOrders.map((item) => [
-        cell(formatDateTime(item.orderedAt), "text-left text-gray-500"),
+        cell(formatDateTime(item.orderedAt), "text-left text-gray-500 tabular-nums"),
         cell(getAssetCellValue(item.displayNameKr, item.symbol, marketSymbols), "text-left"),
         cell(
-          item.side === "BUY" ? "매수" : "매도",
-          `text-center ${getSideColorClass(item.side)}`
+          isFutures ? (item.side === "BUY" || item.side === "LONG" ? "롱" : "숏") : (item.side === "BUY" ? "매수" : "매도"),
+          `text-center font-bold ${getSideColorClass(item.side as any)}`
         ),
-        cell(formatNumber(item.orderPrice), "text-right"),
-        cell(formatNumber(item.orderQuantity), "text-right"),
-        cell(formatNumber(item.remainingQuantity), "text-right"),
-        cell(formatNumber(item.orderAmount), "text-right font-bold"),
+        cell(formatNumber(item.orderPrice), "text-right tabular-nums"),
+        cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
+        cell(formatNumber((item.orderQuantity ?? 0) - (item.filledQuantity || 0)), "text-right tabular-nums text-blue-500 font-bold"),
+        cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
         cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
       ]),
       emptyText: "미체결내역이 없습니다.",
     };
   }, [
+    assetTab,
+    tradingSubTab,
     detailTab,
     mockPortfolio,
+    realAsset,
+    contestPositions,
     orderHistories,
     tradeHistories,
     openOrders,
@@ -1389,119 +1124,26 @@ export default function AssetsPage() {
     withQuoteAssetHeader,
   ]);
 
-  const isLoadingDetailTab =
-    detailTab === "orders"
-      ? isLoadingOrders
-      : detailTab === "trades"
-      ? isLoadingTrades
-      : false;
-
-  const isFetchingMoreCurrentTab =
-    detailTab === "orders"
-      ? isFetchingMoreOrders
-      : detailTab === "trades"
-      ? isFetchingMoreTrades
-      : detailTab === "open"
-      ? isFetchingMoreOpenOrders
-      : false;
-
-  const canLoadMoreCurrentTab =
-    detailTab === "orders"
-      ? ordersHasNext
-      : detailTab === "trades"
-      ? tradesHasNext
-      : detailTab === "open"
-      ? openOrdersHasNext
-      : false;
-
-  const isFilterableDetailTab = detailTab === "orders" || detailTab === "trades";
-
-  const currentFilters = detailTab === "orders" ? orderFilters : tradeFilters;
-  const currentSymbolInput = detailTab === "orders" ? orderSymbolInput : tradeSymbolInput;
-  const currentStatusOptions =
-    detailTab === "orders" ? ORDER_STATUS_OPTIONS : TRADE_STATUS_OPTIONS;
-  const currentSymbolSuggestions = useMemo(
-    () => getMarketSearchMatches(currentSymbolInput, marketSymbols),
-    [currentSymbolInput, marketSymbols]
-  );
-
-  const updateCurrentFilters = (
-    key: keyof TradeListFilters,
-    value: string | number
-  ) => {
+  const updateCurrentFilters = (key: keyof TradeListFilters, value: string | number) => {
     const nextValue = key === "size" ? Number(value) : String(value);
-
-    if (detailTab === "orders") {
-      setOrderFilters((prev) => ({
-        ...prev,
-        [key]: nextValue,
-      }));
-      return;
-    }
-
-    if (detailTab === "trades") {
-      setTradeFilters((prev) => ({
-        ...prev,
-        [key]: nextValue,
-      }));
-    }
-  };
-
-  const updateCurrentSymbolInput = (value: string) => {
-    if (detailTab === "orders") {
-      setOrderSymbolInput(value);
-
-      if (value.trim() === "") {
-        setOrderFilters((prev) => ({
-          ...prev,
-          symbol: "",
-        }));
-      }
-
-      return;
-    }
-
-    if (detailTab === "trades") {
-      setTradeSymbolInput(value);
-
-      if (value.trim() === "") {
-        setTradeFilters((prev) => ({
-          ...prev,
-          symbol: "",
-        }));
-      }
-    }
+    if (detailTab === "orders") setOrderFilters(prev => ({ ...prev, [key]: nextValue }));
+    else if (detailTab === "trades") setTradeFilters(prev => ({ ...prev, [key]: nextValue }));
   };
 
   const resetCurrentFilters = () => {
-    if (detailTab === "orders") {
-      setOrderSymbolInput("");
-      setOrderFilters(createDefaultOrderFilters());
-      return;
-    }
-
-    if (detailTab === "trades") {
-      setTradeSymbolInput("");
-      setTradeFilters(createDefaultTradeHistoryFilters());
-    }
+    if (detailTab === "orders") { setOrderSymbolInput(""); setOrderFilters(createDefaultOrderFilters()); }
+    else if (detailTab === "trades") { setTradeSymbolInput(""); setTradeFilters(createDefaultTradeHistoryFilters()); }
   };
 
   const handleSelectSymbolSuggestion = (symbol: string) => {
-    if (detailTab === "orders") {
-      setOrderSymbolInput(symbol);
-    }
-
-    if (detailTab === "trades") {
-      setTradeSymbolInput(symbol);
-    }
-
+    if (detailTab === "orders") setOrderSymbolInput(symbol);
+    else setTradeSymbolInput(symbol);
     updateCurrentFilters("symbol", symbol);
     setIsSymbolInputFocused(false);
   };
 
   return (
-    <main className="w-full space-y-6">
-
+    <main className="w-full space-y-6 animate-in fade-in duration-500">
       <Tabs
         tabs={[
           { label: "트레이딩", value: "trade" },
@@ -1512,46 +1154,153 @@ export default function AssetsPage() {
         onChange={(value) => handleAssetTabChange(value as AssetTab)}
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
-        {mockPortfolio ? (
-          <RealtimeAssetSummary 
-            portfolio={mockPortfolio} 
-            className="lg:col-span-4"
-            title={
-              assetTab === "trade"
-                ? "트레이딩 자산"
-                : assetTab === "contest"
-                ? "대회 자산"
-                : "모의투자 자산"
-            }
-          />
-        ) : (
+      {assetTab === "trade" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <AssetSummaryCard
-            className="lg:col-span-4"
             summary={{
-              title:
-                assetTab === "trade"
-                  ? "트레이딩 자산"
-                  : assetTab === "contest"
-                  ? "대회 자산"
-                  : "모의투자 자산",
-              cashBalance: 0,
-              totalAsset: 0,
-              totalBuyAmount: 0,
-              totalCoinValue: 0,
-              totalProfit: 0,
+              title: "총 자산",
+              cashBalance: (realAsset?.spot?.cashBalance ?? 0) + (realAsset?.futures?.cashBalance ?? 0),
+              totalAsset: realAsset?.totalAsset ?? 0,
+              totalBuyAmount: (realAsset?.spot?.totalBuyAmount ?? 0) + (realAsset?.futures?.totalMargin ?? 0),
+              totalCoinValue: (realAsset?.spot?.totalCoinValue ?? 0) + (realAsset?.futures?.totalMargin ?? 0) + (realAsset?.futures?.totalUnrealizedPnl ?? 0),
+              totalProfit: realAsset?.totalProfit ?? 0,
               totalRoi: 0,
             }}
           />
+          <AssetSummaryCard
+            summary={{
+              title: "현물 자산",
+              cashBalance: realAsset?.spot?.cashBalance ?? 0,
+              totalAsset: realAsset?.spot?.totalAsset ?? 0,
+              totalBuyAmount: realAsset?.spot?.totalBuyAmount ?? 0,
+              totalCoinValue: realAsset?.spot?.totalCoinValue ?? 0,
+              totalProfit: realAsset?.spot?.totalProfit ?? 0,
+              totalRoi: realAsset?.spot?.totalRoi ?? 0,
+            }}
+          />
+          <AssetSummaryCard
+            summary={{
+              title: "선물 자산",
+              cashBalance: realAsset?.futures?.cashBalance ?? 0,
+              totalAsset: realAsset?.futures?.totalAsset ?? 0,
+              totalBuyAmount: realAsset?.futures?.totalMargin ?? 0,
+              totalCoinValue: (realAsset?.futures?.totalMargin ?? 0) + (realAsset?.futures?.totalUnrealizedPnl ?? 0),
+              totalProfit: realAsset?.futures?.totalUnrealizedPnl ?? 0,
+              totalRoi: 0,
+            }}
+          />
+        </div>
+      )}
+
+      {assetTab === "contest" && (
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-64">
+            <Select
+              options={participatingContests.map((c) => {
+                const isFinished = c.displayStatus === "FINISHED" || c.displayStatus === "SETTLED";
+                return {
+                  label: (
+                    <div className="flex items-center justify-between gap-4 w-full">
+                      <span className="font-bold text-gray-900 dark:text-gray-100 truncate">{c.seasonTitle}</span>
+                      {isFinished ? (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-gray-50 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700">
+                          종료
+                        </span>
+                      ) : (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-50 dark:bg-blue-950/30 text-[#0058FF] dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                          진행중
+                        </span>
+                      )}
+                    </div>
+                  ),
+                  value: String(c.seasonId),
+                };
+              })}
+              value={String(selectedContestId || "")}
+              onChange={(val) => setSelectedContestId(Number(val))}
+              placeholder="대회 선택"
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
+        {assetTab !== "trade" && (
+          <div className="lg:col-span-4">
+            {assetTab === "mock" ? (
+              mockPortfolio ? (
+                <RealtimeAssetSummary portfolio={mockPortfolio} title="모의투자 자산" />
+              ) : (
+                <AssetSummaryCard
+                  summary={{
+                    title: "모의투자 자산",
+                    cashBalance: 0,
+                    totalAsset: 0,
+                    totalBuyAmount: 0,
+                    totalCoinValue: 0,
+                    totalProfit: 0,
+                    totalRoi: 0,
+                  }}
+                />
+              )
+            ) : (
+              <AssetSummaryCard
+                summary={{
+                  title: "대회 자산",
+                  cashBalance: (contestWallet?.currentMoney ?? 0) - (contestWallet?.marginInUse ?? 0),
+                  totalAsset: contestWallet?.currentMoney ?? 0,
+                  totalBuyAmount: contestWallet?.seedMoney ?? 0,
+                  totalCoinValue: contestWallet?.currentMoney ?? 0,
+                  totalProfit: (contestWallet?.currentMoney ?? 0) - (contestWallet?.seedMoney ?? 0),
+                  totalRoi: contestWallet?.seedMoney ? (((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100) : 0,
+                }}
+              />
+            )}
+          </div>
         )}
 
-        <section className="lg:col-span-8 rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-          {assetTab !== "mock" ? (
-            <EmptyState text="아직 해당 자산 데이터는 준비 중입니다." />
-          ) : isLoadingMock ? (
-            <EmptyState text="포트폴리오를 분석하는 중입니다..." />
-          ) : !mockPortfolio ? (
-            <EmptyState text={mockErrorMessage || "모의투자 데이터가 없습니다."} />
+        <section className={cn(
+          "rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center ",
+          assetTab === "trade" ? "lg:col-span-12" : "lg:col-span-8"
+        )}>
+          {isLoadingMain || isLoadingContestData ? (
+            <EmptyState text="데이터를 불러오는 중입니다..." />
+          ) : assetTab === "contest" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+              <div className="flex flex-col">
+                <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 증거금 비중</h4>
+                <div className="flex-1 relative min-h-[180px]">
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                        {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}%`, "비중"]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xxs font-bold text-gray-400">증거금</span>
+                    <span className="text-sm font-black text-[#1D7CA7]">
+                      {pieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col justify-center border-l border-gray-50 dark:border-gray-700 pl-8">
+                <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 포지션 비율</h4>
+                <div className="flex justify-between text-[11px] font-black mb-2">
+                  <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
+                  <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
+                </div>
+                <div className="h-4 w-full bg-gray-50 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${contestLongShortData.long}%` }} />
+                  <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${contestLongShortData.short}%` }} />
+                </div>
+                <p className="mt-6 text-[11px] text-gray-400 font-medium leading-relaxed">
+                  선택한 대회에서 보유 중인 포지션의 증거금 합계를 기준으로 계산된 비중입니다.
+                </p>
+              </div>
+            </div>
           ) : pieData.length === 0 ? (
             <EmptyState text="비중을 표시할 자산이 없습니다." />
           ) : (
@@ -1567,49 +1316,23 @@ export default function AssetsPage() {
                       dataKey="value"
                       stroke="none"
                       animationDuration={400}
-                      animationEasing="ease-out"
                     >
-                      {pieData.map((entry, i) => (
-                        <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />
-                      ))}
-                      <Label
-                        value="보유 비중(%)"
-                        position="center"
-                        fill="#9ca3af"
-                        style={{ fontSize: "14px", fontWeight: "bold" }}
-                      />
+                      {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />)}
+                      <Label value="보유 비중(%)" position="center" fill="#9ca3af" style={{ fontSize: "14px", fontWeight: "bold" }} />
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      formatter={(value) => {
-                        const parsedValue = Array.isArray(value)
-                          ? Number(value[0])
-                          : Number(value ?? 0);
-                        const safeValue = Number.isFinite(parsedValue) ? parsedValue : 0;
-
-                        return [`${safeValue.toFixed(2)}%`, "비중"];
-                      }}
-                    />
+                    <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "비중"]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-8 gap-y-4 w-full md:w-1/2 overflow-y-auto max-h-[320px] pr-2 custom-scrollbar">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 w-full md:w-1/2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
                 {pieData.map((item) => (
-                  <div
-                    key={item.name}
-                    className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3"
-                  >
-                    <span className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
+                  <div key={item.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                       {item.name}
                     </span>
-                    <span className="text-sm font-black text-gray-900 dark:text-white">
-                      {item.value.toFixed(1)}%
-                    </span>
+                    <span className="text-sm font-black text-gray-900 dark:text-white">{item.value.toFixed(1)}%</span>
                   </div>
                 ))}
               </div>
@@ -1619,9 +1342,36 @@ export default function AssetsPage() {
       </div>
 
       <div id="asset-detail-tabs">
+        {assetTab === "trade" && (
+          <div className="mb-6 flex gap-4">
+            <button
+              onClick={() => setTradingSubTab("spot")}
+              className={cn(
+                "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
+                tradingSubTab === "spot"
+                  ? "bg-[#0058FF] text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
+              )}
+            >
+              현물 자산/거래
+            </button>
+            <button
+              onClick={() => setTradingSubTab("futures")}
+              className={cn(
+                "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
+                tradingSubTab === "futures"
+                  ? "bg-[#0058FF] text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
+              )}
+            >
+              선물 자산/거래
+            </button>
+          </div>
+        )}
+
         <FolderTabs
           tabs={[
-            { id: "holdings", label: "보유자산", content: null },
+            { id: "holdings", label: assetTab === "contest" || (assetTab === "trade" && tradingSubTab === "futures") ? "포지션 현황" : "보유자산", content: null },
             { id: "pnl", label: "손익현황", content: null },
             { id: "orders", label: "주문내역", content: null },
             { id: "trades", label: "거래내역", content: null },
@@ -1630,155 +1380,86 @@ export default function AssetsPage() {
           activeId={detailTab}
           onChange={(id) => handleDetailTabChange(id as DetailTab)}
         >
-        {assetTab === "mock" && isFilterableDetailTab ? (
-          <div className=" mb-5">
-            <div className="flex w-full flex-wrap items-center justify-between gap-4 rounded-xl lg:flex-nowrap">
+          {(detailTab === "orders" || detailTab === "trades") && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 p-1">
               <div className="flex flex-1 flex-wrap items-center gap-3">
-                <div className="flex h-11 items-center rounded-xl border border-gray-200 bg-white px-2 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]">
+                <div className="flex h-11 items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]/20">
                   <input
                     type="date"
-                    value={currentFilters.startDate}
-                    onChange={(event) => updateCurrentFilters("startDate", event.target.value)}
-                    className="w-32 bg-transparent px-2 text-sm text-gray-900 outline-none cursor-pointer"
+                    value={detailTab === "orders" ? orderFilters.startDate : tradeFilters.startDate}
+                    onChange={(e) => updateCurrentFilters("startDate", e.target.value)}
+                    className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
                   />
-                  <span className="text-gray-400">~</span>
+                  <span className="mx-2 text-gray-400">~</span>
                   <input
                     type="date"
-                    value={currentFilters.endDate}
-                    onChange={(event) => updateCurrentFilters("endDate", event.target.value)}
-                    className="w-32 bg-transparent px-2 text-sm text-gray-900 outline-none cursor-pointer"
+                    value={detailTab === "orders" ? orderFilters.endDate : tradeFilters.endDate}
+                    onChange={(e) => updateCurrentFilters("endDate", e.target.value)}
+                    className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
                   />
                 </div>
-
-                <div className="">
+                <div className="w-32">
                   <Select
                     options={SIDE_OPTIONS}
-                    value={currentFilters.side}
-                    onChange={(value) => updateCurrentFilters("side", value)}
+                    value={detailTab === "orders" ? orderFilters.side : tradeFilters.side}
+                    onChange={(v) => updateCurrentFilters("side", v)}
                     size="md"
-                    fullWidth={true}
                   />
                 </div>
-
-                <div className="w-30">
-                  <Select
-                    options={currentStatusOptions}
-                    value={currentFilters.status}
-                    onChange={(value) => updateCurrentFilters("status", value)}
-                    size="md"
-                    fullWidth={true}
-                  />
-                </div>
-
+                {detailTab === "orders" && (
+                  <div className="w-32">
+                    <Select
+                      options={ORDER_STATUS_OPTIONS}
+                      value={orderFilters.status}
+                      onChange={(v) => updateCurrentFilters("status", v)}
+                      size="md"
+                    />
+                  </div>
+                )}
                 <div className="relative w-48">
                   <input
                     type="text"
-                    value={currentSymbolInput}
-                    onChange={(event) => updateCurrentSymbolInput(event.target.value)}
-                    onFocus={() => setIsSymbolInputFocused(true)}
-                    onBlur={() => {
-                      window.setTimeout(() => {
-                        setIsSymbolInputFocused(false);
-                      }, 100);
+                    value={detailTab === "orders" ? orderSymbolInput : tradeSymbolInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (detailTab === "orders") setOrderSymbolInput(val); else setTradeSymbolInput(val);
+                      if (!val) updateCurrentFilters("symbol", "");
                     }}
-                    placeholder="종목검색 (SOL, 솔라나)"
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]"
+                    onFocus={() => setIsSymbolInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsSymbolInputFocused(false), 200)}
+                    placeholder="종목검색 (SOL)"
+                    className="h-11 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]/20"
                   />
-
-                  {isSymbolInputFocused &&
-                  currentSymbolInput.trim() !== "" &&
-                  currentSymbolSuggestions.length > 0 ? (
-                    <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-full overflow-hidden rounded-xl border border-gray-200 bg-white">
-                      {currentSymbolSuggestions.map((market) => (
-                        <button
-                          key={market.symbol}
-                          type="button"
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            handleSelectSymbolSuggestion(market.symbol);
-                          }}
-                          className="flex w-full items-center justify-between px-4 py-3 text-left transition hover:bg-blue-50"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-gray-900">
-                              {market.displayNameKr}
-                            </p>
-                            <p className="truncate text-xs text-gray-400">
-                              {getDisplaySymbolLabel(market.symbol, marketSymbols)}
-                            </p>
-                          </div>
-                          <span className="ml-3 shrink-0 text-xs font-medium text-gray-400">
-                            {market.baseAsset}
-                          </span>
+                  {isSymbolInputFocused && (detailTab === "orders" ? orderSymbolInput : tradeSymbolInput).trim() && (
+                    <div className="absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                      {getMarketSearchMatches(detailTab === "orders" ? orderSymbolInput : tradeSymbolInput, marketSymbols).map((m) => (
+                        <button key={m.symbol} onMouseDown={() => handleSelectSymbolSuggestion(m.symbol)} className="flex w-full items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{m.displayNameKr}</span>
+                          <span className="text-xs text-gray-400">{m.symbol}</span>
                         </button>
                       ))}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
-
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={resetCurrentFilters}
-                  className="flex h-11 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-600 transition hover:bg-gray-50 active:bg-gray-100"
-                >
-                  초기화
-                </button>
-              </div>
+              <button onClick={resetCurrentFilters} className="h-11 px-6 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">초기화</button>
             </div>
-          </div>
-        ) : null}
-
-        <div className="px-0 pb-0">
-          {assetTab !== "mock" ? (
-            <EmptyState className="py-24" text="아직 해당 자산 데이터는 준비 중입니다." />
-          ) : isLoadingMock || isLoadingDetailTab ? (
-            <EmptyState className="py-24" text="데이터를 불러오는 중입니다." />
-          ) : detailTable.rows.length === 0 ? (
-            <EmptyState className="py-24" text={detailTable.emptyText} />
-          ) : (
-            <>
-              {detailTab === "open" ||
-              detailTab === "orders" ||
-              detailTab === "trades" ? (
-                <div
-                  ref={scrollContainerRef}
-                  className="max-h-[410px] overflow-y-auto"
-                >
-                  <DetailTable
-                    headers={detailTable.headers}
-                    headerClasses={detailTable.headerClasses}
-                    rows={detailTable.rows}
-                  />
-
-                  <div className="px-6 py-4 text-center">
-                    {canLoadMoreCurrentTab ? (
-                      <>
-                        <div ref={loadMoreRef} className="h-1" />
-                        {isFetchingMoreCurrentTab && (
-                          <p className="mt-3 text-sm font-medium text-gray-400">
-                            내역을 더 불러오는 중입니다.
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm font-medium text-gray-400">
-                        마지막 내역까지 모두 불러왔습니다.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <DetailTable
-                  headers={detailTable.headers}
-                  headerClasses={detailTable.headerClasses}
-                  rows={detailTable.rows}
-                />
-              )}
-            </>
           )}
-        </div>
+
+          <div className="px-0 pb-0 min-h-[400px]">
+            {isLoadingMain || isLoadingOrders || isLoadingTrades || isLoadingContestData ? (
+              <EmptyState className="py-32" text="데이터를 불러오는 중입니다." />
+            ) : detailTable.rows.length === 0 ? (
+              <EmptyState className="py-32" text={detailTable.emptyText} />
+            ) : (
+              <div ref={scrollContainerRef} className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                <DetailTable headers={detailTable.headers} headerClasses={detailTable.headerClasses} rows={detailTable.rows} />
+                <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                  <p className="text-xs font-bold text-gray-300">내역의 끝입니다.</p>
+                </div>
+              </div>
+            )}
+          </div>
         </FolderTabs>
       </div>
     </main>
@@ -1788,49 +1469,30 @@ export default function AssetsPage() {
 function EmptyState({ text, className = "py-20" }: { text: string; className?: string }) {
   return (
     <div className={`flex flex-col items-center justify-center text-center ${className}`}>
-      <p className="text-gray-400 font-bold">{text}</p>
+      <p className="text-gray-400 font-bold animate-pulse">{text}</p>
     </div>
   );
 }
 
-function DetailTable({
-  headers,
-  headerClasses,
-  rows,
-}: {
-  headers: string[];
-  headerClasses: string[];
-  rows: DetailTableCell[][];
-}) {
+function DetailTable({ headers, headerClasses, rows }: { headers: string[]; headerClasses: string[]; rows: DetailTableCell[][] }) {
   return (
-    <div className="w-full overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-      <table className="w-full min-w-[980px] text-sm whitespace-nowrap border-separate border-spacing-0">
-        <thead className="sticky top-0 z-10 bg-gray-50/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 font-bold backdrop-blur-md">
+    <div className="w-full overflow-x-auto rounded-3xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 ">
+      <table className="w-full min-w-[1000px] text-sm whitespace-nowrap border-separate border-spacing-0">
+        <thead className="sticky top-0 z-10 bg-gray-50/90 dark:bg-gray-900/90 backdrop-blur-md">
           <tr>
             {headers.map((header, index) => (
-              <th
-                key={header}
-                className={`py-4 px-6 first:pl-8 last:pr-8 text-[12px] uppercase tracking-tight border-b border-gray-200 dark:border-gray-700 ${headerClasses[index] ?? "text-center"
-                  }`}
-              >
+              <th key={header} className={`py-5 px-6 first:pl-10 last:pr-10 text-[11px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 dark:border-gray-700 ${headerClasses[index] || "text-center"}`}>
                 {header}
               </th>
             ))}
           </tr>
         </thead>
-
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr
-              key={`row-${rowIndex}`}
-              className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
-            >
-              {row.map((item, cellIndex) => (
-                <td
-                  key={`cell-${rowIndex}-${cellIndex}`}
-                  className={`py-4 px-6 first:pl-8 last:pr-8 border-b border-gray-50 dark:border-gray-800 group-last:border-0 ${item.className || ""}`}
-                >
-                  {item.value}
+        <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} className="group hover:bg-blue-50/30 dark:hover:bg-blue-500/5 transition-colors">
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className={`py-5 px-6 first:pl-10 last:pr-10 ${cell.className || ""}`}>
+                  {cell.value}
                 </td>
               ))}
             </tr>

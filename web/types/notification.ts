@@ -17,6 +17,8 @@ export type NotificationType =
   | "POST_LIKED"
   | "REPLY_LIKED"
   | "FOLLOW_CREATED"
+  | "CONTEST_APPLICATION_APPROVED"
+  | "CONTEST_APPLICATION_REJECTED"
   | string;
 
 export type NotificationPayload = Record<string, unknown>;

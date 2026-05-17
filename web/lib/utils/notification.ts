@@ -33,6 +33,12 @@ const TYPE_LABELS: Record<string, string> = {
   POST_LIKED: "게시글 좋아요",
   REPLY_LIKED: "댓글 좋아요",
   FOLLOW_CREATED: "팔로우",
+  CONTEST_APPLICATION_APPROVED: "대회 신청 승인",
+  CONTEST_APPLICATION_REJECTED: "대회 신청 반려",
+  CONTEST_APPROVED: "대회 신청 승인",
+  CONTEST_REJECTED: "대회 신청 반려",
+  NOTIFICATION_CONTEST_APPLICATION_APPROVED: "대회 신청 승인",
+  NOTIFICATION_CONTEST_APPLICATION_REJECTED: "대회 신청 반려",
 };
 
 export interface NotificationDetailField {
@@ -574,6 +580,18 @@ export const formatNotificationTitle = (notification: NotificationItem) => {
       return `${actorName}님이 내 댓글을 좋아합니다.`;
     case "FOLLOW_CREATED":
       return `${actorName}님이 나를 팔로우했습니다.`;
+    case "CONTEST_APPLICATION_APPROVED":
+    case "CONTEST_APPROVED":
+    case "NOTIFICATION_CONTEST_APPLICATION_APPROVED": {
+      const seasonTitle = getPayloadString(notification.payload, "seasonTitle", "title");
+      return `[${seasonTitle || "대회"}] 신청이 승인되었습니다!`;
+    }
+    case "CONTEST_APPLICATION_REJECTED":
+    case "CONTEST_REJECTED":
+    case "NOTIFICATION_CONTEST_APPLICATION_REJECTED": {
+      const seasonTitle = getPayloadString(notification.payload, "seasonTitle", "title");
+      return `[${seasonTitle || "대회"}] 신청이 반려되었습니다.`;
+    }
     default:
       return "새 알림이 도착했어요.";
   }
@@ -621,6 +639,15 @@ export const formatNotificationDescription = (notification: NotificationItem) =>
     notification.type === "REPLY_COMMENT_CREATED"
   ) {
     return contentSummary ? `"${contentSummary}"` : "";
+  }
+
+  if (type === "CONTEST_APPLICATION_APPROVED" || type === "CONTEST_APPROVED" || type === "NOTIFICATION_CONTEST_APPLICATION_APPROVED") {
+    return "대회 참여가 가능합니다. 지금 바로 확인해보세요!";
+  }
+
+  if (type === "CONTEST_APPLICATION_REJECTED" || type === "CONTEST_REJECTED" || type === "NOTIFICATION_CONTEST_APPLICATION_REJECTED") {
+    const reason = getPayloadString(notification.payload, "rejectReason", "reason", "message");
+    return reason ? `사유: ${reason}` : "신청 정보를 다시 확인해주세요.";
   }
 
   return "";
@@ -695,6 +722,26 @@ export const getNotificationDetailFields = (notification: NotificationItem) => {
       return [
         createDetailField("사용자", actorName),
       ].filter((field): field is NotificationDetailField => field !== null);
+    case "CONTEST_APPLICATION_APPROVED":
+    case "CONTEST_APPROVED":
+    case "NOTIFICATION_CONTEST_APPLICATION_APPROVED": {
+      const seasonTitle = getPayloadString(notification.payload, "seasonTitle", "title");
+      return [
+        createDetailField("대회명", seasonTitle),
+        createDetailField("상태", "승인 완료"),
+      ].filter((field): field is NotificationDetailField => field !== null);
+    }
+    case "CONTEST_APPLICATION_REJECTED":
+    case "CONTEST_REJECTED":
+    case "NOTIFICATION_CONTEST_APPLICATION_REJECTED": {
+      const seasonTitle = getPayloadString(notification.payload, "seasonTitle", "title");
+      const reason = getPayloadString(notification.payload, "rejectReason", "reason", "message");
+      return [
+        createDetailField("대회명", seasonTitle),
+        createDetailField("상태", "반려됨"),
+        createDetailField("반려 사유", reason),
+      ].filter((field): field is NotificationDetailField => field !== null);
+    }
     default:
       return [
         createDetailField("내용", rawContent),

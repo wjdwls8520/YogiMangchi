@@ -27,7 +27,7 @@ const selectTriggerVariants = cva(
 );
 
 export interface SelectOption {
-  label: string;
+  label: React.ReactNode;
   value: string | number;
 }
 
@@ -74,7 +74,7 @@ export default function Select({
 
   return (
     <div className={`relative inline-block ${fullWidth ? "w-full" : "w-fit"} ${className || ""}`} ref={selectRef}>
-      
+
       <button
         type="button"
         disabled={disabled}
@@ -84,16 +84,15 @@ export default function Select({
         <span className={selectedOption ? (variant === "dark" ? "text-gray-200" : "text-gray-900") : "text-gray-500"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        
+
         <svg
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth={2}
           stroke="currentColor"
-          className={`h-4 w-4 text-gray-400 transition-transform duration-200 shrink-0 ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`h-4 w-4 text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? "rotate-180" : ""
+            }`}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
