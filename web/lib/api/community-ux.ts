@@ -9,7 +9,7 @@ export type PostCreatedUxEvent = {
 export const COMMUNITY_UX_POST_CREATED_EVENT = "UX_COMMUNITY_POST_CREATED";
 
 export const subscribeCommunityFeed = () => {
-  return new EventSource(`/api/v1/community/ux/subscribe/feed`, {
+  return new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/community/ux/subscribe/feed`, {
     withCredentials: true,
   });
 };
