@@ -320,7 +320,8 @@ const isWalletNotCreatedOrInactive = (error: any) => {
     message.includes("지갑을 찾을 수 없습니다") ||
     message.includes("접근 권한이 없습니다.") ||
     message.includes("거래 가능한 대회 선물 지갑이 없습니다") ||
-    message.includes("거래 가능한 대회 선물 지갑을 찾을 수 없습니다")
+    message.includes("거래 가능한 대회 선물 지갑을 찾을 수 없습니다") ||
+    message.includes("거래 가능한 본투자 선물 지갑이 없습니다")  // ← 선물 지갑 비활성/미활성화
   );
 };
 
@@ -478,9 +479,9 @@ function AssetsPageContent() {
   const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
   const [contestWallet, setContestWallet] = useState<FuturesWalletStatus | null>(null);
   const [contestPositions, setContestPositions] = useState<FuturesPositionItem[]>([]);
+  const [contestResult, setContestResult] = useState<MyContestSeasonResult | null>(null);
   const [isLoadingContests, setIsLoadingContests] = useState(false);
   const [isLoadingContestData, setIsLoadingContestData] = useState(false);
-  const [contestResult, setContestResult] = useState<MyContestSeasonResult | null>(null);
   const [isLoadingContestResult, setIsLoadingContestResult] = useState(false);
 
   const isContestFinished = useMemo(() => {
@@ -778,13 +779,16 @@ function AssetsPageContent() {
         let hasNext = false;
 
         if (assetTab === "contest" && selectedContestId) {
-          const response = await getContestFuturesOrders(selectedContestId, {
-            symbol: orderFilters.symbol,
-            size: orderFilters.size
-          });
-          items = response.content.map(mapFuturesOrderToUnified);
-          nextCursor = response.nextCursorId;
-          hasNext = response.hasNext;
+          // 종료된 대회는 백엔드가 ACTIVE 지갑만 조회 가능하여 주문내역을 제공하지 않습니다.
+          if (!isContestFinished) {
+            const response = await getContestFuturesOrders(selectedContestId, {
+              symbol: orderFilters.symbol,
+              size: orderFilters.size
+            });
+            items = response.content.map(mapFuturesOrderToUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
         } else if (assetTab === "trade") {
           if (tradingSubTab === "spot") {
             const response = await fetchOrders({
@@ -858,13 +862,20 @@ function AssetsPageContent() {
         let hasNext = false;
 
         if (assetTab === "contest" && selectedContestId) {
-          const response = await getContestFuturesClosedPositions(selectedContestId, {
-            symbol: tradeFilters.symbol,
-            size: tradeFilters.size
-          });
-          items = response.content.map(mapFuturesPositionToTradeUnified);
-          nextCursor = response.nextCursorId;
-          hasNext = response.hasNext;
+          // 종료된 대회는 백엔드가 ACTIVE 지갑만 조회 가능하여 거래내역을 제공하지 않습니다.
+          if (isContestFinished) {
+            if (isActive) {
+              setTradeHistories([]);
+            }
+          } else {
+            const response = await getContestFuturesClosedPositions(selectedContestId, {
+              symbol: tradeFilters.symbol,
+              size: tradeFilters.size
+            });
+            items = (response.content || []).map(mapFuturesPositionToTradeUnified);
+            nextCursor = response.nextCursorId;
+            hasNext = response.hasNext;
+          }
         } else if (assetTab === "trade") {
           if (tradingSubTab === "spot") {
             const response = await fetchTradeHistories({
@@ -872,7 +883,8 @@ function AssetsPageContent() {
               symbol: tradeFilters.symbol,
               size: tradeFilters.size
             });
-            items = response.content.map(mapSpotTradeToUnified);
+            // fetchTradeHistories standard response has .content
+            items = (response.content || []).map(mapSpotTradeToUnified);
             nextCursor = response.nextCursorId;
             hasNext = response.hasNext;
           } else {
@@ -880,7 +892,7 @@ function AssetsPageContent() {
               symbol: tradeFilters.symbol,
               size: tradeFilters.size
             });
-            items = response.content.map(mapFuturesPositionToTradeUnified);
+            items = (response.content || []).map(mapFuturesPositionToTradeUnified);
             nextCursor = response.nextCursorId;
             hasNext = response.hasNext;
           }
@@ -890,7 +902,7 @@ function AssetsPageContent() {
             symbol: tradeFilters.symbol,
             size: tradeFilters.size
           });
-          items = response.content.map(mapSpotTradeToUnified);
+          items = (response.content || []).map(mapSpotTradeToUnified);
           nextCursor = response.nextCursorId;
           hasNext = response.hasNext;
         }
@@ -905,7 +917,7 @@ function AssetsPageContent() {
           console.warn("Trades load skipped: wallet inactive/not created.");
           if (isActive) {
             setTradeHistories([]);
-            setTradesErrorMessage(""); // Leave empty to naturally fall back to default empty message
+            setTradesErrorMessage(""); 
           }
         } else {
           console.error("Failed to load trades:", error);
@@ -1054,7 +1066,7 @@ function AssetsPageContent() {
             cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="profit" />, "text-right tabular-nums font-bold"),
             cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="roi" />, "text-right tabular-nums font-bold"),
           ]),
-          emptyText: "보유 중인 포지션이 없습니다.",
+          emptyText: isContestFinished ? "종료된 대회는 포지션 현황이 제공되지 않습니다." : "보유 중인 포지션이 없습니다.",
         };
       }
 
@@ -1076,6 +1088,47 @@ function AssetsPageContent() {
     }
 
     if (detailTab === "pnl") {
+      if (isFutures) {
+        if (assetTab === "contest" && isContestFinished) {
+          const displayRealizedPnl = contestResult?.finalRealizedPnl !== undefined
+            ? contestResult.finalRealizedPnl
+            : (contestWallet ? (contestWallet.currentMoney - contestWallet.seedMoney) : 0);
+          const displayProfitRate = (contestResult?.finalProfitRate !== undefined && contestResult.finalProfitRate !== 0)
+            ? contestResult.finalProfitRate
+            : (contestWallet && contestWallet.seedMoney > 0 ? ((displayRealizedPnl / contestWallet.seedMoney) * 100) : 0);
+
+          return {
+            headers: ["대회명", "최종순위", "종료시점 잔고", "실현손익", "수익률", "정산일시"],
+            headerClasses: ["text-left", "text-center", "text-right", "text-right", "text-right", "text-center"],
+            rows: contestResult ? [[
+              cell(contestResult.seasonTitle, "text-left font-bold"),
+              cell(contestResult.finalRank > 0 ? `${contestResult.finalRank}위` : "집계중", "text-center font-black text-blue-600"),
+              cell(formatNumber(contestWallet?.currentMoney || 0), "text-right tabular-nums"),
+              cell(formatSignedNumber(displayRealizedPnl), `text-right tabular-nums font-bold ${getProfitColorClass(displayRealizedPnl)}`),
+              cell(formatSignedPercent(displayProfitRate), `text-right tabular-nums font-bold ${getProfitColorClass(displayProfitRate)}`),
+              cell(formatDateTime(contestResult.settledAt), "text-center text-gray-400 text-xs"),
+            ]] : [],
+            emptyText: "정산 결과 정보를 불러올 수 없습니다.",
+          };
+        }
+
+        const positions = assetTab === "contest" ? contestPositions : (realAsset?.futures?.positions ?? []);
+        return {
+          headers: ["자산", "구분", "레버리지", "증거금", "미실현손익", "실현손익", "수익률"],
+          headerClasses: ["text-left", "text-center", "text-center", "text-right", "text-right", "text-right", "text-right"],
+          rows: positions.map((pos: any) => [
+            cell(getAssetCellValue(null, pos.symbol, marketSymbols), "text-left"),
+            cell(pos.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${pos.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
+            cell(`${pos.leverage}x`, "text-center font-bold text-gray-600"),
+            cell(formatNumber(pos.totalMargin), "text-right tabular-nums"),
+            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="profit" />, "text-right tabular-nums font-bold"),
+            cell(formatSignedNumber(pos.realizedPnl ?? 0), `text-right tabular-nums font-bold ${getProfitColorClass(pos.realizedPnl)}`),
+            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="roi" />, "text-right tabular-nums font-bold"),
+          ]),
+          emptyText: "손익을 표시할 포지션이 없습니다.",
+        };
+      }
+
       const holdings = assetTab === "mock" ? (mockPortfolio?.holdings ?? []) : (realAsset?.spot?.holdings ?? []);
       return {
         headers: ["자산", withQuoteAssetHeader("총매수"), withQuoteAssetHeader("총평가"), withQuoteAssetHeader("평가손익"), "수익률", "비중"],
@@ -1109,7 +1162,7 @@ function AssetsPageContent() {
           cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
           cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
         ]),
-        emptyText: ordersErrorMessage || "주문내역이 없습니다.",
+        emptyText: isContestFinished ? "종료된 대회는 주문 내역 조회가 제한될 수 있습니다." : (ordersErrorMessage || "주문내역이 없습니다."),
       };
     }
 
@@ -1130,7 +1183,7 @@ function AssetsPageContent() {
           cell(formatNumber(item.fee), "text-right tabular-nums text-gray-400"),
           cell(formatSignedNumber(item.realizedProfit ?? 0), `text-right tabular-nums font-bold ${getProfitColorClass(item.realizedProfit)}`),
         ]),
-        emptyText: tradesErrorMessage || "거래내역이 없습니다.",
+        emptyText: isContestFinished ? "종료된 대회는 거래 내역 조회가 제한될 수 있습니다." : (tradesErrorMessage || "거래내역이 없습니다."),
       };
     }
 
@@ -1470,7 +1523,14 @@ function AssetsPageContent() {
                 { id: "orders", label: "주문내역", content: null },
                 { id: "trades", label: "거래내역", content: null },
                 { id: "open", label: "미체결내역", content: null },
-              ]}
+              ].filter(tab => {
+                // 트레이딩 선물거래탭 및 대회 탭에서 손익현황(pnl), 거래내역(trades) 숨김
+                const isFuturesOrContest = assetTab === "contest" || (assetTab === "trade" && tradingSubTab === "futures");
+                if (isFuturesOrContest && (tab.id === "pnl" || tab.id === "trades")) {
+                  return false;
+                }
+                return true;
+              })}
               activeId={detailTab}
               onChange={(id) => handleDetailTabChange(id as DetailTab)}
             >
