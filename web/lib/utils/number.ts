@@ -65,5 +65,15 @@ export const formatSignedPercent = (value?: number | null) => {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "0.00%";
   }
+  if (value === 0) {
+    return "0.00%";
+  }
+  const absValue = Math.abs(value);
+  if (absValue > 0 && absValue < 0.01) {
+    return `${value > 0 ? "+" : ""}${value.toFixed(6)}%`;
+  }
+  if (absValue > 0 && absValue < 0.1) {
+    return `${value > 0 ? "+" : ""}${value.toFixed(4)}%`;
+  }
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 };

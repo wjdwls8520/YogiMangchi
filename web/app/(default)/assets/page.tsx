@@ -41,7 +41,9 @@ import { fetchClient } from "@/lib/api/client";
 import {
   getMyParticipatingContestSeasons,
   getContestParticipationSeasonsByMember,
+  getMyContestSeasonResult,
   type ContestParticipationSeason,
+  type MyContestSeasonResult,
 } from "@/lib/api/contest";
 import {
   getFuturesWalletStatus,
@@ -478,6 +480,14 @@ function AssetsPageContent() {
   const [contestPositions, setContestPositions] = useState<FuturesPositionItem[]>([]);
   const [isLoadingContests, setIsLoadingContests] = useState(false);
   const [isLoadingContestData, setIsLoadingContestData] = useState(false);
+  const [contestResult, setContestResult] = useState<MyContestSeasonResult | null>(null);
+  const [isLoadingContestResult, setIsLoadingContestResult] = useState(false);
+
+  const isContestFinished = useMemo(() => {
+    if (assetTab !== "contest" || !selectedContestId) return false;
+    const selectedContest = participatingContests.find((c) => c.seasonId === selectedContestId);
+    return selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+  }, [assetTab, selectedContestId, participatingContests]);
 
   const marketSymbols = useMarketStore((state) => state.marketSymbols);
   const fetchMarketSymbols = useMarketStore((state) => state.fetchMarketSymbols);
@@ -617,6 +627,7 @@ function AssetsPageContent() {
   // Load Contest Specific Data
   useEffect(() => {
     if (assetTab !== "contest" || !selectedContestId) return;
+    if (participatingContests.length === 0) return;
 
     let isActive = true;
     const loadContestData = async () => {
@@ -661,6 +672,39 @@ function AssetsPageContent() {
     void loadContestData();
     return () => { isActive = false; };
   }, [assetTab, selectedContestId, refreshTrigger, participatingContests]);
+
+  // Load Contest Result for Assets Page
+  useEffect(() => {
+    if (assetTab !== "contest" || !selectedContestId) {
+      setContestResult(null);
+      return;
+    }
+
+    let isActive = true;
+    const loadContestResult = async () => {
+      setIsLoadingContestResult(true);
+      try {
+        const result = await getMyContestSeasonResult(selectedContestId);
+        if (isActive) {
+          setContestResult(result);
+        }
+      } catch (error: any) {
+        console.warn("Failed to load contest result on assets page:", error?.message || error);
+        if (isActive) {
+          setContestResult(null);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingContestResult(false);
+        }
+      }
+    };
+
+    void loadContestResult();
+    return () => {
+      isActive = false;
+    };
+  }, [assetTab, selectedContestId]);
 
   // Load Open Orders (Holdings/Positions or Pending)
   useEffect(() => {
@@ -1224,244 +1268,296 @@ function AssetsPageContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
-        {assetTab !== "trade" && (
-          <div className="lg:col-span-4">
-            {assetTab === "mock" ? (
-              mockPortfolio ? (
-                <RealtimeAssetSummary portfolio={mockPortfolio} title="모의투자 자산" />
-              ) : (
-                <AssetSummaryCard
-                  summary={{
-                    title: "모의투자 자산",
-                    cashBalance: 0,
-                    totalAsset: 0,
-                    totalBuyAmount: 0,
-                    totalCoinValue: 0,
-                    totalProfit: 0,
-                    totalRoi: 0,
-                  }}
-                />
-              )
-            ) : (
-              <AssetSummaryCard
-                summary={{
-                  title: "대회 자산",
-                  cashBalance: (contestWallet?.currentMoney ?? 0) - (contestWallet?.marginInUse ?? 0),
-                  totalAsset: contestWallet?.currentMoney ?? 0,
-                  totalBuyAmount: contestWallet?.seedMoney ?? 0,
-                  totalCoinValue: contestWallet?.currentMoney ?? 0,
-                  totalProfit: (contestWallet?.currentMoney ?? 0) - (contestWallet?.seedMoney ?? 0),
-                  totalRoi: contestWallet?.seedMoney ? (((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100) : 0,
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        <section className={cn(
-          "rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center ",
-          assetTab === "trade" ? "lg:col-span-12" : "lg:col-span-8"
-        )}>
-          {isLoadingMain || isLoadingContestData ? (
-            <EmptyState text="데이터를 불러오는 중입니다..." />
-          ) : assetTab === "contest" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-              <div className="flex flex-col">
-                <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 증거금 비중</h4>
-                <div className="flex-1 relative min-h-[180px]">
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                        {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}%`, "비중"]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-xxs font-bold text-gray-400">증거금</span>
-                    <span className="text-sm font-black text-[#1D7CA7]">
-                      {pieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col justify-center border-l border-gray-50 dark:border-gray-700 pl-8">
-                <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 포지션 비율</h4>
-                <div className="flex justify-between text-[11px] font-black mb-2">
-                  <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
-                  <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
-                </div>
-                <div className="h-4 w-full bg-gray-50 dark:bg-gray-700 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${contestLongShortData.long}%` }} />
-                  <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${contestLongShortData.short}%` }} />
-                </div>
-                <p className="mt-6 text-[11px] text-gray-400 font-medium leading-relaxed">
-                  선택한 대회에서 보유 중인 포지션의 증거금 합계를 기준으로 계산된 비중입니다.
-                </p>
-              </div>
-            </div>
-          ) : pieData.length === 0 ? (
-            <EmptyState text="비중을 표시할 자산이 없습니다." />
+      {isContestFinished ? (
+        <div className="max-w-4xl mx-auto mb-16 w-full px-4">
+          {isLoadingContestResult && isLoadingContestData ? (
+            <div className="py-12 text-center text-gray-400 font-bold">결과 정보를 불러오는 중...</div>
           ) : (
-            <div className="flex flex-col md:flex-row items-center gap-10 h-full">
-              <div className="h-[220px] w-full md:w-1/2 relative">
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      innerRadius={70}
-                      outerRadius={100}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                      animationDuration={400}
-                    >
-                      {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />)}
-                      <Label value="보유 비중(%)" position="center" fill="#9ca3af" style={{ fontSize: "14px", fontWeight: "bold" }} />
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "비중"]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+            (() => {
+              const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+              const displayTitle = contestResult?.seasonTitle || selectedContest?.seasonTitle || "대회";
+              const displayRank = contestResult?.finalRank !== undefined && contestResult.finalRank > 0 
+                ? `${contestResult.finalRank}위` 
+                : "집계중";
+              const displayRealizedPnl = contestResult?.finalRealizedPnl !== undefined
+                ? contestResult.finalRealizedPnl
+                : (contestWallet ? (contestWallet.currentMoney - contestWallet.seedMoney) : 0);
+              const displayProfitRate = (contestResult?.finalProfitRate !== undefined && contestResult.finalProfitRate !== 0)
+                ? contestResult.finalProfitRate
+                : (contestWallet && contestWallet.seedMoney > 0 ? ((displayRealizedPnl / contestWallet.seedMoney) * 100) : 0);
 
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 w-full md:w-1/2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
-                {pieData.map((item) => (
-                  <div key={item.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3">
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                      {item.name}
-                    </span>
-                    <span className="text-sm font-black text-gray-900 dark:text-white">{item.value.toFixed(1)}%</span>
+              return (
+                <div className="card p-8 bg-blue-50/30 border-blue-100 dark:border-blue-900/50 mb-10">
+                  <div className="flex flex-col items-center justify-center gap-4 py-6">
+                    <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-black">
+                      {displayRank}
+                    </div>
+                    <div className="text-center">
+                      <h4 className="text-xl font-black text-gray-900 dark:text-gray-100">{displayTitle}</h4>
+                      <p className="text-sm font-bold text-gray-500 mt-1">최종 순위: {displayRank}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-8 w-full mt-6 border-t border-gray-100 dark:border-gray-700 pt-6">
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-400 uppercase mb-1">실현 손익</p>
+                        <p className={cn("text-lg font-black", getProfitColorClass(displayRealizedPnl))}>
+                          {formatSignedNumber(displayRealizedPnl)} USDT
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-gray-400 uppercase mb-1">수익률</p>
+                        <p className={cn("text-lg font-black", getProfitColorClass(displayProfitRate))}>
+                          {formatSignedPercent(displayProfitRate)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              );
+            })()
           )}
-        </section>
-      </div>
-
-      <div id="asset-detail-tabs">
-        {assetTab === "trade" && (
-          <div className="mb-6 flex gap-4">
-            <button
-              onClick={() => setTradingSubTab("spot")}
-              className={cn(
-                "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
-                tradingSubTab === "spot"
-                  ? "bg-[#0058FF] text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
-              )}
-            >
-              현물 자산/거래
-            </button>
-            <button
-              onClick={() => setTradingSubTab("futures")}
-              className={cn(
-                "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
-                tradingSubTab === "futures"
-                  ? "bg-[#0058FF] text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
-              )}
-            >
-              선물 자산/거래
-            </button>
-          </div>
-        )}
-
-        <FolderTabs
-          tabs={[
-            { id: "holdings", label: assetTab === "contest" || (assetTab === "trade" && tradingSubTab === "futures") ? "포지션 현황" : "보유자산", content: null },
-            { id: "pnl", label: "손익현황", content: null },
-            { id: "orders", label: "주문내역", content: null },
-            { id: "trades", label: "거래내역", content: null },
-            { id: "open", label: "미체결내역", content: null },
-          ]}
-          activeId={detailTab}
-          onChange={(id) => handleDetailTabChange(id as DetailTab)}
-        >
-          {(detailTab === "orders" || detailTab === "trades") && (
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 p-1">
-              <div className="flex flex-1 flex-wrap items-center gap-3">
-                <div className="flex h-11 items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]/20">
-                  <input
-                    type="date"
-                    value={detailTab === "orders" ? orderFilters.startDate : tradeFilters.startDate}
-                    onChange={(e) => updateCurrentFilters("startDate", e.target.value)}
-                    className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
-                  />
-                  <span className="mx-2 text-gray-400">~</span>
-                  <input
-                    type="date"
-                    value={detailTab === "orders" ? orderFilters.endDate : tradeFilters.endDate}
-                    onChange={(e) => updateCurrentFilters("endDate", e.target.value)}
-                    className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
-                  />
-                </div>
-                <div className="w-32">
-                  <Select
-                    options={SIDE_OPTIONS}
-                    value={detailTab === "orders" ? orderFilters.side : tradeFilters.side}
-                    onChange={(v) => updateCurrentFilters("side", v)}
-                    size="md"
-                  />
-                </div>
-                {detailTab === "orders" && (
-                  <div className="w-32">
-                    <Select
-                      options={ORDER_STATUS_OPTIONS}
-                      value={orderFilters.status}
-                      onChange={(v) => updateCurrentFilters("status", v)}
-                      size="md"
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 mb-16">
+            {assetTab !== "trade" && (
+              <div className="lg:col-span-4">
+                {assetTab === "mock" ? (
+                  mockPortfolio ? (
+                    <RealtimeAssetSummary portfolio={mockPortfolio} title="모의투자 자산" />
+                  ) : (
+                    <AssetSummaryCard
+                      summary={{
+                        title: "모의투자 자산",
+                        cashBalance: 0,
+                        totalAsset: 0,
+                        totalBuyAmount: 0,
+                        totalCoinValue: 0,
+                        totalProfit: 0,
+                        totalRoi: 0,
+                      }}
                     />
+                  )
+                ) : (
+                  <AssetSummaryCard
+                    summary={{
+                      title: "대회 자산",
+                      cashBalance: (contestWallet?.currentMoney ?? 0) - (contestWallet?.marginInUse ?? 0),
+                      totalAsset: contestWallet?.currentMoney ?? 0,
+                      totalBuyAmount: contestWallet?.seedMoney ?? 0,
+                      totalCoinValue: contestWallet?.currentMoney ?? 0,
+                      totalProfit: (contestWallet?.currentMoney ?? 0) - (contestWallet?.seedMoney ?? 0),
+                      totalRoi: contestWallet?.seedMoney ? (((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100) : 0,
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            <section className={cn(
+              "rounded-3xl bg-white dark:bg-gray-800 p-8 border border-gray-100 dark:border-gray-700 flex flex-col justify-center ",
+              assetTab === "trade" ? "lg:col-span-12" : "lg:col-span-8"
+            )}>
+              {isLoadingMain || isLoadingContestData ? (
+                <EmptyState text="데이터를 불러오는 중입니다..." />
+              ) : assetTab === "contest" ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                  <div className="flex flex-col">
+                    <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 증거금 비중</h4>
+                    <div className="flex-1 relative min-h-[180px]">
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                            {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}%`, "비중"]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-xxs font-bold text-gray-400">증거금</span>
+                        <span className="text-sm font-black text-[#1D7CA7]">
+                          {pieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center border-l border-gray-50 dark:border-gray-700 pl-8">
+                    <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 포지션 비율</h4>
+                    <div className="flex justify-between text-[11px] font-black mb-2">
+                      <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
+                      <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-4 w-full bg-gray-50 dark:bg-gray-700 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${contestLongShortData.long}%` }} />
+                      <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${contestLongShortData.short}%` }} />
+                    </div>
+                    <p className="mt-6 text-[11px] text-gray-400 font-medium leading-relaxed">
+                      선택한 대회에서 보유 중인 포지션의 증거금 합계를 기준으로 계산된 비중입니다.
+                    </p>
+                  </div>
+                </div>
+              ) : pieData.length === 0 ? (
+                <EmptyState text="비중을 표시할 자산이 없습니다." />
+              ) : (
+                <div className="flex flex-col md:flex-row items-center gap-10 h-full">
+                  <div className="h-[220px] w-full md:w-1/2 relative">
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          innerRadius={70}
+                          outerRadius={100}
+                          paddingAngle={3}
+                          dataKey="value"
+                          stroke="none"
+                          animationDuration={400}
+                        >
+                          {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />)}
+                          <Label value="보유 비중(%)" position="center" fill="#9ca3af" style={{ fontSize: "14px", fontWeight: "bold" }} />
+                        </Pie>
+                        <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "비중"]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 w-full md:w-1/2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+                    {pieData.map((item) => (
+                      <div key={item.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3">
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          {item.name}
+                        </span>
+                        <span className="text-sm font-black text-gray-900 dark:text-white">{item.value.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div id="asset-detail-tabs">
+            {assetTab === "trade" && (
+              <div className="mb-6 flex gap-4">
+                <button
+                  onClick={() => setTradingSubTab("spot")}
+                  className={cn(
+                    "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
+                    tradingSubTab === "spot"
+                      ? "bg-[#0058FF] text-white"
+                      : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
+                  )}
+                >
+                  현물 자산/거래
+                </button>
+                <button
+                  onClick={() => setTradingSubTab("futures")}
+                  className={cn(
+                    "px-8 py-3 rounded-2xl text-sm font-black transition-all duration-300",
+                    tradingSubTab === "futures"
+                      ? "bg-[#0058FF] text-white"
+                      : "bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700"
+                  )}
+                >
+                  선물 자산/거래
+                </button>
+              </div>
+            )}
+
+            <FolderTabs
+              tabs={[
+                { id: "holdings", label: assetTab === "contest" || (assetTab === "trade" && tradingSubTab === "futures") ? "포지션 현황" : "보유자산", content: null },
+                { id: "pnl", label: "손익현황", content: null },
+                { id: "orders", label: "주문내역", content: null },
+                { id: "trades", label: "거래내역", content: null },
+                { id: "open", label: "미체결내역", content: null },
+              ]}
+              activeId={detailTab}
+              onChange={(id) => handleDetailTabChange(id as DetailTab)}
+            >
+              {(detailTab === "orders" || detailTab === "trades") && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 p-1">
+                  <div className="flex flex-1 flex-wrap items-center gap-3">
+                    <div className="flex h-11 items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 transition focus-within:border-[#0058FF] focus-within:ring-2 focus-within:ring-[#0058FF]/20">
+                      <input
+                        type="date"
+                        value={detailTab === "orders" ? orderFilters.startDate : tradeFilters.startDate}
+                        onChange={(e) => updateCurrentFilters("startDate", e.target.value)}
+                        className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
+                      />
+                      <span className="mx-2 text-gray-400">~</span>
+                      <input
+                        type="date"
+                        value={detailTab === "orders" ? orderFilters.endDate : tradeFilters.endDate}
+                        onChange={(e) => updateCurrentFilters("endDate", e.target.value)}
+                        className="bg-transparent text-sm text-gray-900 dark:text-gray-100 outline-none"
+                      />
+                    </div>
+                    <div className="">
+                      <Select
+                        options={SIDE_OPTIONS}
+                        value={detailTab === "orders" ? orderFilters.side : tradeFilters.side}
+                        onChange={(v) => updateCurrentFilters("side", v)}
+                        size="md"
+                      />
+                    </div>
+                    {detailTab === "orders" && (
+                      <div className="">
+                        <Select
+                          options={ORDER_STATUS_OPTIONS}
+                          value={orderFilters.status}
+                          onChange={(v) => updateCurrentFilters("status", v)}
+                          size="md"
+                        />
+                      </div>
+                    )}
+                    <div className="relative w-48">
+                      <input
+                        type="text"
+                        value={detailTab === "orders" ? orderSymbolInput : tradeSymbolInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (detailTab === "orders") setOrderSymbolInput(val); else setTradeSymbolInput(val);
+                          if (!val) updateCurrentFilters("symbol", "");
+                        }}
+                        onFocus={() => setIsSymbolInputFocused(true)}
+                        onBlur={() => setTimeout(() => setIsSymbolInputFocused(false), 200)}
+                        placeholder="종목검색 (SOL)"
+                        className="h-11 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]/20"
+                      />
+                      {isSymbolInputFocused && (detailTab === "orders" ? orderSymbolInput : tradeSymbolInput).trim() && (
+                        <div className="absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          {getMarketSearchMatches(detailTab === "orders" ? orderSymbolInput : tradeSymbolInput, marketSymbols).map((m) => (
+                            <button key={m.symbol} onMouseDown={() => handleSelectSymbolSuggestion(m.symbol)} className="flex w-full items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{m.displayNameKr}</span>
+                              <span className="text-xs text-gray-400">{m.symbol}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={resetCurrentFilters} className="h-11 px-6 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">초기화</button>
+                </div>
+              )}
+
+              <div className="px-0 pb-0 min-h-[400px]">
+                {isLoadingMain || isLoadingOrders || isLoadingTrades || isLoadingContestData ? (
+                  <EmptyState className="py-32" text="데이터를 불러오는 중입니다." />
+                ) : detailTable.rows.length === 0 ? (
+                  <EmptyState className="py-32" text={detailTable.emptyText} />
+                ) : (
+                  <div ref={scrollContainerRef} className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                    <DetailTable headers={detailTable.headers} headerClasses={detailTable.headerClasses} rows={detailTable.rows} />
+                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                      <p className="text-xs font-bold text-gray-300">내역의 끝입니다.</p>
+                    </div>
                   </div>
                 )}
-                <div className="relative w-48">
-                  <input
-                    type="text"
-                    value={detailTab === "orders" ? orderSymbolInput : tradeSymbolInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (detailTab === "orders") setOrderSymbolInput(val); else setTradeSymbolInput(val);
-                      if (!val) updateCurrentFilters("symbol", "");
-                    }}
-                    onFocus={() => setIsSymbolInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsSymbolInputFocused(false), 200)}
-                    placeholder="종목검색 (SOL)"
-                    className="h-11 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-[#0058FF] focus:ring-2 focus:ring-[#0058FF]/20"
-                  />
-                  {isSymbolInputFocused && (detailTab === "orders" ? orderSymbolInput : tradeSymbolInput).trim() && (
-                    <div className="absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-                      {getMarketSearchMatches(detailTab === "orders" ? orderSymbolInput : tradeSymbolInput, marketSymbols).map((m) => (
-                        <button key={m.symbol} onMouseDown={() => handleSelectSymbolSuggestion(m.symbol)} className="flex w-full items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{m.displayNameKr}</span>
-                          <span className="text-xs text-gray-400">{m.symbol}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
-              <button onClick={resetCurrentFilters} className="h-11 px-6 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">초기화</button>
-            </div>
-          )}
-
-          <div className="px-0 pb-0 min-h-[400px]">
-            {isLoadingMain || isLoadingOrders || isLoadingTrades || isLoadingContestData ? (
-              <EmptyState className="py-32" text="데이터를 불러오는 중입니다." />
-            ) : detailTable.rows.length === 0 ? (
-              <EmptyState className="py-32" text={detailTable.emptyText} />
-            ) : (
-              <div ref={scrollContainerRef} className="max-h-[500px] overflow-y-auto custom-scrollbar">
-                <DetailTable headers={detailTable.headers} headerClasses={detailTable.headerClasses} rows={detailTable.rows} />
-                <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-                  <p className="text-xs font-bold text-gray-300">내역의 끝입니다.</p>
-                </div>
-              </div>
-            )}
+            </FolderTabs>
           </div>
-        </FolderTabs>
-      </div>
+        </>
+      )}
     </main>
   );
 }
