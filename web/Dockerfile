@@ -32,7 +32,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # 비루트 권한으로 실행
 USER nextjs
 
-ENV PORT 3000
+ENV PORT=3000
 EXPOSE 3000
 
 # Standalone 모드는 server.js로 실행합니다.
