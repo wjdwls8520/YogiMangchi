@@ -32,6 +32,10 @@ services:
       # DB와 Redis를 같은 컴포즈 네트워크 이름(db, redis)으로 찾습니다.
       - DB_HOST=db
       - REDIS_HOST=redis
+      # DB 정보
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       # OAuth2
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
