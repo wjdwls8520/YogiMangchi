@@ -24,7 +24,7 @@ services:
   # 3. Spring Boot (WAS) - 새로 추가됨
   was:
     # 아래 주소는 ECR에 푸시한 내 이미지 주소로 변경해야 합니다.
-    image: [AWS_ACCOUNT_ID].dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi-was:latest
+    image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_sever:latest
     container_name: yogimangchi-was
     environment:
       # 도메인 주소
@@ -57,7 +57,7 @@ services:
   # 4. Next.js (Web) - 새로 추가됨
   web:
     # 아래 주소는 ECR에 푸시한 내 이미지 주소로 변경해야 합니다.
-    image: [AWS_ACCOUNT_ID].dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi-web:latest
+    image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_client:latest
     container_name: yogimangchi-web
     depends_on:
       - was
