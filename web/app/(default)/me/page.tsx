@@ -357,7 +357,7 @@ export default function MePage() {
 
     const loadMemberProfile = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/member/me/info`, {
+        const response = await fetch(`/api/v1/member/me/info`, {
           method: "GET",
           credentials: "include",
         });
@@ -557,7 +557,7 @@ export default function MePage() {
 
       try {
         const portfolioResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/asset/mock/portfolio`,
+          `/api/v1/asset/mock/portfolio`,
           {
             method: "GET",
             credentials: "include",
@@ -973,7 +973,7 @@ export default function MePage() {
     setIsLoggingOut(true);
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/auth/logout`, {
+      await fetch(`/api/v1/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -1006,7 +1006,7 @@ export default function MePage() {
     setIsDeletingAccount(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/member/me`, {
+      const response = await fetch(`/api/v1/member/me`, {
         method: "DELETE",
         credentials: "include",
       });

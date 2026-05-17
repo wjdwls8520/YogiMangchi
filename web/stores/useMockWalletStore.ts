@@ -4,7 +4,7 @@ import { FetchClientError } from "@/lib/api/client";
 import { placeLimitOrder, placeMarketOrder } from "@/lib/api/trade";
 
 // 모의투자 자산 관련 API 기본 경로
-const MOCK_ASSET_API_BASE = `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/asset/mock`;
+const MOCK_ASSET_API_BASE = `/api/v1/asset/mock`;
 
 // 모의투자 미참여 시 기본으로 보여줄 현금 값
 const INITIAL_MOCK_USDT = 10000;

@@ -11,7 +11,7 @@ export async function serverFetchClient(
       .map((c) => `${c.name}=${c.value}`)
       .join("; "); // "token=abc; session=xyz" 형식
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/${url}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/${url}`, {
     ...options,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),

@@ -6,8 +6,8 @@ export const getMarketLabel = (marketType: MarketType) => {
 
 export const getMarketSymbolsApiUrl = (marketType: MarketType) => {
   return marketType === "spot"
-    ? `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/market/spot/symbols`
-    : `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/market/futures/symbols`;
+    ? `/api/v1/market/spot/symbols`
+    : `/api/v1/market/futures/symbols`;
 };
 
 export const getBinanceWsBaseUrl = (marketType: MarketType) => {

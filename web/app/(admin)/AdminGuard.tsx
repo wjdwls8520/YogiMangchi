@@ -22,7 +22,7 @@ export default function AdminGuard({
     // 로컬 스토어만 믿지 않고 /member/me/info로 현재 로그인/권한 상태를 재검증합니다.
     const checkAdmin = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/member/me/info`, {
+        const response = await fetch(`/api/v1/member/me/info`, {
           method: "GET",
           credentials: "include",
         });

@@ -61,7 +61,7 @@ export default function DemoNoticeBar() {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}`}/api/v1/member/me/info`, {
+      const response = await fetch(`/api/v1/member/me/info`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
