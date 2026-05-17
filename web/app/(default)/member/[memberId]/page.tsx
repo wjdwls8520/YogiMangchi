@@ -940,9 +940,9 @@ export default function MemberProfilePage() {
             <div className="space-y-6 animate-in fade-in duration-300">
               <FolderTabs
                 tabs={[
+                  { id: "mock", label: "모의투자", content: renderPortfolioTabContent("mock") },
                   { id: "trade", label: "트레이딩", content: renderPortfolioTabContent("trade") },
                   { id: "contest", label: "대회", content: renderPortfolioTabContent("contest") },
-                  { id: "mock", label: "모의투자", content: renderPortfolioTabContent("mock") },
                 ]}
                 activeId={portfolioTab}
                 onChange={(id) => setPortfolioTab(id as PortfolioTab)}

@@ -1190,9 +1190,9 @@ function AssetsPageContent() {
     <main className="w-full space-y-6 animate-in fade-in duration-500">
       <Tabs
         tabs={[
+          { label: "모의투자", value: "mock" },
           { label: "트레이딩", value: "trade" },
           { label: "대회", value: "contest" },
-          { label: "모의투자", value: "mock" },
         ]}
         activeTab={assetTab}
         onChange={(value) => handleAssetTabChange(value as AssetTab)}
