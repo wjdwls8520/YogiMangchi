@@ -22,17 +22,19 @@ import {
 } from "@/lib/api/portfolio";
 import {
   getContestParticipationSeasonsByMember,
-  getMyContestSeasonResult, // Note: This might need a member-specific version if rank is private, but rank for finished contests is usually public.
+  getMemberContestSeasonResult,
   type ContestParticipationSeason,
   type MyContestSeasonResult,
 } from "@/lib/api/contest";
 import { 
   getFuturesWalletStatus,
+  getFinishedContestWalletStatus,
   getContestFuturesOpenPositions,
   type FuturesWalletStatus 
 } from "@/lib/api/contest-futures";
 import FolderTabs from "@/components/ui/FolderTabs";
 import Tabs from "@/components/ui/Tabs";
+import Select from "@/components/ui/Select";
 import { 
   PieChart, 
   Pie, 
@@ -324,17 +326,31 @@ export default function MemberProfilePage() {
   // Load Contest Wallet & Positions
   useEffect(() => {
     if (!selectedContestId || mainTab !== "portfolio" || portfolioTab !== "contest") return;
+    if (participatingContests.length === 0) return;
 
     const loadContestData = async () => {
       setIsLoadingContestWallet(true);
       setIsLoadingContestPositions(true);
       try {
-        const [wallet, positions] = await Promise.all([
-          getFuturesWalletStatus(selectedContestId),
-          getContestFuturesOpenPositions(selectedContestId)
-        ]);
+        const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+        const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+
+        let wallet;
+        let positionsContent: FuturesPositionItem[] = [];
+
+        if (isFinished) {
+          wallet = await getFinishedContestWalletStatus(selectedContestId);
+        } else {
+          const [w, pos] = await Promise.all([
+            getFuturesWalletStatus(selectedContestId),
+            getContestFuturesOpenPositions(selectedContestId)
+          ]);
+          wallet = w;
+          positionsContent = pos.content || [];
+        }
+
         setContestWallet(wallet);
-        setContestPositions(positions.content || []);
+        setContestPositions(positionsContent);
       } catch (error) {
         console.error("failed to load contest wallet/positions:", error);
         setContestWallet(null);
@@ -346,7 +362,7 @@ export default function MemberProfilePage() {
     };
 
     void loadContestData();
-  }, [selectedContestId, mainTab, portfolioTab]);
+  }, [selectedContestId, mainTab, portfolioTab, participatingContests]);
 
   // Load Contest Result (Public version if exists, else handle)
   useEffect(() => {
@@ -355,12 +371,21 @@ export default function MemberProfilePage() {
     const loadContestResult = async () => {
       setIsLoadingContestResult(true);
       try {
-        // NOTE: If the backend provides a public result API, use it here.
-        // For now, we'll try getMyContestSeasonResult which might work if the backend allows viewing others.
-        // If not, it will fail and we'll just not show the rank card.
-        const result = await getMyContestSeasonResult(selectedContestId);
-        setContestResult(result);
-      } catch (error) {
+        const selectedContest = participatingContests.find((c) => c.seasonId === selectedContestId);
+        const result = await getMemberContestSeasonResult(selectedContestId, memberId);
+        setContestResult({
+          participantId: result.participantId,
+          seasonId: selectedContestId,
+          seasonTitle: selectedContest?.seasonTitle || "",
+          contestStartAt: "",
+          contestEndAt: "",
+          settledAt: "",
+          finalRealizedPnl: result.realizedPnl,
+          finalProfitRate: result.profitRate,
+          finalRank: result.rank,
+        });
+      } catch (error: any) {
+        console.warn("Failed to load contest result on member profile page:", error?.message || error);
         setContestResult(null);
       } finally {
         setIsLoadingContestResult(false);
@@ -368,7 +393,7 @@ export default function MemberProfilePage() {
     };
 
     void loadContestResult();
-  }, [selectedContestId, mainTab, portfolioTab]);
+  }, [selectedContestId, mainTab, portfolioTab, participatingContests, memberId]);
 
 
   const spotPieData = useMemo(() => {
@@ -525,7 +550,7 @@ export default function MemberProfilePage() {
                 onClick={() => setTradingSubTab("spot")}
                 className={cn(
                   "px-8 py-2.5 text-xs font-black rounded-lg transition-all",
-                  tradingSubTab === "spot" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  tradingSubTab === "spot" ? "bg-white text-gray-900" : "text-gray-400 hover:text-gray-600"
                 )}
               >
                 현물
@@ -534,7 +559,7 @@ export default function MemberProfilePage() {
                 onClick={() => setTradingSubTab("futures")}
                 className={cn(
                   "px-8 py-2.5 text-xs font-black rounded-lg transition-all",
-                  tradingSubTab === "futures" ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"
+                  tradingSubTab === "futures" ? "bg-white text-gray-900" : "text-gray-400 hover:text-gray-600"
                 )}
               >
                 선물
@@ -626,112 +651,149 @@ export default function MemberProfilePage() {
     }
 
     if (tab === "contest") {
+      const selectedContest = participatingContests.find((c) => c.seasonId === selectedContestId);
+      const isFinished = selectedContest?.displayStatus === "FINISHED" || selectedContest?.displayStatus === "SETTLED";
+
       return (
         <div className="space-y-10 animate-in fade-in duration-500">
-          <div className="flex justify-center mb-6">
-            <select
+          <div className="flex justify-center mb-6 w-full max-w-xs mx-auto">
+            <Select
+              fullWidth={true}
+              options={participatingContests.map((season) => {
+                const isFinishedOption = season.displayStatus === "FINISHED" || season.displayStatus === "SETTLED";
+                return {
+                  label: (
+                    <div className="flex items-center justify-between gap-4 w-full text-xs">
+                      <span className="font-bold text-gray-900 dark:text-gray-100 truncate">{season.seasonTitle}</span>
+                      {isFinishedOption ? (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-gray-50 dark:bg-gray-800 text-gray-500 border border-gray-200 dark:border-gray-700">
+                          종료
+                        </span>
+                      ) : (
+                        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-50 dark:bg-blue-950/30 text-[#0058FF] dark:text-blue-400 border border-blue-100 dark:border-blue-900/50">
+                          진행중
+                        </span>
+                      )}
+                    </div>
+                  ),
+                  value: season.seasonId,
+                };
+              })}
               value={selectedContestId || ""}
-              onChange={(e) => setSelectedContestId(Number(e.target.value))}
-              className="bg-gray-50 border border-gray-100 text-gray-900 text-xs font-black rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 min-w-[240px] outline-none transition-all hover:bg-white"
-            >
-              <option value="" disabled>대회 시즌 선택</option>
-              {participatingContests.map((season) => (
-                <option key={season.seasonId} value={season.seasonId}>
-                  {season.seasonTitle}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedContestId(Number(val))}
+              placeholder="대회 시즌 선택"
+            />
           </div>
 
-          {contestResult && (
-            <div className="relative overflow-hidden card p-0 mb-10 border-blue-100 bg-gradient-to-br from-blue-50/50 to-white">
-              <div className="flex items-center p-8 gap-10">
-                <div className="flex flex-col items-center gap-2 border-r border-blue-100 pr-10">
-                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Final Rank</span>
-                  <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-200">
-                    <span className="text-3xl font-black">{contestResult.finalRank}</span>
-                    <span className="text-sm font-bold ml-0.5 mt-1">위</span>
+          {isFinished ? (
+            (() => {
+              const selectedContest = participatingContests.find(c => c.seasonId === selectedContestId);
+              const displayTitle = contestResult?.seasonTitle || selectedContest?.seasonTitle || "대회";
+              const displayRank = contestResult?.finalRank !== undefined && contestResult.finalRank > 0 
+                ? `${contestResult.finalRank}위` 
+                : "집계중";
+              const displayRealizedPnl = contestResult?.finalRealizedPnl !== undefined
+                ? contestResult.finalRealizedPnl
+                : (contestWallet ? (contestWallet.currentMoney - contestWallet.seedMoney) : 0);
+              const displayProfitRate = (contestResult?.finalProfitRate !== undefined && contestResult.finalProfitRate !== 0)
+                ? contestResult.finalProfitRate
+                : (contestWallet && contestWallet.seedMoney > 0 ? ((displayRealizedPnl / contestWallet.seedMoney) * 100) : 0);
+
+              return (
+                <div className="relative overflow-hidden card p-0 mb-10 border-blue-100 bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-gray-800">
+                  <div className="flex items-center p-8 gap-10">
+                    <div className="flex flex-col items-center gap-2 border-r border-blue-100 dark:border-blue-900 pr-10">
+                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Final Rank</span>
+                      <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                        <span className="text-3xl font-black">{contestResult?.finalRank && contestResult.finalRank > 0 ? contestResult.finalRank : "-"}</span>
+                        {contestResult?.finalRank && contestResult.finalRank > 0 && <span className="text-sm font-bold ml-0.5 mt-1">위</span>}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">실현 손익</p>
+                        <p className={cn("text-xl font-black", getProfitColorClass(displayRealizedPnl))}>
+                          {formatSignedNumber(displayRealizedPnl)} <span className="text-xs ml-1">USDT</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">최종 수익률</p>
+                        <p className={cn("text-xl font-black", getProfitColorClass(displayProfitRate))}>
+                          {formatSignedPercent(displayProfitRate)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-blue-600 w-full opacity-10" />
+                </div>
+              );
+            })()
+          ) : null}
+
+          {!isFinished && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="card p-6">
+                  <h4 className="text-xs font-black text-gray-900 mb-6 uppercase tracking-wider">대회 증거금 비중</h4>
+                  <div className="h-48 relative">
+                    <ResponsiveContainer>
+                      <PieChart>
+                        <Pie
+                          data={contestAssetPieData}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {contestAssetPieData.map((entry, i) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                          formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Margin</span>
+                      <span className="text-sm font-black text-cyan-600">
+                        {contestAssetPieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex-1 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">실현 손익</p>
-                    <p className={cn("text-xl font-black", getProfitColorClass(contestResult.finalRealizedPnl))}>
-                      {formatSignedNumber(contestResult.finalRealizedPnl)} <span className="text-xs ml-1">USDT</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">최종 수익률</p>
-                    <p className={cn("text-xl font-black", getProfitColorClass(contestResult.finalProfitRate))}>
-                      {formatSignedPercent(contestResult.finalProfitRate)}
-                    </p>
+                <div className="card p-6">
+                  <h4 className="text-xs font-black text-gray-900 mb-6 uppercase tracking-wider">롱/숏 포지션 비율</h4>
+                  <div className="flex flex-col justify-center h-full -mt-4">
+                    <div className="flex justify-between text-[10px] font-black mb-2">
+                      <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
+                      <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden flex">
+                      <div className="h-full bg-red-500" style={{ width: `${contestLongShortData.long}%` }} />
+                      <div className="h-full bg-blue-500" style={{ width: `${contestLongShortData.short}%` }} />
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="h-1 bg-blue-600 w-full opacity-10" />
-            </div>
+
+              <div className="space-y-4 pt-10 border-t border-gray-100">
+                <h3 className="text-lg font-black text-gray-900">대회 포지션 현황</h3>
+                {isLoadingContestPositions ? (
+                  <div className="py-20 text-center text-gray-400 font-bold">데이터를 불러오는 중...</div>
+                ) : contestPositions.length > 0 ? (
+                  contestPositions.map((pos, i) => (
+                    <PositionRow key={i} position={pos} marketSymbols={marketSymbols} />
+                  ))
+                ) : (
+                  <ProfileEmptyState text="참여 중인 대회 포지션이 없습니다." />
+                )}
+              </div>
+            </>
           )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="card p-6">
-              <h4 className="text-xs font-black text-gray-900 mb-6 uppercase tracking-wider">대회 증거금 비중</h4>
-              <div className="h-48 relative">
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={contestAssetPieData}
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {contestAssetPieData.map((entry, i) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase">Margin</span>
-                  <span className="text-sm font-black text-cyan-600">
-                    {contestAssetPieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <h4 className="text-xs font-black text-gray-900 mb-6 uppercase tracking-wider">롱/숏 포지션 비율</h4>
-              <div className="flex flex-col justify-center h-full -mt-4">
-                <div className="flex justify-between text-[10px] font-black mb-2">
-                  <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
-                  <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
-                </div>
-                <div className="h-3 w-full bg-gray-50 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-red-500" style={{ width: `${contestLongShortData.long}%` }} />
-                  <div className="h-full bg-blue-500" style={{ width: `${contestLongShortData.short}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-10 border-t border-gray-100">
-            <h3 className="text-lg font-black text-gray-900">대회 포지션 현황</h3>
-            {isLoadingContestPositions ? (
-              <div className="py-20 text-center text-gray-400 font-bold">데이터를 불러오는 중...</div>
-            ) : contestPositions.length > 0 ? (
-              contestPositions.map((pos, i) => (
-                <PositionRow key={i} position={pos} marketSymbols={marketSymbols} />
-              ))
-            ) : (
-              <ProfileEmptyState text="참여 중인 대회 포지션이 없습니다." />
-            )}
-          </div>
         </div>
       );
     }
@@ -855,7 +917,7 @@ export default function MemberProfilePage() {
               onClick={() => setMainTab("portfolio")}
               className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
                 mainTab === "portfolio"
-                  ? "bg-white text-gray-900 shadow-sm"
+                  ? "bg-white text-gray-900"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -866,7 +928,7 @@ export default function MemberProfilePage() {
               onClick={() => setMainTab("community")}
               className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
                 mainTab === "community"
-                  ? "bg-white text-gray-900 shadow-sm"
+                  ? "bg-white text-gray-900"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >

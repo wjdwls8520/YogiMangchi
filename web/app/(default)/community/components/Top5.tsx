@@ -103,7 +103,7 @@ export default function Top5({ranker} :Rankers) {
 
                         {/* 유저 정보 */}
                         <div className="flex-auto min-w-0">
-                            <p className="truncate text-[15px] font-bold text-gray-800">
+                            <p className="truncate text-[15px] font-bold text-gray-800 dark:text-gray-200">
                                 {user.nickName}
                             </p>
                             <p className="text-xs font-medium text-rose-500 mt-0.5">

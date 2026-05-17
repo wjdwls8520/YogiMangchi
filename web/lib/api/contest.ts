@@ -243,3 +243,20 @@ export const getMyContestSeasonResult = async (seasonId: number) => {
   }) as Promise<MyContestSeasonResult>;
 };
 
+export type MemberContestSeasonResult = {
+  rank: number;
+  participantId: number;
+  memberId: number;
+  nickname: string;
+  profileImgUrl: string | null;
+  realizedPnl: number;
+  profitRate: number;
+};
+
+// 특정 멤버의 시즌 정산 결과 조회 (순위 포함)
+export const getMemberContestSeasonResult = async (seasonId: number, memberId: number) => {
+  return fetchClient(`contest/seasons/${seasonId}/members/${memberId}/result`, {
+    method: "GET",
+  }) as Promise<MemberContestSeasonResult>;
+};
+
