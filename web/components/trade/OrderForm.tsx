@@ -104,10 +104,10 @@ export default function OrderForm({
     try {
       const { fetchRealSpotAssetDetail } = await import("@/lib/api/trade");
       const res = await fetchRealSpotAssetDetail();
-      if (res) {
-        setRealUsdtBalance(res.cashBalance);
+      if (res?.spot) {
+        setRealUsdtBalance(res.spot.cashBalance);
         setRealHoldings(
-          res.holdings.map((h) => ({
+          res.spot.holdings.map((h) => ({
             symbol: h.symbol,
             quantity: h.quantity,
             availableQuantity: h.availableQuantity,

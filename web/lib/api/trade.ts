@@ -65,7 +65,8 @@ export interface HoldingResponseItem {
   isPriceStale: boolean;
 }
 
-export interface RealSpotAssetDetailResponse {
+// 현물 자산 상세 (백엔드 AssetPortfolioDetailResponseDto)
+export interface SpotAssetDetail {
   assetType: string;
   holdingCount: number;
   seedMoney: number;
@@ -78,6 +79,13 @@ export interface RealSpotAssetDetailResponse {
   totalProfit: number;
   totalRoi: number;
   holdings: HoldingResponseItem[];
+}
+
+// 백엔드 RealAssetUnifiedResponseDto (현물+선물 통합 응답)
+export interface RealSpotAssetDetailResponse {
+  totalAsset: number;
+  totalProfit: number;
+  spot: SpotAssetDetail;
 }
 
 // 주문내역 1건 타입
@@ -235,9 +243,9 @@ export async function fetchTradeHistories(
   return parseCursorResponse<TradeHistoryItem>(payload);
 }
 
-// 본투자 현물 자산 상세 조회
+// 본투자 현물+선물 통합 자산 조회 (백엔드: GET /api/v1/asset/real/detail)
 export async function fetchRealSpotAssetDetail(): Promise<RealSpotAssetDetailResponse | null> {
-  const payload = await fetchClient("asset/real/spot/detail");
+  const payload = await fetchClient("asset/real/detail");
   return payload as RealSpotAssetDetailResponse | null;
 }
 
