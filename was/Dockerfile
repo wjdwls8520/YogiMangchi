@@ -1,7 +1,7 @@
 # /was/Dockerfile
 
-# 1. Java 17 Alpine(경량화) 이미지 사용
-FROM openjdk:17-jdk-alpine
+# 1. Java 17 Alpine(경량화) 이미지 사용 (공식 단종된 openjdk 대신 eclipse-temurin 사용)
+FROM eclipse-temurin:17-jdk-alpine
 
 # 2. 작업 디렉토리 설정
 WORKDIR /app
