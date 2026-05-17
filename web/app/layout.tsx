@@ -9,6 +9,15 @@ import ThemeInitializer from "@/components/ThemeInitializer";
 export const metadata: Metadata = {
   title: "요기망치",
   description: "나의 욕망을 실현할 곳",
+
+  openGraph: {
+    title: "요기망치",
+    description: "나의 욕망을 실현할 곳",
+    url: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}`,
+    siteName: "요기망치",
+    locale: "ko_KR",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
@@ -21,13 +30,13 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased bg-white text-black dark:bg-zinc-900 dark:text-white">
-          <ThemeInitializer />
-          <FeedbackProvider>
-              <AuthBootstrap />
-              <SSEProvider>
-                  {children}
-              </SSEProvider>
-          </FeedbackProvider>
+        <ThemeInitializer />
+        <FeedbackProvider>
+          <AuthBootstrap />
+          <SSEProvider>
+            {children}
+          </SSEProvider>
+        </FeedbackProvider>
       </body>
     </html>
   );

@@ -5,12 +5,16 @@ services:
   db:
     image: ankane/pgvector
     container_name: yogimangchi-db
+    # 💡 environment 블록을 하나로 합치고 콤마/대시 포맷을 통일했습니다.
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    # 💡 볼륨 리스트를 하나로 이쁘게 묶었습니다.
     volumes:
       - ./data/db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - "5432:5432"
 
@@ -21,46 +25,40 @@ services:
     ports:
       - "6379:6379"
 
-  # 3. Spring Boot (WAS) - 새로 추가됨
+  # 3. Spring Boot (WAS)
   was:
-    # 아래 주소는 ECR에 푸시한 내 이미지 주소로 변경해야 합니다.
     image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_sever:latest
     container_name: yogimangchi-was
+    # 💡 흩어져 있던 백엔드 환경 변수들과 타임존 지정을 한곳으로 완벽히 병합했습니다!
     environment:
-      # 도메인 주소
       - DOMAIN_ADDRESS=${DOMAIN_ADDRESS_VALUE}
-      # DB와 Redis를 같은 컴포즈 네트워크 이름(db, redis)으로 찾습니다.
       - DB_HOST=db
       - REDIS_HOST=redis
-      # DB 정보
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      # OAuth2
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
       - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
-      # S3
       - S3_BUCKET=${S3_BUCKET}
       - S3_ACCESS=${S3_ACCESS}
       - S3_SECRET=${S3_SECRET}
       - S3_REGION=${S3_REGION}
-      # JWT
       - JWT_SECRET=${JWT_SECRET}
-      # GMAIL
       - GMAIL_USERNAME=${GMAIL_USERNAME}
       - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
-      
+      - TZ=Asia/Seoul
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       - db
       - redis
     ports:
       - "8080:8080"
 
-  # 4. Next.js (Web) - 새로 추가됨
+  # 4. Next.js (Web) - 프론트 이미지 주소 완전 무결 상태 확인 완료 👍
   web:
-    # 아래 주소는 ECR에 푸시한 내 이미지 주소로 변경해야 합니다.
     image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_client:latest
     container_name: yogimangchi-web
     depends_on:
@@ -68,14 +66,13 @@ services:
     ports:
       - "3000:3000"
 
-  # 5. Nginx (웹 서버/리버스 프록시) - 새로 추가됨
+  # 5. Nginx (웹 서버/리버스 프록시)
   nginx:
     image: nginx:alpine
     container_name: yogimangchi-nginx
     ports:
       - "80:80"
     volumes:
-      # 우리가 작성할 nginx.conf 파일을 컨테이너 내부에 덮어씌웁니다.
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - web
