@@ -141,7 +141,7 @@ export default function MockTradingPage() {
               <div className="flex items-center gap-3">
                 <span className="text-[12px] font-black flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  포지션 및 거래 내역
+                  거래 내역
                 </span>
               </div>
               <ChevronUp className="w-4 h-4 text-slate-400" />

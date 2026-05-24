@@ -949,7 +949,7 @@ export default function NotificationsPageView() {
       {/* Action Bar */}
       <div className="flex items-center justify-between gap-3">
         {/* Left: Select All */}
-        <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2">
           {notifications.length > 0 ? (
             <>
               <button
@@ -983,25 +983,29 @@ export default function NotificationsPageView() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5">
-          <ActionButton
-            onClick={handleReadSelected}
-            disabled={unreadSelectedNotificationIds.length === 0 || isReadingSelected}
-            icon={<Check className="h-3.5 w-3.5" strokeWidth={2.2} />}
-            label={isReadingSelected ? "처리 중..." : "선택읽음"}
-          />
+          <div className="hidden sm:flex items-center gap-1.5">
+            <ActionButton
+              onClick={handleReadSelected}
+              disabled={unreadSelectedNotificationIds.length === 0 || isReadingSelected}
+              icon={<Check className="h-3.5 w-3.5" strokeWidth={2.2} />}
+              label={isReadingSelected ? "처리 중..." : "선택읽음"}
+            />
+          </div>
           <ActionButton
             onClick={() => void handleReadAll()}
             disabled={!hasUnreadNotifications || isReadingAll}
             icon={<Check className="h-3.5 w-3.5" strokeWidth={2.2} />}
             label={isReadingAll ? "처리 중..." : "전체읽음"}
           />
-          <ActionButton
-            onClick={() => void handleDeleteSelected()}
-            disabled={selectedNotificationIds.length === 0 || isDeletingSelected}
-            icon={<Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />}
-            label={isDeletingSelected ? "삭제 중..." : "선택삭제"}
-            variant="danger"
-          />
+          <div className="hidden sm:flex items-center gap-1.5">
+            <ActionButton
+              onClick={() => void handleDeleteSelected()}
+              disabled={selectedNotificationIds.length === 0 || isDeletingSelected}
+              icon={<Trash2 className="h-3.5 w-3.5" strokeWidth={2.2} />}
+              label={isDeletingSelected ? "삭제 중..." : "선택삭제"}
+              variant="danger"
+            />
+          </div>
           <ActionButton
             onClick={() => void handleDeleteRead()}
             disabled={readNotifications.length === 0 || isDeletingRead}
@@ -1171,7 +1175,7 @@ function NotificationsPageItem({
       >
         {/* Checkbox */}
         <label
-          className="mt-0.5 flex shrink-0 cursor-pointer items-center"
+          className="mt-0.5 hidden sm:flex shrink-0 cursor-pointer items-center"
           onClick={(event) => event.stopPropagation()}
         >
           <div

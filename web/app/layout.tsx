@@ -5,6 +5,8 @@ import SSEProvider from "./SSEProvider";
 import AuthBootstrap from "./AuthBootstrap";
 import FeedbackProvider from "@/components/ui/FeedbackProvider";
 import ThemeInitializer from "@/components/ThemeInitializer";
+import type { Viewport } from "next";
+
 
 export const metadata: Metadata = {
   title: "요기망치",
@@ -18,6 +20,13 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
