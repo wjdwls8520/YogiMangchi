@@ -20,7 +20,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update  # 배포에선 validate / 개발은 update
+      ddl-auto: validate  # 배포에선 validate / 개발은 update
     #서버실행시 코인data.sql실행
     defer-datasource-initialization: true
     show-sql: false
