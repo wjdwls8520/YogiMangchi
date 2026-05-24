@@ -45,7 +45,7 @@ export default function Tabs({
   return (
     // 전체 컨테이너: 하단에 연한 회색 보더를 깔아줍니다 (underline인 경우만)
     <div className={cn(
-      "flex", 
+      "flex overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]", 
       variant === "underline" && cn("border-b", isDark ? "border-white/5" : "border-gray-200 dark:border-gray-800"), 
       className
     )}>
@@ -61,13 +61,13 @@ export default function Tabs({
             onClick={() => onChange(tab.value)}
             // 🌟 탭이 꽉 차야 하면 flex-1 적용, 아니면 글자 크기만큼만 (기본 갭은 우측에 마진으로 주거나 부모에 gap 줘도 됨)
             className={cn(
-              "relative transition-all duration-200",
-              size === "sm" ? "pt-1.5 pb-1.5 text-[12px]" : "pt-3 pb-3",
+              "relative transition-all duration-200 shrink-0",
+              size === "sm" ? "pt-1.5 pb-1.5 text-[12px]" : "pt-2.5 pb-2.5 sm:pt-3 sm:pb-3 text-[13px] sm:text-base",
               fullWidth
                 ? "flex-1 text-center"
                 : size === "sm" 
-                  ? "min-w-[64px] whitespace-nowrap text-center px-3"
-                  : "min-w-[112px] whitespace-nowrap text-center",
+                  ? "min-w-[56px] whitespace-nowrap text-center px-2"
+                  : "min-w-[72px] sm:min-w-[112px] whitespace-nowrap text-center px-3 sm:px-4",
               isActive 
                 ? cn(
                     "font-black transition-all", 

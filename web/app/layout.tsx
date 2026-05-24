@@ -5,10 +5,19 @@ import SSEProvider from "./SSEProvider";
 import AuthBootstrap from "./AuthBootstrap";
 import FeedbackProvider from "@/components/ui/FeedbackProvider";
 import ThemeInitializer from "@/components/ThemeInitializer";
+import type { Viewport } from "next";
+
 
 export const metadata: Metadata = {
   title: "요기망치",
   description: "나의 욕망을 실현할 곳",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({

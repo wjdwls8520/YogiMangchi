@@ -107,7 +107,7 @@ export default function IntegratedTradingPage() {
               선물
             </button>
           </div>
-          <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+          <div className="h-4 w-[1px] bg-white/10" />
           <button
             onClick={() => {
               if (isUnlocked) {
@@ -116,7 +116,7 @@ export default function IntegratedTradingPage() {
                 setIsModalOpen(true);
               }
             }}
-            className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-white transition-colors"
           >
             자산 이체
           </button>
@@ -187,7 +187,7 @@ export default function IntegratedTradingPage() {
               <div className="flex items-center gap-3">
                 <span className="text-[12px] font-black flex items-center gap-2">
                   <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isFutures ? "bg-purple-500" : "bg-brand-primary")} />
-                  {isFutures ? "선물 포지션 및 거래 내역" : "포지션 및 거래 내역"}
+                  {isFutures ? "포지션 및 거래 내역" : "거래 내역"}
                 </span>
               </div>
               <ChevronUp className="w-4 h-4 text-slate-400" />

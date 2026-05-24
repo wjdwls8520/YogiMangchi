@@ -33,10 +33,15 @@ const chartTypeOptions = [
 ];
 
 const formatChartPrice = (value: number) => {
-  return formatAssetNumber(value, {
-    standardMaxFractionDigits: 4,
-    smallMaxFractionDigits: 8,
-  });
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
+  if (value > 1000) {
+    return value.toLocaleString('ko-KR', { maximumFractionDigits: isMobile ? 1 : 2 });
+  }
+  if (value > 1) {
+    return value.toLocaleString('ko-KR', { maximumFractionDigits: isMobile ? 3 : 4 });
+  }
+  return value.toLocaleString('ko-KR', { maximumFractionDigits: isMobile ? 5 : 6 });
 };
 
 const closeChartSocket = (socket: WebSocket | null) => {
@@ -329,7 +334,8 @@ export default function CoinChart({
     const chart = createChart(chartContainerRef.current, {
       layout: { 
         background: { type: ColorType.Solid, color: isFuturesInitial ? '#161A1E' : (isDarkInitial ? '#1f2937' : '#ffffff') }, 
-        textColor: isDarkInitial ? '#D1D5DB' : '#333' 
+        textColor: isDarkInitial ? '#D1D5DB' : '#333',
+        fontSize: window.innerWidth < 768 ? 10 : 12
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 400,
@@ -340,8 +346,17 @@ export default function CoinChart({
       localization: {
         priceFormatter: (price: number) => formatChartPrice(price),
       },
-      timeScale: { timeVisible: true, secondsVisible: false, barSpacing: 12, rightOffset: 5 },
-      rightPriceScale: { borderVisible: false },
+      timeScale: { 
+        timeVisible: true, 
+        secondsVisible: false, 
+        barSpacing: window.innerWidth < 768 ? 6 : 12, 
+        rightOffset: window.innerWidth < 768 ? 0 : 5 
+      },
+      rightPriceScale: { 
+        borderVisible: false,
+        autoScale: true,
+        alignLabels: true
+      },
       crosshair: { mode: 1 }, 
     });
     chartRef.current = chart;
@@ -357,7 +372,7 @@ export default function CoinChart({
     seriesRef.current.bar = chart.addSeries(BarSeries, { upColor, downColor, thinBars: false });
     markersRef.current.bar = createSeriesMarkers(seriesRef.current.bar);
     seriesRef.current.baseline = chart.addSeries(BaselineSeries, {
-      baseValue: { type: 'price', price: 65000 }, 
+      baseValue: { type: 'price', price: 0 }, 
       topFillColor1: isSpotInitial ? 'rgba(251, 44, 54, 0.28)' : 'rgba(0, 192, 135, 0.28)', 
       topFillColor2: isSpotInitial ? 'rgba(251, 44, 54, 0.05)' : 'rgba(0, 192, 135, 0.05)', 
       topLineColor: upColor,
@@ -726,7 +741,7 @@ export default function CoinChart({
     <section 
       aria-label={`${meta.displayNameKr} 상세 차트 및 제어 영역`}
       className={cn(
-        "relative flex w-full flex-col gap-2 p-4 transition-colors lg:rounded-b-xl",
+        "relative flex w-full flex-col gap-2 p-4 pr-1 sm:pr-4 transition-colors lg:rounded-b-xl",
         isFutures ? "border-none bg-futures-trade" : (isDark ? "border border-gray-700 bg-gray-800" : "border border-gray-100 bg-white"),
         className
       )}
