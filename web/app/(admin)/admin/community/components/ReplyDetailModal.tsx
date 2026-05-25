@@ -94,6 +94,7 @@ export default function ReplyDetailModal({
             <span>댓글 ID: {reply.replyId}</span>
             <span>소속 게시글 ID: {reply.postId}</span>
             <span>작성자 ID: {reply.authorId}</span>
+            <span>닉네임: {reply.authorNickname}</span>
           </div>
           <p className="text-xs font-bold text-gray-500 dark:text-gray-400">댓글 내용</p>
           <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed font-black">

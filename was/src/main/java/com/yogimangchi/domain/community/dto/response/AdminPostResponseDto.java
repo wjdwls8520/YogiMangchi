@@ -33,6 +33,9 @@ public record AdminPostResponseDto(
         LocalDateTime updatedAt,
 
         @Schema(description = "작성자 회원 ID", example = "3")
-        Long authorId
+        Long authorId,
+
+        @Schema(description = "작성자 닉네임", example = "요기망치")
+        String authorNickname
 ) {
 }

@@ -30,6 +30,12 @@ public record AdminReplyResponseDto(
         Long postId,
 
         @Schema(description = "댓글 작성자 회원 ID", example = "5")
-        Long authorId
+        Long authorId,
+
+        @Schema(description = "댓글 작성자 닉네임", example = "요기망치")
+        String authorNickname,
+
+        @Schema(description = "소속 게시글 제목", example = "비트코인 전망")
+        String postTitle
 ) {
 }
