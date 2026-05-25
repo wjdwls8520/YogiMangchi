@@ -6,6 +6,7 @@ import { RankItemProps } from "./types/user";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useUIStore } from "@/stores/useUIStore";
 import Tabs from "@/components/ui/Tabs";
+import Select from "@/components/ui/Select";
 import { useFeedback } from "@/components/ui/FeedbackProvider";
 import {
   getMemberInfo,
@@ -17,8 +18,8 @@ import { getPosts } from "@/lib/api/post";
 import {
   getContestResults,
   ContestRanking,
-  ContestParticipationSeason,
-  getContestParticipationSeasonsByMember,
+  ContestSeason,
+  getFinishedContestSeasons,
 } from "@/lib/api/contest";
 
 // ─── 탭 정의 ─────────────────────────────────────────────────────────────────
@@ -30,6 +31,16 @@ const RANK_TABS = [
 ];
 
 const PAGE_SIZE = 20;
+
+// ─── 날짜 포맷팅 유틸리티 ────────────────────────────────────────────────────
+function formatToYYYYMMDD(dateString: string): string {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
+}
 
 // ─── 커뮤니티 게시글 작성자에서 고유 멤버 ID 수집 ───────────────────────────
 async function discoverMemberIdsFromPosts(maxPages = 3): Promise<number[]> {
@@ -47,32 +58,6 @@ async function discoverMemberIdsFromPosts(maxPages = 3): Promise<number[]> {
   }
 
   return Array.from(memberIdSet);
-}
-
-// ─── 멤버 참가 이력에서 종료된 시즌 추출 ────────────────────────────────────
-async function fetchFinishedSeasonsForMember(
-  memberId: number
-): Promise<ContestParticipationSeason[]> {
-  const allSeasons: ContestParticipationSeason[] = [];
-  let cursorId: number | undefined = undefined;
-
-  for (let page = 0; page < 5; page++) {
-    const res = await getContestParticipationSeasonsByMember(memberId, {
-      cursorId,
-      size: 50,
-    });
-    if (!res || !res.content || res.content.length === 0) break;
-    allSeasons.push(...(res.content as ContestParticipationSeason[]));
-    if (!res.hasNext || !res.nextCursorId) break;
-    cursorId = res.nextCursorId;
-  }
-
-  return allSeasons.filter(
-    (s) =>
-      s.displayStatus === "FINISHED" ||
-      s.displayStatus === "SETTLED" ||
-      s.displayStatus === "종료"
-  );
 }
 
 export default function RankPage() {
@@ -95,7 +80,7 @@ export default function RankPage() {
   const [followLoadingMap, setFollowLoadingMap] = useState<Record<number, boolean>>({});
 
   // ─── 대회 순위 상태 ────────────────────────────────────────────────────
-  const [finishedSeasons, setFinishedSeasons] = useState<ContestParticipationSeason[]>([]);
+  const [finishedSeasons, setFinishedSeasons] = useState<ContestSeason[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
   const [contestRanking, setContestRanking] = useState<RankItemProps[]>([]);
   const [contestCursor, setContestCursor] = useState<number | undefined>(undefined);
@@ -170,14 +155,14 @@ export default function RankPage() {
   // 대회 순위: 시즌 목록 로드
   // ────────────────────────────────────────────────────────────────────────
   const fetchFinishedSeasons = useCallback(async () => {
-    if (!user?.memberId) return;
     setContestLoading(true);
     setContestError(null);
     try {
-      const seasons = await fetchFinishedSeasonsForMember(user.memberId);
+      const res = await getFinishedContestSeasons({ size: 50 });
+      const seasons = res.content || [];
       setFinishedSeasons(seasons);
       if (seasons.length > 0) {
-        setSelectedSeasonId(seasons[0].seasonId);
+        setSelectedSeasonId(seasons[0].id);
       }
     } catch (err) {
       console.error(err);
@@ -185,7 +170,7 @@ export default function RankPage() {
     } finally {
       setContestLoading(false);
     }
-  }, [user]);
+  }, []);
 
   // 시즌 순위 초기 로드
   const fetchContestRanking = useCallback(async (seasonId: number) => {
@@ -271,12 +256,12 @@ export default function RankPage() {
   useEffect(() => {
     if (activeTab === "followers") {
       fetchFollowerRanking();
-    } else if (activeTab === "contest" && isLogin) {
+    } else if (activeTab === "contest") {
       if (finishedSeasons.length === 0) {
         fetchFinishedSeasons();
       }
     }
-  }, [activeTab, isLogin, finishedSeasons.length, fetchFollowerRanking, fetchFinishedSeasons]);
+  }, [activeTab, finishedSeasons.length, fetchFollowerRanking, fetchFinishedSeasons]);
 
   // 시즌 선택 변경 시 순위 로드
   useEffect(() => {
@@ -373,42 +358,32 @@ export default function RankPage() {
       </div>
 
       {/* ── 종료된 대회 셀렉트 ───────────────────────────────────────────── */}
-      {activeTab === "contest" && isLogin && (
+      {activeTab === "contest" && (
         <div className="max-w-7xl mx-auto px-4 w-full">
           {finishedSeasons.length > 0 ? (
-            <div className="flex items-center gap-3">
-              <select
-                id="season-select"
+            <div className="flex flex-col gap-4 max-w-sm">
+              <label className="text-sm font-bold text-gray-500">대회 선택</label>
+              <Select
+                options={finishedSeasons.map((season) => ({
+                  label: `${season.title} (${formatToYYYYMMDD(season.contestEndAt)} 종료)`,
+                  value: season.id,
+                }))}
                 value={selectedSeasonId ?? ""}
-                onChange={(e) => setSelectedSeasonId(Number(e.target.value))}
-                className="flex-1 max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {finishedSeasons.map((season) => (
-                  <option key={season.seasonId} value={season.seasonId}>
-                    {season.seasonTitle}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setSelectedSeasonId(Number(v))}
+                fullWidth={true}
+                placeholder="대회 선택"
+              />
             </div>
           ) : !contestLoading ? (
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              참가한 종료된 대회가 없습니다.
+              종료된 대회가 없습니다.
             </p>
           ) : null}
         </div>
       )}
 
-      {/* ── 비로그인 안내 ────────────────────────────────────────────────── */}
-      {activeTab === "contest" && !isLogin && (
-        <div className="max-w-7xl mx-auto px-4 w-full flex flex-col items-center py-20 text-center">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            대회 순위를 보려면 로그인이 필요합니다.
-          </p>
-        </div>
-      )}
-
       {/* ── 리스트 + 무한스크롤 ─────────────────────────────────────────── */}
-      {(activeTab === "followers" || isLogin) && (
+      {(activeTab === "followers" || activeTab === "contest") && (
         <div className="max-w-7xl mx-auto px-4 w-full pb-10">
           {isInitialLoading ? (
             /* 초기 로딩 스켈레톤 */
