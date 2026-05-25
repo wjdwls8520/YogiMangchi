@@ -5,6 +5,7 @@ import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.asset.enums.AssetType;
 import com.yogimangchi.domain.contest.participant.dto.query.ContestParticipantSettlementAggregateDto;
@@ -59,6 +60,7 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
                 .join(approvedAdmin).on(approvedAdmin.id.eq(contestParticipant.approvedByAdminId))
                 .where(
                         seasonIdEq(seasonId),
+                        member.deleteYn.eq("N"),
                         cursorIdLt(request.cursorId())
                 )
                 .orderBy(contestParticipant.id.desc())
@@ -257,7 +259,9 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
                         contestParticipant.finalRank,
                         contestParticipant.id,
                         member.id,
-                        member.nickname,
+                        new CaseBuilder()
+                                .when(member.deleteYn.eq("Y")).then("탈퇴한 회원")
+                                .otherwise(member.nickname),
                         member.profileImgUrl,
                         contestParticipant.finalRealizedPnl,
                         contestParticipant.finalProfitRate
@@ -302,7 +306,9 @@ public class ContestParticipantRepositoryImpl implements ContestParticipantRepos
                         contestParticipant.finalRank,
                         contestParticipant.id,
                         member.id,
-                        member.nickname,
+                        new CaseBuilder()
+                                .when(member.deleteYn.eq("Y")).then("탈퇴한 회원")
+                                .otherwise(member.nickname),
                         member.profileImgUrl,
                         contestParticipant.finalRealizedPnl,
                         contestParticipant.finalProfitRate

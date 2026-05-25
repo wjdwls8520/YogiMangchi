@@ -155,6 +155,25 @@ public class FuturesOrderRepositoryImpl implements FuturesOrderRepositoryCustom 
                 .fetch();
     }
 
+    @Override
+    public List<FuturesPendingSymbolCountDto> findPendingLimitOrderCountsByMemberId(Long memberId) {
+        // 회원탈퇴 시 인메모리 Registry 차감용 — 해당 회원의 모든 PENDING 지정가 주문을 심볼별 카운트
+        return queryFactory
+                .select(Projections.constructor(
+                        FuturesPendingSymbolCountDto.class,
+                        futuresOrder.symbol,
+                        futuresOrder.count()
+                ))
+                .from(futuresOrder)
+                .join(futuresOrder.assets, assets)
+                .where(
+                        pendingLimitOrder(),
+                        assets.member.id.eq(memberId)
+                )
+                .groupBy(futuresOrder.symbol)
+                .fetch();
+    }
+
     // 활성 상태 자산만 — 만료/비활성 자산의 주문은 체결 트리거 대상에서 제외
     private BooleanExpression activeAssetStatus() {
         return assets.status.eq("ACTIVE");

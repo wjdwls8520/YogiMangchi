@@ -154,4 +154,17 @@ public interface AssetRepository extends JpaRepository<Assets, Long> {
             @Param("contestSeasonId") Long contestSeasonId,
             @Param("now") LocalDateTime now
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Assets a
+            SET a.status = 'INACTIVE',
+                a.updatedAt = :now
+            WHERE a.member.id = :memberId
+              AND a.status = 'ACTIVE'
+            """)
+    int deactivateWalletsByMemberId(
+            @Param("memberId") Long memberId,
+            @Param("now") LocalDateTime now
+    );
 }

@@ -33,6 +33,18 @@ public class LimitOrderSignalRegistry {
         );
     }
 
+    // 지정가 주문 카운트 일괄 감소 (0이 되면 맵에서 제거)
+    public void decrementOpenOrder(String symbol, int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        String normalizedSymbol = normalize(symbol);
+        openOrderCounts.computeIfPresent(normalizedSymbol, (key, count) -> {
+            int remaining = count.addAndGet(-amount);
+            return remaining <= 0 ? null : count;
+        });
+    }
+
     // 서버 기동 시 초기 카운트 설정
     public void initializeCounts(Map<String, Long> counts) {
         counts.forEach((symbol, count) ->

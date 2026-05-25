@@ -45,6 +45,7 @@ public class ContestRejectedApplicantRepositoryImpl implements ContestRejectedAp
                 .join(rejectedAdmin).on(rejectedAdmin.id.eq(contestRejectedApplicant.rejectedByAdminId))
                 .where(
                         seasonIdEq(seasonId),
+                        member.deleteYn.eq("N"),
                         cursorIdLt(request.cursorId())
                 )
                 .orderBy(contestRejectedApplicant.id.desc())

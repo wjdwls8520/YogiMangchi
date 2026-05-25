@@ -151,6 +151,42 @@ public class FuturesPositionRepositoryImpl implements FuturesPositionRepositoryC
                 .fetch();
     }
 
+    @Override
+    public List<FuturesOpenPositionSymbolCountDto> findOpenPositionCountsByMemberId(Long memberId) {
+        // 회원탈퇴 시 인메모리 Registry 차감용 — 해당 회원의 모든 OPEN 포지션을 심볼별 카운트
+        return queryFactory
+                .select(Projections.constructor(
+                        FuturesOpenPositionSymbolCountDto.class,
+                        futuresPosition.symbol,
+                        futuresPosition.count()
+                ))
+                .from(futuresPosition)
+                .join(futuresPosition.assets, assets)
+                .where(
+                        openPosition(),
+                        assets.member.id.eq(memberId)
+                )
+                .groupBy(futuresPosition.symbol)
+                .fetch();
+    }
+
+    @Override
+    public List<Long> findOpenPositionIdsByMemberIdAfterId(Long memberId, Long lastId, int size) {
+        // 회원탈퇴 시 비동기 청크 청산용 — 회원의 모든 OPEN 포지션 ID keyset 페이징
+        return queryFactory
+                .select(futuresPosition.id)
+                .from(futuresPosition)
+                .join(futuresPosition.assets, assets)
+                .where(
+                        openPosition(),
+                        assets.member.id.eq(memberId),
+                        futuresPosition.id.gt(lastId)
+                )
+                .orderBy(futuresPosition.id.asc())
+                .limit(size)
+                .fetch();
+    }
+
     // 활성 상태 지갑만 — 비활성/만료 지갑의 포지션은 청산 대상에서 제외
     private BooleanExpression activeAssetStatus() {
         return assets.status.eq("ACTIVE");

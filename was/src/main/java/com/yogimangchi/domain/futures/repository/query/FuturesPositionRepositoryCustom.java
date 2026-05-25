@@ -36,4 +36,10 @@ public interface FuturesPositionRepositoryCustom {
 
     // 대회 정산 시 — 해당 시즌의 OPEN 포지션을 심볼별 카운트 (인메모리 차감용)
     List<FuturesOpenPositionSymbolCountDto> findOpenPositionCountsByContestSeason(Long contestSeasonId);
+
+    // 회원탈퇴 시 — 해당 회원의 OPEN 포지션을 심볼별 카운트 (인메모리 차감용)
+    List<FuturesOpenPositionSymbolCountDto> findOpenPositionCountsByMemberId(Long memberId);
+
+    // 회원탈퇴 시 — 해당 회원의 OPEN 포지션 ID 목록을 keyset 페이징으로 조회
+    List<Long> findOpenPositionIdsByMemberIdAfterId(Long memberId, Long lastId, int size);
 }
