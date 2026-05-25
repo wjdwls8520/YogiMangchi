@@ -202,6 +202,26 @@ public class OrderRepositoryImpl implements OrderRepositoryCustom {
                 ));
     }
 
+    @Override
+    public List<com.yogimangchi.domain.spot.dto.query.SpotPendingSymbolCountDto> findPendingLimitOrderCountsByMemberId(Long memberId) {
+        // 회원 탈퇴 시 — 회원의 현물 미체결 지정가 주문을 심볼별 카운트 (인메모리 차감용)
+        return queryFactory
+                .select(Projections.constructor(
+                        com.yogimangchi.domain.spot.dto.query.SpotPendingSymbolCountDto.class,
+                        order.symbol,
+                        order.count()
+                ))
+                .from(order)
+                .join(order.assets, assets)
+                .where(
+                        limitOrderType(),
+                        openStatus(),
+                        assets.member.id.eq(memberId)
+                )
+                .groupBy(order.symbol)
+                .fetch();
+    }
+
     private BooleanExpression assetTypeEq(AssetType assetType) {
         return assetType != null ? assets.type.eq(assetType) : null;
     }

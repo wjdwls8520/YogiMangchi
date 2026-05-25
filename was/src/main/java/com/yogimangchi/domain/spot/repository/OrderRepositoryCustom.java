@@ -28,4 +28,7 @@ public interface OrderRepositoryCustom {
 
     // 서버 기동 시 복구할 심볼별 미체결 지정가 주문 개수 조회
     Map<String, Long> countOpenLimitOrdersPerSymbol();
+
+    // 회원 탈퇴 시 — 회원의 현물 미체결 지정가 주문을 심볼별 카운트 (인메모리 차감용)
+    List<com.yogimangchi.domain.spot.dto.query.SpotPendingSymbolCountDto> findPendingLimitOrderCountsByMemberId(Long memberId);
 }

@@ -11,6 +11,7 @@ import com.yogimangchi.domain.member.entity.OAuthAccount;
 import com.yogimangchi.domain.member.entity.WithdrawnOAuthAccount;
 import com.yogimangchi.domain.member.enums.MemberRole;
 import com.yogimangchi.global.exception.member.MemberException;
+import com.yogimangchi.domain.member.event.MemberWithdrawnEvent;
 import com.yogimangchi.domain.member.repository.MemberFollowRepository;
 import com.yogimangchi.domain.member.repository.MemberRepository;
 import com.yogimangchi.domain.member.repository.OAuthAccountRepository;
@@ -21,6 +22,7 @@ import com.yogimangchi.global.s3.service.S3UploadResult;
 import com.yogimangchi.global.support.MemberReader;
 import com.yogimangchi.global.validator.NicknameValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,7 @@ public class MemberService {
     private final MemberReader memberReader;
     private final S3Service s3Service;
     private final EmailVerificationService emailVerificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public NicknameDuplicationDto isAvailableNickname(String nickname) {
@@ -184,6 +187,7 @@ public class MemberService {
         scheduleRefreshTokenRemoval(loginMemberId);
         scheduleWithdrawnProfileImageDeletion(profileImgUrl);
         emailVerificationService.deleteEmailVerificationKeys(loginMemberId);
+        eventPublisher.publishEvent(new MemberWithdrawnEvent(loginMemberId));
     }
 
     private boolean hasProfileImage(MultipartFile profileImage) {

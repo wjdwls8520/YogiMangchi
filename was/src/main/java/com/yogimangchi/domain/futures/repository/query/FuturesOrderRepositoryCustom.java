@@ -27,4 +27,7 @@ public interface FuturesOrderRepositoryCustom {
 
     // 대회 정산 시 — 해당 시즌의 PENDING 지정가 주문을 심볼별 카운트 (인메모리 차감용)
     List<FuturesPendingSymbolCountDto> findPendingLimitOrderCountsByContestSeason(Long contestSeasonId);
+
+    // 회원탈퇴 시 — 해당 회원의 PENDING 지정가 주문을 심볼별 카운트 (인메모리 차감용)
+    List<FuturesPendingSymbolCountDto> findPendingLimitOrderCountsByMemberId(Long memberId);
 }
