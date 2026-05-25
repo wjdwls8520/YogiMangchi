@@ -34,7 +34,9 @@ public class ReplyRepositoryImpl implements ReplyRepositoryCustom {
                         reply.createdAt,
                         reply.updatedAt,
                         reply.post.id,
-                        reply.member.id
+                        reply.member.id,
+                        member.nickname,
+                        post.title
                 ))
                 .from(reply)
                 .join(reply.post, post)

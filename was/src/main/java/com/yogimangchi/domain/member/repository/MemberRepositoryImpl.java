@@ -3,6 +3,7 @@ package com.yogimangchi.domain.member.repository;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.yogimangchi.domain.member.enums.MemberRole;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.yogimangchi.domain.member.dto.request.AdminMemberSearchDto;
 import com.yogimangchi.domain.member.dto.response.AdminMemberResponseDto;
@@ -50,6 +51,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                         memberIdEq(searchDto.memberId()),
                         nicknameContains(searchDto.nickname()),
                         statusEq(searchDto.status()),
+                        roleEq(searchDto.role()),
                         cursorIdLt(searchDto.cursorId())
                 )
                 .orderBy(member.id.desc())
@@ -79,6 +81,18 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
             return member.deleteYn.eq("Y");
         }
         return null;
+    }
+
+    private BooleanExpression roleEq(String role) {
+        if (!StringUtils.hasText(role) || "ALL".equalsIgnoreCase(role)) {
+            return null;
+        }
+        try {
+            MemberRole memberRole = MemberRole.valueOf(role.toUpperCase().trim());
+            return member.role.eq(memberRole);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private BooleanExpression cursorIdLt(Long cursorId) {

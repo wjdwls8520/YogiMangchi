@@ -34,7 +34,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                         post.deleteYn,
                         post.createdAt,
                         post.updatedAt,
-                        post.member.id
+                        post.member.id,
+                        member.nickname
                 ))
                 .from(post)
                 .join(post.member, member)
