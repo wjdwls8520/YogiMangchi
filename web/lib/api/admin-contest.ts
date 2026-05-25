@@ -74,9 +74,17 @@ export type ContestCursorResponse<T> = {
   hasNext?: boolean;
 };
 
-// datetime-local 입력값은 초가 빠지므로 백엔드 date-time 형식에 맞게 보정합니다.
+// datetime-local 입력값은 초가 빠지거나 형식이 다를 수 있으므로 백엔드 date-time(ISO) 형식에 맞게 엄격하게 보정합니다.
 const toApiDateTimeString = (value: string) => {
-  return value.length === 16 ? `${value}:00` : value;
+  if (!value) return value;
+  try {
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISO = new Date(date.getTime() - offset).toISOString();
+    return localISO.slice(0, 19); // YYYY-MM-DDTHH:mm:ss
+  } catch (e) {
+    return value.length === 16 ? `${value}:00` : value;
+  }
 };
 
 // 관리자용 대회 시즌 생성

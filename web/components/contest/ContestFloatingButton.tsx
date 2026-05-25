@@ -11,13 +11,7 @@ export default function ContestFloatingButton() {
     verifyRedirectMode: "push",
   });
 
-  const handleOpenModal = async () => {
-    const canOpenModal = await requireVerifiedUser();
-
-    if (!canOpenModal) {
-      return;
-    }
-
+  const handleOpenModal = () => {
     setIsModalOpen(true);
   };
 

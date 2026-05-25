@@ -31,23 +31,8 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
     const [applyingSeasonId, setApplyingSeasonId] = useState<number | null>(null);
     const [nextSeasonCursorId, setNextSeasonCursorId] = useState<number | null>(null);
     const [hasNextSeason, setHasNextSeason] = useState(false);
-    const canViewContest = isLogin && !!user && user.role !== "USER";
 
     useEffect(() => {
-        if (!canViewContest) {
-            setContestSeasons([]);
-            setIsLoadingSeason(false);
-            setIsLoadingMoreSeason(false);
-            setNextSeasonCursorId(null);
-            setHasNextSeason(false);
-            setSeasonErrorMessage(
-                !isLogin || !user
-                    ? "로그인 후 대회 정보를 확인할 수 있습니다."
-                    : "대회 정보는 인증회원만 확인할 수 있습니다."
-            );
-            return;
-        }
-
         let isActive = true;
 
         const loadRecruitingSeason = async ({
@@ -65,10 +50,11 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
             }
 
             try {
+                const isVerified = isLogin && !!user && user.role !== "USER";
                 const response = await getRecruitingContestSeasons({
                     cursorId: reset ? undefined : cursorId,
                     size: RECRUITING_CONTEST_PAGE_SIZE,
-                });
+                }, isVerified);
                 const nextSeasons =
                     response && Array.isArray(response.content)
                         ? response.content
@@ -122,7 +108,7 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
         return () => {
             isActive = false;
         };
-    }, [alert, canViewContest, isLogin, user]);
+    }, [alert]);
 
     const handleApply = async (season: ContestSeason) => {
         if (isLoadingSeason) {
@@ -165,10 +151,11 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
         setIsLoadingMoreSeason(true);
 
         try {
+            const isVerified = isLogin && !!user && user.role !== "USER";
             const response = await getRecruitingContestSeasons({
                 cursorId: nextSeasonCursorId,
                 size: RECRUITING_CONTEST_PAGE_SIZE,
-            });
+            }, isVerified);
             const nextSeasons =
                 response && Array.isArray(response.content)
                     ? response.content
@@ -227,6 +214,7 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                   ? "모집중"
                   : translateContestDisplayStatus(season);
                 const isRecruiting = season.isRecruiting !== false;
+                const isVerified = isLogin && !!user && user.role !== "USER";
 
                 return (
                   <div
@@ -254,6 +242,14 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                       <div className="mt-4 rounded-xl bg-blue-50 p-4 text-xs font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                         이미 이 대회에 신청한 상태입니다.
                       </div>
+                    ) : !isLogin ? (
+                      <div className="mt-4 rounded-xl bg-amber-50 p-4 text-xs font-bold text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                        로그인 후 대회에 참가할 수 있습니다.
+                      </div>
+                    ) : !isVerified ? (
+                      <div className="mt-4 rounded-xl bg-amber-50 p-4 text-xs font-bold text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                        인증회원만 대회에 참가할 수 있습니다.
+                      </div>
                     ) : null}
 
                     <div className="mt-4">
@@ -265,8 +261,8 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                           isLoadingSeason ||
                           isApplying ||
                           isAlreadyApplied ||
-                          !canViewContest ||
-                          !isRecruiting
+                          !isRecruiting ||
+                          (isLogin && !isVerified)
                         }
                       >
                         {isAlreadyApplied
@@ -275,9 +271,11 @@ export default function ContestDetailModal({ onClose }: { onClose: () => void })
                             ? "신청 처리 중..."
                             : !isRecruiting
                               ? "모집이 종료된 대회입니다"
-                              : !canViewContest
-                                ? "인증회원만 참가 가능합니다"
-                                : "참가 신청"}
+                              : !isLogin 
+                                ? "로그인 후 참가"
+                                : !isVerified
+                                  ? "인증 후 참가 가능"
+                                  : "참가 신청"}
                       </Button>
                     </div>
                   </div>

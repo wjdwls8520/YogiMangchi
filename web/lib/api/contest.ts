@@ -161,12 +161,27 @@ export const inferContestIsCanceled = ({
 };
 
 // 현재 참가 신청을 받고 있는 대회 시즌 목록 조회
-export const getRecruitingContestSeasons = async ({
-  cursorId,
-  size,
-}: CursorParams = {}) => {
+export const getRecruitingContestSeasons = async (
+  params: CursorParams = {},
+  isAuth: boolean = false
+) => {
+  const path = isAuth ? 'contest/seasons/recruiting' : 'contest/public/recruiting';
   return fetchClient(
-    `contest/seasons/recruiting${buildCursorQuery({ cursorId, size })}`
+    `${path}${buildCursorQuery(params)}`
+  ) as Promise<ContestCursorResponse<ContestSeason>>;
+};
+
+// 진행 중이거나 예정된 공개 대회 목록 조회
+export const getPublishedContestSeasons = async (params: CursorParams = {}) => {
+  return fetchClient(
+    `contest/public/running${buildCursorQuery(params)}`
+  ) as Promise<ContestCursorResponse<ContestSeason>>;
+};
+
+// 종료된 대회 목록 조회
+export const getFinishedContestSeasons = async (params: CursorParams = {}) => {
+  return fetchClient(
+    `contest/public/finished${buildCursorQuery(params)}`
   ) as Promise<ContestCursorResponse<ContestSeason>>;
 };
 
@@ -259,4 +274,25 @@ export const getMemberContestSeasonResult = async (seasonId: number, memberId: n
     method: "GET",
   }) as Promise<MemberContestSeasonResult>;
 };
+
+export type ContestRanking = {
+  rank: number;
+  participantId: number;
+  memberId: number;
+  nickname: string;
+  profileImgUrl: string | null;
+  realizedPnl: number;
+  profitRate: number;
+};
+
+// 대회 종료 후 참가자 순위 리스트 조회 (무한 스크롤)
+export const getContestResults = async (
+  seasonId: number,
+  { cursorId, size }: CursorParams = {}
+) => {
+  return fetchClient(
+    `contest/seasons/${seasonId}/results${buildCursorQuery({ cursorId, size })}`
+  ) as Promise<ContestCursorResponse<ContestRanking>>;
+};
+
 
