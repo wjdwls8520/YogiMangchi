@@ -59,7 +59,8 @@ public class SecurityConfig {
                                 // "/api/v1/chartapi/**",
                                 "/api/v1/member/nickname/duplication",
                                 "/api/v1/market/**",
-                                "/api/v1/asset/mock/status"
+                                "/api/v1/asset/mock/status",
+                                "/api/v1/contest/public/**"
                         ).permitAll()
                         // 내 정보 관련은 로그인 필요
                         .requestMatchers("/api/v1/member/me", "/api/v1/member/me/**").authenticated()

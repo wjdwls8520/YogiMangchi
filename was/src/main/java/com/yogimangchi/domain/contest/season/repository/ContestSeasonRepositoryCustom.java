@@ -9,4 +9,10 @@ import java.util.List;
 public interface ContestSeasonRepositoryCustom {
 
     List<ContestSeason> searchApplicableContestSeasons(ContestSeasonSearchDto request, LocalDateTime now);
+
+    List<ContestSeason> searchPublicRecruitingContestSeasons(ContestSeasonSearchDto request, LocalDateTime now);
+
+    List<ContestSeason> searchPublicRunningContestSeasons(ContestSeasonSearchDto request, LocalDateTime now);
+
+    List<ContestSeason> searchPublicFinishedContestSeasons(ContestSeasonSearchDto request, LocalDateTime now);
 }
