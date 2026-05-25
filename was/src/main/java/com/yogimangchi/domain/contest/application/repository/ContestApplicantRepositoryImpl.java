@@ -37,6 +37,7 @@ public class ContestApplicantRepositoryImpl implements ContestApplicantRepositor
                 .join(contestApplicant.member, member)
                 .where(
                         seasonIdEq(seasonId),
+                        member.deleteYn.eq("N"),
                         cursorIdLt(request.cursorId())
                 )
                 .orderBy(contestApplicant.id.desc())

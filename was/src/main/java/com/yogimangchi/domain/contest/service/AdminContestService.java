@@ -155,6 +155,10 @@ public class AdminContestService {
 
         contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
 
+        if (contestApplicant.getMember().isDeleted()) {
+            throw new IllegalArgumentException("탈퇴한 회원의 신청서는 처리할 수 없습니다.");
+        }
+
         // 이미 참가자로 등록된 회원이면 중복 승인하지 않는다.
         if (contestParticipantRepository.existsByMemberAndContestSeason(
                 contestApplicant.getMember(),
@@ -203,6 +207,10 @@ public class AdminContestService {
                 .orElseThrow(ContestException::contestApplicantNotFound);
 
         contestApplicationValidator.validateApprovableContestSeason(contestApplicant.getContestSeason());
+
+        if (contestApplicant.getMember().isDeleted()) {
+            throw new IllegalArgumentException("탈퇴한 회원의 신청서는 처리할 수 없습니다.");
+        }
 
         // 반려 사유와 함께 반려 이력으로 저장한다.
         ContestRejectedApplicant contestRejectedApplicant =
