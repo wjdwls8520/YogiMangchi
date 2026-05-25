@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface ReplyRepository extends JpaRepository<Reply, Long> {
+public interface ReplyRepository extends JpaRepository<Reply, Long>, ReplyRepositoryCustom {
 
     @Modifying
     @Query("update Reply r set r.replyCount = r.replyCount + 1 where r.id = :parentId")
