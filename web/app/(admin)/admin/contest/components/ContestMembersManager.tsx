@@ -26,7 +26,7 @@ const MEMBERS_PAGE_SIZE = 5;
 type ContestMembersManagerProps = {
   seasonId: number;
   initialTab?: ContestMembersTab;
-  onUpdated?: () => void;
+  onUpdated?: (action?: "approve" | "reject") => void;
   showTabs?: boolean;
   canProcessApplicants?: boolean;
   processBlockedMessage?: string;
@@ -226,7 +226,8 @@ export default function ContestMembersManager({
       });
       setSelectedApplicantIds([]);
       await loadMemberLists();
-      onUpdated?.();
+      setActiveTab("participants");
+      onUpdated?.("approve");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
 
@@ -244,6 +245,12 @@ export default function ContestMembersManager({
 
       if (message.includes("409")) {
         await alert(processBlockedMessage);
+        return;
+      }
+
+      if (message.includes("이미 참가 중인 대회입니다") || message.includes("ALREADY_PARTICIPATING")) {
+        await alert("이미 승인 처리된 신청자입니다. 목록을 새로고침합니다.");
+        await loadMemberLists();
         return;
       }
 
@@ -278,7 +285,8 @@ export default function ContestMembersManager({
       });
       setSelectedApplicantIds([]);
       await loadMemberLists();
-      onUpdated?.();
+      setActiveTab("rejected");
+      onUpdated?.("reject");
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "";

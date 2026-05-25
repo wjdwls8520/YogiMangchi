@@ -55,7 +55,7 @@ export default function Slider({
                 momentumLastFrameTimeRef.current = timestamp;
 
                 el.scrollLeft += momentumVelocityRef.current * frameDuration;
-                momentumVelocityRef.current *= Math.pow(0.5, frameDuration / 16.67);//멈춤속도 조절
+                momentumVelocityRef.current *= Math.pow(0.88, frameDuration / 16.67);//멈춤속도 조절
 
                 if (Math.abs(momentumVelocityRef.current) < 0.02) {
                     momentumVelocityRef.current = 0;
@@ -107,8 +107,6 @@ export default function Slider({
             lastPointerTimeRef.current = performance.now();
 
             el.style.cursor = "grabbing";
-            el.setPointerCapture?.(e.pointerId);
-            e.preventDefault();
         };
 
         const onPointerUp = (e: PointerEvent) => {
@@ -116,7 +114,6 @@ export default function Slider({
 
             isDownRef.current = false;
             el.style.cursor = "grab";
-            el.releasePointerCapture?.(e.pointerId);
             startMomentum();
 
             // 추가: 슬라이더 밖에서 손을 떼도 isDraggingRef 초기화
@@ -139,7 +136,7 @@ export default function Slider({
             }
 
             el.scrollLeft = scrollLeftRef.current - walk;
-            momentumVelocityRef.current = (-pointerDelta / timeDelta) * 3; //넘어가는 속도 조절
+            momentumVelocityRef.current = (-pointerDelta / timeDelta) * 1.5; //넘어가는 속도 조절
             lastPointerXRef.current = e.clientX;
             lastPointerTimeRef.current = currentTime;
             e.preventDefault();
@@ -149,7 +146,6 @@ export default function Slider({
             isDownRef.current = false;
             isDraggingRef.current = false;
             el.style.cursor = "grab";
-            el.releasePointerCapture?.(e.pointerId);
             startMomentum();
         };        
 

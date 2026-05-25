@@ -212,7 +212,10 @@ export default function OrderForm({
       if (isLimit) {
         setOrderQuantity(toInputValue(maxBuyQty * ratio));
       } else {
-        setOrderAmount(toInputValue(usdtBalance * ratio, 2));
+        // 시장가 매수 시: 가용 자금 전체를 쓰면 수수료 때문에 초과될 수 있으므로
+        // 수수료를 포함하여 결제할 수 있는 최대 안전 금액을 계산
+        const maxSafeAmount = usdtBalance / (1 + currentFeeRate);
+        setOrderAmount(toInputValue(maxSafeAmount * ratio, 2));
       }
     } else {
       if (availableHolding <= 0) {

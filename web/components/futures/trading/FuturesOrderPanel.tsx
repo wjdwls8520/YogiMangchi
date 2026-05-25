@@ -208,23 +208,31 @@ export default function FuturesOrderPanel({
   const getOpenEstimate = (side: FuturesPositionSide) => {
     const sideLeverageInfo = getSideLeverageInfo(side);
     const leverage = sideLeverageInfo?.leverage ?? 0;
+    
+    // 수수료를 포함하여 가용 잔고 내에서 체결할 수 있는 진짜 최대 명목 금액
     const balanceMaxNotional =
       leverage > 0
         ? (availableBalance * leverage) / (1 + currentFeeRate * leverage)
         : 0;
+        
     const leverageMaxNotional =
       sideLeverageInfo && sideLeverageInfo.availableOrderNotionalAmount > 0
         ? sideLeverageInfo.availableOrderNotionalAmount
         : balanceMaxNotional;
+        
+    // 부동소수점 오차로 인해 가용 자금을 초과하는 현상을 막기 위해 0.9999 등 미세하게 깎는 방법도 있으나
+    // 금액이 작을 때를 고려해 안전마진 없이 정확하게 계산된 값을 활용하되, 미세한 절사를 추가합니다.
     const maxNotional =
       balanceMaxNotional > 0 && leverageMaxNotional > 0
-        ? Math.min(balanceMaxNotional, leverageMaxNotional)
-        : Math.max(balanceMaxNotional, leverageMaxNotional);
+        ? Math.min(balanceMaxNotional, leverageMaxNotional) * 0.999999
+        : Math.max(balanceMaxNotional, leverageMaxNotional) * 0.999999;
+        
     const maxQty = refPrice > 0 ? maxNotional / refPrice : 0;
     const orderQty =
       selectedOpenRatio !== null
         ? maxQty * selectedOpenRatio
         : numQty;
+        
     const estNotional =
       Number.isFinite(orderQty) && orderQty > 0 && refPrice > 0
         ? orderQty * refPrice

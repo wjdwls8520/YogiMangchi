@@ -219,7 +219,7 @@ export default function AssetTransferModal({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0"
-                  className="w-full h-16 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-800 rounded-xl px-4 pr-16 text-2xl font-black text-gray-900 dark:text-white outline-none focus:border-[#0058FF] transition-all placeholder:text-gray-300 dark:placeholder:text-gray-700"
+                  className="w-full h-16 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-800 rounded-xl px-4 pr-16 text-2xl font-black text-gray-900 dark:text-white outline-none focus:border-[#0058FF] transition-all placeholder:text-gray-300 dark:placeholder:text-gray-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
                   <span className="text-sm font-bold text-gray-400">{CURRENCY_UNIT}</span>

@@ -495,7 +495,14 @@ export default function AdminContestDetailPage() {
                 key={activeTab}
                 seasonId={season.id}
                 initialTab={activeTab as ContestMembersTab}
-                onUpdated={loadSeason}
+                onUpdated={(action) => {
+                  void loadSeason();
+                  if (action === "approve") {
+                    setActiveTab("participants");
+                  } else if (action === "reject") {
+                    setActiveTab("rejected");
+                  }
+                }}
                 showTabs={false} // 내부 탭은 숨기고 상위 커스텀 탭으로 제어
                 canProcessApplicants={canProcessApplicants}
                 processBlockedMessage={processBlockedMessage}

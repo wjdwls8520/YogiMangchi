@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/cs";
 import { Post } from "../types/post";
 import UserAvatar from "@/components/user/UserAvatar";
@@ -21,6 +21,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useWithAuth } from "@/hooks/useWithAuth";
 import { useActionMenuUIStore } from "@/stores/useActionMenuUIStore";
+import ImageViewerModal from "@/components/ImageViewerModal";
 
 interface Props {
   post: Post;
@@ -59,6 +60,10 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
 
     const isSlide = (currentPost?.files?.length ?? 0) > 2;
     const profileImage = currentPost.profileImgUrl ?? currentPost.profileImg;
+
+    // 이미지 뷰어 상태
+    const [isViewerOpen, setIsViewerOpen] = useState(false);
+    const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
     const toggleActionMenu = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -178,6 +183,13 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
     };
     }, [openActionMenu, setActionMenu]);
 
+    const handleImageClick = (e: React.MouseEvent, index: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setViewerInitialIndex(index);
+      setIsViewerOpen(true);
+    };
+
     const contentSection = (
       <>
         <div>
@@ -199,14 +211,15 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
         </div>
 
         {currentPost?.files?.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-4 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
               {isSlide ? (
               <Slider snap={false}>
                 <ul className="flex gap-2.5 w-full pb-2">
-                  {currentPost?.files.map((file) => (
+                  {currentPost?.files.map((file, index) => (
                     <li 
                       key={file.id}
-                      className="snap-start shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+                      className="relative z-10 snap-start shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-pointer"
+                      onClick={(e) => handleImageClick(e, index)}
                     >
                       <Image 
                         src={file.previewUrl ? file.previewUrl : file.path} 
@@ -214,7 +227,7 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
                         width={500} 
                         height={500} 
                         draggable={false}
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 pointer-events-none"
                       />
                     </li>
                   ))}
@@ -222,10 +235,11 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
               </Slider>
             ) : (
               <ul className="flex gap-2.5 w-full">
-                {currentPost?.files.map((file) => (
+                {currentPost?.files.map((file, index) => (
                   <li 
                     key={file.id}
-                    className="shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50"
+                    className="relative z-10 shrink-0 w-[45%] md:w-[40%] aspect-[4/3] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-pointer"
+                    onClick={(e) => handleImageClick(e, index)}
                   >
                     <Image 
                       src={file.previewUrl ? file.previewUrl : file.path} 
@@ -233,7 +247,7 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
                       width={500} 
                       height={500} 
                       draggable={false}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 pointer-events-none"
                     />
                   </li>
                 ))}
@@ -323,7 +337,21 @@ export default function CommunityItem({ post, isDetail = false }: Props) {
             </li>                
           </ul>
         </div>
-      </div>        
+      </div>
+      
+      {/* ImageViewerModal */}
+      {isViewerOpen && (
+        <ImageViewerModal
+          isOpen={isViewerOpen}
+          onClose={() => setIsViewerOpen(false)}
+          initialIndex={viewerInitialIndex}
+          images={currentPost?.files?.map((file) => ({
+            id: file.id,
+            url: file.previewUrl ? file.previewUrl : file.path,
+            alt: file.originalname || "게시글 이미지",
+          })) ?? []}
+        />
+      )}
     </>
     )
 }
