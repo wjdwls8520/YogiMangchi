@@ -11,7 +11,7 @@ RUN npm ci
 # 소스 복사 및 독립형(Standalone) 빌드 진행
 COPY . .
 
-ENV NEXT_PUBLIC_API_URL=http://13.125.99.130.nip.io
+ENV NEXT_PUBLIC_API_URL=https://yogimangchi.com
 
 RUN npm run build
 
