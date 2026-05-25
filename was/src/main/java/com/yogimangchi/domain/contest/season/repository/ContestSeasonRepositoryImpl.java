@@ -40,6 +40,59 @@ public class ContestSeasonRepositoryImpl implements ContestSeasonRepositoryCusto
                 .and(contestSeason.recruitmentEndAt.goe(now));
     }
 
+    @Override
+    public List<ContestSeason> searchPublicRecruitingContestSeasons(ContestSeasonSearchDto request, LocalDateTime now) {
+        int limitSize = request.getOrDefaultSize();
+
+        return queryFactory
+                .selectFrom(contestSeason)
+                .where(
+                        contestSeason.isPublic.isTrue(),
+                        contestSeason.isCancel.isFalse(),
+                        contestSeason.recruitmentStartAt.loe(now),
+                        contestSeason.recruitmentEndAt.goe(now),
+                        cursorIdLt(request.cursorId())
+                )
+                .orderBy(contestSeason.id.desc())
+                .limit(limitSize + 1L)
+                .fetch();
+    }
+
+    @Override
+    public List<ContestSeason> searchPublicRunningContestSeasons(ContestSeasonSearchDto request, LocalDateTime now) {
+        int limitSize = request.getOrDefaultSize();
+
+        return queryFactory
+                .selectFrom(contestSeason)
+                .where(
+                        contestSeason.isPublic.isTrue(),
+                        contestSeason.isCancel.isFalse(),
+                        contestSeason.contestStartAt.loe(now),
+                        contestSeason.contestEndAt.goe(now),
+                        cursorIdLt(request.cursorId())
+                )
+                .orderBy(contestSeason.id.desc())
+                .limit(limitSize + 1L)
+                .fetch();
+    }
+
+    @Override
+    public List<ContestSeason> searchPublicFinishedContestSeasons(ContestSeasonSearchDto request, LocalDateTime now) {
+        int limitSize = request.getOrDefaultSize();
+
+        return queryFactory
+                .selectFrom(contestSeason)
+                .where(
+                        contestSeason.isPublic.isTrue(),
+                        contestSeason.isCancel.isFalse(),
+                        contestSeason.contestEndAt.lt(now),
+                        cursorIdLt(request.cursorId())
+                )
+                .orderBy(contestSeason.id.desc())
+                .limit(limitSize + 1L)
+                .fetch();
+    }
+
     private BooleanExpression cursorIdLt(Long cursorId) {
         return cursorId != null ? contestSeason.id.lt(cursorId) : null;
     }
