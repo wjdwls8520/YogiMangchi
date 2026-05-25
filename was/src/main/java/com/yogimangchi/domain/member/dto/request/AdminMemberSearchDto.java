@@ -7,6 +7,9 @@ public record AdminMemberSearchDto(
         @Schema(description = "회원 상태 필터 (ALL: 전체, ACTIVE: 활성 회원만, WITHDRAWN: 탈퇴 회원만)", example = "ALL", defaultValue = "ALL")
         String status,
 
+        @Schema(description = "권한 역할 필터 (ALL: 전체, USER: 일반 회원, VERIFIED_USER: 인증 회원, ADMIN: 어드민)", example = "ALL", defaultValue = "ALL")
+        String role,
+
         @Schema(description = "특정 회원 ID 검색", example = "12", nullable = true)
         Long memberId,
 
