@@ -59,6 +59,10 @@ import {
   formatSignedPercent
 } from "@/lib/utils/number";
 import {
+  getFuturesPositionMetrics,
+  type FuturesPositionLike,
+} from "@/lib/utils/futures-position";
+import {
   getBaseAssetLabel,
   getDefaultQuoteAssetLabel,
   getDisplaySymbolLabel,
@@ -68,8 +72,7 @@ import {
   getUnifiedRealAssetDetail,
   type RealAssetUnifiedResponse,
   type AssetPortfolioDetail,
-  type FuturesPortfolioDetail,
-  type FuturesPositionDetail
+  type FuturesPortfolioDetail
 } from "@/lib/api/asset";
 import {
   getMyParticipatingContestSeasons,
@@ -133,6 +136,26 @@ const CHART_COLORS = [
 ];
 
 const FOLLOW_MEMBERS_PAGE_SIZE = 5;
+const ZERO_QUANTITY_NOTICE_TEXT =
+  "보유수량 또는 포지션 수량이 0인 항목은 과거 거래 이력과 평균매수가/진입가 확인을 위해 표시됩니다. 현재 보유 중인 수량이 없어 평가금액, 평가손익, 수익률은 0으로 표시될 수 있습니다.";
+
+const hasZeroHoldingQuantity = (
+  holdings: Array<{ quantity?: number | string | null }>
+) => {
+  return holdings.some((item) => Number(item.quantity ?? 0) <= 0);
+};
+
+const hasZeroPositionQuantity = (positions: FuturesPositionLike[]) => {
+  return positions.some((position) => getFuturesPositionMetrics(position).quantity <= 0);
+};
+
+function ZeroQuantityNotice() {
+  return (
+    <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-left text-xs font-semibold leading-relaxed text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+      {ZERO_QUANTITY_NOTICE_TEXT}
+    </div>
+  );
+}
 
 
 const getJson = async (response: Response) => {
@@ -209,20 +232,133 @@ function RealtimeAssetSummary({
 
   portfolio.holdings.forEach((holding) => {
     const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
-    totalCoinValue += holding.quantity * realtimePrice;
-    totalBuyAmount += holding.buyAmount;
+    totalCoinValue += (holding.quantity ?? 0) * realtimePrice;
+    totalBuyAmount += holding.buyAmount ?? 0;
   });
 
-  const totalProfit = totalCoinValue - totalBuyAmount;
-  const totalRoi = totalBuyAmount > 0 ? (totalProfit / totalBuyAmount) * 100 : 0;
-  const totalAsset = portfolio.cashBalance + totalCoinValue;
+  const totalAsset = (portfolio.cashBalance ?? 0) + totalCoinValue;
+  const baseTotalAsset = portfolio.totalAsset ?? totalAsset;
+  const totalProfit = (portfolio.totalProfit ?? 0) + (totalAsset - baseTotalAsset);
+  const totalRoi = (portfolio.seedMoney ?? 0) > 0
+    ? (totalProfit / portfolio.seedMoney) * 100
+    : (portfolio.totalRoi ?? 0);
 
   const summary: AssetSummary = {
     title,
-    cashBalance: portfolio.cashBalance,
+    cashBalance: portfolio.cashBalance ?? 0,
     totalAsset,
     totalBuyAmount,
     totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
+/**
+ * 트레이딩(본투자) 자산 요약 카드를 실시간으로 업데이트하는 컴포넌트
+ */
+function RealtimeTradeAssetSummary({
+  realAsset,
+  title,
+  className
+}: {
+  realAsset: RealAssetUnifiedResponse;
+  title: string;
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+
+  // 시세 기반 실시간 계산
+  let spotCoinValue = 0;
+  let spotBuyAmount = 0;
+
+  realAsset.spot.holdings.forEach((holding) => {
+    const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
+    spotCoinValue += holding.quantity * realtimePrice;
+    spotBuyAmount += (holding.buyAmount ?? 0);
+  });
+
+  let futuresMargin = 0;
+  let futuresUnrealizedPnl = 0;
+  realAsset.futures.positions.forEach((pos) => {
+    const metrics = getFuturesPositionMetrics(
+      pos,
+      tickers[pos.symbol]?.price
+    );
+
+    futuresMargin += metrics.margin;
+    futuresUnrealizedPnl += metrics.unrealizedPnl;
+  });
+
+  const totalAsset = realAsset.spot.cashBalance + realAsset.spot.lockedMoney + spotCoinValue 
+                   + realAsset.futures.cashBalance + realAsset.futures.lockedMoney + futuresMargin + futuresUnrealizedPnl;
+  
+  const totalProfit = (realAsset.totalProfit ?? 0) + (totalAsset - (realAsset.totalAsset ?? totalAsset));
+  const totalBuyAmount = spotBuyAmount + futuresMargin;
+  const totalCoinValue = spotCoinValue + futuresMargin;
+
+  // ROI 계산 (시드머니 기준이 명확하지 않을 경우 수익액/투입액 비율로 계산)
+  const investedAmount = totalAsset - totalProfit;
+  const totalRoi = investedAmount > 0 ? (totalProfit / investedAmount) * 100 : 0;
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance: realAsset.spot.cashBalance + realAsset.futures.cashBalance,
+    totalAsset,
+    totalBuyAmount,
+    totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
+/**
+ * 대회 자산 요약 카드를 실시간으로 업데이트하는 컴포넌트
+ */
+function RealtimeContestAssetSummary({
+  wallet,
+  positions,
+  title,
+  className
+}: {
+  wallet: FuturesWalletStatus;
+  positions: FuturesPositionItem[];
+  title: string;
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+
+  // 시세 기반 실시간 계산
+  let unrealizedPnl = 0;
+  let marginInUse = 0;
+
+  positions.forEach((pos) => {
+    const metrics = getFuturesPositionMetrics(
+      pos,
+      tickers[pos.symbol]?.price
+    );
+
+    marginInUse += metrics.margin;
+    unrealizedPnl += metrics.unrealizedPnl;
+  });
+
+  // 대회에서 currentMoney는 지갑 잔고(증거금 포함)일 가능성이 높음
+  // 실시간 자산 = 지갑의 현재 현금(미사용) + 현재 증거금 + 미실현 손익
+  const availableCash = wallet.currentMoney - wallet.marginInUse;
+  const totalAsset = availableCash + marginInUse + unrealizedPnl;
+  const totalProfit = (wallet.currentMoney - wallet.seedMoney) + unrealizedPnl;
+  const totalRoi = wallet.seedMoney > 0 ? (totalProfit / wallet.seedMoney) * 100 : 0;
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance: availableCash,
+    totalAsset,
+    totalBuyAmount: wallet.seedMoney,
+    totalCoinValue: marginInUse,
     totalProfit,
     totalRoi,
   };
@@ -287,6 +423,7 @@ export default function MePage() {
   const [cancellingReportKey, setCancellingReportKey] = useState<string | null>(null);
 
   const logout = useAuthStore((state) => state.logout);
+  const setSelectedMarketType = useTickerStore((state) => state.setSelectedMarketType);
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [followListType, setFollowListType] = useState<FollowListType | null>(null);
@@ -297,6 +434,19 @@ export default function MePage() {
   const [nextFollowMembersCursorId, setNextFollowMembersCursorId] = useState<number | null>(null);
   const [hasNextFollowMembers, setHasNextFollowMembers] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // 탭 변경 시 시장 타입(SPOT/FUTURES) 동기화
+  useEffect(() => {
+    if (!isMounted) return;
+
+    if (portfolioTab === "trade") {
+      setSelectedMarketType(tradingSubTab === "spot" ? "spot" : "futures");
+    } else if (portfolioTab === "contest") {
+      setSelectedMarketType("futures");
+    } else {
+      setSelectedMarketType("spot"); // mock은 현물
+    }
+  }, [portfolioTab, tradingSubTab, isMounted, setSelectedMarketType]);
 
   const isContestFinished = useMemo(() => {
     if (portfolioTab !== "contest" || !selectedContestId) return false;
@@ -1333,7 +1483,7 @@ export default function MePage() {
                                 : Number(value ?? 0);
                               const safeValue = Number.isFinite(parsedValue) ? parsedValue : 0;
 
-                              return [`${safeValue.toFixed(2)}%`, "비중"];
+                              return [`${safeValue.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`, "비중"];
                             }}
                           />
                         </PieChart>
@@ -1354,7 +1504,7 @@ export default function MePage() {
                             {item.name}
                           </span>
                           <span className="text-sm font-black text-gray-900">
-                            {item.value.toFixed(2)}%
+                            {item.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
                           </span>
                         </div>
                       ))}
@@ -1369,6 +1519,9 @@ export default function MePage() {
                 </div>
                 {realAsset.spot.holdings.length > 0 ? (
                   <div className="space-y-4">
+                    {hasZeroHoldingQuantity(realAsset.spot.holdings) ? (
+                      <ZeroQuantityNotice />
+                    ) : null}
                     {realAsset.spot.holdings.map((item) => (
                       <HoldingRow
                         key={item.symbol}
@@ -1404,14 +1557,14 @@ export default function MePage() {
                         </Pie>
                         <Tooltip
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                          formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
+                          formatter={(val) => [`${Number(val).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`, "비중"]}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <span className="text-xxs font-bold text-gray-400">증거금</span>
                       <span className="text-sm font-black text-blue-600">
-                        {futuresAssetPieData.find(d => d.name === "사용 중인 증거금")?.value.toFixed(1) || 0}%
+                        {futuresAssetPieData.find(d => d.name === "사용 중인 증거금")?.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 }) || "0.00"}%
                       </span>
                     </div>
                   </div>
@@ -1422,7 +1575,7 @@ export default function MePage() {
                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
                           {item.name}
                         </span>
-                        <span className="text-gray-900">{item.value.toFixed(2)}%</span>
+                        <span className="text-gray-900">{item.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
                       </div>
                     ))}
                   </div>
@@ -1432,8 +1585,8 @@ export default function MePage() {
                   <h4 className="text-sm font-black text-gray-900 mb-6">롱/숏 포지션 비율</h4>
                   <div className="flex flex-col justify-center h-full -mt-4">
                     <div className="flex justify-between text-xxs font-black mb-2">
-                      <span className="text-red-500 uppercase">Long {futuresLongShortData.long.toFixed(1)}%</span>
-                      <span className="text-blue-500 uppercase">Short {futuresLongShortData.short.toFixed(1)}%</span>
+                      <span className="text-red-500 uppercase">Long {futuresLongShortData.long.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
+                      <span className="text-blue-500 uppercase">Short {futuresLongShortData.short.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
                     </div>
                     <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
                       <div
@@ -1458,8 +1611,11 @@ export default function MePage() {
                 </div>
                 {realAsset.futures.positions.length > 0 ? (
                   <div className="space-y-4">
+                    {hasZeroPositionQuantity(realAsset.futures.positions) ? (
+                      <ZeroQuantityNotice />
+                    ) : null}
                     {realAsset.futures.positions.map((position) => (
-                      <PositionRow
+                      <RealtimePositionRow
                         key={`${position.symbol}-${position.positionSide}`}
                         position={position}
                         marketSymbols={marketSymbols}
@@ -1583,14 +1739,14 @@ export default function MePage() {
                         </Pie>
                         <Tooltip
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                          formatter={(val) => [`${Number(val).toFixed(2)}%`, "비중"]}
+                          formatter={(val) => [`${Number(val).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`, "비중"]}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <span className="text-xxs font-bold text-gray-400">증거금</span>
                       <span className="text-sm font-black text-cyan-600">
-                        {contestAssetPieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                        {contestAssetPieData.find(d => d.name === "대회 증거금")?.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 }) || "0.00"}%
                       </span>
                     </div>
                   </div>
@@ -1601,7 +1757,7 @@ export default function MePage() {
                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
                           {item.name}
                         </span>
-                        <span className="text-gray-900">{item.value.toFixed(2)}%</span>
+                        <span className="text-gray-900">{item.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
                       </div>
                     ))}
                   </div>
@@ -1611,8 +1767,8 @@ export default function MePage() {
                   <h4 className="text-sm font-black text-gray-900 mb-6">대회 포지션 비율</h4>
                   <div className="flex flex-col justify-center h-full -mt-4">
                     <div className="flex justify-between text-xxs font-black mb-2">
-                      <span className="text-red-500 uppercase">Long {contestLongShortData.long.toFixed(1)}%</span>
-                      <span className="text-blue-500 uppercase">Short {contestLongShortData.short.toFixed(1)}%</span>
+                      <span className="text-red-500 uppercase">Long {contestLongShortData.long.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
+                      <span className="text-blue-500 uppercase">Short {contestLongShortData.short.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
                     </div>
                     <div className="h-4 w-full bg-gray-50 rounded-full overflow-hidden flex">
                       <div
@@ -1639,10 +1795,13 @@ export default function MePage() {
                   <div className="py-12 text-center text-gray-400 font-bold">포지션 정보를 불러오는 중...</div>
                 ) : contestPositions.length > 0 ? (
                   <div className="space-y-4">
+                    {hasZeroPositionQuantity(contestPositions) ? (
+                      <ZeroQuantityNotice />
+                    ) : null}
                     {contestPositions.map((position) => (
-                      <PositionRow
+                      <RealtimePositionRow
                         key={`${position.symbol}-${position.positionSide}`}
-                        position={position as unknown as FuturesPositionDetail}
+                        position={position}
                         marketSymbols={marketSymbols}
                       />
                     ))}
@@ -1747,7 +1906,7 @@ export default function MePage() {
                       {item.name}
                     </span>
                     <span className="text-sm font-black text-gray-900">
-                      {item.value.toFixed(2)}%
+                      {item.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
                     </span>
                   </div>
                 ))}
@@ -1765,6 +1924,9 @@ export default function MePage() {
 
           {mockPortfolio.holdings.length > 0 ? (
             <div className="space-y-4">
+              {hasZeroHoldingQuantity(mockPortfolio.holdings) ? (
+                <ZeroQuantityNotice />
+              ) : null}
               {mockPortfolio.holdings.map((item) => (
                 <HoldingRow
                   key={item.symbol}
@@ -1833,28 +1995,15 @@ export default function MePage() {
               title="모의투자 자산"
             />
           ) : portfolioTab === "trade" && realAsset ? (
-            <AssetSummaryCard
-              summary={{
-                title: "트레이딩 자산",
-                cashBalance: realAsset.totalAsset - (realAsset.spot.totalCoinValue + realAsset.futures.totalMargin),
-                totalAsset: realAsset.totalAsset,
-                totalBuyAmount: realAsset.spot.totalBuyAmount,
-                totalCoinValue: realAsset.spot.totalCoinValue + realAsset.futures.totalMargin,
-                totalProfit: realAsset.totalProfit,
-                totalRoi: (realAsset.totalProfit / (realAsset.totalAsset - realAsset.totalProfit)) * 100,
-              }}
+            <RealtimeTradeAssetSummary
+              realAsset={realAsset}
+              title="트레이딩 자산"
             />
           ) : portfolioTab === "contest" && contestWallet && !isContestFinished ? (
-            <AssetSummaryCard
-              summary={{
-                title: "대회 자산",
-                cashBalance: contestWallet.currentMoney - contestWallet.marginInUse,
-                totalAsset: contestWallet.currentMoney,
-                totalBuyAmount: contestWallet.seedMoney,
-                totalCoinValue: contestWallet.marginInUse,
-                totalProfit: contestWallet.currentMoney - contestWallet.seedMoney,
-                totalRoi: contestWallet.seedMoney > 0 ? ((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100 : 0,
-              }}
+            <RealtimeContestAssetSummary
+              wallet={contestWallet}
+              positions={contestPositions}
+              title="대회 자산"
             />
           ) : !isContestFinished ? (
             <AssetSummaryCard
@@ -2049,15 +2198,22 @@ function DataBox({
   );
 }
 
-function PositionRow({
+function RealtimePositionRow({
   position,
   marketSymbols,
 }: {
-  position: FuturesPositionDetail;
+  position: FuturesPositionLike;
   marketSymbols: MarketSymbolMeta[];
 }) {
-  const baseAssetName = getBaseAssetLabel(position.symbol, marketSymbols);
-  const displaySymbol = getDisplaySymbolLabel(position.symbol, marketSymbols);
+  const tickers = useTickerStore((state) => state.tickers);
+  const metrics = getFuturesPositionMetrics(
+    position,
+    tickers[position.symbol ?? ""]?.price
+  );
+
+  const baseAssetName = getBaseAssetLabel(metrics.symbol, marketSymbols);
+  const displaySymbol = getDisplaySymbolLabel(metrics.symbol, marketSymbols);
+  const profitColorClass = getProfitColorClass(metrics.unrealizedPnl);
 
   return (
     <div className="card p-6">
@@ -2073,9 +2229,9 @@ function PositionRow({
               </h4>
               <span className={cn(
                 "px-2 py-0.5 rounded text-[10px] font-black",
-                position.positionSide === "LONG" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
+                metrics.positionSide === "LONG" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
               )}>
-                {position.positionSide} {position.leverage}x
+                {metrics.positionSide} {metrics.leverage}x
               </span>
             </div>
             <p className="text-xxs text-gray-400 font-bold uppercase">
@@ -2085,11 +2241,11 @@ function PositionRow({
         </div>
 
         <div className="text-right">
-          <p className={cn("text-sm font-black", getProfitColorClass(position.unrealizedPnl))}>
-            {formatSignedNumber(position.unrealizedPnl)} USDT
+          <p className={cn("text-sm font-black", profitColorClass)}>
+            {formatSignedNumber(metrics.unrealizedPnl)} USDT
           </p>
-          <p className={cn("text-xxs font-bold", getProfitColorClass(position.unrealizedPnl))}>
-            {formatSignedPercent(position.roi)}
+          <p className={cn("text-xxs font-bold", profitColorClass)}>
+            {formatSignedPercent(metrics.roi)}
           </p>
         </div>
       </div>
@@ -2097,22 +2253,22 @@ function PositionRow({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
         <DataBox
           label="포지션 수량"
-          value={formatNumber(position.quantity)}
+          value={formatNumber(metrics.quantity)}
           unit={baseAssetName}
         />
         <DataBox
           label="진입가격"
-          value={formatNumber(position.entryPrice)}
+          value={formatNumber(metrics.entryPrice)}
           unit="USDT"
         />
         <DataBox
           label="현재가격"
-          value={formatNumber(position.currentPrice)}
+          value={formatNumber(metrics.currentPrice)}
           unit="USDT"
         />
         <DataBox
           label="청산추정가"
-          value={formatNumber(position.liquidationPrice)}
+          value={formatNumber(metrics.liquidationPrice)}
           unit="USDT"
         />
       </div>

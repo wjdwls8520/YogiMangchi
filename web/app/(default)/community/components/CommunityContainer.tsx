@@ -10,7 +10,7 @@ import {
 } from "@/lib/api/community-ux";
 import { getPosts } from "@/lib/api/post";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { usePostStore } from "@/stores/usePostStore";
+import { sortPostsNewestFirst, usePostStore } from "@/stores/usePostStore";
 import { useToast } from "@/components/ui/FeedbackProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -26,7 +26,10 @@ const COMMUNITY_REFRESH_PAGE_SIZE = 10;
 export default function CommunityContainer({ initialPosts, cursorId, hasNext }: Props) {
   // postsMap의 entries를 shallow 비교로 구독
   const postsMap = usePostStore(useShallow((state) => state.postsMap));
-  const posts = useMemo(() => Array.from(postsMap.values()), [postsMap]);
+  const posts = useMemo(
+    () => sortPostsNewestFirst(Array.from(postsMap.values())),
+    [postsMap]
+  );
   const setPosts = usePostStore((state) => state.setPosts);
   const replacePosts = usePostStore((state) => state.replacePosts);
   const setCursorId = usePostStore((state) => state.setCursorId);
@@ -72,7 +75,9 @@ export default function CommunityContainer({ initialPosts, cursorId, hasNext }: 
     }
 
     const currentFirstPostId =
-      Array.from(usePostStore.getState().postsMap.keys())[0] ?? null;
+      sortPostsNewestFirst(
+        Array.from(usePostStore.getState().postsMap.values())
+      )[0]?.id ?? null;
 
     try {
       isCheckingLatestPostsRef.current = true;
@@ -225,7 +230,7 @@ export default function CommunityContainer({ initialPosts, cursorId, hasNext }: 
   ]);
 
   // fallback
-  const displayPosts = posts.length ? posts : initialPosts;
+  const displayPosts = posts.length ? posts : sortPostsNewestFirst(initialPosts);
 
   return (
     <>

@@ -149,6 +149,7 @@ export default function ContestMainPage() {
   const requireVerifiedUser = useRequireVerifiedUser({ loginRedirectMode: "push", verifyRedirectMode: "push" });
   const isLogin = useAuthStore((state) => state.isLogin);
   const user = useAuthStore((state) => state.user);
+  const isVerified = isLogin && !!user && user.role !== "USER";
 
   const [ongoingContests, setOngoingContests] = useState<OngoingContest[]>([]);
   const [publicOngoingContests, setPublicOngoingContests] = useState<ContestListItem[]>([]);
@@ -163,18 +164,16 @@ export default function ContestMainPage() {
   const loadContestPageData = useCallback(async () => {
     setIsLoadingPage(true);
     try {
-      const isVerified = isLogin && !!user && user.role !== "USER";
       // 모든 사용자가 볼 수 있는 공개 대회 목록 조회
       const recruitingResponse = await getRecruitingContestSeasons({ size: CONTEST_PAGE_SIZE }, isVerified);
       const publishedResponse = await getPublishedContestSeasons({ size: CONTEST_PAGE_SIZE });
       const finishedResponse = await getFinishedContestSeasons({ size: CONTEST_PAGE_SIZE });
 
-      // 로그인한 사용자 전용 데이터
-      const participatingResponse = isLogin ? await getMyParticipatingContestSeasons({ size: CONTEST_PAGE_SIZE }) : { content: [] };
-      const pendingResponse = isLogin ? await getMyPendingContestApplications({ size: CONTEST_PAGE_SIZE }) : { content: [] };
-      const rejectedResponse = isLogin ? await getMyLatestRejectedContestApplication() : null;
-      const historyResponse = user?.memberId ? await getContestParticipationSeasonsByMember(user.memberId, { size: CONTEST_PAGE_SIZE }) : { content: [] };
-
+      // 인증된 사용자 전용 데이터 (일반 유저는 공개 데이터만 봄)
+      const participatingResponse = isVerified ? await getMyParticipatingContestSeasons({ size: CONTEST_PAGE_SIZE }) : { content: [] };
+      const pendingResponse = isVerified ? await getMyPendingContestApplications({ size: CONTEST_PAGE_SIZE }) : { content: [] };
+      const rejectedResponse = isVerified ? await getMyLatestRejectedContestApplication() : null;
+      
       // 신청 가능한 대회 (모집 중인 전체 대회에서 내가 신청한 거 제외)
       setAvailableContests((recruitingResponse.content || [])
         .filter((s: ContestSeason) => isLogin ? !s.appliedByMe : true)
@@ -200,7 +199,7 @@ export default function ContestMainPage() {
     } finally {
       setIsLoadingPage(false);
     }
-  }, [isLogin, user]);
+  }, [isLogin, isVerified, user]);
 
   useEffect(() => {
     void loadContestPageData();
@@ -238,8 +237,8 @@ export default function ContestMainPage() {
           </div>
         </header>
 
-        {/* 1. Ongoing Contests (Logged in only) */}
-        {isLogin && (
+        {/* 1. Ongoing Contests (Verified only) */}
+        {isVerified && (
           <ContestOngoingSection
             isLoading={isLoadingPage}
             contests={ongoingContests}
@@ -251,19 +250,28 @@ export default function ContestMainPage() {
 
         {/* 2. Sub-List Section */}
         <section className="space-y-4 pt-2">
-          {!isLogin && (
+          {!isVerified && (
             <div className="rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
               <div className="space-y-1 text-center sm:text-left">
-                <p className="text-base font-black text-amber-900 dark:text-amber-200">아직 회원이 아니신가요?</p>
-                <p className="text-sm font-bold text-amber-700 dark:text-amber-400 opacity-80">로그인 및 인증 완료 후 모든 대회에 참가하실 수 있습니다.</p>
+                <p className="text-base font-black text-amber-900 dark:text-amber-200">
+                  {!isLogin ? "아직 회원이 아니신가요?" : "인증이 필요합니다"}
+                </p>
+                <p className="text-sm font-bold text-amber-700 dark:text-amber-400 opacity-80">
+                  {!isLogin ? "로그인 및 인증 완료 후 모든 대회에 참가하실 수 있습니다." : "계정 인증을 완료하면 대회에 참가하실 수 있습니다."}
+                </p>
               </div>
-              <Button onClick={() => router.push("/login")} variant="sky" size="lg" className="shrink-0 font-black shadow-md">
-                지금 로그인하기
+              <Button 
+                onClick={() => router.push(!isLogin ? "/login" : "/verify")} 
+                variant="sky" 
+                size="lg" 
+                className="shrink-0 font-black shadow-md"
+              >
+                {!isLogin ? "지금 로그인하기" : "인증하러 가기"}
               </Button>
             </div>
           )}
 
-          {!isLogin ? (
+          {!isVerified ? (
             <div className="space-y-10">
               {/* 진행중인 대회 */}
               <div className="space-y-4">

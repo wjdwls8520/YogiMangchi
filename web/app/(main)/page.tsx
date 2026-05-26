@@ -232,7 +232,7 @@ export default function MainPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-20 selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen pb-20 selection:bg-blue-600 selection:text-white">
 
       {/* 백그라운드 디자인 데코레이션 */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] pointer-events-none overflow-hidden z-0">

@@ -32,14 +32,28 @@ export const formatAssetNumber = (
 
   const numValue = typeof value === "string" ? parseFloat(value) : value;
 
-  if (Number.isNaN(numValue)) {
+  if (!Number.isFinite(numValue)) {
     return fallback;
   }
 
   const absoluteValue = Math.abs(numValue);
-  
-  // 항상 더 높은 정밀도를 허용하도록 설정 (소수점 누락 방지)
-  const maximumFractionDigits = Math.max(standardMaxFractionDigits, smallMaxFractionDigits);
+  const maximumFractionDigits =
+    absoluteValue > 0 && absoluteValue < 1
+      ? smallMaxFractionDigits
+      : standardMaxFractionDigits;
+
+  if (absoluteValue > 0) {
+    const minimumDisplayValue = 10 ** -maximumFractionDigits;
+
+    if (absoluteValue < minimumDisplayValue) {
+      const minimumDisplayText = minimumDisplayValue.toLocaleString(locale, {
+        minimumFractionDigits: maximumFractionDigits,
+        maximumFractionDigits,
+      });
+
+      return `${numValue < 0 ? "-" : ""}<${minimumDisplayText}`;
+    }
+  }
 
   return numValue.toLocaleString(locale, {
     minimumFractionDigits: 0,
@@ -51,7 +65,7 @@ export const formatSignedAssetNumber = (
   value?: number | null,
   options?: FormatAssetNumberOptions
 ) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return options?.fallback ?? DEFAULT_OPTIONS.fallback;
   }
 
@@ -62,18 +76,21 @@ export const formatNumber = formatAssetNumber;
 export const formatSignedNumber = formatSignedAssetNumber;
 
 export const formatSignedPercent = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0.00%";
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "0%";
   }
-  if (value === 0) {
-    return "0.00%";
-  }
+
   const absValue = Math.abs(value);
-  if (absValue > 0 && absValue < 0.01) {
-    return `${value > 0 ? "+" : ""}${value.toFixed(6)}%`;
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+
+  if (absValue === 0) return "0%";
+
+  if (absValue < 0.01) {
+    return `${sign}<0.01%`;
   }
-  if (absValue > 0 && absValue < 0.1) {
-    return `${value > 0 ? "+" : ""}${value.toFixed(4)}%`;
-  }
-  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
+
+  return `${sign}${absValue.toLocaleString("ko-KR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`;
 };
