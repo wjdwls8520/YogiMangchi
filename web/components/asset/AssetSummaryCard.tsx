@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils/cs";
-import { formatAssetNumber, formatSignedAssetNumber } from "@/lib/utils/number";
+import { formatAssetNumber, formatSignedAssetNumber, formatSignedPercent } from "@/lib/utils/number";
 
 export type AssetSummary = {
   title: string;
@@ -16,14 +16,6 @@ export type AssetSummary = {
 type AssetSummaryCardProps = {
   summary: AssetSummary;
   className?: string;
-};
-
-const formatSignedPercent = (value?: number | null) => {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "0%";
-  }
-
-  return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 };
 
 const getValueColorClass = (value: number) => {

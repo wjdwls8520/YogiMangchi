@@ -1,5 +1,6 @@
 // 전체페이지 레이아웃
 import type { Metadata } from "next";
+// @ts-ignore: CSS side-effect import
 import "./globals.css";
 import SSEProvider from "./SSEProvider";
 import AuthBootstrap from "./AuthBootstrap";

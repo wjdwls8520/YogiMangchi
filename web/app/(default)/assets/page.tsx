@@ -32,6 +32,7 @@ import {
   formatSignedNumber,
   formatSignedPercent
 } from "@/lib/utils/number";
+import { getFuturesPositionMetrics } from "@/lib/utils/futures-position";
 import {
   getUnifiedRealAssetDetail,
   type RealAssetUnifiedResponse,
@@ -186,6 +187,8 @@ const DEFAULT_TRADE_LIST_FILTERS: TradeListFilters = {
 };
 
 const OPEN_ORDER_PAGE_SIZE = 10;
+const ZERO_QUANTITY_NOTICE_TEXT =
+  "보유수량 또는 포지션 수량이 0인 항목은 과거 거래 이력과 평균매수가/진입가 확인을 위해 표시됩니다. 현재 보유 중인 수량이 없어 평가금액, 평가손익, 수익률은 0으로 표시될 수 있습니다.";
 
 const createDefaultOrderFilters = (): TradeListFilters => ({
   ...DEFAULT_TRADE_LIST_FILTERS,
@@ -195,6 +198,18 @@ const createDefaultTradeHistoryFilters = (): TradeListFilters => ({
   ...DEFAULT_TRADE_LIST_FILTERS,
   status: "COMPLETED",
 });
+
+const hasZeroHoldingQuantity = (
+  holdings: Array<{ quantity?: number | string | null }>
+) => {
+  return holdings.some((item) => Number(item.quantity ?? 0) <= 0);
+};
+
+const hasZeroPositionQuantity = (
+  positions: Array<Parameters<typeof getFuturesPositionMetrics>[0]>
+) => {
+  return positions.some((position) => getFuturesPositionMetrics(position).quantity <= 0);
+};
 
 const SIDE_OPTIONS = [
   { label: "구분", value: "" },
@@ -326,62 +341,62 @@ const isWalletNotCreatedOrInactive = (error: any) => {
 };
 
 // Mappers for Unified types
-const mapSpotOrderToUnified = (item: SpotOrderItem): UnifiedOrderItem => ({
-  id: item.orderId,
+const mapSpotOrderToUnified = (item: any): UnifiedOrderItem => ({
+  id: item.orderId ?? item.id,
   symbol: item.symbol,
-  displayNameKr: item.displayNameKr,
+  displayNameKr: item.displayNameKr ?? item.symbol,
   side: item.side,
-  orderType: item.orderType,
-  orderStatus: item.orderStatus,
-  orderPrice: item.orderPrice,
-  orderQuantity: item.orderQuantity,
-  orderAmount: item.orderAmount,
-  filledQuantity: item.filledQuantity,
-  avgFilledPrice: item.avgFilledPrice,
-  executedAmount: item.executedAmount,
-  orderedAt: item.orderedAt,
+  orderType: item.orderType ?? item.order_type,
+  orderStatus: item.orderStatus ?? item.order_status ?? item.status,
+  orderPrice: item.orderPrice ?? item.order_price,
+  orderQuantity: item.orderQuantity ?? item.order_quantity ?? item.quantity,
+  orderAmount: item.orderAmount ?? item.order_amount,
+  filledQuantity: item.filledQuantity ?? item.filled_quantity ?? item.executedQuantity ?? item.executed_quantity,
+  avgFilledPrice: item.avgFilledPrice ?? item.avg_filled_price,
+  executedAmount: item.executedAmount ?? item.executed_amount,
+  orderedAt: item.orderedAt ?? item.ordered_at ?? item.createdAt ?? item.created_at ?? "",
 });
 
-const mapFuturesOrderToUnified = (item: FuturesOrderItem): UnifiedOrderItem => ({
-  id: item.orderId,
+const mapFuturesOrderToUnified = (item: any): UnifiedOrderItem => ({
+  id: item.orderId ?? item.id,
   symbol: item.symbol,
-  displayNameKr: item.displayNameKr || item.symbol,
-  side: item.positionSide,
-  orderType: item.orderType,
-  orderStatus: item.orderStatus,
-  orderPrice: item.orderPrice,
-  orderQuantity: item.orderQuantity,
-  orderAmount: item.notionalAmount,
-  filledQuantity: item.filledQuantity,
-  avgFilledPrice: item.executedPrice,
-  executedAmount: item.notionalAmount,
-  orderedAt: item.createdAt || "",
+  displayNameKr: item.displayNameKr ?? item.symbol,
+  side: item.positionSide ?? item.position_side,
+  orderType: item.orderType ?? item.order_type,
+  orderStatus: item.orderStatus ?? item.order_status ?? item.status,
+  orderPrice: item.orderPrice ?? item.order_price,
+  orderQuantity: item.orderQuantity ?? item.order_quantity ?? item.quantity,
+  orderAmount: item.notionalAmount ?? item.notional_amount,
+  filledQuantity: item.filledQuantity ?? item.filled_quantity,
+  avgFilledPrice: item.executedPrice ?? item.executed_price,
+  executedAmount: item.notionalAmount ?? item.notional_amount,
+  orderedAt: item.createdAt ?? item.created_at ?? "",
 });
 
-const mapSpotTradeToUnified = (item: SpotTradeItem): UnifiedTradeItem => ({
-  id: item.tradeId,
+const mapSpotTradeToUnified = (item: any): UnifiedTradeItem => ({
+  id: item.tradeId ?? item.id,
   symbol: item.symbol,
-  displayNameKr: item.displayNameKr,
+  displayNameKr: item.displayNameKr ?? item.symbol,
   side: item.side,
   price: item.price,
   quantity: item.quantity,
-  totalAmount: item.totalAmount,
+  totalAmount: item.totalAmount ?? item.total_amount,
   fee: item.fee,
-  realizedProfit: item.realizedProfit,
-  executedAt: item.executedAt || "",
+  realizedProfit: item.realizedProfit ?? item.realized_profit,
+  executedAt: item.executedAt ?? item.executed_at ?? "",
 });
 
-const mapFuturesPositionToTradeUnified = (item: FuturesPositionItem): UnifiedTradeItem => ({
-  id: item.positionId,
+const mapFuturesPositionToTradeUnified = (item: any): UnifiedTradeItem => ({
+  id: item.positionId ?? item.id,
   symbol: item.symbol,
   displayNameKr: item.symbol,
-  side: item.positionSide,
-  price: item.exitPrice || item.entryPrice,
-  quantity: item.filledQuantity,
-  totalAmount: item.notionalAmount,
-  fee: item.totalFee ?? 0,
-  realizedProfit: item.realizedPnl,
-  executedAt: item.closedAt || item.updatedAt || "",
+  side: item.positionSide ?? item.position_side,
+  price: item.exitPrice ?? item.exit_price ?? item.entryPrice ?? item.entry_price,
+  quantity: item.filledQuantity ?? item.filled_quantity ?? item.quantity,
+  totalAmount: item.notionalAmount ?? item.notional_amount,
+  fee: item.totalFee ?? item.total_fee ?? 0,
+  realizedProfit: item.realizedPnl ?? item.realized_pnl,
+  executedAt: item.closedAt ?? item.closed_at ?? item.updatedAt ?? item.updated_at ?? "",
 });
 
 function RealtimeAssetSummary({
@@ -400,20 +415,161 @@ function RealtimeAssetSummary({
 
   portfolio.holdings.forEach((holding) => {
     const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
-    totalCoinValue += holding.quantity * realtimePrice;
-    totalBuyAmount += holding.buyAmount;
+    totalCoinValue += (holding.quantity ?? 0) * realtimePrice;
+    totalBuyAmount += (holding.buyAmount ?? 0);
   });
 
-  const totalProfit = totalCoinValue - totalBuyAmount;
-  const totalRoi = totalBuyAmount > 0 ? (totalProfit / totalBuyAmount) * 100 : 0;
-  const totalAsset = portfolio.cashBalance + totalCoinValue;
+  const totalAsset = (portfolio.cashBalance ?? 0) + totalCoinValue;
+  const baseTotalAsset = portfolio.totalAsset ?? totalAsset;
+  const totalProfit = (portfolio.totalProfit ?? 0) + (totalAsset - baseTotalAsset);
+  const totalRoi = (portfolio.seedMoney ?? 0) > 0
+    ? (totalProfit / portfolio.seedMoney) * 100
+    : (portfolio.totalRoi ?? 0);
 
   const summary: AssetSummary = {
     title,
-    cashBalance: portfolio.cashBalance,
+    cashBalance: portfolio.cashBalance ?? 0,
     totalAsset,
     totalBuyAmount,
     totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
+/**
+ * 트레이딩(본투자) 자산 요약 카드를 실시간으로 업데이트하는 컴포넌트
+ */
+function RealtimeTradeAssetSummary({
+  realAsset,
+  title,
+  mode = "total",
+  className
+}: {
+  realAsset: RealAssetUnifiedResponse;
+  title: string;
+  mode?: "total" | "spot" | "futures";
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+
+  // 시세 기반 실시간 계산
+  let spotCoinValue = 0;
+  let spotBuyAmount = 0;
+
+  if (mode === "total" || mode === "spot") {
+    (realAsset.spot.holdings || []).forEach((holding) => {
+      const realtimePrice = tickers[holding.symbol]?.price ?? holding.currentPrice;
+      spotCoinValue += (holding.quantity ?? 0) * realtimePrice;
+      spotBuyAmount += (holding.buyAmount ?? 0);
+    });
+  }
+
+  let futuresMargin = 0;
+  let futuresUnrealizedPnl = 0;
+  if (mode === "total" || mode === "futures") {
+    (realAsset.futures.positions || []).forEach((pos) => {
+      const metrics = getFuturesPositionMetrics(
+        pos,
+        tickers[pos.symbol]?.price
+      );
+
+      futuresMargin += metrics.margin;
+      futuresUnrealizedPnl += metrics.unrealizedPnl;
+    });
+  }
+
+  let totalAsset = 0;
+  let totalProfit = 0;
+  let totalBuyAmount = 0;
+  let totalCoinValue = 0;
+  let cashBalance = 0;
+
+  if (mode === "total") {
+    cashBalance = (realAsset.spot.cashBalance ?? 0) + (realAsset.futures.cashBalance ?? 0);
+    totalAsset = (realAsset.spot.cashBalance ?? 0) + (realAsset.spot.lockedMoney ?? 0) + spotCoinValue 
+               + (realAsset.futures.cashBalance ?? 0) + (realAsset.futures.lockedMoney ?? 0) + futuresMargin + futuresUnrealizedPnl;
+    totalProfit = (realAsset.totalProfit ?? 0) + (totalAsset - (realAsset.totalAsset ?? totalAsset));
+    totalBuyAmount = spotBuyAmount + futuresMargin;
+    totalCoinValue = spotCoinValue + futuresMargin;
+  } else if (mode === "spot") {
+    cashBalance = realAsset.spot.cashBalance ?? 0;
+    totalAsset = (realAsset.spot.cashBalance ?? 0) + (realAsset.spot.lockedMoney ?? 0) + spotCoinValue;
+    totalProfit = (realAsset.spot.totalProfit ?? 0) + (totalAsset - (realAsset.spot.totalAsset ?? totalAsset));
+    totalBuyAmount = spotBuyAmount;
+    totalCoinValue = spotCoinValue;
+  } else {
+    cashBalance = realAsset.futures.cashBalance ?? 0;
+    totalAsset = (realAsset.futures.cashBalance ?? 0) + (realAsset.futures.lockedMoney ?? 0) + futuresMargin + futuresUnrealizedPnl;
+    totalProfit = futuresUnrealizedPnl;
+    totalBuyAmount = futuresMargin;
+    totalCoinValue = futuresMargin;
+  }
+
+  const investedAmount = totalAsset - totalProfit;
+  const totalRoi =
+    mode === "spot"
+      ? ((realAsset.spot.seedMoney ?? 0) > 0 ? (totalProfit / realAsset.spot.seedMoney) * 100 : 0)
+      : mode === "futures"
+        ? (futuresMargin > 0 ? (totalProfit / futuresMargin) * 100 : 0)
+        : (investedAmount > 0 ? (totalProfit / investedAmount) * 100 : 0);
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance,
+    totalAsset,
+    totalBuyAmount,
+    totalCoinValue,
+    totalProfit,
+    totalRoi,
+  };
+
+  return <AssetSummaryCard summary={summary} className={className} />;
+}
+
+/**
+ * 대회 자산 요약 카드를 실시간으로 업데이트하는 컴포넌트
+ */
+function RealtimeContestAssetSummary({
+  wallet,
+  positions,
+  title,
+  className
+}: {
+  wallet: FuturesWalletStatus;
+  positions: FuturesPositionItem[];
+  title: string;
+  className?: string;
+}) {
+  const tickers = useTickerStore((state) => state.tickers);
+
+  // 시세 기반 실시간 계산
+  let unrealizedPnl = 0;
+  let marginInUse = 0;
+
+  (positions || []).forEach((pos) => {
+    const metrics = getFuturesPositionMetrics(
+      pos,
+      tickers[pos.symbol]?.price
+    );
+
+    marginInUse += metrics.margin;
+    unrealizedPnl += metrics.unrealizedPnl;
+  });
+
+  const availableCash = (wallet.currentMoney ?? 0) - (wallet.marginInUse ?? 0);
+  const totalAsset = availableCash + marginInUse + unrealizedPnl;
+  const totalProfit = ((wallet.currentMoney ?? 0) - (wallet.seedMoney ?? 0)) + unrealizedPnl;
+  const totalRoi = (wallet.seedMoney ?? 0) > 0 ? (totalProfit / (wallet.seedMoney ?? 0)) * 100 : 0;
+
+  const summary: AssetSummary = {
+    title,
+    cashBalance: availableCash,
+    totalAsset,
+    totalBuyAmount: wallet.seedMoney ?? 0,
+    totalCoinValue: marginInUse,
     totalProfit,
     totalRoi,
   };
@@ -492,6 +648,8 @@ function AssetsPageContent() {
 
   const marketSymbols = useMarketStore((state) => state.marketSymbols);
   const fetchMarketSymbols = useMarketStore((state) => state.fetchMarketSymbols);
+  const tickers = useTickerStore((state) => state.tickers);
+  const setSelectedMarketType = useTickerStore((state) => state.setSelectedMarketType);
 
   const [orderFilters, setOrderFilters] = useState<TradeListFilters>(createDefaultOrderFilters);
   const [tradeFilters, setTradeFilters] = useState<TradeListFilters>(createDefaultTradeHistoryFilters);
@@ -503,6 +661,17 @@ function AssetsPageContent() {
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // 탭 변경 시 시장 타입(SPOT/FUTURES) 동기화
+  useEffect(() => {
+    if (assetTab === "trade") {
+      setSelectedMarketType(tradingSubTab === "spot" ? "spot" : "futures");
+    } else if (assetTab === "contest") {
+      setSelectedMarketType("futures");
+    } else {
+      setSelectedMarketType("spot"); // mock은 현물
+    }
+  }, [assetTab, tradingSubTab, setSelectedMarketType]);
 
   useBinanceWebSocket();
 
@@ -1056,16 +1225,24 @@ function AssetsPageContent() {
         return {
           headers: ["포지션", "방향", "레버리지", "진입가", "현재가", "증거금", "미실현손익", "수익률"],
           headerClasses: ["text-left", "text-center", "text-center", "text-right", "text-right", "text-right", "text-right", "text-right"],
-          rows: positions.map((pos: any) => [
-            cell(getAssetCellValue(null, pos.symbol, marketSymbols), "text-left"),
-            cell(pos.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${pos.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
-            cell(`${pos.leverage}x`, "text-center font-bold text-gray-600"),
-            cell(formatNumber(pos.entryPrice), "text-right tabular-nums"),
-            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} type="price" />, "text-right tabular-nums font-bold"),
-            cell(formatNumber(pos.totalMargin), "text-right tabular-nums font-black"),
-            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="profit" />, "text-right tabular-nums font-bold"),
-            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="roi" />, "text-right tabular-nums font-bold"),
-          ]),
+          rows: positions.map((pos) => {
+            const metrics = getFuturesPositionMetrics(
+              pos,
+              tickers[pos.symbol]?.price
+            );
+            const profitColorClass = getProfitColorClass(metrics.unrealizedPnl);
+
+            return [
+              cell(getAssetCellValue(null, metrics.symbol, marketSymbols), "text-left"),
+              cell(metrics.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${metrics.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
+              cell(`${metrics.leverage}x`, "text-center font-bold text-gray-600"),
+              cell(formatNumber(metrics.entryPrice), "text-right tabular-nums"),
+              cell(formatNumber(metrics.currentPrice), "text-right tabular-nums font-bold"),
+              cell(formatNumber(metrics.margin), "text-right tabular-nums font-black"),
+              cell(formatSignedNumber(metrics.unrealizedPnl), `text-right tabular-nums font-bold ${profitColorClass}`),
+              cell(formatSignedPercent(metrics.roi), `text-right tabular-nums font-bold ${profitColorClass}`),
+            ];
+          }),
           emptyText: isContestFinished ? "종료된 대회는 포지션 현황이 제공되지 않습니다." : "보유 중인 포지션이 없습니다.",
         };
       }
@@ -1116,15 +1293,24 @@ function AssetsPageContent() {
         return {
           headers: ["자산", "구분", "레버리지", "증거금", "미실현손익", "실현손익", "수익률"],
           headerClasses: ["text-left", "text-center", "text-center", "text-right", "text-right", "text-right", "text-right"],
-          rows: positions.map((pos: any) => [
-            cell(getAssetCellValue(null, pos.symbol, marketSymbols), "text-left"),
-            cell(pos.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${pos.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
-            cell(`${pos.leverage}x`, "text-center font-bold text-gray-600"),
-            cell(formatNumber(pos.totalMargin), "text-right tabular-nums"),
-            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="profit" />, "text-right tabular-nums font-bold"),
-            cell(formatSignedNumber(pos.realizedPnl ?? 0), `text-right tabular-nums font-bold ${getProfitColorClass(pos.realizedPnl)}`),
-            cell(<TickerCell symbol={pos.symbol} fallbackPrice={pos.currentPrice || pos.entryPrice} quantity={pos.filledQuantity} buyAmount={pos.totalMargin} type="roi" />, "text-right tabular-nums font-bold"),
-          ]),
+          rows: positions.map((pos) => {
+            const metrics = getFuturesPositionMetrics(
+              pos,
+              tickers[pos.symbol]?.price
+            );
+            const unrealizedPnlColorClass = getProfitColorClass(metrics.unrealizedPnl);
+            const realizedPnl = metrics.realizedPnl ?? 0;
+
+            return [
+              cell(getAssetCellValue(null, metrics.symbol, marketSymbols), "text-left"),
+              cell(metrics.positionSide === "LONG" ? "롱" : "숏", `text-center font-bold ${metrics.positionSide === "LONG" ? "text-red-500" : "text-blue-500"}`),
+              cell(`${metrics.leverage}x`, "text-center font-bold text-gray-600"),
+              cell(formatNumber(metrics.margin), "text-right tabular-nums"),
+              cell(formatSignedNumber(metrics.unrealizedPnl), `text-right tabular-nums font-bold ${unrealizedPnlColorClass}`),
+              cell(formatSignedNumber(realizedPnl), `text-right tabular-nums font-bold ${getProfitColorClass(realizedPnl)}`),
+              cell(formatSignedPercent(metrics.roi), `text-right tabular-nums font-bold ${unrealizedPnlColorClass}`),
+            ];
+          }),
           emptyText: "손익을 표시할 포지션이 없습니다.",
         };
       }
@@ -1157,7 +1343,7 @@ function AssetsPageContent() {
             `text-center font-bold ${getSideColorClass(item.side as any)}`
           ),
           cell(formatOrderType(item.orderType), "text-center text-gray-600"),
-          cell(formatNumber(item.orderPrice), "text-right tabular-nums"),
+          cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : "시장가", "text-right tabular-nums"),
           cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
           cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
           cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
@@ -1180,8 +1366,8 @@ function AssetsPageContent() {
           cell(formatNumber(item.price), "text-right tabular-nums"),
           cell(formatNumber(item.quantity), "text-right tabular-nums"),
           cell(formatNumber(item.totalAmount), "text-right tabular-nums font-black"),
-          cell(formatNumber(item.fee), "text-right tabular-nums text-gray-400"),
-          cell(formatSignedNumber(item.realizedProfit ?? 0), `text-right tabular-nums font-bold ${getProfitColorClass(item.realizedProfit)}`),
+          cell(formatAssetNumber(item.fee, { smallMaxFractionDigits: 8 }), "text-right tabular-nums text-gray-400"),
+          cell(formatSignedNumber(item.realizedProfit ?? 0, { smallMaxFractionDigits: 8 }), `text-right tabular-nums font-bold ${getProfitColorClass(item.realizedProfit)}`),
         ]),
         emptyText: isContestFinished ? "종료된 대회는 거래 내역 조회가 제한될 수 있습니다." : (tradesErrorMessage || "거래내역이 없습니다."),
       };
@@ -1197,7 +1383,7 @@ function AssetsPageContent() {
           isFutures ? (item.side === "BUY" || item.side === "LONG" ? "롱" : "숏") : (item.side === "BUY" ? "매수" : "매도"),
           `text-center font-bold ${getSideColorClass(item.side as any)}`
         ),
-        cell(formatNumber(item.orderPrice), "text-right tabular-nums"),
+        cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : "시장가", "text-right tabular-nums"),
         cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
         cell(formatNumber((item.orderQuantity ?? 0) - (item.filledQuantity || 0)), "text-right tabular-nums text-blue-500 font-bold"),
         cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
@@ -1218,7 +1404,38 @@ function AssetsPageContent() {
     ordersErrorMessage,
     tradesErrorMessage,
     marketSymbols,
+    tickers,
     withQuoteAssetHeader,
+    contestResult,
+    contestWallet,
+    isContestFinished,
+  ]);
+
+  const shouldShowZeroQuantityNotice = useMemo(() => {
+    if (detailTab !== "holdings" && detailTab !== "pnl") {
+      return false;
+    }
+
+    if (assetTab === "mock") {
+      return hasZeroHoldingQuantity(mockPortfolio?.holdings ?? []);
+    }
+
+    if (assetTab === "contest") {
+      return detailTab === "holdings" && hasZeroPositionQuantity(contestPositions);
+    }
+
+    if (tradingSubTab === "futures") {
+      return detailTab === "holdings" && hasZeroPositionQuantity(realAsset?.futures?.positions ?? []);
+    }
+
+    return hasZeroHoldingQuantity(realAsset?.spot?.holdings ?? []);
+  }, [
+    assetTab,
+    contestPositions,
+    detailTab,
+    mockPortfolio,
+    realAsset,
+    tradingSubTab,
   ]);
 
   const updateCurrentFilters = (key: keyof TradeListFilters, value: string | number) => {
@@ -1251,40 +1468,22 @@ function AssetsPageContent() {
         onChange={(value) => handleAssetTabChange(value as AssetTab)}
       />
 
-      {assetTab === "trade" && (
+      {assetTab === "trade" && realAsset && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <AssetSummaryCard
-            summary={{
-              title: "총 자산",
-              cashBalance: (realAsset?.spot?.cashBalance ?? 0) + (realAsset?.futures?.cashBalance ?? 0),
-              totalAsset: realAsset?.totalAsset ?? 0,
-              totalBuyAmount: (realAsset?.spot?.totalBuyAmount ?? 0) + (realAsset?.futures?.totalMargin ?? 0),
-              totalCoinValue: (realAsset?.spot?.totalCoinValue ?? 0) + (realAsset?.futures?.totalMargin ?? 0) + (realAsset?.futures?.totalUnrealizedPnl ?? 0),
-              totalProfit: realAsset?.totalProfit ?? 0,
-              totalRoi: 0,
-            }}
+          <RealtimeTradeAssetSummary
+            realAsset={realAsset}
+            mode="total"
+            title="총 자산"
           />
-          <AssetSummaryCard
-            summary={{
-              title: "현물 자산",
-              cashBalance: realAsset?.spot?.cashBalance ?? 0,
-              totalAsset: realAsset?.spot?.totalAsset ?? 0,
-              totalBuyAmount: realAsset?.spot?.totalBuyAmount ?? 0,
-              totalCoinValue: realAsset?.spot?.totalCoinValue ?? 0,
-              totalProfit: realAsset?.spot?.totalProfit ?? 0,
-              totalRoi: realAsset?.spot?.totalRoi ?? 0,
-            }}
+          <RealtimeTradeAssetSummary
+            realAsset={realAsset}
+            mode="spot"
+            title="현물 자산"
           />
-          <AssetSummaryCard
-            summary={{
-              title: "선물 자산",
-              cashBalance: realAsset?.futures?.cashBalance ?? 0,
-              totalAsset: realAsset?.futures?.totalAsset ?? 0,
-              totalBuyAmount: realAsset?.futures?.totalMargin ?? 0,
-              totalCoinValue: (realAsset?.futures?.totalMargin ?? 0) + (realAsset?.futures?.totalUnrealizedPnl ?? 0),
-              totalProfit: realAsset?.futures?.totalUnrealizedPnl ?? 0,
-              totalRoi: 0,
-            }}
+          <RealtimeTradeAssetSummary
+            realAsset={realAsset}
+            mode="futures"
+            title="선물 자산"
           />
         </div>
       )}
@@ -1391,17 +1590,25 @@ function AssetsPageContent() {
                     />
                   )
                 ) : (
-                  <AssetSummaryCard
-                    summary={{
-                      title: "대회 자산",
-                      cashBalance: (contestWallet?.currentMoney ?? 0) - (contestWallet?.marginInUse ?? 0),
-                      totalAsset: contestWallet?.currentMoney ?? 0,
-                      totalBuyAmount: contestWallet?.seedMoney ?? 0,
-                      totalCoinValue: contestWallet?.currentMoney ?? 0,
-                      totalProfit: (contestWallet?.currentMoney ?? 0) - (contestWallet?.seedMoney ?? 0),
-                      totalRoi: contestWallet?.seedMoney ? (((contestWallet.currentMoney - contestWallet.seedMoney) / contestWallet.seedMoney) * 100) : 0,
-                    }}
-                  />
+                  contestWallet ? (
+                    <RealtimeContestAssetSummary
+                      wallet={contestWallet}
+                      positions={contestPositions}
+                      title="대회 자산"
+                    />
+                  ) : (
+                    <AssetSummaryCard
+                      summary={{
+                        title: "대회 자산",
+                        cashBalance: 0,
+                        totalAsset: 0,
+                        totalBuyAmount: 0,
+                        totalCoinValue: 0,
+                        totalProfit: 0,
+                        totalRoi: 0,
+                      }}
+                    />
+                  )
                 )}
               </div>
             )}
@@ -1422,13 +1629,13 @@ function AssetsPageContent() {
                           <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
                             {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color} />)}
                           </Pie>
-                          <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}%`, "비중"]} />
+                          <Tooltip formatter={(val) => [`${Number(val).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`, "비중"]} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <span className="text-xxs font-bold text-gray-400">증거금</span>
                         <span className="text-sm font-black text-[#1D7CA7]">
-                          {pieData.find(d => d.name === "대회 증거금")?.value.toFixed(1) || 0}%
+                          {(pieData.find(d => d.name === "대회 증거금")?.value ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
                         </span>
                       </div>
                     </div>
@@ -1436,8 +1643,8 @@ function AssetsPageContent() {
                   <div className="flex flex-col justify-center border-l border-gray-50 dark:border-gray-700 pl-8">
                     <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">대회 포지션 비율</h4>
                     <div className="flex justify-between text-[11px] font-black mb-2">
-                      <span className="text-red-500">LONG {contestLongShortData.long.toFixed(1)}%</span>
-                      <span className="text-blue-500">SHORT {contestLongShortData.short.toFixed(1)}%</span>
+                      <span className="text-red-500">LONG {contestLongShortData.long.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
+                      <span className="text-blue-500">SHORT {contestLongShortData.short.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%</span>
                     </div>
                     <div className="h-4 w-full bg-gray-50 dark:bg-gray-700 rounded-full overflow-hidden flex">
                       <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${contestLongShortData.long}%` }} />
@@ -1467,7 +1674,7 @@ function AssetsPageContent() {
                           {pieData.map((entry, i) => <Cell key={entry.name} fill={entry.color || CHART_COLORS[i]} />)}
                           <Label value="보유 비중(%)" position="center" fill="#9ca3af" style={{ fontSize: "14px", fontWeight: "bold" }} />
                         </Pie>
-                        <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "비중"]} />
+                        <Tooltip formatter={(value) => [`${Number(value).toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`, "비중"]} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -1479,7 +1686,9 @@ function AssetsPageContent() {
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                           {item.name}
                         </span>
-                        <span className="text-sm font-black text-gray-900 dark:text-white">{item.value.toFixed(1)}%</span>
+                        <span className="text-sm font-black text-gray-900 dark:text-white">
+                          {item.value.toLocaleString("ko-KR", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1606,10 +1815,17 @@ function AssetsPageContent() {
                 ) : detailTable.rows.length === 0 ? (
                   <EmptyState className="py-32" text={detailTable.emptyText} />
                 ) : (
-                  <div ref={scrollContainerRef} className="max-h-[500px] overflow-y-auto custom-scrollbar">
-                    <DetailTable headers={detailTable.headers} headerClasses={detailTable.headerClasses} rows={detailTable.rows} />
-                    <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-                      <p className="text-xs font-bold text-gray-300">내역의 끝입니다.</p>
+                  <div>
+                    {shouldShowZeroQuantityNotice ? (
+                      <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-left text-xs font-semibold leading-relaxed text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+                        {ZERO_QUANTITY_NOTICE_TEXT}
+                      </div>
+                    ) : null}
+                    <div ref={scrollContainerRef} className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                      <DetailTable headers={detailTable.headers} headerClasses={detailTable.headerClasses} rows={detailTable.rows} />
+                      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                        <p className="text-xs font-bold text-gray-300">내역의 끝입니다.</p>
+                      </div>
                     </div>
                   </div>
                 )}

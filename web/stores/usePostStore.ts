@@ -1,6 +1,28 @@
 import { create } from "zustand";
 import { Post } from "@/app/(default)/community/types/post";
 
+const getPostCreatedTime = (post: Post) => {
+  const createdTime = new Date(post.createdAt).getTime();
+
+  return Number.isFinite(createdTime) ? createdTime : 0;
+};
+
+export const sortPostsNewestFirst = (posts: Post[]) => {
+  return [...posts].sort((a, b) => {
+    const createdTimeDiff = getPostCreatedTime(b) - getPostCreatedTime(a);
+
+    if (createdTimeDiff !== 0) {
+      return createdTimeDiff;
+    }
+
+    return b.id - a.id;
+  });
+};
+
+const createSortedPostMap = (posts: Post[]) => {
+  return new Map(sortPostsNewestFirst(posts).map((post) => [post.id, post]));
+};
+
 interface PostsState {
   postsMap: Map<number, Post>;
 
@@ -49,15 +71,13 @@ export const usePostStore = create<PostsState>((set) => ({
         );
 
         return {
-          postsMap: new Map(
-            [...posts, ...localOnlyPosts].map((post) => [post.id, post])
-          )
+          postsMap: createSortedPostMap([...posts, ...localOnlyPosts])
         };
       }),
 
     replacePosts: (posts: Post[]) =>
       set({
-        postsMap: new Map(posts.map((post) => [post.id, post])),
+        postsMap: createSortedPostMap(posts),
       }),
 
     // 무한스크롤 시 스크롤 여부 업데이트
@@ -72,21 +92,19 @@ export const usePostStore = create<PostsState>((set) => ({
     // 글 생성 시 state 업데이트
     addPost: (post: Post) =>
         set((state) => {
-        const newMap = new Map([[post.id, post], ...state.postsMap.entries()]);
         return {
-                postsMap: newMap
+                postsMap: createSortedPostMap([post, ...state.postsMap.values()])
             };
     }),
 
     // 무한 스크롤 시 현재 state 배열에 추가
     appendPosts: (newPosts: Post[]) =>
         set((state) => {
-            const newMap = new Map(state.postsMap);
-            newPosts.forEach((post) => {
-              newMap.set(post.id, post); // 중복 자동 제거
-            });
             return {
-                postsMap: newMap
+                postsMap: createSortedPostMap([
+                  ...state.postsMap.values(),
+                  ...newPosts,
+                ])
             };
     }),
 
@@ -102,11 +120,13 @@ export const usePostStore = create<PostsState>((set) => ({
     // 업데이트
   replacePost: (replacePost: Post) =>
     set((state) => {
-      const newMap = new Map(state.postsMap);
-      newMap.set(replacePost.id, replacePost);
-
       return {
-        postsMap: newMap
+        postsMap: createSortedPostMap([
+          ...Array.from(state.postsMap.values()).filter(
+            (post) => post.id !== replacePost.id
+          ),
+          replacePost,
+        ])
       };
     }),
 
@@ -134,7 +154,7 @@ export const usePostStore = create<PostsState>((set) => ({
       }
 
       return {
-        postsMap: new Map(nextEntries)
+        postsMap: createSortedPostMap(nextEntries.map(([, post]) => post))
       };
     }),
 }));

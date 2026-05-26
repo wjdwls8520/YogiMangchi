@@ -141,17 +141,17 @@ export default function UserOrderHistory({
       // Mapping API response (OrderItem or similar) to OrderHistoryRow
       const mappedContent: OrderHistoryRow[] = content.map((item: any) => {
         return {
-          id: item.orderId || item.tradeId || item.id,
-          date: item.executedAt || item.orderedAt || item.date,
+          id: item.orderId || item.id || item.tradeId || item.trade_id,
+          date: item.executedAt || item.executed_at || item.orderedAt || item.ordered_at || item.date || item.createdAt || item.created_at,
           symbol: item.symbol,
-          side: item.side,
+          side: item.side || item.positionSide || item.position_side,
           // 주문 내역에서는 사용자가 원래 주문했던 수량과 가격을 보여주는 것이 직관적입니다.
-          quantity: item.orderQuantity ?? item.quantity ?? item.filledQuantity ?? 0,
-          price: item.orderPrice ?? item.price ?? item.avgFilledPrice ?? 0,
+          quantity: item.orderQuantity ?? item.order_quantity ?? item.quantity ?? item.filledQuantity ?? item.filled_quantity ?? 0,
+          price: item.orderPrice ?? item.order_price ?? item.price ?? item.avgFilledPrice ?? item.avg_filled_price ?? 0,
           // 금액과 수수료는 실제 체결된 결과(executed)를 보여줍니다. (취소 시 0)
-          totalAmount: item.executedAmount ?? item.totalAmount ?? item.orderAmount ?? 0,
-          fee: item.totalFee ?? item.fee ?? 0,
-          status: item.orderStatus || item.status,
+          totalAmount: item.executedAmount ?? item.executed_amount ?? item.totalAmount ?? item.total_amount ?? item.orderAmount ?? item.order_amount ?? 0,
+          fee: item.totalFee ?? item.total_fee ?? item.fee ?? 0,
+          status: item.orderStatus ?? item.order_status ?? item.status,
         };
       });
 
@@ -275,7 +275,7 @@ export default function UserOrderHistory({
                     {row.side === "BUY" ? "매수" : "매도"}
                   </td>
                   <td className={`py-2 px-6 text-right tabular-nums ${textQty}`}>
-                    {formatAssetNumber(row.quantity, { smallMaxFractionDigits: 8, fallback: "-" })}
+                    {formatAssetNumber(row.quantity, { fallback: "-" })}
                   </td>
                   <td className="py-2 px-6 text-right tabular-nums font-bold">
                     {row.price && row.price !== 0 ? formatAssetNumber(row.price) : "시장가"}
@@ -284,7 +284,7 @@ export default function UserOrderHistory({
                     {formatAssetNumber(row.totalAmount)}
                   </td>
                   <td className={`py-2 px-6 text-right tabular-nums ${textFee}`}>
-                    {formatAssetNumber(row.fee, { smallMaxFractionDigits: 8 })}
+                    {formatAssetNumber(row.fee)}
                   </td>
                   <td className="py-2 px-6 text-center">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${statusBadge}`}>
