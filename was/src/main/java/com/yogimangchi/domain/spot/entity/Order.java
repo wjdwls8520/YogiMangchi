@@ -200,6 +200,16 @@ public class Order {
         this.executedAmount = executedAmount;
         this.totalFee = totalFee;
         this.executedAt = executedAt;
+
+        if (this.orderQuantity == null) {
+            // 시장가 매수(BUY): 체결된 수량이 곧 원래 주문하고자 했던 수량과 같음
+            this.orderQuantity = filledQuantity;
+        }
+
+        if (this.orderAmount == null) {
+            // 시장가 매도(SELL): 체결된 금액(수수료 차감 전 원금)이 곧 주문 금액이 됨
+            this.orderAmount = executedAmount;
+        }
     }
 
     // 주문 취소 상태 반영
