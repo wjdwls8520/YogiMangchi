@@ -1343,7 +1343,7 @@ function AssetsPageContent() {
             `text-center font-bold ${getSideColorClass(item.side as any)}`
           ),
           cell(formatOrderType(item.orderType), "text-center text-gray-600"),
-          cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : "시장가", "text-right tabular-nums"),
+          cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : (item.avgFilledPrice && item.avgFilledPrice !== 0 ? formatNumber(item.avgFilledPrice) : "시장가"), "text-right tabular-nums"),
           cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
           cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),
           cell(formatOrderStatus(item.orderStatus), "text-center font-bold"),
@@ -1383,7 +1383,7 @@ function AssetsPageContent() {
           isFutures ? (item.side === "BUY" || item.side === "LONG" ? "롱" : "숏") : (item.side === "BUY" ? "매수" : "매도"),
           `text-center font-bold ${getSideColorClass(item.side as any)}`
         ),
-        cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : "시장가", "text-right tabular-nums"),
+        cell(item.orderPrice && item.orderPrice !== 0 ? formatNumber(item.orderPrice) : (item.avgFilledPrice && item.avgFilledPrice !== 0 ? formatNumber(item.avgFilledPrice) : "시장가"), "text-right tabular-nums"),
         cell(formatNumber(item.orderQuantity), "text-right tabular-nums"),
         cell(formatNumber((item.orderQuantity ?? 0) - (item.filledQuantity || 0)), "text-right tabular-nums text-blue-500 font-bold"),
         cell(formatNumber(item.orderAmount), "text-right tabular-nums font-black"),

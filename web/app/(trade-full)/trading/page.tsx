@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, RefreshCcw, ArrowLeftRight, ChevronUp, X } from "lucide-react";
 import CoinHeader from "@/components/trade/CoinHeader";
@@ -52,6 +52,66 @@ export default function IntegratedTradingPage() {
   useBinanceWebSocket(selectedMarketType);
   const futures = useFuturesTradingSession();
 
+  // 2.2. Real Spot Asset State
+  const [realUsdtBalance, setRealUsdtBalance] = useState(0);
+  const [realHoldings, setRealHoldings] = useState<{ symbol: string; quantity: number; availableQuantity?: number }[]>([]);
+  const [isFetchingRealPortfolio, setIsFetchingRealPortfolio] = useState(false);
+
+  const fetchRealSpotData = useCallback(async () => {
+    if (!isLogin) return;
+    setIsFetchingRealPortfolio(true);
+    try {
+      const { fetchRealSpotAssetDetail } = await import("@/lib/api/trade");
+      const res = await fetchRealSpotAssetDetail();
+      if (res?.spot) {
+        setRealUsdtBalance(res.spot.cashBalance);
+        setRealHoldings(
+          res.spot.holdings.map((h) => ({
+            symbol: h.symbol,
+            quantity: h.quantity,
+            availableQuantity: h.availableQuantity,
+          }))
+        );
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setIsFetchingRealPortfolio(false);
+    }
+  }, [isLogin]);
+
+  useEffect(() => {
+    if (selectedMarketType === "spot") {
+      void fetchRealSpotData();
+    }
+  }, [fetchRealSpotData, selectedMarketType, selectedCoin]);
+
+  // 자산 이체 및 체결 완료 시 실시간 잔고 동기화
+  useEffect(() => {
+    const handler = () => void fetchRealSpotData();
+    window.addEventListener("REFRESH_REAL_SPOT_ASSET", handler);
+    
+    const getEventName = async () => {
+      try {
+        const { getNotificationSseBridgeEventName } = await import("@/lib/utils/notification-sse");
+        const eventName = getNotificationSseBridgeEventName("NOTIFICATION_TRADE_ORDER_COMPLETED");
+        window.addEventListener(eventName, handler);
+        return eventName;
+      } catch (e) {
+        return null;
+      }
+    };
+    
+    let eventNamePromise = getEventName();
+
+    return () => {
+      window.removeEventListener("REFRESH_REAL_SPOT_ASSET", handler);
+      void eventNamePromise.then((name) => {
+        if (name) window.removeEventListener(name, handler);
+      });
+    };
+  }, [fetchRealSpotData]);
+
   // 3. Asset Transfer States
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
@@ -63,6 +123,10 @@ export default function IntegratedTradingPage() {
 
   const isFutures = selectedMarketType === "futures";
   const isDarkMode = useUIStore((state) => state.isDarkMode);
+
+  const holdingSymbols = isFutures
+    ? futures.openPositions.map((p) => p.symbol)
+    : realHoldings.filter((h) => h.quantity > 0).map((h) => h.symbol);
 
   useEffect(() => {
     if (!isCoinListCollapsed && typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -130,6 +194,8 @@ export default function IntegratedTradingPage() {
         isOpen={!isCoinListCollapsed}
         onClose={() => setIsCoinListCollapsed(true)}
         mode={isFutures ? "contest" : "trade"}
+        holdingSymbols={holdingSymbols}
+        isParticipated={true}
         marketMode={selectedMarketType}
       />
 
@@ -253,6 +319,8 @@ export default function IntegratedTradingPage() {
                       <CoinList
                         mode={isFutures ? "contest" : "trade"}
                         availableMarketTypes={["spot", "futures"]}
+                        holdingSymbols={holdingSymbols}
+                        isParticipated={true}
                         onSelect={() => setIsCoinListCollapsed(true)}
                       />
                     </div>
@@ -342,7 +410,12 @@ export default function IntegratedTradingPage() {
                       onOpenTransferModal={() => setIsTransferModalOpen(true)}
                     />
                   ) : (
-                    <OrderForm mode="trade" />
+                    <OrderForm
+                      mode="trade"
+                      usdtBalance={realUsdtBalance}
+                      holdings={realHoldings}
+                      isLoadingPortfolio={isFetchingRealPortfolio}
+                    />
                   )}
                 </aside>
               </div>
