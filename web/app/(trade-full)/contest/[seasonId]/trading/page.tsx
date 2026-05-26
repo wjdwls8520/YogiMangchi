@@ -236,6 +236,8 @@ export default function ContestTradingPage() {
                       <CoinList
                         mode="contest"
                         availableMarketTypes={["futures"]}
+                        holdingSymbols={holdingSymbols}
+                        isParticipated={true}
                         onSelect={() => setIsCoinListCollapsed(true)}
                       />
                     </div>

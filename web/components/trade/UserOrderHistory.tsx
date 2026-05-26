@@ -146,10 +146,32 @@ export default function UserOrderHistory({
           symbol: item.symbol,
           side: item.side || item.positionSide || item.position_side,
           // 주문 내역에서는 사용자가 원래 주문했던 수량과 가격을 보여주는 것이 직관적입니다.
-          quantity: item.orderQuantity ?? item.order_quantity ?? item.quantity ?? item.filledQuantity ?? item.filled_quantity ?? 0,
-          price: item.orderPrice ?? item.order_price ?? item.price ?? item.avgFilledPrice ?? item.avg_filled_price ?? 0,
+          quantity: (item.orderQuantity && Number(item.orderQuantity) !== 0)
+            ? Number(item.orderQuantity)
+            : (item.order_quantity && Number(item.order_quantity) !== 0)
+              ? Number(item.order_quantity)
+              : (item.quantity && Number(item.quantity) !== 0)
+                ? Number(item.quantity)
+                : (item.filledQuantity && Number(item.filledQuantity) !== 0)
+                  ? Number(item.filledQuantity)
+                  : Number(item.filled_quantity) || 0,
+          price: (item.orderPrice && Number(item.orderPrice) !== 0)
+            ? Number(item.orderPrice)
+            : (item.avgFilledPrice && Number(item.avgFilledPrice) !== 0)
+              ? Number(item.avgFilledPrice)
+              : 0,
           // 금액과 수수료는 실제 체결된 결과(executed)를 보여줍니다. (취소 시 0)
-          totalAmount: item.executedAmount ?? item.executed_amount ?? item.totalAmount ?? item.total_amount ?? item.orderAmount ?? item.order_amount ?? 0,
+          totalAmount: (item.executedAmount && Number(item.executedAmount) !== 0)
+            ? Number(item.executedAmount)
+            : (item.executed_amount && Number(item.executed_amount) !== 0)
+              ? Number(item.executed_amount)
+              : (item.totalAmount && Number(item.totalAmount) !== 0)
+                ? Number(item.totalAmount)
+                : (item.total_amount && Number(item.total_amount) !== 0)
+                  ? Number(item.total_amount)
+                  : (item.orderAmount && Number(item.orderAmount) !== 0)
+                    ? Number(item.orderAmount)
+                    : Number(item.order_amount) || 0,
           fee: item.totalFee ?? item.total_fee ?? item.fee ?? 0,
           status: item.orderStatus ?? item.order_status ?? item.status,
         };
