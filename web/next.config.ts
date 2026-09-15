@@ -4,12 +4,33 @@ const nextConfig: NextConfig = {
   // 나중에 EC2에서 Docker로 배포하실 계획이라면 아래 주석을 푸시면 좋습니다. (빌드 용량 최적화)
   output: 'standalone',
 
+  // 최신 문법으로 수정
+  // images: {
+  //   domains: [
+  //     "https",
+  //     "k.kakaocdn.net",
+  //     "yogimangchi-bucket.s3.ap-northeast-2.amazonaws.com",
+  //     "lh3.googleusercontent.com"
+  //   ],
+  // },
   images: {
-    domains: [
-      "localhost",
-      "k.kakaocdn.net",
-      "yogimangchi-project.s3.ap-northeast-2.amazonaws.com",
-      "lh3.googleusercontent.com"
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'k.kakaocdn.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.ap-northeast-2.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
     ],
   },
   env: {
