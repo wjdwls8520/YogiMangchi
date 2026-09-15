@@ -69,6 +69,7 @@ export default function UserOrderHistory({
   const historyVersion = useMockWalletStore((state) => state.historyVersion);
   const isParticipated = useMockWalletStore((state) => state.isParticipated);
   const hasLoadedPortfolio = useMockWalletStore((state) => state.hasLoadedPortfolio);
+  const isLoadingPortfolio = useMockWalletStore((state) => state.isLoadingPortfolio);
   const ownerMemberId = useMockWalletStore((state) => state.ownerMemberId);
   const loadMockWallet = useMockWalletStore((state) => state.loadMockWallet);
 
@@ -333,7 +334,7 @@ export default function UserOrderHistory({
           </table>
         ) : (
           <div className="flex h-full flex-col items-center justify-center py-20 px-4 text-center">
-            {mode !== "trade" && !hasLoadedPortfolio ? (
+            {mode !== "trade" && !hasLoadedPortfolio && isLoadingPortfolio ? (
               <p className="text-sm font-bold text-gray-500 animate-pulse">Loading...</p>
             ) : !isParticipated ? (
               <p className="text-sm font-bold text-gray-500">모의투자 계좌를 생성하면 내역이 표시됩니다.</p>
