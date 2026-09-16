@@ -285,13 +285,32 @@ export type ContestRanking = {
   profitRate: number;
 };
 
-// 대회 종료 후 참가자 순위 리스트 조회 (무한 스크롤)
+// 대회 종료 후 참가자 순위 리스트 조회 (무한 스크롤 - 기존 인증용 유지)
 export const getContestResults = async (
   seasonId: number,
   { cursorId, size }: CursorParams = {}
 ) => {
   return fetchClient(
     `contest/seasons/${seasonId}/results${buildCursorQuery({ cursorId, size })}`
+  ) as Promise<ContestCursorResponse<ContestRanking>>;
+};
+
+// [비로그인 전용] /rank 페이지용: 셀렉트박스로 선택한 특정 시즌 대회의 순위 결과 조회
+export const getPublicContestResults = async (
+  seasonId: number,
+  { cursorId, size }: CursorParams = {}
+) => {
+  return fetchClient(
+    `contest/public/seasons/${seasonId}/results${buildCursorQuery({ cursorId, size })}`
+  ) as Promise<ContestCursorResponse<ContestRanking>>;
+};
+
+// [비로그인 전용] /community/all 및 /community/all/{id} 사이드바용: 가장 최근 종료된 대회의 순위 결과(TOP 5) 조회
+export const getLatestFinishedContestResults = async (
+  { cursorId, size }: CursorParams = {}
+) => {
+  return fetchClient(
+    `contest/public/seasons/latest-finished/results${buildCursorQuery({ cursorId, size })}`
   ) as Promise<ContestCursorResponse<ContestRanking>>;
 };
 

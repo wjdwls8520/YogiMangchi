@@ -1,5 +1,7 @@
 package com.yogimangchi.domain.contest.service;
 
+import com.yogimangchi.domain.contest.common.dto.request.ContestCursorSearchDto;
+import com.yogimangchi.domain.contest.participant.dto.response.ContestRankingDto;
 import com.yogimangchi.domain.contest.season.dto.request.ContestSeasonSearchDto;
 import com.yogimangchi.domain.contest.season.dto.response.ContestSeasonPublicDto;
 import com.yogimangchi.domain.contest.season.entity.ContestSeason;
@@ -18,6 +20,7 @@ import java.util.List;
 public class PublicContestService {
 
     private final ContestSeasonRepository contestSeasonRepository;
+    private final ContestService contestService;
 
     /**
      * 참가 신청 중인 모든 대회 조회 (무한 스크롤)
@@ -73,5 +76,26 @@ public class PublicContestService {
                 : null;
 
         return new CursorResponseDto<>(content, nextCursorId, hasNext);
+    }
+
+    /**
+     * [비로그인 전용 복사본] 최근 종료된 대회의 순위 리스트 조회
+     * /community/all 및 /community/all/{id} 우측 사이드바용:
+     * 특정 시즌 ID를 알지 못해도, 가장 최근에 종료된 대회를 조회하여 그 순위 리스트(TOP 5 등)를 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    public CursorResponseDto<ContestRankingDto> getLatestFinishedContestRankings(ContestCursorSearchDto request) {
+        LocalDateTime now = LocalDateTime.now();
+        List<ContestSeason> finishedSeasons = contestSeasonRepository.searchPublicFinishedContestSeasons(
+                new ContestSeasonSearchDto(null, 1),
+                now
+        );
+
+        if (finishedSeasons.isEmpty()) {
+            return new CursorResponseDto<>(List.of(), null, false);
+        }
+
+        Long latestSeasonId = finishedSeasons.get(0).getId();
+        return contestService.getContestRankings(latestSeasonId, request);
     }
 }

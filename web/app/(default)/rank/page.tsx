@@ -16,7 +16,7 @@ import {
 } from "@/lib/api/member";
 import { getPosts } from "@/lib/api/post";
 import {
-  getContestResults,
+  getPublicContestResults,
   ContestRanking,
   ContestSeason,
   getFinishedContestSeasons,
@@ -181,7 +181,7 @@ export default function RankPage() {
     setContestHasMore(false);
 
     try {
-      const res = await getContestResults(seasonId, { size: PAGE_SIZE });
+      const res = await getPublicContestResults(seasonId, { size: PAGE_SIZE });
       const items = (res?.content ?? []).map(rankingToRankItem);
       setContestRanking(items);
       setContestCursor(res?.nextCursorId ?? undefined);
@@ -199,7 +199,7 @@ export default function RankPage() {
     if (!selectedSeasonId || contestLoadingMore || !contestHasMore) return;
     setContestLoadingMore(true);
     try {
-      const res = await getContestResults(selectedSeasonId, {
+      const res = await getPublicContestResults(selectedSeasonId, {
         cursorId: contestCursor,
         size: PAGE_SIZE,
       });
