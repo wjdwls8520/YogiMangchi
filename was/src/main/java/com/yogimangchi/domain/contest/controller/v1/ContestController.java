@@ -102,6 +102,7 @@ public class ContestController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    // [기존 코드 보존] 로그인 인증이 필요한 타 기능 또는 보안 정책을 유지하기 위해 원본 API 보존 (비로그인 전용 조회는 PublicContestController 참조)
     @Operation(
             summary = "대회 종료 후 참가자 순위 리스트 조회 (현재 사용 안함, 차티스트탭에 api를 사용하시오)",
             description = "정산이 완료된 대회의 모든 참가자 순위 리스트를 커서 기반 무한 스크롤로 조회합니다. 순위, 닉네임, 실현손익, 수익률 정보를 포함하며 순위순으로 정렬되어 반환됩니다."

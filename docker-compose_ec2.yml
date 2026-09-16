@@ -27,8 +27,8 @@ services:
 
   # 3. Spring Boot (WAS)
   was:
-    image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_sever:latest
-    container_name: yogimangchi-was
+    image: 622532143961.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi-server
+    container_name: yogimangchi-server
     # 💡 흩어져 있던 백엔드 환경 변수들과 타임존 지정을 한곳으로 완벽히 병합했습니다!
     environment:
       - DOMAIN_ADDRESS=${DOMAIN_ADDRESS_VALUE}
@@ -49,6 +49,8 @@ services:
       - GMAIL_USERNAME=${GMAIL_USERNAME}
       - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
       - TZ=Asia/Seoul
+      # 👇 이 한 줄을 여기에 추가합니다!
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     volumes:
       - /etc/localtime:/etc/localtime:ro
     depends_on:
@@ -59,8 +61,8 @@ services:
 
   # 4. Next.js (Web) - 프론트 이미지 주소 완전 무결 상태 확인 완료 👍
   web:
-    image: 543953893461.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi_client:latest
-    container_name: yogimangchi-web
+    image: 622532143961.dkr.ecr.ap-northeast-2.amazonaws.com/yogimangchi-client
+    container_name: yogimangchi-client
     depends_on:
       - was
     ports:
